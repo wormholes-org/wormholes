@@ -1,31 +1,30 @@
-name: goreleaser
+name: Create Release
 
 on:
-  pull_request:
   push:
+    tags:
+      - 'v*'
 
 jobs:
-  goreleaser:
+  create-release:
     runs-on: ubuntu-latest
+
     steps:
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Create changelog text
+        id: changelog
+        uses: loopwerk/tag-changelog@v1
         with:
-          fetch-depth: 0
-      -
-        name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
-      -
-        name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          # either 'goreleaser' (default) or 'goreleaser-pro'
-          distribution: goreleaser
-          version: latest
-          args: release --rm-dist
-          workdir: ./cmd/geth
+          token: ${{ secrets.RELEASE_TOKEN }}
+          exclude_types: other,doc,chore
+
+      - name: Create release
+        uses: actions/create-release@latest
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: ${{ steps.changelog.outputs.changes }}
