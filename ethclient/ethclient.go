@@ -22,13 +22,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
+	"strconv"
 )
 
 // Client defines typed wrappers for the Ethereum RPC API.
@@ -522,6 +522,22 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 		return err
 	}
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
+}
+
+type MinerProxy struct {
+	Address common.Address
+	Proxy   common.Address
+}
+
+func (ec *Client) QueryMinerProxy(ctx context.Context, number int64, account common.Address) ([]*MinerProxy, error) {
+	var result []*MinerProxy
+	s := strconv.FormatInt(number, 16)
+	s = fmt.Sprintf("0x%v", s)
+	err := ec.c.CallContext(ctx, &result, "eth_queryMinerProxy", s, account)
+	if err != nil {
+		return nil, err
+	}
+	return result, err
 }
 
 func toBlockNumArg(number *big.Int) string {

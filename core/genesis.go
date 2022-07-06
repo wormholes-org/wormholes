@@ -56,6 +56,8 @@ type Genesis struct {
 	Mixhash    common.Hash         `json:"mixHash"`
 	Coinbase   common.Address      `json:"coinbase"`
 	Alloc      GenesisAlloc        `json:"alloc"      gencodec:"required"`
+	Stake      GenesisAlloc        `json:"stake"      gencodec:"required"`
+	Validator  GenesisAlloc        `json:"validator"      gencodec:"required"`
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
@@ -63,6 +65,13 @@ type Genesis struct {
 	GasUsed    uint64      `json:"gasUsed"`
 	ParentHash common.Hash `json:"parentHash"`
 	BaseFee    *big.Int    `json:"baseFeePerGas"`
+
+	//OfficialNFT *types.InjectedOfficialNFT	`json:"injected_official_nft"`
+	Dir          string   `json:"dir"`
+	InjectNumber uint64   `json:"inject_number"`
+	StartIndex   *big.Int `json:"start_index"`
+	Royalty      uint32   `json:"royalty"`
+	Creator      string   `json:"creator"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
@@ -85,8 +94,9 @@ type GenesisAccount struct {
 	Code       []byte                      `json:"code,omitempty"`
 	Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
 	Balance    *big.Int                    `json:"balance" gencodec:"required"`
-	Nonce      uint64                      `json:"nonce,omitempty"`
-	PrivateKey []byte                      `json:"secretKey,omitempty"` // for tests
+	Proxy      string
+	Nonce      uint64 `json:"nonce,omitempty"`
+	PrivateKey []byte `json:"secretKey,omitempty"` // for tests
 }
 
 // field type overrides for gencodec
@@ -248,6 +258,10 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 		return params.RinkebyChainConfig
 	case ghash == params.GoerliGenesisHash:
 		return params.GoerliChainConfig
+	case ghash == params.TestNetGenesisHash:
+		return params.TestnetChainConfig
+	case ghash == params.DevNetGenesisHash:
+		return params.DevnetChainConfig
 	default:
 		return params.AllEthashProtocolChanges
 	}
@@ -271,6 +285,24 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 			statedb.SetState(addr, key, value)
 		}
 	}
+
+	for addr, account := range g.Stake {
+		log.Info("caver|ToBlock|stake", "addr", addr, "amount", account.Balance.String())
+		statedb.OpenExchanger(addr, account.Balance, big.NewInt(0), 250, "EXCHANGER", "www.xiaoli.com")
+	}
+
+	emptyAddr := common.Address{}
+	for addr, account := range g.Validator {
+		log.Info("caver|ToBlock|validator", "addr", addr, "amount", account.Balance.String())
+		proxy := common.HexToAddress(account.Proxy)
+		statedb.PledgeToken(addr, account.Balance, proxy)
+		if proxy != emptyAddr {
+			statedb.AddOrUpdateActiveMiner(proxy, account.Balance, 0)
+		} else {
+			statedb.AddOrUpdateActiveMiner(addr, account.Balance, 0)
+		}
+	}
+
 	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
@@ -327,6 +359,47 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	rawdb.WriteHeadFastBlockHash(db, block.Hash())
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 	rawdb.WriteChainConfig(db, block.Hash(), config)
+
+	var (
+		stakerList       types.StakerList
+		validatorList    types.ValidatorList
+		activeMinersList types.ActiveMinerList
+	)
+
+	for addr, account := range g.Stake {
+		stakerList.AddStaker(addr, account.Balance)
+	}
+
+	emptyAddr := common.Address{}
+	for addr, account := range g.Validator {
+		proxy := common.HexToAddress(account.Proxy)
+		validatorList.AddValidator(addr, account.Balance, proxy)
+		if proxy != emptyAddr {
+			activeMinersList.AddAndUpdateActiveAddr(proxy, account.Balance, block.NumberU64())
+		} else {
+			activeMinersList.AddAndUpdateActiveAddr(addr, account.Balance, block.NumberU64())
+		}
+	}
+
+	for _, v := range activeMinersList.ActiveMiners {
+		log.Info("activeMinersList.ActiveMiners", "address", v.Address.String(), "balance", v.Balance)
+	}
+
+	rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
+	rawdb.WriteValidatorPool(db, block.Hash(), block.NumberU64(), &validatorList)
+	rawdb.WriteActiveMinersPool(db, block.Hash(), block.NumberU64(), &activeMinersList)
+
+	officialNFT := types.InjectedOfficialNFT{
+		Dir:        g.Dir,
+		StartIndex: new(big.Int).Set(g.StartIndex),
+		Number:     g.InjectNumber,
+		Royalty:    g.Royalty,
+		Creator:    g.Creator,
+	}
+	var officialNFTPool types.InjectedOfficialNFTList
+	officialNFTPool.InjectedOfficialNFTs = append(officialNFTPool.InjectedOfficialNFTs, &officialNFT)
+	rawdb.WriteOfficialNFTPool(db, block.Hash(), block.NumberU64(), &officialNFTPool)
+
 	return block, nil
 }
 
@@ -349,7 +422,7 @@ func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance *big
 	return g.MustCommit(db)
 }
 
-// DefaultGenesisBlock returns the Ethereum main net genesis block.
+// DefaultGenesisBlock returns the womholes main net genesis block.
 func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:     params.MainnetChainConfig,
@@ -438,4 +511,120 @@ func decodePrealloc(data string) GenesisAlloc {
 		ga[common.BigToAddress(account.Addr)] = GenesisAccount{Balance: account.Balance}
 	}
 	return ga
+}
+
+func decodePreWormholesInfo(data string) GenesisAlloc {
+	ga := make(GenesisAlloc)
+
+	accountInfos := strings.Split(data, ",")
+	for _, accountInfo := range accountInfos {
+		index := strings.Index(accountInfo, ":")
+		if index > 0 {
+			acc := string([]byte(accountInfo)[:index])
+			balance := string([]byte(accountInfo)[index+1:])
+			bigBalance := big.NewInt(0)
+			if strings.HasPrefix(balance, "0x") ||
+				strings.HasPrefix(balance, "0X") {
+				balance = string([]byte(balance)[2:])
+				bigBalance, _ = new(big.Int).SetString(balance, 16)
+			} else {
+				bigBalance, _ = new(big.Int).SetString(balance, 16)
+			}
+
+			genesisAcc := GenesisAccount{
+				Balance: bigBalance,
+			}
+			ga[common.HexToAddress(acc)] = genesisAcc
+		}
+	}
+
+	for a, g := range ga {
+		log.Info("v1", "address", a.String())
+		log.Info("v1", "balance", g.Balance.String())
+		log.Info("v1", "proxy", g.Proxy)
+	}
+
+	return ga
+}
+
+func decodePreWormholesInfoV2(data string) GenesisAlloc {
+	ga := make(GenesisAlloc)
+
+	accountInfos := strings.Split(data, ",")
+	for _, accountInfo := range accountInfos {
+		strs := strings.Split(accountInfo, ":")
+		if len(strs) > 0 {
+			acc := strs[0]
+			balance := strs[1]
+			proxy := strs[2]
+			bigBalance := big.NewInt(0)
+			if strings.HasPrefix(balance, "0x") ||
+				strings.HasPrefix(balance, "0X") {
+				balance = string([]byte(balance)[2:])
+				bigBalance, _ = new(big.Int).SetString(balance, 16)
+			} else {
+				bigBalance, _ = new(big.Int).SetString(balance, 16)
+			}
+
+			genesisAcc := GenesisAccount{
+				Balance: bigBalance,
+				Proxy:   proxy,
+			}
+			ga[common.HexToAddress(acc)] = genesisAcc
+		}
+	}
+
+	for a, g := range ga {
+		log.Info("v2", "address", a.String())
+		log.Info("v2", "g.balance", g.Balance.String())
+		log.Info("v2", "proxy", g.Proxy)
+	}
+
+	return ga
+}
+
+// DefaultTestNetGenesisBlock returns the wormholes test net genesis block.
+func DefaultTestNetGenesisBlock() *Genesis {
+	return &Genesis{
+		Config:       params.TestnetChainConfig,
+		Nonce:        0,
+		ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
+		GasLimit:     8000000,
+		Difficulty:   big.NewInt(1),
+		Alloc:        decodePreWormholesInfo(testnetAllocData),
+		Stake:        decodePreWormholesInfo(testnetStakeData),
+		Validator:    decodePreWormholesInfoV2(testnetValidatorData_v2),
+		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
+		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+		Timestamp:    0,
+		Dir:          "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3",
+		InjectNumber: 65536,
+		StartIndex:   big.NewInt(0),
+		Royalty:      100,
+		Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
+	}
+}
+
+// DefaultDevNetGenesisBlock returns the wormholes developer net genesis block.
+func DefaultDevNetGenesisBlock() *Genesis {
+	return &Genesis{
+		Config:       params.DevnetChainConfig,
+		Nonce:        0,
+		ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
+		GasLimit:     3758096384,
+		Difficulty:   big.NewInt(1),
+		Alloc:        decodePreWormholesInfo(devnetAllocData),
+		Stake:        decodePreWormholesInfo(devnetStakeData),
+		Validator:    decodePreWormholesInfoV2(devnetValidatorData_v2),
+		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
+		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+		Timestamp:    0,
+		Dir:          "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3",
+		InjectNumber: 65536,
+		StartIndex:   big.NewInt(0),
+		Royalty:      100,
+		Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
+	}
 }

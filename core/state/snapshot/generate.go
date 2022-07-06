@@ -605,11 +605,46 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			return nil
 		}
 		// Retrieve the current account and flatten it into the internal format
+		type AccountNFT struct {
+			//Account
+			Name string
+			Symbol string
+			Price *big.Int
+			Direction uint8 // 0:未交易,1:买入,2:卖出
+			Owner common.Address
+			NFTApproveAddressList common.Address
+			//Auctions map[string][]common.Address
+			// MergeLevel is the level of NFT merged
+			MergeLevel uint8
+
+			Creator common.Address
+			Royalty uint32
+			Exchanger common.Address
+			MetaURL string
+		}
 		var acc struct {
 			Nonce    uint64
 			Balance  *big.Int
 			Root     common.Hash
 			CodeHash []byte
+
+			PledgedBalance *big.Int
+			// whether the account has a NFT exchanger
+			ExchangerFlag bool
+			BlockNumber *big.Int
+			ExchangerBalance *big.Int
+			VoteWeight *big.Int
+			// The ratio that exchanger get.
+			FeeRate uint32
+			ExchangerName string
+			ExchangerURL string
+			// ApproveAddress have the right to handle all nfts of the account
+			ApproveAddressList []common.Address
+			// NFTBalance is the nft number that the account have
+			NFTBalance uint64
+			RewardFlag uint8
+			AccountNFT
+			//Owner common.Address
 		}
 		if err := rlp.DecodeBytes(val, &acc); err != nil {
 			log.Crit("Invalid account encountered during snapshot creation", "err", err)
@@ -626,7 +661,35 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 				}
 				snapRecoveredAccountMeter.Mark(1)
 			} else {
-				data := SlimAccountRLP(acc.Nonce, acc.Balance, acc.Root, acc.CodeHash)
+				// *** modify to support nft transaction 20211217 begin ***
+				data := SlimAccountRLP(acc.Nonce,
+					acc.Balance,
+					acc.Root,
+					acc.CodeHash,
+					acc.PledgedBalance,
+					acc.ExchangerFlag,
+					acc.BlockNumber,
+					acc.ExchangerBalance,
+					acc.VoteWeight,
+					acc.FeeRate,
+					acc.ExchangerName,
+					acc.ExchangerURL,
+					acc.ApproveAddressList,
+					acc.NFTBalance,
+					acc.Name,
+					acc.Symbol,
+					acc.Price,
+					acc.Direction,
+					acc.Owner,
+					acc.NFTApproveAddressList,
+					acc.MergeLevel,
+					acc.Creator,
+					acc.Royalty,
+					acc.Exchanger,
+					acc.MetaURL,
+					acc.RewardFlag)
+				//data := SlimAccountRLP(acc.Nonce, acc.Balance, acc.Root, acc.CodeHash)
+				// *** modify to support nft transaction 20211217 end ***
 				dataLen = len(data)
 				rawdb.WriteAccountSnapshot(batch, accountHash, data)
 				snapGeneratedAccountMeter.Mark(1)

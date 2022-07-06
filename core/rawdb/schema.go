@@ -27,6 +27,9 @@ import (
 
 // The fields below define the low level database schema prefixing.
 var (
+	stakePoolKeyPrefix        = []byte("stake-pool")
+	validatorPoolKeyPrefix    = []byte("validator-pool")
+	activeMinersPoolKeyPrefix = []byte("active-miners-pool")
 	// databaseVersionKey tracks the current database version.
 	databaseVersionKey = []byte("DatabaseVersion")
 
@@ -95,6 +98,11 @@ var (
 
 	// Chain index prefixes (use `i` + single byte to avoid mixing data types).
 	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
+
+	mintDeepPrefix             = []byte("mint-deep-")
+	snftExchangePoolPrefix     = []byte("snft-exchange-pool-")
+	officialNFTPrefix          = []byte("official-nft-")
+	nominatedOfficialNFTPrefix = []byte("nominated-official-nft-")
 
 	preimageCounter    = metrics.NewRegisteredCounter("db/preimage/total", nil)
 	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
@@ -229,4 +237,36 @@ func IsCodeKey(key []byte) (bool, []byte) {
 // configKey = configPrefix + hash
 func configKey(hash common.Hash) []byte {
 	return append(configPrefix, hash.Bytes()...)
+}
+
+func StakePoolKey(number uint64, hash common.Hash) []byte {
+	return append(append(stakePoolKeyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+func ValidatorPoolKey(number uint64, hash common.Hash) []byte {
+	return append(append(validatorPoolKeyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+func ActiveMinersPoolKey(number uint64, hash common.Hash) []byte {
+	return append(append(activeMinersPoolKeyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+// mintDeepKey = mintDeepPrefix + num (uint64 big endian) + hash
+func MintDeepKey(number uint64, hash common.Hash) []byte {
+	return append(append(mintDeepPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+// snftExchangePoolKey = snftExchangePoolPrefix + num (uint64 big endian) + hash
+func snftExchangePoolKey(number uint64, hash common.Hash) []byte {
+	return append(append(snftExchangePoolPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+// officialNFTPoolKey = officialNFTPrefix + num (uint64 big endian) + hash
+func officialNFTPoolKey(number uint64, hash common.Hash) []byte {
+	return append(append(officialNFTPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+// nominatedOfficialNFTPoolKey = nominatedOfficialNFTPrefix + num (uint64 big endian) + hash
+func nominatedOfficialNFTPoolKey(number uint64, hash common.Hash) []byte {
+	return append(append(nominatedOfficialNFTPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }

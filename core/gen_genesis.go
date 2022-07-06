@@ -31,6 +31,13 @@ func (g Genesis) MarshalJSON() ([]byte, error) {
 		GasUsed    math.HexOrDecimal64                         `json:"gasUsed"`
 		ParentHash common.Hash                                 `json:"parentHash"`
 		BaseFee    *math.HexOrDecimal256                       `json:"baseFeePerGas"`
+		Stake      map[common.UnprefixedAddress]GenesisAccount `json:"stake"      gencodec:"required"`
+		//OfficialNFT *types.InjectedOfficialNFT				`json:"injected_official_nft"`
+		Dir string												`json:"dir"`
+		InjectNumber uint64										`json:"inject_number"`
+		StartIndex *big.Int										`json:"start_index"`
+		Royalty uint32											`json:"royalty"`
+		Creator string 											`json:"creator"`
 	}
 	var enc Genesis
 	enc.Config = g.Config
@@ -51,6 +58,20 @@ func (g Genesis) MarshalJSON() ([]byte, error) {
 	enc.GasUsed = math.HexOrDecimal64(g.GasUsed)
 	enc.ParentHash = g.ParentHash
 	enc.BaseFee = (*math.HexOrDecimal256)(g.BaseFee)
+	if g.Stake != nil {
+		enc.Stake = make(map[common.UnprefixedAddress]GenesisAccount, len(g.Stake))
+		for k, v := range g.Stake {
+			enc.Stake[common.UnprefixedAddress(k)] = v
+		}
+	}
+
+	//enc.OfficialNFT = g.OfficialNFT
+	enc.Dir = g.Dir
+	enc.InjectNumber = g.InjectNumber
+	enc.StartIndex = new(big.Int).Set(g.StartIndex)
+	enc.Royalty = g.Royalty
+	enc.Creator = g.Creator
+
 	return json.Marshal(&enc)
 }
 
@@ -70,6 +91,15 @@ func (g *Genesis) UnmarshalJSON(input []byte) error {
 		GasUsed    *math.HexOrDecimal64                        `json:"gasUsed"`
 		ParentHash *common.Hash                                `json:"parentHash"`
 		BaseFee    *math.HexOrDecimal256                       `json:"baseFeePerGas"`
+		Stake      map[common.UnprefixedAddress]GenesisAccount `json:"stake"      gencodec:"required"`
+		Validator  map[common.UnprefixedAddress]GenesisAccount `json:"validator"      gencodec:"required"`
+
+		//OfficialNFT *types.InjectedOfficialNFT				`json:"injected_official_nft"`
+		Dir string												`json:"dir"`
+		InjectNumber uint64										`json:"inject_number"`
+		StartIndex *big.Int										`json:"start_index"`
+		Royalty uint32											`json:"royalty"`
+		Creator string 											`json:"creator"`
 	}
 	var dec Genesis
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -120,5 +150,36 @@ func (g *Genesis) UnmarshalJSON(input []byte) error {
 	if dec.BaseFee != nil {
 		g.BaseFee = (*big.Int)(dec.BaseFee)
 	}
+	if dec.Stake == nil {
+		return errors.New("missing required field 'stake' for Genesis")
+	}
+	g.Stake = make(GenesisAlloc, len(dec.Stake))
+	for k, v := range dec.Stake {
+		g.Stake[common.Address(k)] = v
+	}
+
+	if dec.Validator == nil {
+		return errors.New("missing required field 'validator' for Genesis")
+	}
+	g.Validator = make(GenesisAlloc, len(dec.Validator))
+	for k, v := range dec.Validator {
+		g.Validator[common.Address(k)] = v
+	}
+
+	//if dec.OfficialNFT != nil {
+	//	g.OfficialNFT.Dir = dec.OfficialNFT.Dir
+	//	g.OfficialNFT.StartIndex = new(big.Int).Set(g.OfficialNFT.StartIndex)
+	//	g.OfficialNFT.Number = g.OfficialNFT.Number
+	//}
+	if dec.Dir == "" || dec.StartIndex == nil || dec.InjectNumber == 0 ||
+		dec.Royalty == 0 || dec.Creator == "" {
+		return errors.New("not init injected official nfts")
+	}
+	g.Dir = dec.Dir
+	g.InjectNumber = dec.InjectNumber
+	g.StartIndex = new(big.Int).Set(dec.StartIndex)
+	g.Royalty = dec.Royalty
+	g.Creator = dec.Creator
+
 	return nil
 }

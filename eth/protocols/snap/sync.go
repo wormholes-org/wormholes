@@ -2147,7 +2147,35 @@ func (s *Syncer) forwardAccountTask(task *accountTask) {
 		if task.needCode[i] || task.needState[i] {
 			break
 		}
-		slim := snapshot.SlimAccountRLP(res.accounts[i].Nonce, res.accounts[i].Balance, res.accounts[i].Root, res.accounts[i].CodeHash)
+		// *** modify to support nft transaction 20211217 begin ***
+		slim := snapshot.SlimAccountRLP(res.accounts[i].Nonce,
+			res.accounts[i].Balance,
+			res.accounts[i].Root,
+			res.accounts[i].CodeHash,
+			res.accounts[i].PledgedBalance,
+			res.accounts[i].ExchangerFlag,
+			res.accounts[i].BlockNumber,
+			res.accounts[i].ExchangerBalance,
+			res.accounts[i].VoteWeight,
+			res.accounts[i].FeeRate,
+			res.accounts[i].ExchangerName,
+			res.accounts[i].ExchangerURL,
+			res.accounts[i].ApproveAddressList,
+			res.accounts[i].NFTBalance,
+			res.accounts[i].Name,
+			res.accounts[i].Symbol,
+			res.accounts[i].Price,
+			res.accounts[i].Direction,
+			res.accounts[i].Owner,
+			res.accounts[i].NFTApproveAddressList,
+			res.accounts[i].MergeLevel,
+			res.accounts[i].Creator,
+			res.accounts[i].Royalty,
+			res.accounts[i].Exchanger,
+			res.accounts[i].MetaURL,
+			res.accounts[i].RewardFlag)
+		//slim := snapshot.SlimAccountRLP(res.accounts[i].Nonce, res.accounts[i].Balance, res.accounts[i].Root, res.accounts[i].CodeHash)
+		// *** modify to support nft transaction 20211217 end ***
 		rawdb.WriteAccountSnapshot(batch, hash, slim)
 
 		// If the task is complete, drop it into the stack trie to generate
@@ -2744,7 +2772,35 @@ func (s *Syncer) onHealState(paths [][]byte, value []byte) error {
 		if err := rlp.DecodeBytes(value, &account); err != nil {
 			return nil
 		}
-		blob := snapshot.SlimAccountRLP(account.Nonce, account.Balance, account.Root, account.CodeHash)
+		// *** modify to support nft transaction 20211217 begin ***
+		blob := snapshot.SlimAccountRLP(account.Nonce,
+			account.Balance,
+			account.Root,
+			account.CodeHash,
+			account.PledgedBalance,
+			account.ExchangerFlag,
+			account.BlockNumber,
+			account.ExchangerBalance,
+			account.VoteWeight,
+			account.FeeRate,
+			account.ExchangerName,
+			account.ExchangerURL,
+			account.ApproveAddressList,
+			account.NFTBalance,
+			account.Name,
+			account.Symbol,
+			account.Price,
+			account.Direction,
+			account.Owner,
+			account.NFTApproveAddressList,
+			account.MergeLevel,
+			account.Creator,
+			account.Royalty,
+			account.Exchanger,
+			account.MetaURL,
+			account.RewardFlag)
+		//blob := snapshot.SlimAccountRLP(account.Nonce, account.Balance, account.Root, account.CodeHash)
+		// *** modify to support nft transaction 20211217 end ***
 		rawdb.WriteAccountSnapshot(s.stateWriter, common.BytesToHash(paths[0]), blob)
 		s.accountHealed += 1
 		s.accountHealedBytes += common.StorageSize(1 + common.HashLength + len(blob))

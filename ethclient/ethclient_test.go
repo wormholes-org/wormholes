@@ -19,10 +19,15 @@ package ethclient
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"golang.org/x/crypto/sha3"
+	"log"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -210,6 +215,123 @@ func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
 		t.Fatalf("can't import test blocks: %v", err)
 	}
 	return n, blocks
+}
+
+func TestClient_QueryMinerProxy(t *testing.T) {
+	c, err := Dial("http://127.0.0.1:8571")
+	if err != nil {
+		panic(err)
+	}
+
+	a := common.HexToAddress("0x8520dc57a2800e417696bdf93553e63bcf31e597")
+
+	list, err := c.QueryMinerProxy(context.Background(), 7, a)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, v := range list {
+		log.Printf("%+v\n", v)
+	}
+}
+
+func recoverAddress(msg string, sigStr string) (common.Address, error) {
+	if !strings.HasPrefix(sigStr, "0x") &&
+		!strings.HasPrefix(sigStr, "0X") {
+		return common.Address{}, fmt.Errorf("signature must be started with 0x or 0X")
+	}
+	sigData := hexutil.MustDecode(sigStr)
+	if len(sigData) != 65 {
+		return common.Address{}, fmt.Errorf("signature must be 65 bytes long")
+	}
+	if sigData[64] != 27 && sigData[64] != 28 {
+		return common.Address{}, fmt.Errorf("invalid Ethereum signature (V is not 27 or 28)")
+	}
+	sigData[64] -= 27
+	hash, _ := hashMsg([]byte(msg))
+	fmt.Println("sigdebug hash=", hexutil.Encode(hash))
+	rpk, err := crypto.SigToPub(hash, sigData)
+	if err != nil {
+		return common.Address{}, err
+	}
+	return crypto.PubkeyToAddress(*rpk), nil
+}
+
+// hashMsg return the hash of plain msg
+func hashMsg(data []byte) ([]byte, string) {
+	msg := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), string(data))
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write([]byte(msg))
+	return hasher.Sum(nil), msg
+}
+
+func SignHash(data []byte) []byte {
+	msg := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data)
+	return crypto.Keccak256([]byte(msg))
+}
+
+func PriKeyToAddress(priKey string) (account common.Address, fromKey *ecdsa.PrivateKey, err error) {
+	fromKey, err = crypto.HexToECDSA(priKey)
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+	publicKey := fromKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return common.Address{}, nil, err
+	}
+	account = crypto.PubkeyToAddress(*publicKeyECDSA)
+	return
+}
+func TestClient_SendTransaction(t *testing.T) {
+	c, err := Dial("http://127.0.0.1:8571")
+	if err != nil {
+		panic(err)
+	}
+
+	fromKey, _ := crypto.HexToECDSA("5957a65f7f920aa1c89be505e5ff38e84c44651df3a05c474e161920ad99a194")
+	fromAddr := crypto.PubkeyToAddress(fromKey.PublicKey)
+	log.Println("pre fromKey=", fromKey)
+	log.Println("pub fromKey=", fromAddr.Hex())
+
+	key := "3cc476e9a0d37a9de309a70dfad0daab2db7ffe1d2ae88e03d72fdd255b469a1"
+	pub, pri, _ := PriKeyToAddress(key)
+	proxy := pub.Hex()
+
+	log.Println("proxy private", pri)
+	log.Println("proxy key", proxy)
+
+	msg := fmt.Sprintf("%v%v", proxy, fromAddr.Hex())
+	log.Println("msg", msg)
+
+	signature, err := crypto.Sign(SignHash([]byte(msg)), pri)
+	if err != nil {
+		panic(err)
+	}
+	signature[64] += 27
+	sign := common.Bytes2Hex(signature)
+	log.Println("sign", sign)
+	sign = "0x" + sign
+	//add, err := recoverAddress(msg, sign)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//log.Println(add.Hex())
+	//
+	//return
+
+	//sign := "0x" + "0a8d860ac75f46862283031d02855ec2218a9019b73e1da85cefd5df11ba7ce9746c48cec3d428fc6838c9761dbcf49965eb077de4a41dd48a7294c799bfcabb1c"
+	//str := `wormholes:{"type":31,"version":"v0.0.1","proxy_address":"%v","proxy_sign":"%v"}`
+	str := `wormholes:{"type":9,"version":"v0.0.1","proxy_sign":"%v"}`
+	str = fmt.Sprintf(str, sign)
+	log.Println("msg = ", str)
+	data := []byte(str)
+
+	err = sendTransaction(c, big.NewInt(100989021), data, fromKey, fromAddr)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func generateTestChain() (*core.Genesis, []*types.Block) {
@@ -501,7 +623,7 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 func testAtFunctions(t *testing.T, client *rpc.Client) {
 	ec := NewClient(client)
 	// send a transaction for some interesting pending status
-	sendTransaction(ec)
+	//sendTransaction()
 	time.Sleep(100 * time.Millisecond)
 	// Check pending transaction count
 	pending, err := ec.PendingTransactionCount(context.Background())
@@ -561,14 +683,26 @@ func testAtFunctions(t *testing.T, client *rpc.Client) {
 	}
 }
 
-func sendTransaction(ec *Client) error {
+func sendTransaction(ec *Client, value *big.Int, data []byte, testKey *ecdsa.PrivateKey, addr common.Address) error {
 	// Retrieve chainID
 	chainID, err := ec.ChainID(context.Background())
 	if err != nil {
 		return err
 	}
+
+	log.Println("chainID=", chainID)
+
+	//wei, _ := new(big.Int).SetString("1000000000000000000", 10)
+	//pledge := new(big.Int).Mul(big.NewInt(100000), wei)
+	gasLimit := uint64(51000)
 	// Create transaction
-	tx := types.NewTransaction(0, common.Address{1}, big.NewInt(1), 22000, big.NewInt(params.InitialBaseFee), nil)
+
+	n, err := ec.PendingNonceAt(context.Background(), addr)
+	if err != nil {
+		panic(err)
+	}
+	log.Println("nonce=", n)
+	tx := types.NewTransaction(n, addr, value, gasLimit, big.NewInt(params.InitialBaseFee), data)
 	signer := types.LatestSignerForChainID(chainID)
 	signature, err := crypto.Sign(signer.Hash(tx).Bytes(), testKey)
 	if err != nil {
@@ -578,6 +712,7 @@ func sendTransaction(ec *Client) error {
 	if err != nil {
 		return err
 	}
+	log.Println("hash", signedTx.Hash())
 	// Send transaction
 	return ec.SendTransaction(context.Background(), signedTx)
 }

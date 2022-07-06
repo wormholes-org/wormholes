@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+T="$(mktemp)"
+find . \
+    -path ./test/sharness -prune \
+ -o -path ./plugin/loader/preload.go -prune \
+ -o -name '*.go' -print0 | xargs -0 gofmt -s -l > "$T"
+
+if [ -n "$(cat $T)" ]; then
+	echo "Following Go code is not formatted."
+	echo "-----------------------------------"
+	cat "$T"
+	echo "-----------------------------------"
+	echo "Run 'go fmt ./...' in your source directory"
+	rm -f "$T"
+	exit 1
+fi
+rm -f "$T"

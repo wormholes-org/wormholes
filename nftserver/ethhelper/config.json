@@ -1,0 +1,11 @@
+{
+  "mysqlConfig": {
+    "database": "nft_721",
+    "password": "Kongdi147258",
+    "user": "root",
+    "host": "localhost",
+    "port": "3306",
+    "maxIdle": 300,
+    "maxOpen": 1000
+  }
+}

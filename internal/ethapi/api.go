@@ -17,9 +17,11 @@
 package ethapi
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"strings"
 	"time"
@@ -79,6 +81,37 @@ func (s *PublicEthereumAPI) MaxPriorityFeePerGas(ctx context.Context) (*hexutil.
 		return nil, err
 	}
 	return (*hexutil.Big)(tipcap), err
+}
+
+type MinerProxy struct {
+	Address common.Address
+	Proxy   common.Address
+	Balance *big.Int
+}
+
+type MinerProxyList []*MinerProxy
+
+// QueryMinerProxy returns an address of proxy
+func (s *PublicEthereumAPI) QueryMinerProxy(ctx context.Context, number rpc.BlockNumber, addr common.Address) (MinerProxyList, error) {
+	list, err := s.b.QueryMinerProxy(ctx, number.Int64(), &addr)
+	if err != nil {
+		return nil, err
+	}
+
+	MinerProxyList := make([]*MinerProxy, 0)
+	for _, v := range list.Validators {
+		m := MinerProxy{Address: v.Addr, Proxy: v.Proxy, Balance: v.Balance}
+		MinerProxyList = append(MinerProxyList, &m)
+	}
+	return MinerProxyList, nil
+}
+
+func (s *PublicEthereumAPI) GetActiveLivePool(ctx context.Context, number rpc.BlockNumber) (*types.ActiveMinerList, error) {
+	activeMiners, err := s.b.GetActiveLivePool(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	return activeMiners, nil
 }
 
 type feeHistoryResult struct {
@@ -630,8 +663,312 @@ func (s *PublicBlockChainAPI) GetBalance(ctx context.Context, address common.Add
 	if state == nil || err != nil {
 		return nil, err
 	}
+	//fmt.Println("owner=", state.GetNFTOwner(address).String())
 	return (*hexutil.Big)(state.GetBalance(address)), state.Error()
 }
+
+func (s *PublicBlockChainAPI) GetAccountInfo(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (state.Account, error) {
+	st, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if st == nil || err != nil {
+		return state.Account{}, err
+	}
+	//fmt.Println("owner=", state.GetNFTOwner(address).String())
+	acc := st.GetAccountInfo(address)
+	return acc, st.Error()
+}
+
+type BeneficiaryAddress struct {
+	Address      common.Address
+	NftAddress   common.Address
+	RewardAmount *big.Int
+}
+
+type BeneficiaryAddressList []*BeneficiaryAddress
+
+func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (BeneficiaryAddressList, error) {
+	//var address []common.Address
+	//var nftAddress []common.Address
+	var beneficiaryList BeneficiaryAddressList
+	block, err := s.b.BlockByNumber(ctx, number)
+	if block == nil || err != nil {
+		return nil, err
+	}
+	parentHeader, err := s.b.HeaderByNumber(ctx, number-1)
+	if parentHeader == nil || err != nil {
+		return nil, err
+	}
+
+	header := block.Header()
+	istanbulExtra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return nil, err
+	}
+
+	var deep *types.MintDeep
+	var snftExchangePool *types.SNFTExchangeList
+	if parentHeader.Number.Uint64() > 0 {
+		db := s.b.ChainDb()
+		deep, err = rawdb.ReadMintDeep(db, parentHeader.Hash(), parentHeader.Number.Uint64())
+		if err != nil {
+			return nil, err
+		}
+
+		snftExchangePool, err = rawdb.ReadSNFTExchangePool(db, parentHeader.Hash(), parentHeader.Number.Uint64())
+		if err != nil {
+			return nil, err
+		}
+		if snftExchangePool == nil {
+			snftExchangePool = &types.SNFTExchangeList{
+				SNFTExchanges: make([]*types.SNFTExchange, 0),
+			}
+		}
+	} else {
+		deep = new(types.MintDeep)
+		deep.UserMint = big.NewInt(1)
+
+		deep.OfficialMint = big.NewInt(0)
+		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		deep.OfficialMint.Add(big.NewInt(0), maskB)
+
+		snftExchangePool = &types.SNFTExchangeList{
+			SNFTExchanges: make([]*types.SNFTExchange, 0),
+		}
+	}
+
+	for _, owner := range istanbulExtra.BeneficiaryAddr {
+		nftAddr := common.Address{}
+		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
+		if !ok {
+			nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
+		}
+
+		st, _, err := s.b.StateAndHeaderByNumber(ctx, number)
+		if err != nil {
+			return nil, err
+		}
+		acc := st.GetAccountInfo(owner)
+
+		var beneficiaryAddress BeneficiaryAddress
+		if acc.RewardFlag == 0 {
+			beneficiaryAddress = BeneficiaryAddress{
+				Address:    owner,
+				NftAddress: nftAddr,
+			}
+		} else if acc.RewardFlag == 1 {
+			beneficiaryAddress = BeneficiaryAddress{
+				Address:      owner,
+				RewardAmount: big.NewInt(1e+17),
+			}
+		}
+
+		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
+		if !ok {
+			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
+		}
+	}
+
+	//if !s.checkBeneficiaryList(ctx, number + 1, beneficiaryList) {
+	//	return nil, errors.New("BeneficiaryList error")
+	//}
+
+	return beneficiaryList, nil
+}
+
+func (s *PublicBlockChainAPI) checkBeneficiaryList(ctx context.Context, number rpc.BlockNumber, list BeneficiaryAddressList) bool {
+	state, _, err := s.b.StateAndHeaderByNumber(ctx, number)
+	if err != nil {
+		return false
+	}
+	for _, v := range list {
+		owner := state.GetNFTOwner16(v.NftAddress)
+		if owner != v.Address {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (s *PublicBlockChainAPI) GetUserMintDeep(ctx context.Context, number rpc.BlockNumber) string {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return ""
+	}
+
+	db := s.b.ChainDb()
+	data, err := db.Get(rawdb.MintDeepKey(header.Number.Uint64(), header.Hash()))
+	if err != nil {
+		return ""
+	}
+	mintDeep := &types.MintDeep{
+		UserMint:     big.NewInt(0),
+		OfficialMint: big.NewInt(0),
+	}
+	if err := rlp.Decode(bytes.NewReader(data), mintDeep); err != nil {
+		log.Error("Invalid mintdeep RLP", "blocknumber", number, "err", err)
+		return ""
+	}
+
+	return mintDeep.UserMint.Text(16)
+}
+
+func (s *PublicBlockChainAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.StakerList {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return types.StakerList{}
+	}
+
+	db := s.b.ChainDb()
+	data, err := db.Get(rawdb.StakePoolKey(header.Number.Uint64(), header.Hash()))
+	if err != nil {
+		return types.StakerList{}
+	}
+
+	stakeList := new(types.StakerList)
+	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
+		log.Error("Invalid stakeAddr RLP", "blocknumber", number, "err", err)
+		return types.StakerList{}
+	}
+	return *stakeList
+}
+
+func (s *PublicBlockChainAPI) GetStakerLen(ctx context.Context, number rpc.BlockNumber) int {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return 0
+	}
+
+	db := s.b.ChainDb()
+	data, err := db.Get(rawdb.StakePoolKey(header.Number.Uint64(), header.Hash()))
+	if err != nil {
+		return 0
+	}
+
+	stakeList := new(types.StakerList)
+	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
+		log.Error("Invalid stakeAddr RLP", "blocknumber", number, "err", err)
+		return 0
+	}
+	return len(stakeList.Stakers)
+}
+
+func (s *PublicBlockChainAPI) GetValidator(ctx context.Context, number rpc.BlockNumber) types.ValidatorList {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return types.ValidatorList{}
+	}
+
+	db := s.b.ChainDb()
+	data, err := db.Get(rawdb.ValidatorPoolKey(header.Number.Uint64(), header.Hash()))
+	if err != nil {
+		return types.ValidatorList{}
+	}
+
+	validatorList := new(types.ValidatorList)
+	if err := rlp.Decode(bytes.NewReader(data), validatorList); err != nil {
+		log.Error("Invalid validatorAddr RLP", "blocknumber", number, "err", err)
+		return types.ValidatorList{}
+	}
+	return *validatorList
+}
+
+func (s *PublicBlockChainAPI) GetValidatorLen(ctx context.Context, number rpc.BlockNumber) int {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return 0
+	}
+
+	db := s.b.ChainDb()
+	data, err := db.Get(rawdb.ValidatorPoolKey(header.Number.Uint64(), header.Hash()))
+	if err != nil {
+		return 0
+	}
+
+	validatorList := new(types.ValidatorList)
+	if err := rlp.Decode(bytes.NewReader(data), validatorList); err != nil {
+		log.Error("Invalid validatorAddr RLP", "blocknumber", number, "err", err)
+		return 0
+	}
+	return len(validatorList.Validators)
+}
+
+type NominatedNFTInfo struct {
+	Dir        string         `json:"dir"`
+	StartIndex *big.Int       `json:"start_index"`
+	Number     uint64         `json:"number"`
+	Royalty    uint32         `json:"royalty"`
+	Creator    string         `json:"creator"`
+	Address    common.Address `json:"address"`
+	VoteWeight *big.Int       `json:"vote_weight"`
+}
+
+func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rpc.BlockNumber) *NominatedNFTInfo {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return nil
+	}
+
+	st, _, err := s.b.StateAndHeaderByNumber(ctx, number)
+	if st == nil || err != nil {
+		return nil
+	}
+
+	var Info NominatedNFTInfo
+	emptyAddr := common.Address{}
+	if number > 0 {
+		db := s.b.ChainDb()
+
+		nominatedNFT, err := rawdb.ReadNominatedOfficialNFT(db, header.Hash(), header.Number.Uint64())
+		if err == nil {
+			if nominatedNFT.Address != emptyAddr {
+				acc := st.GetAccountInfo(nominatedNFT.Address)
+				Info.VoteWeight = new(big.Int).Set(acc.VoteWeight)
+			} else {
+				Info.VoteWeight = big.NewInt(0)
+			}
+
+			Info.Address = nominatedNFT.Address
+			Info.Dir = nominatedNFT.Dir
+			Info.StartIndex = new(big.Int).Set(nominatedNFT.StartIndex)
+			Info.Number = nominatedNFT.Number
+			Info.Royalty = nominatedNFT.Royalty
+			Info.Creator = nominatedNFT.Creator
+
+		} else {
+			return nil
+		}
+	} else {
+		Info.Address = common.Address{}
+		Info.VoteWeight = big.NewInt(0)
+		Info.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+		Info.StartIndex = big.NewInt(0)
+		Info.Number = 65536
+		Info.Royalty = 100
+		Info.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+	}
+
+	return &Info
+}
+
+
+func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFTList {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return nil
+	}
+
+	db := s.b.ChainDb()
+
+	InjectedList, err := rawdb.ReadOfficialNFTPool(db, header.Hash(), header.Number.Uint64())
+	if err != nil {
+		return nil
+	}
+
+
+	return InjectedList
+}
+
+
 
 // Result structs for GetProof
 type AccountResult struct {

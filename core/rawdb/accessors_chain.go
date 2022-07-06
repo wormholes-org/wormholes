@@ -24,7 +24,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -275,7 +274,10 @@ func ReadHeaderRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValu
 	// comparison is necessary since ancient database only maintains
 	// the canonical data.
 	data, _ := db.Ancient(freezerHeaderTable, number)
-	if len(data) > 0 && crypto.Keccak256Hash(data) == hash {
+	//if len(data) > 0 && crypto.Keccak256Hash(data) == hash {
+	//	return data
+	//}
+	if len(data) > 0 {
 		return data
 	}
 	// Then try to look up the data in leveldb.
@@ -288,7 +290,10 @@ func ReadHeaderRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValu
 	// but when we reach into leveldb, the data was already moved. That would
 	// result in a not found error.
 	data, _ = db.Ancient(freezerHeaderTable, number)
-	if len(data) > 0 && crypto.Keccak256Hash(data) == hash {
+	//if len(data) > 0 && crypto.Keccak256Hash(data) == hash {
+	//	return data
+	//}
+	if len(data) > 0 {
 		return data
 	}
 	return nil // Can't find the data anywhere.
@@ -363,10 +368,11 @@ func ReadBodyRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValue 
 	// the canonical data.
 	data, _ := db.Ancient(freezerBodiesTable, number)
 	if len(data) > 0 {
-		h, _ := db.Ancient(freezerHashTable, number)
-		if common.BytesToHash(h) == hash {
-			return data
-		}
+		//h, _ := db.Ancient(freezerHashTable, number)
+		//if common.BytesToHash(h) == hash {
+		//	return data
+		//}
+		return data
 	}
 	// Then try to look up the data in leveldb.
 	data, _ = db.Get(blockBodyKey(number, hash))
@@ -379,10 +385,11 @@ func ReadBodyRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValue 
 	// result in a not found error.
 	data, _ = db.Ancient(freezerBodiesTable, number)
 	if len(data) > 0 {
-		h, _ := db.Ancient(freezerHashTable, number)
-		if common.BytesToHash(h) == hash {
-			return data
-		}
+		//h, _ := db.Ancient(freezerHashTable, number)
+		//if common.BytesToHash(h) == hash {
+		//	return data
+		//}
+		return data
 	}
 	return nil // Can't find the data anywhere.
 }
@@ -799,6 +806,11 @@ func DeleteBadBlocks(db ethdb.KeyValueWriter) {
 	}
 }
 
+// HasBadBlock returns whether the block with the hash is a bad block. dep: Istanbul
+func HasBadBlock(db ethdb.Reader, hash common.Hash) bool {
+	return ReadBadBlock(db, hash) != nil
+}
+
 // FindCommonAncestor returns the last common ancestor of two block headers
 func FindCommonAncestor(db ethdb.Reader, a, b *types.Header) *types.Header {
 	for bn := b.Number.Uint64(); a.Number.Uint64() > bn; {
@@ -851,3 +863,119 @@ func ReadHeadBlock(db ethdb.Reader) *types.Block {
 	}
 	return ReadBlock(db, headBlockHash, *headBlockNumber)
 }
+
+// WriteMintDeep write MintDeep to database
+func WriteMintDeep(db ethdb.KeyValueWriter, hash common.Hash, number uint64, mintDeep *types.MintDeep) {
+	data, err := rlp.EncodeToBytes(mintDeep)
+	if err != nil {
+		log.Crit("Failed to RLP encode mintdeep", "err", err)
+	}
+	if err := db.Put(MintDeepKey(number, hash), data); err != nil {
+		log.Crit("Failed to store mintdeep", "err", err)
+	}
+}
+
+// ReadMintDeep retrieves mintdeep corresponding to the hash.
+func ReadMintDeep(db ethdb.Reader, hash common.Hash, number uint64) (*types.MintDeep, error) {
+	data, err := db.Get(MintDeepKey(number, hash))
+	if err != nil {
+		return nil, err
+	}
+	mintDeep := &types.MintDeep{
+		UserMint: big.NewInt(0),
+		OfficialMint: big.NewInt(0),
+	}
+	if err := rlp.Decode(bytes.NewReader(data), mintDeep); err != nil {
+		log.Error("Invalid mintdeep RLP", "hash", hash, "err", err)
+		return nil, err
+	}
+
+	return mintDeep, nil
+}
+
+// WriteSNFTExchangePool stores SNFTExchangePool into the database.
+func WriteSNFTExchangePool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, SNFTExchangePool *types.SNFTExchangeList) {
+	data, err := rlp.EncodeToBytes(SNFTExchangePool)
+	if err != nil {
+		log.Crit("Failed to RLP SNFTExchangePool", "err", err)
+	}
+	if err := db.Put(snftExchangePoolKey(number, hash), data); err != nil {
+		log.Crit("Failed to store SNFTExchangePool", "err", err)
+	}
+}
+
+// ReadSNFTExchangePool retrieves the SNFTExchangePool corresponding to the hash.
+func ReadSNFTExchangePool(db ethdb.Reader, hash common.Hash, number uint64) (*types.SNFTExchangeList, error) {
+	data, err := db.Get(snftExchangePoolKey(number, hash))
+	if err != nil {
+		return nil, err
+	}
+	SNFTExchangePool := new(types.SNFTExchangeList)
+	if err := rlp.Decode(bytes.NewReader(data), SNFTExchangePool); err != nil {
+		log.Error("Invalid SNFTExchangePool RLP", "hash", hash, "err", err)
+		return nil, err
+	}
+	return SNFTExchangePool, nil
+}
+
+// WriteOfficialNFTPool stores OfficialNFTPool into the database.
+func WriteOfficialNFTPool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, OfficialNFTPool *types.InjectedOfficialNFTList) {
+	data, err := rlp.EncodeToBytes(OfficialNFTPool)
+	if err != nil {
+		log.Crit("Failed to RLP OfficialNFTPool", "err", err)
+	}
+	if err := db.Put(officialNFTPoolKey(number, hash), data); err != nil {
+		log.Crit("Failed to store OfficialNFTPool", "err", err)
+	}
+}
+
+// ReadOfficialNFTPool retrieves the OfficialNFTPool corresponding to the hash.
+func ReadOfficialNFTPool(db ethdb.Reader, hash common.Hash, number uint64) (*types.InjectedOfficialNFTList, error) {
+	data, err := db.Get(officialNFTPoolKey(number, hash))
+	if err != nil {
+		return nil, err
+	}
+	OfficialNFTPool := new(types.InjectedOfficialNFTList)
+	if err := rlp.Decode(bytes.NewReader(data), OfficialNFTPool); err != nil {
+		log.Error("Invalid OfficialNFTPool RLP", "hash", hash, "err", err)
+		return nil, err
+	}
+	return OfficialNFTPool, nil
+}
+
+// WriteNominatedOfficialNFT stores NominatedOfficialNFT into the database.
+func WriteNominatedOfficialNFT(db ethdb.KeyValueWriter, hash common.Hash, number uint64, NominatedOfficialNFT *types.NominatedOfficialNFT) {
+	data, err := rlp.EncodeToBytes(NominatedOfficialNFT)
+	//data, err := json.Marshal(NominatedOfficialNFT)
+	if err != nil {
+		log.Crit("Failed to RLP NominatedOfficialNFT", "err", err)
+	}
+
+	if err := db.Put(nominatedOfficialNFTPoolKey(number, hash), data); err != nil {
+		log.Crit("Failed to store NominatedOfficialNFT", "err", err)
+	}
+}
+
+// ReadNominatedOfficialNFT retrieves the NominatedOfficialNFT corresponding to the hash.
+func ReadNominatedOfficialNFT(db ethdb.Reader, hash common.Hash, number uint64) (*types.NominatedOfficialNFT, error) {
+	data, err := db.Get(nominatedOfficialNFTPoolKey(number, hash))
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+	NominatedOfficialNFT := &types.NominatedOfficialNFT{}
+	NominatedOfficialNFT.StartIndex = big.NewInt(0)
+	if err := rlp.Decode(bytes.NewReader(data), NominatedOfficialNFT); err != nil {
+		log.Error("Invalid nominatedOfficialNFT RLP", "hash", hash, "err", err)
+		return nil, err
+	}
+	//err = json.Unmarshal(data, &NominatedOfficialNFT)
+	//if err != nil {
+	//	log.Error("Invalid nominatedOfficialNFT RLP", "hash", hash, "err", err)
+	//	return nil, err
+	//}
+	return NominatedOfficialNFT, nil
+}
+

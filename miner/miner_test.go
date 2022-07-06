@@ -18,6 +18,8 @@
 package miner
 
 import (
+	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/accounts"
 	"testing"
 	"time"
 
@@ -37,6 +39,14 @@ import (
 type mockBackend struct {
 	bc     *core.BlockChain
 	txPool *core.TxPool
+}
+
+func (m *mockBackend) AccountManager() *accounts.Manager {
+	panic("implement me")
+}
+
+func (m *mockBackend) GetNodeKey() *ecdsa.PrivateKey {
+	panic("implement me")
 }
 
 func NewMockBackend(bc *core.BlockChain, txPool *core.TxPool) *mockBackend {

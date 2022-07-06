@@ -1,0 +1,16 @@
+{
+  "name": "ethhelper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "signRawTransaction.js",
+  "scripts": {
+    "test": "echo \\\"Error: no  specified\\\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ethereumjs-common": "^1.5.2",
+    "ethereumjs-tx": "^2.1.2",
+    "web3": "^1.5.2"
+  }
+}

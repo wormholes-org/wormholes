@@ -474,6 +474,12 @@ web3._extend({
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null]
 		}),
 		new web3._extend.Method({
+			name: 'minerProxy',
+			call: 'eth_queryMinerProxy',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter,web3._extend.formatters.inputAddressFormatter]
+		}),
+		new web3._extend.Method({
 			name: 'resend',
 			call: 'eth_resend',
 			params: 3,

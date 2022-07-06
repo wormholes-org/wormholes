@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"net"
 	"sync"
@@ -75,6 +76,8 @@ func (t *rlpxTransport) ReadMsg() (Msg, error) {
 			Payload:    bytes.NewReader(data),
 		}
 	}
+	log.Info("caver|rlpxTransport|readMsg", "msgcode", msg.Code, "err", err)
+
 	return msg, err
 }
 
@@ -91,6 +94,7 @@ func (t *rlpxTransport) WriteMsg(msg Msg) error {
 	// Write the message.
 	t.conn.SetWriteDeadline(time.Now().Add(frameWriteTimeout))
 	size, err := t.conn.Write(msg.Code, t.wbuf.Bytes())
+	log.Info("caver|rlpxTransport|WriteMsg", "msgCode", msg.Code, "err", err)
 	if err != nil {
 		return err
 	}

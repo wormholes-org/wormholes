@@ -18,8 +18,10 @@
 package eth
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"runtime"
 	"sync"
@@ -95,6 +97,8 @@ type Ethereum struct {
 	p2pServer *p2p.Server
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
+
+	nodekey  *ecdsa.PrivateKey
 }
 
 // New creates a new Ethereum object (including the
@@ -145,7 +149,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		chainDb:           chainDb,
 		eventMux:          stack.EventMux(),
 		accountManager:    stack.AccountManager(),
-		engine:            ethconfig.CreateConsensusEngine(stack, chainConfig, &ethashConfig, config.Miner.Notify, config.Miner.Noverify, chainDb),
+		engine:            ethconfig.CreateConsensusEngine(stack, chainConfig, config, config.Miner.Notify, config.Miner.Noverify, chainDb),
 		closeBloomHandler: make(chan struct{}),
 		networkID:         config.NetworkId,
 		gasPrice:          config.Miner.GasPrice,
@@ -153,6 +157,28 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		bloomRequests:     make(chan chan *bloombits.Retrieval),
 		bloomIndexer:      core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 		p2pServer:         stack.Server(),
+		nodekey:           stack.GetNodeKey(),
+	}
+
+	// Quorum: Set protocol Name/Version
+	// keep `var protocolName = "eth"` as is, and only update the quorum consensus specific protocol
+	// This is used to enable the eth service to return multiple devp2p subprotocols.
+	// Previously, for istanbul/64 istnbul/99 and clique (v2.6) `protocolName` would be overridden and
+	// set to the consensus subprotocol name instead of "eth", meaning the node would no longer
+	// communicate over the "eth" subprotocol, e.g. "eth" or "istanbul/99" but not eth" and "istanbul/99".
+	// With this change, support is added so that the "eth" subprotocol remains and optionally a consensus subprotocol
+	// can be added allowing the node to communicate over "eth" and an optional consensus subprotocol, e.g. "eth" and "istanbul/100"
+	if chainConfig.IsQuorum {
+		quorumProtocol := eth.engine.Protocol()
+		// set the quorum specific consensus devp2p subprotocol, eth subprotocol remains set to protocolName as in upstream geth.
+		quorumConsensusProtocolName = quorumProtocol.Name
+		quorumConsensusProtocolVersions = quorumProtocol.Versions
+		quorumConsensusProtocolLengths = quorumProtocol.Lengths
+	}
+
+	// force to set the istanbul etherbase to node key address
+	if chainConfig.Istanbul != nil {
+		eth.etherbase = crypto.PubkeyToAddress(stack.GetNodeKey().PublicKey)
 	}
 
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
@@ -221,6 +247,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		EventMux:   eth.eventMux,
 		Checkpoint: checkpoint,
 		Whitelist:  config.Whitelist,
+		Engine:     eth.engine,
 	}); err != nil {
 		return nil, err
 	}
@@ -518,6 +545,15 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 	if s.config.SnapshotCache > 0 {
 		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
 	}
+
+	//// /Quorum
+	//// add additional quorum consensus protocol if set and if not set to "eth", e.g. istanbul
+	//if quorumConsensusProtocolName != "" && quorumConsensusProtocolName != eth.ProtocolName {
+	//	quorumProtos := s.quorumConsensusProtocols()
+	//	protos = append(protos, quorumProtos...)
+	//}
+	//// /end Quorum
+
 	return protos
 }
 
@@ -562,4 +598,8 @@ func (s *Ethereum) Stop() error {
 	s.eventMux.Stop()
 
 	return nil
+}
+
+func (s *Ethereum) GetNodeKey() (*ecdsa.PrivateKey){
+	return s.nodekey
 }

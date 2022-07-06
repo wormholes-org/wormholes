@@ -18,7 +18,9 @@
 package miner
 
 import (
+	"crypto/ecdsa"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts"
 	"math/big"
 	"time"
 
@@ -38,19 +40,22 @@ import (
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
+	AccountManager() *accounts.Manager
+	GetNodeKey() (*ecdsa.PrivateKey)
 }
 
 // Config is the configuration parameters of mining.
 type Config struct {
-	Etherbase  common.Address `toml:",omitempty"` // Public address for block mining rewards (default = first account)
-	Notify     []string       `toml:",omitempty"` // HTTP URL list to be notified of new work packages (only useful in ethash).
-	NotifyFull bool           `toml:",omitempty"` // Notify with pending block headers instead of work packages
-	ExtraData  hexutil.Bytes  `toml:",omitempty"` // Block extra data set by the miner
-	GasFloor   uint64         // Target gas floor for mined blocks.
-	GasCeil    uint64         // Target gas ceiling for mined blocks.
-	GasPrice   *big.Int       // Minimum gas price for mining a transaction
-	Recommit   time.Duration  // The time interval for miner to re-create mining work.
-	Noverify   bool           // Disable remote mining solution verification(only useful in ethash).
+	Etherbase              common.Address `toml:",omitempty"` // Public address for block mining rewards (default = first account)
+	Notify                 []string       `toml:",omitempty"` // HTTP URL list to be notified of new work packages (only useful in ethash).
+	NotifyFull             bool           `toml:",omitempty"` // Notify with pending block headers instead of work packages
+	ExtraData              hexutil.Bytes  `toml:",omitempty"` // Block extra data set by the miner
+	GasFloor               uint64         // Target gas floor for mined blocks.
+	GasCeil                uint64         // Target gas ceiling for mined blocks.
+	GasPrice               *big.Int       // Minimum gas price for mining a transaction
+	Recommit               time.Duration  // The time interval for miner to re-create mining work.
+	Noverify               bool           // Disable remote mining solution verification(only useful in ethash).
+	AllowedFutureBlockTime uint64         // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 }
 
 // Miner creates blocks and searches for proof-of-work values.
@@ -105,6 +110,7 @@ func (miner *Miner) update() {
 			}
 			switch ev.Data.(type) {
 			case downloader.StartEvent:
+				log.Info("caver|update|downloader.StartEvent")
 				wasMining := miner.Mining()
 				miner.worker.stop()
 				canStart = false
@@ -135,6 +141,7 @@ func (miner *Miner) update() {
 			}
 			shouldStart = true
 		case <-miner.stopCh:
+			log.Info("caver|update|miner.stopCh")
 			shouldStart = false
 			miner.worker.stop()
 		case <-miner.exitCh:

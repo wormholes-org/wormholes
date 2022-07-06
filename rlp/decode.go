@@ -173,6 +173,8 @@ func makeDecoder(typ reflect.Type, tags tags) (dec decoder, err error) {
 		return makeStructDecoder(typ)
 	case kind == reflect.Interface:
 		return decodeInterface, nil
+	//case kind == reflect.Map:
+	//	return nil, nil
 	default:
 		return nil, fmt.Errorf("rlp: type %v is not RLP-serializable", typ)
 	}

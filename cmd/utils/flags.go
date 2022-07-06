@@ -141,7 +141,7 @@ var (
 	}
 	MainnetFlag = cli.BoolFlag{
 		Name:  "mainnet",
-		Usage: "Ethereum mainnet",
+		Usage: "wormholes mainnet",
 	}
 	GoerliFlag = cli.BoolFlag{
 		Name:  "goerli",
@@ -158,6 +158,14 @@ var (
 	DeveloperFlag = cli.BoolFlag{
 		Name:  "dev",
 		Usage: "Ephemeral proof-of-authority network with a pre-funded developer account, mining enabled",
+	}
+	TestNetFlag = cli.BoolFlag{
+		Name:  "testnet",
+		Usage: "Testnet network: pre-configured proof-of-work test network",
+	}
+	DevNetFlag = cli.BoolFlag{
+		Name:  "devnet",
+		Usage: "network: pre-configured proof-of-work test network, mining enabled",
 	}
 	DeveloperPeriodFlag = cli.IntFlag{
 		Name:  "dev.period",
@@ -845,6 +853,10 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 		urls = params.RinkebyBootnodes
 	case ctx.GlobalBool(GoerliFlag.Name):
 		urls = params.GoerliBootnodes
+	case ctx.GlobalBool(TestNetFlag.Name):
+		urls = params.TestnetBootnodes
+	case ctx.GlobalBool(DevNetFlag.Name):
+		urls = params.DevnetBootnodes
 	case cfg.BootstrapNodes != nil:
 		return // already set, don't apply defaults.
 	}
@@ -1673,6 +1685,19 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		if !ctx.GlobalIsSet(MinerGasPriceFlag.Name) {
 			cfg.Miner.GasPrice = big.NewInt(1)
 		}
+	case ctx.GlobalBool(TestNetFlag.Name):
+		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = 51888
+		}
+		cfg.Genesis = core.DefaultTestNetGenesisBlock()
+		SetDNSDiscoveryDefaults(cfg, params.TestNetGenesisHash)
+	case ctx.GlobalBool(DevNetFlag.Name):
+		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = 51889
+		}
+		cfg.Genesis = core.DefaultDevNetGenesisBlock()
+		SetDNSDiscoveryDefaults(cfg, params.DevNetGenesisHash)
+
 	default:
 		if cfg.NetworkId == 1 {
 			SetDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)

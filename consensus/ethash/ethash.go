@@ -20,6 +20,7 @@ package ethash
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"math"
 	"math/big"
 	"math/rand"
@@ -450,6 +451,22 @@ type Ethash struct {
 
 	lock      sync.Mutex // Ensures thread safety for the in-memory caches and mining fields
 	closeOnce sync.Once  // Ensures exit channel will not be closed twice.
+
+	// for test
+	PledgedTokenPool PledgeTokenPool
+}
+type PledgedToken struct {
+	Address common.Address
+	Amount *big.Int
+}
+
+type PledgeTokenPool []*PledgedToken
+
+func (pt *PledgeTokenPool) Add(address common.Address, amount *big.Int) {
+
+}
+func (pt *PledgeTokenPool) Delete(address common.Address, amount *big.Int) {
+
 }
 
 // New creates a full sized ethash PoW scheme and starts a background thread for
@@ -687,4 +704,9 @@ func (ethash *Ethash) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 // dataset.
 func SeedHash(block uint64) []byte {
 	return seedHash(block)
+}
+
+// Protocol implements consensus.Engine.Protocol
+func (ethash *Ethash) Protocol() consensus.Protocol {
+	return consensus.EthProtocol
 }

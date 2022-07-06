@@ -353,3 +353,11 @@ func (b *EthAPIBackend) StateAtBlock(ctx context.Context, block *types.Block, re
 func (b *EthAPIBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, error) {
 	return b.eth.stateAtTransaction(block, txIndex, reexec)
 }
+
+func (b *EthAPIBackend) QueryMinerProxy(ctx context.Context, number int64, miner *common.Address) (*types.ValidatorList, error) {
+	return b.eth.blockchain.QueryMinerProxy(ctx, number, miner)
+}
+
+func (b *EthAPIBackend) GetActiveLivePool(ctx context.Context, number rpc.BlockNumber) (*types.ActiveMinerList, error) {
+	return b.eth.blockchain.GetActiveLivePool(number)
+}

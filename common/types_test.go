@@ -21,6 +21,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"reflect"
 	"strings"
@@ -37,6 +38,11 @@ func TestBytesConversion(t *testing.T) {
 	if hash != exp {
 		t.Errorf("expected %x got %x", exp, hash)
 	}
+}
+
+func TestHexToAddress(t *testing.T) {
+	log.Println(HexToAddress("").String())
+	log.Println(Address{}.String())
 }
 
 func TestIsHexAddress(t *testing.T) {

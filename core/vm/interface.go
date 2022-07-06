@@ -74,6 +74,56 @@ type StateDB interface {
 	AddPreimage(common.Hash, []byte)
 
 	ForEachStorage(common.Address, func(common.Hash, common.Hash) bool) error
+
+	// *** modify to support nft transaction 20211215 begin ***
+	ChangeNFTOwner(common.Address, common.Address, int)
+	GetNFTOwner(common.Address) common.Address
+	GetNFTOwner16(common.Address) common.Address
+	// *** modify to support nft transaction 20211215 end ***
+	CreateNFTByOfficial([]common.Address, *big.Int)
+	CreateNFTByUser(common.Address, common.Address, uint32, string) (common.Address, bool)
+	ChangeApproveAddress(common.Address, common.Address)
+	CancelApproveAddress(common.Address, common.Address)
+	ChangeNFTApproveAddress(common.Address, common.Address)
+	CancelNFTApproveAddress(common.Address, common.Address)
+	ExchangeNFTToCurrency(common.Address, common.Address, *big.Int, int)
+	PledgeToken(common.Address, *big.Int, common.Address) error
+	MinerConsign(common.Address, common.Address) error
+	CancelPledgedToken(common.Address, *big.Int)
+	OpenExchanger(common.Address, *big.Int, *big.Int, uint32, string, string)
+	CloseExchanger(common.Address, *big.Int)
+	GetExchangerFlag(common.Address) bool
+	GetOpenExchangerTime(common.Address) *big.Int
+	GetFeeRate(common.Address) uint32
+	GetExchangerName(common.Address) string
+	GetExchangerURL(common.Address) string
+	GetApproveAddress(common.Address) []common.Address
+	GetNFTBalance(common.Address) uint64
+	GetNFTName(common.Address) string
+	GetNFTSymbol(common.Address) string
+	//GetNFTApproveAddress(common.Address) []common.Address
+	GetNFTApproveAddress(common.Address) common.Address
+	GetNFTMergeLevel(common.Address) uint8
+	GetNFTCreator(common.Address) common.Address
+	GetNFTRoyalty(common.Address) uint32
+	GetNFTExchanger(common.Address) common.Address
+	GetNFTMetaURL(common.Address) string
+	IsExistNFT(common.Address) bool
+	IsApproved(common.Address, common.Address) bool
+	IsApprovedOne(common.Address, common.Address) bool
+	IsApprovedForAll(common.Address, common.Address) bool
+	GetPledgedBalance(common.Address) *big.Int
+	InjectOfficialNFT(string, *big.Int, uint64, uint32, string)
+	AddExchangerToken(common.Address, *big.Int)
+	SubExchangerToken(common.Address, *big.Int)
+	GetExchangerBalance(common.Address) *big.Int
+	VoteOfficialNFT(*types.NominatedOfficialNFT)
+	ElectNominatedOfficialNFT()
+	SubVoteWeight(common.Address, *big.Int)
+	AddVoteWeight(common.Address, *big.Int)
+	NextIndex() *big.Int
+	AddOrUpdateActiveMiner(address common.Address, balance *big.Int, height uint64)
+	ChangeRewardFlag(address common.Address, flag uint8)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

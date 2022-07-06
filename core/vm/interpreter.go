@@ -267,7 +267,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 
 		switch {
 		case err != nil:
-			return nil, err
+			return res, err
 		case operation.reverts:
 			return res, ErrExecutionReverted
 		case operation.halts:

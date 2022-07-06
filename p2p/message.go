@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"io/ioutil"
 	"sync/atomic"
@@ -102,7 +103,15 @@ func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: r})
+	err = w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: r})
+	log.Info("caver|writeMsg", "code", msgcode, "err", err)
+	return err
+}
+
+// SendWithNoEncoding writes an RLP-encoded message with the given code.
+// It does not re-encode the message
+func SendWithNoEncoding(w MsgWriter, msgcode uint64, payload []byte) error {
+	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(len(payload)), Payload: bytes.NewReader(payload)})
 }
 
 // SendItems writes an RLP with the given code and data elements.
@@ -284,6 +293,7 @@ func newMsgEventer(rw MsgReadWriter, feed *event.Feed, peerID enode.ID, proto, r
 // "message received" event
 func (ev *msgEventer) ReadMsg() (Msg, error) {
 	msg, err := ev.MsgReadWriter.ReadMsg()
+	log.Info("carver|ReadMsg", "msg.code", msg.Code)
 	if err != nil {
 		return msg, err
 	}

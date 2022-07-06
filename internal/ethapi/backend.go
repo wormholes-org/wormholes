@@ -68,6 +68,8 @@ type Backend interface {
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
 	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
 	SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
+	QueryMinerProxy(ctx context.Context, number int64, addr *common.Address) (*types.ValidatorList, error)
+	GetActiveLivePool(ctx context.Context, number rpc.BlockNumber) (*types.ActiveMinerList, error)
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error

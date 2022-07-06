@@ -402,6 +402,7 @@ func (pool *TxPool) add(ctx context.Context, tx *types.Transaction) error {
 	}
 	err := pool.validateTx(ctx, tx)
 	if err != nil {
+		log.Error("txpool.go, TxPool.add(), add tx to pending", "err", err)
 		return err
 	}
 

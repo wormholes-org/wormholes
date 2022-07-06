@@ -138,6 +138,8 @@ var (
 		utils.RopstenFlag,
 		utils.RinkebyFlag,
 		utils.GoerliFlag,
+		utils.TestNetFlag,
+		utils.DevNetFlag,
 		utils.VMEnableDebugFlag,
 		utils.NetworkIdFlag,
 		utils.EthStatsURLFlag,
@@ -279,6 +281,10 @@ func prepare(ctx *cli.Context) {
 
 	case ctx.GlobalIsSet(utils.DeveloperFlag.Name):
 		log.Info("Starting Geth in ephemeral dev mode...")
+	case ctx.GlobalIsSet(utils.TestNetFlag.Name):
+		log.Info("Starting wormholes in ephemeral test mode...")
+	case ctx.GlobalIsSet(utils.DevNetFlag.Name):
+		log.Info("Starting wormholes in ephemeral dev mode...")
 
 	case !ctx.GlobalIsSet(utils.NetworkIdFlag.Name):
 		log.Info("Starting Geth on Ethereum mainnet...")

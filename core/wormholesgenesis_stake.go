@@ -1,0 +1,68 @@
+// Copyright 2017 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
+package core
+
+const mainnetStakeData = "" +
+	"0x591813f0d13ce48f0e29081200a96565f466b212:0x56bc75e2d63100000," +
+	"0x5d43ced10a4bcfdd8f009eb97a23e5243ce3d215:0xad78ebc5ac6200000," +
+	"0x45bf7da9e819d3a900575a5ee22716659d4473f2:0x1043561a8829300000," +
+	"0xab6911f618d5009c499bc082e9aace16c556c013:0x15af1d78b58c400000," +
+	"0x5e6b313363c1329da595c3e4ead75f5949055d0a:0x1b1ae4d6e2ef500000," +
+	"0xdbbbdebafa8ccd2a411efd26d3de616271b0bc58:0x2086ac351052600000," +
+	"0xda7c2d20848ae2298bb0c784b01126b65eaf271d:0x25f273933db5700000," +
+	"0x492fe79f6f162aea18c88e40228feeb9c6bca2aa:0x2b5e3af16b18800000," +
+	"0xc9ab0174cacb94209ba0d4fd36ab01767c47ac5a:0x30ca024f987b900000," +
+	"0xf6e55448acd5bc3fa5e2666344a89eada16ce65a:0x3635c9adc5dea00000," +
+	"0xf8d4d274558cbb9a8cdc813b5d118ded10353a0f:0x3ba1910bf341b00000," +
+	"0xa81b2900a01b7282421e98fbfb9356dc0e684313:0x410d586a20a4c00000," +
+	"0x82ce2100a8abdd8862746b15dde245115042476f:0x46791fc84e07d00000," +
+	"0xaed8b52a6f3af8c9423668d6c02341e900ae52be:0x4be4e7267b6ae00000," +
+	"0x1b27137606881995d8249bc687325fe080de0377:0x5150ae84a8cdf00000"
+
+const testnetStakeData = "" +
+	"0x591813f0d13ce48f0e29081200a96565f466b212:0x56bc75e2d63100000," +
+	"0x5d43ced10a4bcfdd8f009eb97a23e5243ce3d215:0xad78ebc5ac6200000," +
+	"0x45bf7da9e819d3a900575a5ee22716659d4473f2:0x1043561a8829300000," +
+	"0xab6911f618d5009c499bc082e9aace16c556c013:0x15af1d78b58c400000," +
+	"0x5e6b313363c1329da595c3e4ead75f5949055d0a:0x1b1ae4d6e2ef500000," +
+	"0xdbbbdebafa8ccd2a411efd26d3de616271b0bc58:0x2086ac351052600000," +
+	"0xda7c2d20848ae2298bb0c784b01126b65eaf271d:0x25f273933db5700000," +
+	"0x492fe79f6f162aea18c88e40228feeb9c6bca2aa:0x2b5e3af16b18800000," +
+	"0xc9ab0174cacb94209ba0d4fd36ab01767c47ac5a:0x30ca024f987b900000," +
+	"0xf6e55448acd5bc3fa5e2666344a89eada16ce65a:0x3635c9adc5dea00000," +
+	"0xf8d4d274558cbb9a8cdc813b5d118ded10353a0f:0x3ba1910bf341b00000," +
+	"0xa81b2900a01b7282421e98fbfb9356dc0e684313:0x410d586a20a4c00000," +
+	"0x82ce2100a8abdd8862746b15dde245115042476f:0x46791fc84e07d00000," +
+	"0xaed8b52a6f3af8c9423668d6c02341e900ae52be:0x4be4e7267b6ae00000," +
+	"0x1b27137606881995d8249bc687325fe080de0377:0x5150ae84a8cdf00000"
+
+const devnetStakeData = "" +
+	"0x591813f0d13ce48f0e29081200a96565f466b212:0x56bc75e2d63100000," +
+	"0x5d43ced10a4bcfdd8f009eb97a23e5243ce3d215:0xad78ebc5ac6200000," +
+	"0x45bf7da9e819d3a900575a5ee22716659d4473f2:0x1043561a8829300000," +
+	"0xab6911f618d5009c499bc082e9aace16c556c013:0x15af1d78b58c400000," +
+	"0x5e6b313363c1329da595c3e4ead75f5949055d0a:0x1b1ae4d6e2ef500000," +
+	"0xdbbbdebafa8ccd2a411efd26d3de616271b0bc58:0x2086ac351052600000," +
+	"0xda7c2d20848ae2298bb0c784b01126b65eaf271d:0x25f273933db5700000," +
+	"0x492fe79f6f162aea18c88e40228feeb9c6bca2aa:0x2b5e3af16b18800000," +
+	"0xc9ab0174cacb94209ba0d4fd36ab01767c47ac5a:0x30ca024f987b900000," +
+	"0xf6e55448acd5bc3fa5e2666344a89eada16ce65a:0x3635c9adc5dea00000," +
+	"0xf8d4d274558cbb9a8cdc813b5d118ded10353a0f:0x3ba1910bf341b00000," +
+	"0xa81b2900a01b7282421e98fbfb9356dc0e684313:0x410d586a20a4c00000," +
+	"0x82ce2100a8abdd8862746b15dde245115042476f:0x46791fc84e07d00000," +
+	"0xaed8b52a6f3af8c9423668d6c02341e900ae52be:0x4be4e7267b6ae00000," +
+	"0x1b27137606881995d8249bc687325fe080de0377:0x5150ae84a8cdf00000"

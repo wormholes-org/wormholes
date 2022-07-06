@@ -18,8 +18,10 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/rpc"
 	"io"
 	"math/big"
 	mrand "math/rand"
@@ -209,6 +211,9 @@ type BlockChain struct {
 
 	shouldPreserve  func(*types.Block) bool        // Function used to determine whether should preserve the given block.
 	terminateInsert func(common.Hash, uint64) bool // Testing hook used to terminate ancient receipt chain insertion.
+
+	//deep for mint NFT
+	//mintDeep types.MintDeep
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -1530,6 +1535,71 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			}
 		}
 	}
+
+	// write mintdeep
+	bc.WriteMintDeep(block.Header(), state.MintDeep)
+	// write SNFTExchangePool
+	bc.WriteSNFTExchangePool(block.Header(), state.SNFTExchangePool)
+	// write OfficialNFTPool
+	bc.WriteOfficialNFTPool(block.Header(), state.OfficialNFTPool)
+	// write NominatedOfficialNFT
+	bc.WriteNominatedOfficialNFT(block.Header(), state.NominatedOfficialNFT)
+
+	// modify Pledge list
+
+	exchangerPool := bc.ReadStakePool(bc.GetHeaderByHash(block.Header().ParentHash))
+	log.Info("caver|stake-before", "no", block.Header().Number, "len", exchangerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
+	if len(state.ExchangerTokenPool) > 0 {
+		for _, v := range state.ExchangerTokenPool {
+			if v.Flag {
+				exchangerPool.AddStaker(v.Address, v.Amount)
+			} else {
+				exchangerPool.RemoveStaker(v.Address, v.Amount)
+			}
+		}
+		state.ExchangerTokenPool = state.ExchangerTokenPool[:0]
+	}
+	bc.WriteStakePool(block.Header(), exchangerPool)
+
+	log.Info("caver|stake-after", "no", block.Header().Number, "len", exchangerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
+
+	validatorPool := bc.ReadValidatorPool(bc.GetHeaderByHash(block.Header().ParentHash))
+	log.Info("caver|validator-before", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
+	if len(state.PledgedTokenPool) > 0 {
+		for _, v := range state.PledgedTokenPool {
+			if v.Flag {
+				validatorPool.AddValidator(v.Address, v.Amount, v.ProxyAddress)
+			} else {
+				validatorPool.RemoveValidator(v.Address, v.Amount)
+			}
+		}
+		state.PledgedTokenPool = state.PledgedTokenPool[:0]
+	}
+
+	bc.WriteValidatorPool(block.Header(), validatorPool)
+	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
+
+	// Delay 90 blocks to remove inactive addresses
+	log.Info("caver|len-activeMinerPool", "before", len(state.ActiveMinersPool.ActiveMiners), "no", block.NumberU64())
+	if block.NumberU64()%30 == 9 && block.NumberU64() > 30 {
+		var inactiveAddr []common.Address
+
+		for _, v := range state.ActiveMinersPool.ActiveMiners {
+			if block.NumberU64()-v.Height > 119 {
+				log.Info("carver|RemoveActiveAddr|before", "no", block.NumberU64(), "address", v.Address, "height", v.Height)
+				inactiveAddr = append(inactiveAddr, v.Address)
+			}
+		}
+		// delete inactive addresses
+		for _, addr := range inactiveAddr {
+			state.ActiveMinersPool.RemoveActiveAddr(addr)
+		}
+	}
+	bc.EnsureEffectiveMiners(validatorPool, state.ActiveMinersPool)
+	bc.WriteActiveMinersPool(block.Header(), state.ActiveMinersPool)
+
+	log.Info("caver|len-activeMinerPool", "after", len(state.ActiveMinersPool.ActiveMiners), "no", block.NumberU64())
+
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
@@ -1581,6 +1651,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	} else {
 		bc.chainSideFeed.Send(ChainSideEvent{Block: block})
 	}
+
 	return status, nil
 }
 
@@ -1663,6 +1734,7 @@ func (bc *BlockChain) InsertChainWithoutSealVerification(block *types.Block) (in
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
 func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, error) {
+	log.Info("caver|insertChain", "len", len(chain))
 	// If the chain is terminating, don't even bother starting up
 	if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 		return 0, nil
@@ -1860,6 +1932,73 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 		// Process block using the parent state as reference point
 		substart := time.Now()
+
+		var mintDeep *types.MintDeep
+		var exchangeList *types.SNFTExchangeList
+		if parent.Number.Uint64() > 0 {
+			mintDeep, err = bc.ReadMintDeep(parent)
+			if err != nil {
+				log.Error("Failed get mintdeep ", "err", err)
+				return it.index, err
+			}
+			exchangeList, _ = bc.ReadSNFTExchangePool(parent)
+			if exchangeList == nil {
+				exchangeList = &types.SNFTExchangeList{
+					SNFTExchanges: make([]*types.SNFTExchange, 0),
+				}
+			}
+		} else {
+			mintDeep = new(types.MintDeep)
+			//mintDeep.OfficialMint = big.NewInt(1)
+			//
+			//mintDeep.UserMint = big.NewInt(0)
+			//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+			//mintDeep.UserMint.Add(big.NewInt(1), maskB)
+			mintDeep.UserMint = big.NewInt(1)
+
+			mintDeep.OfficialMint = big.NewInt(0)
+			maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+			mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
+
+			exchangeList = &types.SNFTExchangeList{
+				SNFTExchanges: make([]*types.SNFTExchange, 0),
+			}
+		}
+		statedb.MintDeep = mintDeep
+		statedb.SNFTExchangePool = exchangeList
+		log.Info("caver|MintDeep", "no", parent.Number.Text(10), "OfficialMint", statedb.MintDeep.OfficialMint.Text(16),
+			"UserMint", statedb.MintDeep.UserMint.Text(16))
+		officialNFTList, _ := bc.ReadOfficialNFTPool(parent)
+		statedb.OfficialNFTPool = officialNFTList
+
+		var nominatedOfficialNFT *types.NominatedOfficialNFT
+		if parent.Number.Uint64() > 0 {
+			nominatedOfficialNFT, err = bc.ReadNominatedOfficialNFT(parent)
+			if err != nil {
+				statedb.NominatedOfficialNFT = nil
+			} else {
+				statedb.NominatedOfficialNFT = nominatedOfficialNFT
+			}
+		} else {
+			nominatedOfficialNFT = new(types.NominatedOfficialNFT)
+			nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+			nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.OfficialNFTPool.MaxIndex())
+			nominatedOfficialNFT.Number = 65536
+			nominatedOfficialNFT.Royalty = 100
+			nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+			nominatedOfficialNFT.Address = common.Address{}
+			statedb.NominatedOfficialNFT = nominatedOfficialNFT
+		}
+
+		activeMiners, err := bc.ReadActiveMinersPool(parent)
+		if err != nil {
+			return it.index, err
+		}
+		statedb.ActiveMinersPool = activeMiners
+
+		valList := bc.ReadValidatorPool(parent)
+		statedb.ValidatorPool = valList.Validators
+
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -1881,9 +2020,14 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 
 		// Validate the state using the default validator
 		substart = time.Now()
+
 		if err := bc.validator.ValidateState(block, statedb, receipts, usedGas); err != nil {
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)
+			log.Info("caver|insertChain", "no", block.NumberU64(), "usedGas", usedGas, "parentRoot", parent.Root.Hex())
+			for _, r := range receipts {
+				log.Info("receipt-hash", r.TxHash.Hex(), "receipt-state", r.Status)
+			}
 			return it.index, err
 		}
 		proctime := time.Since(start)
@@ -1956,7 +2100,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 	}
 	stats.ignored += it.remaining()
-
 	return it.index, err
 }
 
@@ -2519,4 +2662,186 @@ func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscript
 // block processing has started while false means it has stopped.
 func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscription {
 	return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
+}
+
+func (bc *BlockChain) ReadStakePool(header *types.Header) *types.StakerList {
+	addrs, _ := rawdb.ReadStakePool(bc.db, header.Hash(), header.Number.Uint64())
+	return addrs
+}
+
+func (bc *BlockChain) WriteStakePool(header *types.Header, stakePool *types.StakerList) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteStakePool(poolBatch, header.Hash(), header.Number.Uint64(), stakePool)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write stakePool disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) WriteValidatorPool(header *types.Header, validatorPool *types.ValidatorList) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteValidatorPool(poolBatch, header.Hash(), header.Number.Uint64(), validatorPool)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write validator disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) ReadValidatorPool(header *types.Header) *types.ValidatorList {
+	validators, _ := rawdb.ReadValidatorPool(bc.db, header.Hash(), header.Number.Uint64())
+	return validators
+}
+
+func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
+	activeMiners, err := bc.ReadActiveMinersPool(header)
+	if err != nil {
+		log.Error("Random11ValidatorFromPool err", err.Error())
+		return nil, err
+	}
+
+	sortedAddr, err := activeMiners.SortByPledgeAmount()
+	if err != nil {
+		return nil, err
+	}
+	// Get the top 7 validators of the pledge amount
+	fixedValidators := sortedAddr.ActiveMiners[:7]
+
+	for i, v := range fixedValidators {
+		log.Info("Random11ValidatorFromPool : seven addr", "i", i, "addr", v, "no", header.Number.Uint64())
+	}
+
+	// Get 4 other validators besides the above 7
+	random4Validators := activeMiners.ValidatorByDistanceAndWeight(activeMiners.ConvertToBigInt(sortedAddr.ActiveMiners[7:]), 4, header.Hash())
+
+	validators := make([]common.Address, 0)
+	validators = append(validators, random4Validators...)
+	for _, v := range fixedValidators {
+		validators = append(validators, v.Address)
+	}
+
+	elevenValidator := new(types.ValidatorList)
+	for _, addr := range validators {
+		//todo proxy 全部空值
+		elevenValidator.AddValidator(addr, activeMiners.StakeBalance(addr), common.Address{})
+	}
+	return elevenValidator, nil
+}
+
+func (bc *BlockChain) ReadActiveMinersPool(header *types.Header) (*types.ActiveMinerList, error) {
+	if header == nil {
+		log.Error("ReadActiveMinersPool : header is nil")
+		return nil, errors.New("header is nil")
+	}
+	miners, err := rawdb.ReadActiveMinersPool(bc.db, header.Hash(), header.Number.Uint64())
+	if err != nil {
+		return nil, err
+	}
+	return miners, nil
+}
+
+func (bc *BlockChain) WriteActiveMinersPool(header *types.Header, activeMinersPool *types.ActiveMinerList) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteActiveMinersPool(poolBatch, header.Hash(), header.Number.Uint64(), activeMinersPool)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write activeMiners disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) RandomNValidatorFromEleven(amount int, elevenValidator *types.ValidatorList, parentHash common.Hash) []common.Address {
+	validators := elevenValidator.ValidatorByDistanceAndWeight(elevenValidator.ConvertToBigInt(), amount, parentHash)
+	return validators
+}
+
+// WriteMintDeep writes mintdeep to chaindb
+func (bc *BlockChain) WriteMintDeep(header *types.Header, mintDeep *types.MintDeep) {
+	mintDeepBatch := bc.db.NewBatch()
+	rawdb.WriteMintDeep(mintDeepBatch, header.Hash(), header.Number.Uint64(), mintDeep)
+	if err := mintDeepBatch.Write(); err != nil {
+		log.Crit("Failed to write mintdeep disk", "err", err)
+	}
+}
+
+// ReadMintDeep read mintdeep from chaindb
+func (bc *BlockChain) ReadMintDeep(header *types.Header) (*types.MintDeep, error) {
+	return rawdb.ReadMintDeep(bc.db, header.Hash(), header.Number.Uint64())
+}
+
+func (bc *BlockChain) WriteSNFTExchangePool(header *types.Header, SNFTExchangePool *types.SNFTExchangeList) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteSNFTExchangePool(poolBatch, header.Hash(), header.Number.Uint64(), SNFTExchangePool)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write SNFTExchangePool disk", "err", err)
+	}
+}
+func (bc *BlockChain) ReadSNFTExchangePool(header *types.Header) (*types.SNFTExchangeList, error) {
+	return rawdb.ReadSNFTExchangePool(bc.db, header.Hash(), header.Number.Uint64())
+}
+
+func (bc *BlockChain) WriteOfficialNFTPool(header *types.Header, OfficialNFTPool *types.InjectedOfficialNFTList) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteOfficialNFTPool(poolBatch, header.Hash(), header.Number.Uint64(), OfficialNFTPool)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write OfficialNFTPool disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) ReadOfficialNFTPool(header *types.Header) (*types.InjectedOfficialNFTList, error) {
+	return rawdb.ReadOfficialNFTPool(bc.db, header.Hash(), header.Number.Uint64())
+}
+
+func (bc *BlockChain) WriteNominatedOfficialNFT(header *types.Header, NominatedOfficialNFTPool *types.NominatedOfficialNFT) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteNominatedOfficialNFT(poolBatch, header.Hash(), header.Number.Uint64(), NominatedOfficialNFTPool)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write NominatedOfficialNFT disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) ReadNominatedOfficialNFT(header *types.Header) (*types.NominatedOfficialNFT, error) {
+	return rawdb.ReadNominatedOfficialNFT(bc.db, header.Hash(), header.Number.Uint64())
+}
+
+// Make sure Active Miners Pool is always in validator Pool
+func (bc *BlockChain) EnsureEffectiveMiners(vl *types.ValidatorList, al *types.ActiveMinerList) {
+	var invalidAddr []common.Address
+	for _, v := range al.ActiveMiners {
+		// Invalid address:
+		// This address does not exist in validator Pool;
+		// If the validator Pool has this address but already has a proxy address, it cannot enter the live Pool;
+		if !vl.Exist(v.Address) || vl.ExistProxy(v.Address) {
+			invalidAddr = append(invalidAddr, v.Address)
+		} else {
+			// Update the value of the pledge
+			v.Balance = vl.StakeBalance(v.Address)
+			log.Info("EnsureEffectiveMiners", "addr", v.Address.String(), "balance", v.Balance)
+		}
+	}
+	for _, addr := range invalidAddr {
+		al.RemoveActiveAddr(addr)
+	}
+
+}
+
+func (bc *BlockChain) QueryMinerProxy(ctx context.Context, number int64, minerAddress *common.Address) (*types.ValidatorList, error) {
+	log.Info("QueryMinerProxy", "number", number, "minerAddress", minerAddress.Hex())
+	vList := bc.ReadValidatorPool(bc.GetHeaderByNumber(uint64(number)))
+	//empty := common.Address{}
+
+	//if minerAddress == nil || minerAddress.Hex() == empty.Hex() {
+	return vList, nil
+	//}
+
+	//for _, v := range vList.Validators {
+	//	if v.Address().Hex() == minerAddress.Hex() && v.Proxy != empty {
+	//		return &v.Proxy, nil
+	//	}
+	//}
+	//return nil, errors.New("proxy is empty")
+}
+
+func (bc *BlockChain) GetActiveLivePool(no rpc.BlockNumber) (*types.ActiveMinerList, error) {
+	header := bc.GetHeaderByNumber(uint64(no.Int64()))
+	activeMiners, err := bc.ReadActiveMinersPool(header)
+	if err != nil {
+		return nil, err
+	}
+	return activeMiners, nil
 }

@@ -17,7 +17,9 @@
 package rawdb
 
 import (
+	"bytes"
 	"encoding/json"
+	"github.com/ethereum/go-ethereum/core/types"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -137,4 +139,79 @@ func PopUncleanShutdownMarker(db ethdb.KeyValueStore) {
 	if err := db.Put(uncleanShutdownKey, data); err != nil {
 		log.Warn("Failed to clear unclean-shutdown marker", "err", err)
 	}
+}
+
+func WriteStakePool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, stakerList *types.StakerList) {
+	data, err := rlp.EncodeToBytes(stakerList)
+	if err != nil {
+		log.Crit("Failed to RLP stakePool", "err", err)
+	}
+
+	if err := db.Put(StakePoolKey(number, hash), data); err != nil {
+		log.Crit("Failed to store stakePool", "err", err)
+	}
+}
+
+func ReadStakePool(db ethdb.Reader, hash common.Hash, number uint64) (*types.StakerList, error) {
+	data, err := db.Get(StakePoolKey(number, hash))
+	if err != nil {
+		return nil, err
+	}
+
+	stakeList := new(types.StakerList)
+	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
+		log.Error("Invalid stakeAddr RLP", "hash", hash, "err", err)
+		return nil, err
+	}
+	return stakeList, nil
+}
+
+func WriteValidatorPool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, validatorList *types.ValidatorList) {
+	data, err := rlp.EncodeToBytes(validatorList)
+	if err != nil {
+		log.Crit("Failed to RLP validatorPool", "err", err)
+	}
+
+	if err := db.Put(ValidatorPoolKey(number, hash), data); err != nil {
+		log.Crit("Failed to store validatorPool", "err", err)
+	}
+}
+
+func ReadValidatorPool(db ethdb.Reader, hash common.Hash, number uint64) (*types.ValidatorList, error) {
+	data, err := db.Get(ValidatorPoolKey(number, hash))
+	if err != nil {
+		return nil, err
+	}
+
+	validatorList := new(types.ValidatorList)
+	if err := rlp.Decode(bytes.NewReader(data), validatorList); err != nil {
+		log.Error("Invalid validatorAddr RLP", "hash", hash, "err", err)
+		return nil, err
+	}
+	return validatorList, nil
+}
+
+func WriteActiveMinersPool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, activeMiners *types.ActiveMinerList) {
+	data, err := rlp.EncodeToBytes(activeMiners)
+	if err != nil {
+		log.Crit("Failed to RLP activeMinersPool", "err", err)
+	}
+
+	if err := db.Put(ActiveMinersPoolKey(number, hash), data); err != nil {
+		log.Crit("Failed to store activeMinersPool", "err", err)
+	}
+}
+
+func ReadActiveMinersPool(db ethdb.Reader, hash common.Hash, number uint64) (*types.ActiveMinerList, error) {
+	data, err := db.Get(ActiveMinersPoolKey(number, hash))
+	if err != nil {
+		return nil, err
+	}
+
+	activeMiners := new(types.ActiveMinerList)
+	if err := rlp.Decode(bytes.NewReader(data), activeMiners); err != nil {
+		log.Error("Invalid activeMiners RLP", "hash", hash, "err", err)
+		return nil, err
+	}
+	return activeMiners, nil
 }

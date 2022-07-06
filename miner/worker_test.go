@@ -17,6 +17,7 @@
 package miner
 
 import (
+	"crypto/ecdsa"
 	"math/big"
 	"math/rand"
 	"sync/atomic"
@@ -112,6 +113,14 @@ type testWorkerBackend struct {
 	testTxFeed event.Feed
 	genesis    *core.Genesis
 	uncleBlock *types.Block
+}
+
+func (b *testWorkerBackend) AccountManager() *accounts.Manager {
+	panic("implement me")
+}
+
+func (b *testWorkerBackend) GetNodeKey() *ecdsa.PrivateKey {
+	panic("implement me")
 }
 
 func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, n int) *testWorkerBackend {

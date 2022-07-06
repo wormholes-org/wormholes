@@ -17,12 +17,13 @@
 package core
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	cmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -330,10 +331,25 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		st.refundGas(params.RefundQuotientEIP3529)
 	}
 	effectiveTip := st.gasPrice
-	if london {
-		effectiveTip = cmath.BigMin(st.gasTipCap, new(big.Int).Sub(st.gasFeeCap, st.evm.Context.BaseFee))
+	//if london {
+	//	effectiveTip = cmath.BigMin(st.gasTipCap, new(big.Int).Sub(st.gasFeeCap, st.evm.Context.BaseFee))
+	//}
+
+	// 如果是NFT碎片兑换交易且成功，则不收取gasfee
+	if st.IsWormholesNFTTx() {
+		txType, _ := st.GetWormholesType()
+		if txType == 6 && vmerr == nil {
+			st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+		} else {
+			st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+		}
+		// liveness交易不消耗gasfee
+		//if txType == 30{
+		//	st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+		//}
+	} else {
+		st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 	}
-	st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 
 	return &ExecutionResult{
 		UsedGas:    st.gasUsed(),
@@ -362,4 +378,27 @@ func (st *StateTransition) refundGas(refundQuotient uint64) {
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
+}
+
+func (st *StateTransition) IsWormholesNFTTx() bool {
+	if len(st.data) > 10 {
+		if string(st.data[:10]) == "wormholes:" {
+			return true
+		}
+	}
+	return false
+}
+
+func (st *StateTransition) GetWormholesType() (uint8, error) {
+	var wormholes types.Wormholes
+	if len(st.data) > 10 {
+		if string(st.data[:10]) == "wormholes:" {
+			jsonErr := json.Unmarshal(st.data[10:], &wormholes)
+			if jsonErr == nil {
+				return wormholes.Type, nil
+			}
+		}
+	}
+
+	return 0, errors.New("get wormholes type error")
 }

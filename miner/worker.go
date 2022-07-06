@@ -18,7 +18,11 @@ package miner
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/crypto"
+	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -59,7 +63,7 @@ const (
 
 	// minRecommitInterval is the minimal time interval to recreate the mining block with
 	// any newly arrived transactions.
-	minRecommitInterval = 1 * time.Second
+	minRecommitInterval = 2 * time.Second
 
 	// maxRecommitInterval is the maximum time interval to recreate the mining block with
 	// any newly arrived transactions.
@@ -75,6 +79,9 @@ const (
 
 	// staleThreshold is the maximum depth of the acceptable stale block.
 	staleThreshold = 7
+
+	// Send online proof transactions every 1000 blocks
+	activeCycle = 30
 )
 
 // environment is the worker's current environment and holds all of the current state information.
@@ -212,28 +219,32 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
 	}
-	// Subscribe NewTxsEvent for tx pool
-	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
-	// Subscribe events for blockchain
-	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
-	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
 
-	// Sanitize recommit interval if the user-specified one is too short.
-	recommit := worker.config.Recommit
-	if recommit < minRecommitInterval {
-		log.Warn("Sanitizing miner recommit interval", "provided", recommit, "updated", minRecommitInterval)
-		recommit = minRecommitInterval
+	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
+		// Subscribe NewTxsEvent for tx pool
+		worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
+		// Subscribe events for blockchain
+		worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
+		worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
+
+		// Sanitize recommit interval if the user-specified one is too short.
+		recommit := worker.config.Recommit
+		if recommit < minRecommitInterval {
+			log.Warn("Sanitizing miner recommit interval", "provided", recommit, "updated", minRecommitInterval)
+			recommit = minRecommitInterval
+		}
+
+		go worker.mainLoop()
+		go worker.newWorkLoop(recommit)
+		go worker.resultLoop()
+		go worker.taskLoop()
+
+		// Submit first work to initialize pending state.
+		if init {
+			worker.startCh <- struct{}{}
+		}
 	}
 
-	go worker.mainLoop()
-	go worker.newWorkLoop(recommit)
-	go worker.resultLoop()
-	go worker.taskLoop()
-
-	// Submit first work to initialize pending state.
-	if init {
-		worker.startCh <- struct{}{}
-	}
 	return worker
 }
 
@@ -302,11 +313,17 @@ func (w *worker) pendingBlockAndReceipts() (*types.Block, types.Receipts) {
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
+	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
+		istanbul.Start(w.chain, w.chain.CurrentBlock, rawdb.HasBadBlock)
+	}
 	w.startCh <- struct{}{}
 }
 
 // stop sets the running status as 0.
 func (w *worker) stop() {
+	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
+		istanbul.Stop()
+	}
 	atomic.StoreInt32(&w.running, 0)
 }
 
@@ -389,9 +406,20 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-w.startCh:
 			clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
+			log.Info("caver|w.startCh", "currentBlockNo", w.chain.CurrentBlock().NumberU64())
 			commit(false, commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
+			if w.chain.CurrentBlock().NumberU64()%activeCycle == 0 {
+				log.Info("caver|w.chainHeadch", "no", head.Block.NumberU64())
+				if err := w.sendLivenessTx(); err != nil {
+					log.Error("caver|sendLivenessTx", "err", err.Error())
+					continue
+				}
+			}
+			if h, ok := w.engine.(consensus.Handler); ok {
+				h.NewChainHead()
+			}
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)
@@ -402,9 +430,11 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			if w.isRunning() && (w.chainConfig.Clique == nil || w.chainConfig.Clique.Period > 0) {
 				// Short circuit if no new transaction arrives.
 				if atomic.LoadInt32(&w.newTxs) == 0 {
+					log.Info("caver|newWorkLoop|timer.Reset")
 					timer.Reset(recommit)
 					continue
 				}
+				log.Info("caver|timer.C|Resubmit", "w.currentNo", w.current.header.Number.Uint64())
 				commit(true, commitInterruptResubmit)
 			}
 
@@ -456,6 +486,7 @@ func (w *worker) mainLoop() {
 			w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
 
 		case ev := <-w.chainSideCh:
+			log.Info("caver|mainLoop|chainSideCh")
 			// Short circuit for duplicate side blocks
 			if _, exist := w.localUncles[ev.Block.Hash()]; exist {
 				continue
@@ -516,6 +547,7 @@ func (w *worker) mainLoop() {
 				}
 				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs, w.current.header.BaseFee)
 				tcount := w.current.tcount
+				log.Info("caver|w.txsCh|commitTransactions", "no", w.current.header.Number.Uint64())
 				w.commitTransactions(txset, coinbase, nil)
 				// Only update the snapshot if any new transactons were added
 				// to the pending block
@@ -527,6 +559,7 @@ func (w *worker) mainLoop() {
 				// submit mining work here since all empty submission will be rejected
 				// by clique. Of course the advance sealing(empty submission) is disabled.
 				if w.chainConfig.Clique != nil && w.chainConfig.Clique.Period == 0 {
+					log.Info("w.chainConfig.Clique != nil && w.chainConfig.Clique.Period == 0")
 					w.commitNewWork(nil, true, time.Now().Unix())
 				}
 			}
@@ -581,9 +614,8 @@ func (w *worker) taskLoop() {
 			w.pendingMu.Lock()
 			w.pendingTasks[sealHash] = task
 			w.pendingMu.Unlock()
-
 			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
-				log.Warn("Block sealing failed", "err", err)
+				log.Warn("Block sealing failed", "err", err, "no", task.block.NumberU64(), "hash", task.block.Hash())
 			}
 		case <-w.exitCh:
 			interrupt()
@@ -600,10 +632,12 @@ func (w *worker) resultLoop() {
 		case block := <-w.resultCh:
 			// Short circuit when receiving empty result.
 			if block == nil {
+				log.Info("caver|resultLoop|block==nil", "block", block)
 				continue
 			}
 			// Short circuit when receiving duplicate result caused by resubmitting.
 			if w.chain.HasBlock(block.Hash(), block.NumberU64()) {
+				log.Info("caver|resultLoop|HasBlock", "no", block.NumberU64())
 				continue
 			}
 			var (
@@ -645,7 +679,6 @@ func (w *worker) resultLoop() {
 			}
 			log.Info("Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
 				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
-
 			// Broadcast the block and announce chain insertion event
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
@@ -658,6 +691,54 @@ func (w *worker) resultLoop() {
 	}
 }
 
+func (w *worker) sendLivenessTx() error {
+	nodeKey := w.eth.GetNodeKey()
+	from := crypto.PubkeyToAddress(nodeKey.PublicKey)
+	// The engine must be started, and the online proof transaction will not be sent in the synchronous state
+	if !w.isRunning() {
+		log.Info("caver|sendLivenessTx|w.isrunning", "w.isRunning()", w.isRunning())
+		return nil
+	}
+	// Must be validator to send online proof transaction
+	validatorPool := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+	if validatorPool == nil || len(validatorPool.Validators) == 0 {
+		log.Info("caver|sendLivenessTx|validator pool || validators empty", "validatorPool == nil", validatorPool == nil)
+		return nil
+	}
+
+	// Judging whether it exists in the validator Pool, ordinary nodes cannot send offline transactions
+	if !validatorPool.Exist(from) {
+		log.Info("caver|sendLivenessTx|not validator", "self", from.Hex())
+		return nil
+	}
+
+	// Determine whether it is the entrusted address, the entrusted address can no longer send offline transactions
+	if validatorPool.ExistProxy(from) {
+		log.Info("caver|sendLivenessTx|exist proxy addr", "self", from.Hex())
+		return nil
+	}
+
+	innerData := `wormholes:{"type":30,"version":"v0.0.1"}`
+	txData := hex.EncodeToString([]byte(innerData))
+	txDataByte, err := hex.DecodeString(txData)
+	if err != nil {
+		return err
+	}
+
+	tx := types.NewTransaction(w.eth.TxPool().Nonce(from), common.Address{}, big.NewInt(0), 50000, big.NewInt(2000000000), txDataByte)
+	signer := types.LatestSignerForChainID(w.chain.Config().ChainID)
+	signTx, err := types.SignTx(tx, signer, nodeKey)
+	if err != nil {
+		return err
+	}
+	err = w.eth.TxPool().AddLocal(signTx)
+	if err != nil {
+		return err
+	}
+	log.Info("carver|sendLivenessTx|success")
+	return nil
+}
+
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	// Retrieve the parent state to execute on top and start a prefetcher for
@@ -667,6 +748,74 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		return err
 	}
 	state.StartPrefetcher("miner")
+
+	var mintDeep *types.MintDeep
+	var exchangeList *types.SNFTExchangeList
+	if parent.NumberU64() > 0 {
+		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
+		if err != nil {
+			log.Error("Failed get mintdeep ", "err", err)
+			return err
+		}
+		exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
+		if exchangeList == nil {
+			exchangeList = &types.SNFTExchangeList{
+				SNFTExchanges: make([]*types.SNFTExchange, 0),
+			}
+		}
+	} else {
+		mintDeep = new(types.MintDeep)
+		//mintDeep.OfficialMint = big.NewInt(1)
+		//
+		//mintDeep.UserMint = big.NewInt(0)
+		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
+		mintDeep.UserMint = big.NewInt(1)
+
+		mintDeep.OfficialMint = big.NewInt(0)
+		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
+
+		exchangeList = &types.SNFTExchangeList{
+			SNFTExchanges: make([]*types.SNFTExchange, 0),
+		}
+	}
+	state.MintDeep = mintDeep
+	state.SNFTExchangePool = exchangeList
+
+	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
+	state.OfficialNFTPool = officialNFTList
+	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
+		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
+	}
+
+	var nominatedOfficialNFT *types.NominatedOfficialNFT
+	if parent.NumberU64() > 0 {
+		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
+		if err != nil {
+			state.NominatedOfficialNFT = nil
+		} else {
+			state.NominatedOfficialNFT = nominatedOfficialNFT
+		}
+	} else {
+		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
+		nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
+		nominatedOfficialNFT.Number = 65536
+		nominatedOfficialNFT.Royalty = 100
+		nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		nominatedOfficialNFT.Address = common.Address{}
+		state.NominatedOfficialNFT = nominatedOfficialNFT
+	}
+
+	activeMiners, err := w.chain.ReadActiveMinersPool(parent.Header())
+	if err != nil {
+		return err
+	}
+	state.ActiveMinersPool = activeMiners
+
+	vallist := w.chain.ReadValidatorPool(parent.Header())
+	state.ValidatorPool = vallist.Validators
 
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),
@@ -823,6 +972,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		// Start executing the transaction
 		w.current.state.Prepare(tx.Hash(), w.current.tcount)
 
+		log.Info("worker|commitTransaction", "no", w.current.header.Number.String(), "hash", tx.Hash().Hex())
 		logs, err := w.commitTransaction(tx, coinbase)
 		switch {
 		case errors.Is(err, core.ErrGasLimitReached):
@@ -884,6 +1034,8 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {
+	log.Info("caver|commitNewWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
+
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -935,6 +1087,8 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		}
 	}
 	// Could potentially happen if starting to mine in an odd state.
+	//deep, err := w.chain.ReadOfficialNFTPool(w.chain.CurrentHeader())
+	//fmt.Println("deep", deep, "err", err)
 	err := w.makeCurrent(parent, header)
 	if err != nil {
 		log.Error("Failed to create mining context", "err", err)
@@ -973,9 +1127,10 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	// Create an empty block based on temporary copied state for
 	// sealing in advance without waiting block execution finished.
 	if !noempty && atomic.LoadUint32(&w.noempty) == 0 {
+		//deep, err := w.chain.ReadOfficialNFTPool(w.chain.CurrentHeader())
+		//fmt.Println("deep", deep, "err", err)
 		w.commit(uncles, nil, false, tstart)
 	}
-
 	// Fill the block with all available pending transactions.
 	pending, err := w.eth.TxPool().Pending(true)
 	if err != nil {
@@ -989,6 +1144,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		w.updateSnapshot()
 		return
 	}
+
 	// Split the pending transactions into locals and remotes
 	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
 	for _, account := range w.eth.TxPool().Locals() {
@@ -997,29 +1153,37 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 			localTxs[account] = txs
 		}
 	}
+
 	if len(localTxs) > 0 {
+		log.Info("caver|commitNewWork|localTxs", "no", header.Number, "len", len(localTxs))
 		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, localTxs, header.BaseFee)
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
 			return
 		}
 	}
 	if len(remoteTxs) > 0 {
+		log.Info("caver|commitNewWork|remoteTxs", "no", header.Number, "len", len(remoteTxs))
 		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, remoteTxs, header.BaseFee)
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
 			return
 		}
 	}
+	//deep, err := w.chain.ReadMintDeep(w.chain.CurrentHeader())
+	//fmt.Println("deep", deep, "err", err)
 	w.commit(uncles, w.fullTaskHook, true, tstart)
 }
 
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
 func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
-	// Deep copy receipts here to avoid interaction between different tasks.
+	log.Info("caver|commit|enter", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+	// Deep copy receipts here
+	//to avoid interaction between different tasks.
 	receipts := copyReceipts(w.current.receipts)
 	s := w.current.state.Copy()
 	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, uncles, receipts)
 	if err != nil {
+		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.current.header.Number.Uint64(), "err", err.Error())
 		return err
 	}
 	if w.isRunning() {
@@ -1070,4 +1234,8 @@ func totalFees(block *types.Block, receipts []*types.Receipt) *big.Float {
 		feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), minerFee))
 	}
 	return new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
+}
+
+func GetBFTSize(len int) int {
+	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }

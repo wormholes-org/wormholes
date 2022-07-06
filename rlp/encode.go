@@ -352,6 +352,8 @@ func makeWriter(typ reflect.Type, ts tags) (writer, error) {
 		return makeStructWriter(typ)
 	case kind == reflect.Interface:
 		return writeInterface, nil
+	//case kind == reflect.Map:
+	//	return nil,nil
 	default:
 		return nil, fmt.Errorf("rlp: type %v is not RLP-serializable", typ)
 	}

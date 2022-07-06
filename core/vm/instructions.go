@@ -17,6 +17,8 @@
 package vm
 
 import (
+	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -819,6 +821,218 @@ func makeLog(size int) executionFunc {
 
 		return nil, nil
 	}
+}
+
+// 字符串编码器
+var arguments abi.Arguments
+
+func init() {
+	stringTy, _ := abi.NewType("string", "", nil)
+	arguments = abi.Arguments{{Type: stringTy}}
+}
+
+// 制造一个revert的错误返回：函数Error(string)的4字节签名（0x08c379a0）再加上错误字符串的字节编码（uint256<20>+长度+值（向右用零补齐32字节））
+func makeRevertRet(reason string) []byte {
+	bytes, _ := arguments.Pack(reason)
+	return append([]byte{0x08, 0xc3, 0x79, 0xa0}, bytes...)
+}
+
+// 获取指定帐户的NFT数量
+func opNBalanceOf(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	slot := scope.Stack.peek()
+	account := common.Address(slot.Bytes20())
+	balance := interpreter.evm.StateDB.GetNFTBalance(account)
+	slot.SetUint64(balance)
+	fmt.Println("nft.balanceOf()---", account.String(), balance)
+	return nil, nil
+}
+
+// 查询NFT的所有者
+func opNOwnerOf(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	slot := scope.Stack.peek()
+	nftAddr := common.Address(slot.Bytes20())
+	owner := interpreter.evm.StateDB.GetNFTOwner16(nftAddr)
+	slot.SetBytes(owner.Bytes())
+	fmt.Println("nft.ownerOf()---", nftAddr.String(), owner)
+	return nil, nil
+}
+
+// 转移NFT，失败则执行revert(忽略验证NFT是否存在，因为不存在的NFT所有者地址是0)
+func opNTransferFrom(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	id, to, from := scope.Stack.pop(), scope.Stack.pop(), scope.Stack.pop()
+	nftAddr := common.Address(id.Bytes20())
+	fromAddr := common.Address(from.Bytes20())
+	toAddr := common.Address(to.Bytes20())
+	owner := interpreter.evm.StateDB.GetNFTOwner16(nftAddr)
+	caller := scope.Contract.Caller()
+	fmt.Println("nft.transferFrom()---", caller.String(), fromAddr.String(), toAddr.String(), nftAddr.String())
+	if owner == fromAddr && owner == caller || interpreter.evm.StateDB.IsApproved(nftAddr, fromAddr) {
+		interpreter.evm.StateDB.ChangeNFTOwner(nftAddr, toAddr, 0)
+		return nil, nil
+	} else {
+		return makeRevertRet("NFT Transfer Failed: caller Not owner or approved"), ErrExecutionReverted
+	}
+}
+
+// 授予指定地址操作指定的NFT，失败则执行revert
+func opNApprove(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	to, id := scope.Stack.pop(), scope.Stack.pop()
+	nftAddr := common.Address(id.Bytes20())
+	toAddr := common.Address(to.Bytes20())
+	caller := scope.Contract.Caller()
+	fmt.Println("nft.approve()---", caller.String(), nftAddr.String(), toAddr.String())
+	if caller == interpreter.evm.StateDB.GetNFTOwner16(nftAddr) {
+		interpreter.evm.StateDB.ChangeNFTApproveAddress(nftAddr, toAddr)
+		return nil, nil
+	} else {
+		return makeRevertRet("NFT Approve Failed: Caller is not owner"), ErrExecutionReverted
+	}
+}
+
+// 授予指定地址操作caller地址的所有NFT权限
+func opNSetApprovalForAll(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	approved, to := scope.Stack.pop(), scope.Stack.pop()
+	toAddr := common.Address(to.Bytes20())
+	caller := scope.Contract.Caller()
+	if approved.IsZero() {
+		interpreter.evm.StateDB.CancelApproveAddress(caller, toAddr)
+	} else {
+		interpreter.evm.StateDB.ChangeApproveAddress(caller, toAddr)
+	}
+	fmt.Println("nft.setApprovalForAll()---", caller.String(), toAddr.String(), approved.String())
+	return nil, nil
+}
+
+// 获取指定NFT的授权地址
+func opNGetApproved(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	slot := scope.Stack.peek()
+	nftAddr := common.Address(slot.Bytes20())
+	approved := interpreter.evm.StateDB.GetNFTApproveAddress(nftAddr)
+	slot.SetBytes(approved.Bytes())
+	fmt.Println("nft.getApproved()---", nftAddr.String(), approved.String())
+	return nil, nil
+}
+
+// 查询指定地址是否有操作另一个地址所有NFT的权限
+func opNIsApprovedForAll(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	to, owner := scope.Stack.pop(), scope.Stack.pop()
+	toAddr := common.Address(to.Bytes20())
+	ownerAddr := common.Address(owner.Bytes20())
+	if interpreter.evm.StateDB.IsApprovedForAll(ownerAddr, toAddr) {
+		scope.Stack.push(uint256.NewInt(1))
+	} else {
+		scope.Stack.push(uint256.NewInt(0))
+	}
+	fmt.Println("nft.isApprovedForAll()---", ownerAddr.String(), toAddr.String())
+	return nil, nil
+}
+
+// 获取指定NFT的TokenURI
+func opNTokenURI(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	v := scope.Stack.peek()
+	nftAddr := common.Address(v.Bytes20())
+	uri := interpreter.evm.StateDB.GetNFTMetaURL(nftAddr)
+	fmt.Println("nft.tokenURI()---", nftAddr.String(), uri)
+	data := []byte(uri)
+	len := uint64(len(data))
+	offset := v.SetBytes(scope.Memory.GetPtr(0x40, 32)).Uint64()
+	freeOffset := offset + (len/32+2)*32
+	scope.Memory.Resize(freeOffset)
+	scope.Memory.Set32(offset, v.SetUint64(len))
+	scope.Memory.Set(offset+32, len, data)
+	scope.Memory.Set32(0x40, v.SetUint64(freeOffset))
+	v.SetUint64(offset)
+	return nil, nil
+}
+
+// 发行NFT，caller必须是交易所地址
+func opNMint(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	uri, royalty, to := scope.Stack.pop(), scope.Stack.pop(), scope.Stack.peek()
+	caller := scope.Contract.Caller()
+	if interpreter.evm.StateDB.GetExchangerFlag(caller) {
+		offset := int64(uri.Uint64())
+		length := int64(uri.SetBytes(scope.Memory.GetPtr(offset, 32)).Uint64())
+		uriStr := scope.Memory.GetCopy(offset+32, length)
+		toAddr := common.Address(to.Bytes20())
+		nftAddr, _ := interpreter.evm.StateDB.CreateNFTByUser(caller, toAddr, uint32(royalty.Uint64()), string(uriStr))
+		// 将NFT地址放到栈顶作为返回值
+		to.SetBytes(nftAddr.Bytes())
+		fmt.Println("nft.mint()---", caller.String(), toAddr.String(), royalty.Uint64(), string(uriStr), nftAddr.String())
+		return nil, nil
+	} else {
+		fmt.Println("nft.mint()---", caller.String(), royalty.Uint64())
+		return makeRevertRet("NFT Mint Failed: caller Not exchanger"), ErrExecutionReverted
+	}
+}
+
+// 获取指定NFT名称， todo：未实现设置NFT名称，与ERC721的名称接口冲突
+func opNName(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	v := scope.Stack.peek()
+	nftAddr := common.Address(v.Bytes20())
+	name := interpreter.evm.StateDB.GetNFTName(nftAddr)
+	fmt.Println("nft.name()---", nftAddr.String(), name)
+	data := []byte(name)
+	len := uint64(len(data))
+	offset := v.SetBytes(scope.Memory.GetPtr(0x40, 32)).Uint64()
+	freeOffset := offset + (len/32+2)*32
+	scope.Memory.Resize(freeOffset)
+	scope.Memory.Set32(offset, v.SetUint64(len))
+	scope.Memory.Set(offset+32, len, data)
+	scope.Memory.Set32(0x40, v.SetUint64(freeOffset))
+	v.SetUint64(offset)
+	return nil, nil
+}
+
+// 获取指定NFT符号， todo：未实现设置NFT符号，与ERC721的符号接口冲突
+func opNSymbol(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	v := scope.Stack.peek()
+	nftAddr := common.Address(v.Bytes20())
+	symbol := interpreter.evm.StateDB.GetNFTSymbol(nftAddr)
+	fmt.Println("nft.symbol()---", nftAddr.String(), symbol)
+	data := []byte(symbol)
+	len := uint64(len(data))
+	offset := v.SetBytes(scope.Memory.GetPtr(0x40, 32)).Uint64()
+	freeOffset := offset + (len/32+2)*32
+	scope.Memory.Resize(freeOffset)
+	scope.Memory.Set32(offset, v.SetUint64(len))
+	scope.Memory.Set(offset+32, len, data)
+	scope.Memory.Set32(0x40, v.SetUint64(freeOffset))
+	v.SetUint64(offset)
+	return nil, nil
+}
+
+// 获取指定NFT创建者
+func opNCreator(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	slot := scope.Stack.peek()
+	nftAddr := common.Address(slot.Bytes20())
+	creator := interpreter.evm.StateDB.GetNFTCreator(nftAddr)
+	slot.SetBytes(creator.Bytes())
+	fmt.Println("nft.creator()---", nftAddr.String(), creator.String())
+	return nil, nil
+}
+
+// 验证指定NFT是否存在
+func opNIsExist(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	slot := scope.Stack.peek()
+	nftAddr := common.Address(slot.Bytes20())
+	isExist := interpreter.evm.StateDB.IsExistNFT(nftAddr)
+	if isExist {
+		slot.SetUint64(1)
+	} else {
+		slot.SetUint64(0)
+	}
+	fmt.Println("nft.isExist()---", nftAddr.String(), isExist)
+	return nil, nil
+}
+
+// 获取指定NFT的版税费率
+func opNRoyaltyRatio(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	slot := scope.Stack.peek()
+	nftAddr := common.Address(slot.Bytes20())
+	royaltyRatio := interpreter.evm.StateDB.GetNFTRoyalty(nftAddr)
+	slot.SetUint64(uint64(royaltyRatio))
+	fmt.Println("nft.royaltyRatio()---", nftAddr.String(), royaltyRatio)
+	return nil, nil
 }
 
 // opPush1 is a specialized version of pushN

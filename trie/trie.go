@@ -246,7 +246,7 @@ func (t *Trie) Update(key, value []byte) {
 	}
 }
 
-// TryUpdate associates key with value in the trie. Subsequent calls to
+// TryUpdate associates key with value inNodeIterator the trie. Subsequent calls to
 // Get will return value. If value has length zero, any existing value
 // is deleted from the trie and calls to Get will return nil.
 //

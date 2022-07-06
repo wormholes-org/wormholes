@@ -18,6 +18,7 @@ package debug
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/miniredis"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
@@ -58,6 +59,10 @@ var (
 	debugFlag = cli.BoolFlag{
 		Name:  "log.debug",
 		Usage: "Prepends log messages with call-site location (file and line number)",
+	}
+	redisFlag = cli.BoolFlag{
+		Name:  "log.redis",
+		Usage: "Start the output log to the redis function",
 	}
 	pprofFlag = cli.BoolFlag{
 		Name:  "pprof",
@@ -132,6 +137,7 @@ var Flags = []cli.Flag{
 	logjsonFlag,
 	backtraceAtFlag,
 	debugFlag,
+	redisFlag,
 	pprofFlag,
 	pprofAddrFlag,
 	pprofPortFlag,
@@ -246,6 +252,13 @@ func Setup(ctx *cli.Context) error {
 		// This context value ("metrics.addr") represents the utils.MetricsHTTPFlag.Name.
 		// It cannot be imported because it will cause a cyclical dependency.
 		StartPProf(address, !ctx.GlobalIsSet("metrics.addr"))
+	}
+
+	// redis server
+	if ctx.GlobalBool(redisFlag.Name) {
+		miniredis.Newminiredis(true)
+	} else {
+		miniredis.Newminiredis(false)
 	}
 	return nil
 }

@@ -17,6 +17,7 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"math/big"
@@ -652,6 +653,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 	// If the transaction fails basic validation, discard it
 	if err := pool.validateTx(tx, isLocal); err != nil {
 		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
+		log.Error("tx_pool.go, TxPool.add(), add tx to pending", "err", err)
 		invalidTxMeter.Mark(1)
 		return false, err
 	}
@@ -916,10 +918,32 @@ func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) ([]error,
 	dirty := newAccountSet(pool.signer)
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
-		replaced, err := pool.add(tx, local)
-		errs[i] = err
-		if err == nil && !replaced {
-			dirty.addTx(tx)
+		var wormholes types.Wormholes
+		var isTx30 bool
+		if len(tx.Data()) > 10 {
+			if string(tx.Data()[:10]) == "wormholes:" {
+				jsonErr := json.Unmarshal(tx.Data()[10:], &wormholes)
+				if jsonErr == nil {
+					if wormholes.Type == 30 {
+						// 如果交易类型是30的话，直接调用pool.add(tx,true)就OK了，会直接进入到本地
+						isTx30 = true
+						replaced, err := pool.add(tx, true)
+						errs[i] = err
+						if err == nil && !replaced {
+							log.Info("addTxsLocked|isTx30", "hash", tx.Hash().Hex())
+							dirty.addTx(tx)
+						}
+					}
+				}
+			}
+		}
+		if !isTx30 {
+			replaced, err := pool.add(tx, local)
+			errs[i] = err
+			if err == nil && !replaced {
+				log.Info("addTxsLocked|!isTx30", "hash", tx.Hash().Hex())
+				dirty.addTx(tx)
+			}
 		}
 	}
 	validTxMeter.Mark(int64(len(dirty.accounts)))

@@ -1,0 +1,316 @@
+package types
+
+import (
+	"errors"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/log"
+	"math/big"
+)
+
+type MintDeep struct {
+	UserMint     *big.Int
+	OfficialMint *big.Int
+	//ExchangeList SNFTExchangeList
+}
+
+type SNFTExchange struct {
+	InjectedInfo
+	NFTAddress         common.Address
+	MergeLevel         uint8
+	CurrentMintAddress common.Address
+	BlockNumber        *big.Int
+}
+type InjectedInfo struct {
+	MetalUrl string
+	Royalty  uint32
+	Creator  string
+}
+
+type SNFTExchangeList struct {
+	SNFTExchanges []*SNFTExchange
+}
+
+func (ex *SNFTExchange) MinNFTAddress() common.Address {
+	return ex.NFTAddress
+}
+func (ex *SNFTExchange) MaxNFTAddress() common.Address {
+	if ex.MergeLevel == 0 {
+		return ex.NFTAddress
+	}
+	minAddrInt := big.NewInt(0)
+	minAddrInt.SetBytes(ex.NFTAddress.Bytes())
+	nftNumber := math.BigPow(256, int64(ex.MergeLevel))
+	maxAddrInt := big.NewInt(0)
+	maxAddrInt.Add(minAddrInt, nftNumber)
+	maxAddr := common.BytesToAddress(maxAddrInt.Bytes())
+	return maxAddr
+}
+func (ex *SNFTExchange) MaxNFTAddress16() common.Address {
+	if ex.MergeLevel == 0 {
+		return ex.NFTAddress
+	}
+	minAddrInt := big.NewInt(0)
+	minAddrInt.SetBytes(ex.NFTAddress.Bytes())
+	nftNumber := math.BigPow(16, int64(ex.MergeLevel))
+	maxAddrInt := big.NewInt(0)
+	maxAddrInt.Add(minAddrInt, nftNumber)
+	maxAddr := common.BytesToAddress(maxAddrInt.Bytes())
+	return maxAddr
+}
+
+func (list *SNFTExchangeList) PopAddress(blocknumber *big.Int) (common.Address, *InjectedInfo, bool) {
+	if len(list.SNFTExchanges) > 0 {
+		log.Info("PopAddress()", "SNFTExchanges[0].BlockNumber=", list.SNFTExchanges[0].BlockNumber.Uint64())
+		log.Info("PopAddress()", "-----------------blocknumber=", blocknumber.Uint64())
+		if list.SNFTExchanges[0].BlockNumber.Cmp(blocknumber) >= 0 {
+			return common.Address{}, nil, false
+		}
+		addr := list.SNFTExchanges[0].CurrentMintAddress
+		InjectedInfo := &InjectedInfo{
+			MetalUrl: list.SNFTExchanges[0].MetalUrl,
+			Royalty:  list.SNFTExchanges[0].Royalty,
+			Creator:  list.SNFTExchanges[0].Creator,
+		}
+		//if list.SNFTExchanges[0].CurrentMintAddress == list.SNFTExchanges[0].MaxNFTAddress() {
+		if list.SNFTExchanges[0].CurrentMintAddress == list.SNFTExchanges[0].MaxNFTAddress16() {
+			if len(list.SNFTExchanges) > 1 {
+				list.SNFTExchanges = list.SNFTExchanges[1:]
+			} else {
+				list.SNFTExchanges = list.SNFTExchanges[:0]
+			}
+		} else {
+			currentMintInt := new(big.Int).SetBytes(list.SNFTExchanges[0].CurrentMintAddress.Bytes())
+			currentMintInt.Add(currentMintInt, big.NewInt(1))
+			list.SNFTExchanges[0].CurrentMintAddress = common.BytesToAddress(currentMintInt.Bytes())
+		}
+		return addr, InjectedInfo, true
+	}
+	return common.Address{}, nil, false
+}
+
+type PledgedToken struct {
+	Address      common.Address
+	Amount       *big.Int
+	Flag         bool
+	ProxyAddress common.Address
+}
+
+type InjectedOfficialNFT struct {
+	Dir        string   `json:"dir"`
+	StartIndex *big.Int `json:"start_index"`
+	Number     uint64   `json:"number"`
+	Royalty    uint32   `json:"royalty"`
+	Creator    string   `json:"creator"`
+	Address common.Address `json:"address"`
+	VoteWeight *big.Int    `json:"vote_weight"`
+}
+
+type InjectedOfficialNFTList struct {
+	InjectedOfficialNFTs []*InjectedOfficialNFT
+}
+
+func (list *InjectedOfficialNFTList) GetInjectedInfo(addr common.Address) *InjectedOfficialNFT {
+	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+	addrInt := new(big.Int).SetBytes(addr.Bytes())
+	addrInt.Sub(addrInt, maskB)
+	tempInt := new(big.Int)
+	for _, injectOfficialNFT := range list.InjectedOfficialNFTs {
+		if injectOfficialNFT.StartIndex.Cmp(addrInt) == 0 {
+			return injectOfficialNFT
+		}
+		if injectOfficialNFT.StartIndex.Cmp(addrInt) < 0 {
+			tempInt.SetInt64(0)
+			tempInt.Add(injectOfficialNFT.StartIndex, new(big.Int).SetUint64(injectOfficialNFT.Number))
+			if tempInt.Cmp(addrInt) > 0 {
+				return injectOfficialNFT
+			}
+		}
+	}
+
+	return nil
+}
+
+func (list *InjectedOfficialNFTList) DeleteExpireElem(num *big.Int) {
+	var index int
+	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+	for k, injectOfficialNFT := range list.InjectedOfficialNFTs {
+		sum := new(big.Int).Add(injectOfficialNFT.StartIndex, new(big.Int).SetUint64(injectOfficialNFT.Number))
+		sum.Add(sum, maskB)
+		if sum.Cmp(num) > 0 {
+			index = k
+			break
+		}
+	}
+
+	list.InjectedOfficialNFTs = list.InjectedOfficialNFTs[index:]
+}
+
+func (list *InjectedOfficialNFTList) RemainderNum(addrInt *big.Int) uint64 {
+	var sum uint64
+	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+	tempInt := new(big.Int)
+	for _, injectOfficialNFT := range list.InjectedOfficialNFTs {
+		if injectOfficialNFT.StartIndex.Cmp(addrInt) >= 0 {
+			sum = sum + injectOfficialNFT.Number
+		}
+		if injectOfficialNFT.StartIndex.Cmp(addrInt) < 0 {
+			tempInt.SetInt64(0)
+			tempInt.Add(injectOfficialNFT.StartIndex, new(big.Int).SetUint64(injectOfficialNFT.Number))
+			tempInt.Add(tempInt, maskB)
+			if tempInt.Cmp(addrInt) >= 0 {
+				sum = sum + new(big.Int).Sub(tempInt, addrInt).Uint64()
+			}
+		}
+	}
+
+	return sum
+}
+
+func (list *InjectedOfficialNFTList) MaxIndex() *big.Int {
+	max := big.NewInt(0)
+	for _, injectOfficialNFT := range list.InjectedOfficialNFTs {
+		index := new(big.Int).Add(injectOfficialNFT.StartIndex, new(big.Int).SetUint64(injectOfficialNFT.Number))
+		if index.Cmp(max) > 0 {
+			max.Set(index)
+		}
+	}
+
+	return max
+}
+
+// Wormholes struct for handling NFT transactions
+type Wormholes struct {
+	Type         uint8  `json:"type"`
+	NFTAddress   string `json:"nft_address"`
+	ProxyAddress string `json:"proxy_address"`
+	ProxySign    string `json:"proxy_sign"`
+	Exchanger    string `json:"exchanger"`
+	Royalty      uint32 `json:"royalty"`
+	MetaURL      string `json:"meta_url"`
+	//ApproveAddress string		`json:"approve_address"`
+	FeeRate       uint32           `json:"fee_rate"`
+	Name          string           `json:"name"`
+	Url           string           `json:"url"`
+	Dir           string           `json:"dir"`
+	StartIndex    string           `json:"start_index"`
+	Number        uint64           `json:"number"`
+	Buyer         Payload          `json:"buyer"`
+	Seller1       Payload          `json:"seller1"`
+	Seller2       MintSellPayload  `json:"seller2"`
+	ExchangerAuth ExchangerPayload `json:"exchanger_auth"`
+	Creator       string           `json:"creator"`
+	Version       string           `json:"version"`
+	RewardFlag    uint8            `json:"reward_flag"`
+}
+
+//var PattenAddr = "^0[xX][0-9a-fA-F]{40}$"
+//var PattenHex = "^[0-9a-fA-F]+$"
+func (w *Wormholes) CheckFormat() error {
+	//regHex, _ := regexp.Compile(PattenHex)
+	//regAddr, _ := regexp.Compile(PattenAddr)
+
+	switch w.Type {
+	case 0:
+		if len(w.MetaURL) > 256 {
+			return errors.New("metaurl too long")
+		}
+		//exchangerMatch := regAddr.MatchString(w.Exchanger)
+		//if !exchangerMatch {
+		//	return errors.New("exchanger format error")
+		//}
+
+	case 1:
+
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+	case 8:
+	case 9:
+	case 10:
+	case 11:
+
+		if len(w.Name) > 64 {
+			w.Name = string([]byte(w.Name)[:64])
+		}
+		if len(w.Url) > 128 {
+			w.Url = string([]byte(w.Url)[:128])
+		}
+
+	case 12:
+	case 13:
+	case 14:
+	case 15:
+	case 16:
+		if len(w.Seller2.MetaURL) > 256 {
+			return errors.New("metaurl too long")
+		}
+
+	case 17:
+		if len(w.Seller2.MetaURL) > 256 {
+			return errors.New("metaurl too long")
+		}
+
+	case 18:
+	case 19:
+		if len(w.Seller2.MetaURL) > 256 {
+			return errors.New("metaurl too long")
+		}
+
+	case 20:
+	case 21:
+	case 22:
+	case 23:
+		if len(w.Dir) > 256 {
+			return errors.New("dir too long")
+		}
+
+	case 24:
+		if len(w.Dir) > 256 {
+			return errors.New("dir too long")
+		}
+
+	case 25:
+	case 30:
+	case 31:
+	default:
+		return errors.New("not exist nft type")
+	}
+
+	return nil
+}
+
+type Payload struct {
+	Amount      string `json:"price"`
+	NFTAddress  string `json:"nft_address"`
+	Exchanger   string `json:"exchanger"`
+	BlockNumber string `json:"block_number"`
+	Seller      string `json:"seller"`
+	Sig         string `json:"sig"`
+}
+
+type MintSellPayload struct {
+	Amount        string `json:"price"`
+	Royalty       string `json:"royalty"`
+	MetaURL       string `json:"meta_url"`
+	ExclusiveFlag string `json:"exclusive_flag"`
+	Exchanger     string `json:"exchanger"`
+	BlockNumber   string `json:"block_number"`
+	Sig           string `json:"sig"`
+}
+
+type ExchangerPayload struct {
+	ExchangerOwner string `json:"exchanger_owner"`
+	To             string `json:"to"`
+	BlockNumber    string `json:"block_number"`
+	Sig            string `json:"sig"`
+}
+
+// *** modify to support nft transaction 20211215 end ***
+
+type NominatedOfficialNFT struct {
+	InjectedOfficialNFT
+}

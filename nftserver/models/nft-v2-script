@@ -1,0 +1,100 @@
+一、初始化
+//upload OK
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "creator_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "owner_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "md5": "2128ba8f7822c9cde4a3737bfd6be582",  "name": "noname",  "desc": "none",  "meta": "http://....",  "source_url": "QmNLofb3sty95CXxkfJPVVJfpf6f97LkQaZ1kSwR8gnZJH",  "nft_contract_addr": "",  "": "1631753648255",  "categories": "Art",  "collections": "",  "asset_sample": "asset_sample",  "hide": "true",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/upload
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169",  "creator_addr": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169",  "owner_addr": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169",  "md5": "2128ba8f7822c9cde4a3737bfd6be582",  "name": "noname",  "desc": "none",  "meta": "http://....",  "source_url": "QmNLofb3sty95CXxkfJPVVJfpf6f97LkQaZ1kSwR8gnZJH",  "nft_contract_addr": "",  "nft_token_id": "",  "categories": "Art",  "collections": "NewCollection1",  "asset_sample": "asset_sample",  "hide": "true",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/upload
+
+//new collections OK
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169",  "name": "NewCollection1",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x0109CC44df1C9ae44Bac132eD96f146Da9A26B88",  "name": "NewCollection2",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection3",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection4",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection5",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection6",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection7",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection8",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection9",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection10",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "name": "NewCollection11",  "img": "......",  "contract_type": "721",  "contract_addr": "0x12345",  "desc": "none",  "royalty": "10",  "categories": "Art",  "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/newCollections
+
+测试：
+​/v2​/login ok
+curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/login
+
+/v2/queryUserInfo OK
+curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900"}' 127.0.0.1:8081/v2/queryUserInfo
+
+/v2/queryUserNFTList OK
+curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","start_index":"0", "count": "5"}' 127.0.0.1:8081/v2/queryUserNFTList
+
+///v2/queryUserCollectionList OK
+curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","start_index":"0", "count": "5"}' 127.0.0.1:8081/v2/queryUserCollectionList
+
+/v2/queryUserTradingHistory OK
+curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","start_index":"0", "count": "5"}' 127.0.0.1:8081/v2/queryUserTradingHistory
+curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169","start_index":"0", "count": "5"}' 127.0.0.1:8081/v2/queryUserTradingHistory
+
+/v2/queryUserOfferList OK
+curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","start_index":"0", "count": "5"}' 127.0.0.1:8081/v2/queryUserOfferList
+
+///v2/queryUserFavoriteList OK
+curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","start_index":"0", "count": "5"}' 127.0.0.1:8081/v2/queryUserFavoriteList
+
+///v2/like OK 添加删除(需要按数据库的实际tokenid填)
+curl -H "Content-Type: application/json" -X POST -d '{"nft_token_id": "1632799124069", "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","nft_contract_addr":"0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/like
+curl -H "Content-Type: application/json" -X POST -d '{"nft_token_id": "1632799182007", "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","nft_contract_addr":"0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/like
+curl -H "Content-Type: application/json" -X POST -d '{"nft_token_id": "1632799184574", "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","nft_contract_addr":"0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/like
+curl -H "Content-Type: application/json" -X POST -d '{"nft_token_id": "1632799186515", "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","nft_contract_addr":"0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/like
+
+curl -H "Content-Type: application/json" -X POST -d '{"nft_token_id": "1632799124098", "user_addr": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169","nft_contract_addr":"0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/like
+curl -H "Content-Type: application/json" -X POST -d '{"nft_token_id": "1632799182042", "user_addr": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169","nft_contract_addr":"0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/like
+curl -H "Content-Type: application/json" -X POST -d '{"nft_token_id": "1632799184608", "user_addr": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169","nft_contract_addr":"0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/like
+curl -H "Content-Type: application/json" -X POST -d '{"nft_token_id": "1632799186547", "user_addr": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169","nft_contract_addr":"0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/like
+
+/v2/modifyUserInfo OK
+curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900","user_name": "username",  "portrait": "..........",  "user_mail": "user@mail.com",  "user_info": "userinfo","sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b" }' 127.0.0.1:8081/v2/modifyUserInfo
+
+  "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",
+  "user_name": "user_name",  "portrait": "......",  "user_mail": "user@mail.com",  "user_info": "user_info",
+}
+/v2/upload OK
+
+/v2/newCollections OK
+
+
+
+/v2/modifyCollectionsImage OK
+curl -H "Content-Type: application/json" -X POST -d '{"contract_addr": "0x12345","img":"modify img", "sig": "0x4a71940655b075316ae19b02457201ed0f719d14f2d20c986b8c16113233e047535d5d1cc4eb293609e79bc60daf622216b190d50a16519d6f826bee05e548051b"}' 127.0.0.1:8081/v2/modifyCollectionsImage
+
+/v2/queryNFT 未测试，未修改
+
+/v2/sell 
+	//sell fixprice OK
+		curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "nft_contract_addr": "0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F",  "nft_token_id": "7184340090468",  "sell_type": "FixPrice",  "pay_channel": "1",  "currency_type": "1",  "price1": "1000",  "price2": "1000",  "day": "1",  "hide": "true", "trade_sig": "0x0109CC44df1C9ae44Bac132eD96f146Da9A26B88", "sig":"0xe870faec02ee7ff2e5c3f2b062e9c1c55b255e0c29ad435680aba785c7442f786ccd67384409f4cfd6a8ba1f495a53d9ebe16aa4717c9576225725eac3481cc31c"}' 127.0.0.1:8081/v2/sell
+	//buyresult
+		curl -H "Content-Type: application/json" -X POST -d '{ "from": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "to": "0x572bcAcB7ae32Db658C8dEe49e156d455Ad59eC8",  "nft_contract_addr": "0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F",  "nft_token_id": "7184340090468",  "trade_sig": "1",  "price": "1000", "sig": "0xe7dea744e6afef1c36494dcdaf3aa13ee7e8f16e92eda38e0c3cd41e677f5225764064c47a0675bdc7a60920e07fbf388a1ca659e14b17a3820c70850a3250e81b"}' 127.0.0.1:8081/v2/buyResult
+		curl -H "Content-Type: application/json" -X POST -d '{ "from": "0x8fBf399D77BC8C14399AFB0F6d32DBe22189e169",  "to": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "nft_contract_addr": "0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F",  "nft_token_id": "1632727212160",  "trade_sig": "1",  "price": "1000", "sig": "0xe7dea744e6afef1c36494dcdaf3aa13ee7e8f16e92eda38e0c3cd41e677f5225764064c47a0675bdc7a60920e07fbf388a1ca659e14b17a3820c70850a3250e81b"}' 127.0.0.1:8081/v2/buyResult
+	//sell hightbid
+		curl -H "Content-Type: application/json" -X POST -d '{"user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "nft_contract_addr": "0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F",  "nft_token_id": "549323212017",  "sell_type": "HighestBid",  "pay_channel": "1",  "currency_type": "1",  "price1": "1000",  "price2": "1000",  "day": "1",  "hide": "true", "trade_sig": "0x0109CC44df1C9ae44Bac132eD96f146Da9A26B88", "sig":"0xe870faec02ee7ff2e5c3f2b062e9c1c55b255e0c29ad435680aba785c7442f786ccd67384409f4cfd6a8ba1f495a53d9ebe16aa4717c9576225725eac3481cc31c"}' 127.0.0.1:8081/v2/sell
+		//bid
+		curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x0109CC44df1C9ae44Bac132eD96f146Da9A26B88",  "nft_contract_addr": "0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F",  "nft_token_id": "549323212017",  "pay_channel": "1",  "currency_type": "1",  "price": "1100",  "trade_sig": "0xde66e1c5d6a7a28b0fa0afbb471669f0cc7648d1258692c2591414bc57d6e9d408ec6c29b6c9a3927c337ea7cd82937c878b17612be2b613a1096648c907263e1c", "sig": "0x1037e888086a8ad55f2bbb4a8ab69413cefddb7e3696946a7480d69d78398cee31bd06f76f42e45bd562747e36a30664df71192e32db2e4482545d3d8b32f6381c"}' 127.0.0.1:8081/v2/buy
+		curl -H "Content-Type: application/json" -X POST -d '{ "user_addr": "0x7fBC8ad616177c6519228FCa4a7D9EC7d1804900",  "nft_contract_addr": "0x101060AEFE0d70fB40eda7F4a605c1315Be4A72F",  "nft_token_id": "549323212017",  "pay_channel": "1",  "currency_type": "1",  "price": "1100",  "trade_sig": "0xde66e1c5d6a7a28b0fa0afbb471669f0cc7648d1258692c2591414bc57d6e9d408ec6c29b6c9a3927c337ea7cd82937c878b17612be2b613a1096648c907263e1c", "sig": "0x1037e888086a8ad55f2bbb4a8ab69413cefddb7e3696946a7480d69d78398cee31bd06f76f42e45bd562747e36a30664df71192e32db2e4482545d3d8b32f6381c"}' 127.0.0.1:8081/v2/buy
+
+
+/v2/cancelSell 未测试，未修改
+
+/v2/buy OK
+
+/v2/cancelBuy 未测试，未修改
+
+/v2/search 未测试，？？？
+
+/v2/queryNFTList 未测试，？？？
+
+/v2/queryNFTCollectionList OK
+curl -H "Content-Type: application/json" -X POST -d '{"start_index":"25", "count": "5"}' 127.0.0.1:8081/v2/queryNFTCollectionList
+
+/v2/queryMarketTradingHistory OK
+curl -H "Content-Type: application/json" -X POST -d '{"start_index":"0", "count": "5"}' 127.0.0.1:8081/v2/queryMarketTradingHistory
+
+

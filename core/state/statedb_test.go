@@ -19,6 +19,7 @@ package state
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -915,3 +916,370 @@ func TestStateDBAccessList(t *testing.T) {
 		t.Fatalf("expected empty, got %d", got)
 	}
 }
+
+
+func TestMergeNFT(t *testing.T) {
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	state, _ := New(common.Hash{}, db, nil)
+
+	for i:=0; i<256*256; i++ {
+		bigi := big.NewInt(int64(i))
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j:=0; j<40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+		newAccount := common.HexToAddress(bigiS)
+		state.CreateAccount(newAccount)
+		newObject := state.getStateObject(newAccount)
+		newObject.address = newAccount
+		newObject.addrHash = newAccount.Hash()
+		newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		newObject.data.MergeLevel = 0
+		state.updateStateObject(newObject)
+
+		//state.Commit(false)
+	}
+
+	//nftAddr := common.HexToAddress("0000000000000000000000000000000000000101")
+
+	nftAddr := common.HexToAddress("2000000000000000000000000000000003000000")
+
+	state.MergeNFT(nftAddr)
+
+	//nftAddr = common.HexToAddress("0000000000000000000000000000000000000000")
+	//state.MergeNFT(nftAddr)
+
+	fmt.Println(state.trie)
+}
+
+func TestGetNFTStoreAddress(t *testing.T) {
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	state, _ := New(common.Hash{}, db, nil)
+	bigi := big.NewInt(0)
+	for i:=0; i<256*256; i++ {
+		bigi.SetInt64(int64(i))
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j:=0; j<40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+		newAccount := common.HexToAddress(bigiS)
+		state.CreateAccount(newAccount)
+		newObject := state.getStateObject(newAccount)
+		newObject.address = newAccount
+		newObject.addrHash = newAccount.Hash()
+		newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		newObject.data.MergeLevel = 0
+		state.updateStateObject(newObject)
+	}
+
+	nftAddr := common.HexToAddress("0000000000000000000000000000000000000010")
+	state.MergeNFT(nftAddr)
+
+	nftAddr = common.HexToAddress("0000000000000000000000000000000000000000")
+	address, owner, ok := state.GetNFTStoreAddress(nftAddr, 0)
+	fmt.Println(address.String(), owner.String(), ok)
+	nftAddr = common.HexToAddress("0000000000000000000000000000000000000010")
+	address, owner, ok = state.GetNFTStoreAddress(nftAddr, 0)
+	fmt.Println(address.String(), owner.String(), ok)
+	nftAddr = common.HexToAddress("0000000000000000000000000000000000000100")
+	address, owner, ok = state.GetNFTStoreAddress(nftAddr, 0)
+	fmt.Println(address.String(), owner.String(), ok)
+}
+
+func TestSplitNFT(t *testing.T) {
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	state, _ := New(common.Hash{}, db, nil)
+	bigi := big.NewInt(0)
+	for i:=0; i<256*256; i++ {
+		bigi.SetInt64(int64(i))
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j:=0; j<40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+		newAccount := common.HexToAddress(bigiS)
+		state.CreateAccount(newAccount)
+		newObject := state.getStateObject(newAccount)
+		newObject.address = newAccount
+		newObject.addrHash = newAccount.Hash()
+		newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		newObject.data.MergeLevel = 0
+		state.updateStateObject(newObject)
+	}
+
+	addr := common.HexToAddress("0000000000000000000000000000000000000000")
+	for i:=0; i<256; i++ {
+		addrBytes := addr.Bytes()
+		addrBytes[18] = byte(i)
+		addr = common.BytesToAddress(addrBytes)
+		state.MergeNFT(addr)
+	}
+	addr = common.HexToAddress("0000000000000000000000000000000000000001")
+	address, owner, ok := state.GetNFTStoreAddress(addr, 0)
+	object := state.getStateObject(address)
+	fmt.Println(address.String(), owner.String(), ok, object.GetNFTMergeLevel())
+
+	addrtemp := common.HexToAddress("0000000000000000000000000000000000000000")
+	for i:=0; i<256*256; i++ {
+		bigi.SetInt64(int64(i))
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j:=0; j<40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+		newAccount := common.HexToAddress(bigiS)
+
+		address, _, ok := state.GetNFTStoreAddress(newAccount, 0)
+		//fmt.Println(newAccount.String(), address.String(), addrtemp.String())
+		if ok && bytes.Compare(address.Bytes(), addrtemp.Bytes()) != 0 {
+			fmt.Println(newAccount.String())
+		}
+	}
+
+	addr = common.HexToAddress("0000000000000000000000000000000000000101")
+	addrStateObject := state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+
+	//address, owner = state.GetNFTStoreAddress(addr, 0)
+	//object = state.getStateObject(address)
+	//fmt.Println(address.String(), owner.String(), object.GetNFTMergeLevel())
+	state.SplitNFT(addr, 0)
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	fmt.Println("")
+	fmt.Println("----------------------------------------------")
+	addr = common.HexToAddress("0000000000000000000000000000000000000000")
+	fmt.Println("0000000000000000000000000000000000000000")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000001")
+	fmt.Println("0000000000000000000000000000000000000001")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("00000000000000000000000000000000000000ff")
+	fmt.Println("00000000000000000000000000000000000000ff")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000100")
+	fmt.Println("0000000000000000000000000000000000000100")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000102")
+	fmt.Println("0000000000000000000000000000000000000102")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("00000000000000000000000000000000000001ff")
+	fmt.Println("00000000000000000000000000000000000001ff")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000200")
+	fmt.Println("0000000000000000000000000000000000000200")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000201")
+	fmt.Println("0000000000000000000000000000000000000201")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("00000000000000000000000000000000000002ff")
+	fmt.Println("00000000000000000000000000000000000002ff")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("000000000000000000000000000000000000ff00")
+	fmt.Println("000000000000000000000000000000000000ff00")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("000000000000000000000000000000000000ff01")
+	fmt.Println("000000000000000000000000000000000000ff01")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("000000000000000000000000000000000000ffff")
+	fmt.Println("000000000000000000000000000000000000ffff")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+}
+
+func TestMergeNFT16(t *testing.T) {
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	state, _ := New(common.Hash{}, db, nil)
+
+	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+
+	for i:=0; i<16; i++ {
+		bigi := big.NewInt(int64(i))
+		bigi.Add(bigi, maskB)
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j:=0; j<40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+		newAccount := common.HexToAddress(bigiS)
+		state.CreateAccount(newAccount)
+		newObject := state.getStateObject(newAccount)
+		newObject.address = newAccount
+		newObject.addrHash = newAccount.Hash()
+		newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		newObject.data.MergeLevel = 0
+		state.updateStateObject(newObject)
+
+		//state.Commit(false)
+	}
+
+	nftAddr1 := common.HexToAddress("8000000000000000000000000000000000000001")
+	nftAddr2 := common.HexToAddress("8000000000000000000000000000000000000000")
+	nftAccount1 := state.getStateObject(nftAddr1)
+	nftAccount2 := state.getStateObject(nftAddr2)
+	//nftAddr := common.HexToAddress("2000000000000000000000000000000003000000")
+	fmt.Println("before", nftAccount1)
+	fmt.Println("before", nftAccount2)
+	state.MergeNFT16(nftAddr1)
+	fmt.Println("after", nftAccount1)
+	fmt.Println("after", nftAccount2)
+
+	//nftAddr = common.HexToAddress("0000000000000000000000000000000000000000")
+	//state.MergeNFT(nftAddr)
+
+
+	fmt.Println(state.trie)
+}
+
+func TestSplitNFT16(t *testing.T) {
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	state, _ := New(common.Hash{}, db, nil)
+
+	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+
+	bigi := new(big.Int).Set(maskB)
+	for i:=0; i<16; i++ {
+		bigi.SetInt64(int64(i))
+		bigi.Add(bigi, maskB)
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j:=0; j<40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+		newAccount := common.HexToAddress(bigiS)
+		state.CreateAccount(newAccount)
+		newObject := state.getStateObject(newAccount)
+		newObject.address = newAccount
+		newObject.addrHash = newAccount.Hash()
+		newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		newObject.data.MergeLevel = 0
+		state.updateStateObject(newObject)
+	}
+
+	nftAddr1 := common.HexToAddress("8000000000000000000000000000000000000001")
+	nftAddr2 := common.HexToAddress("8000000000000000000000000000000000000000")
+	nftAccount1 := state.getStateObject(nftAddr1)
+	nftAccount2 := state.getStateObject(nftAddr2)
+	fmt.Println("before", nftAccount1)
+	fmt.Println("before", nftAccount2)
+	state.MergeNFT16(nftAddr1)
+	state.SplitNFT16(nftAddr1, 0)
+
+
+	addr := common.HexToAddress("0000000000000000000000000000000000000000")
+	for i:=0; i<256; i++ {
+		addrBytes := addr.Bytes()
+		addrBytes[18] = byte(i)
+		addr = common.BytesToAddress(addrBytes)
+		state.MergeNFT(addr)
+	}
+	addr = common.HexToAddress("0000000000000000000000000000000000000001")
+	address, owner, ok := state.GetNFTStoreAddress(addr, 0)
+	object := state.getStateObject(address)
+	fmt.Println(address.String(), owner.String(), ok, object.GetNFTMergeLevel())
+
+	addrtemp := common.HexToAddress("0000000000000000000000000000000000000000")
+	for i:=0; i<256*256; i++ {
+		bigi.SetInt64(int64(i))
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j:=0; j<40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+		newAccount := common.HexToAddress(bigiS)
+
+		address, _, ok := state.GetNFTStoreAddress(newAccount, 0)
+		//fmt.Println(newAccount.String(), address.String(), addrtemp.String())
+		if ok && bytes.Compare(address.Bytes(), addrtemp.Bytes()) != 0 {
+			fmt.Println(newAccount.String())
+		}
+	}
+
+	addr = common.HexToAddress("0000000000000000000000000000000000000101")
+	addrStateObject := state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+
+	//address, owner = state.GetNFTStoreAddress(addr, 0)
+	//object = state.getStateObject(address)
+	//fmt.Println(address.String(), owner.String(), object.GetNFTMergeLevel())
+	state.SplitNFT(addr, 0)
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	fmt.Println("")
+	fmt.Println("----------------------------------------------")
+	addr = common.HexToAddress("0000000000000000000000000000000000000000")
+	fmt.Println("0000000000000000000000000000000000000000")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000001")
+	fmt.Println("0000000000000000000000000000000000000001")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("00000000000000000000000000000000000000ff")
+	fmt.Println("00000000000000000000000000000000000000ff")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000100")
+	fmt.Println("0000000000000000000000000000000000000100")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000102")
+	fmt.Println("0000000000000000000000000000000000000102")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("00000000000000000000000000000000000001ff")
+	fmt.Println("00000000000000000000000000000000000001ff")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000200")
+	fmt.Println("0000000000000000000000000000000000000200")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("0000000000000000000000000000000000000201")
+	fmt.Println("0000000000000000000000000000000000000201")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("00000000000000000000000000000000000002ff")
+	fmt.Println("00000000000000000000000000000000000002ff")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("000000000000000000000000000000000000ff00")
+	fmt.Println("000000000000000000000000000000000000ff00")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("000000000000000000000000000000000000ff01")
+	fmt.Println("000000000000000000000000000000000000ff01")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+	addr = common.HexToAddress("000000000000000000000000000000000000ffff")
+	fmt.Println("000000000000000000000000000000000000ffff")
+	addrStateObject = state.getStateObject(addr)
+	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
+}
+
+

@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 )
+// *** modify to support nft transaction 20211217 begin ***
 
 // Account is a modified version of a state.Account, where the root is replaced
 // with a byte slice. This format can be used to represent full-consensus format
@@ -33,14 +34,102 @@ type Account struct {
 	Balance  *big.Int
 	Root     []byte
 	CodeHash []byte
+
+	PledgedBalance *big.Int
+	//Owner common.Address
+	// whether the account has a NFT exchanger
+	ExchangerFlag bool
+	BlockNumber *big.Int
+	ExchangerBalance *big.Int
+	VoteWeight *big.Int
+	// The ratio that exchanger get.
+	FeeRate uint32
+	ExchangerName string
+	ExchangerURL string
+	// ApproveAddress have the right to handle all nfts of the account
+	ApproveAddressList []common.Address
+	// NFTBalance is the nft number that the account have
+	NFTBalance uint64
+	// Indicates the reward method chosen by the miner
+	RewardFlag uint8 // 0:SNFT 1:ERB default:0
+	AccountNFT
+}
+type AccountNFT struct {
+	//Account
+	Name string
+	Symbol string
+	Price *big.Int
+	Direction uint8 // 0:未交易,1:买入,2:卖出
+	Owner common.Address
+	NFTApproveAddressList common.Address
+	//Auctions map[string][]common.Address
+	// MergeLevel is the level of NFT merged
+	MergeLevel uint8
+
+	Creator common.Address
+	Royalty uint32
+	Exchanger common.Address
+	MetaURL string
 }
 
 // SlimAccount converts a state.Account content into a slim snapshot account
-func SlimAccount(nonce uint64, balance *big.Int, root common.Hash, codehash []byte) Account {
+func SlimAccount(nonce uint64,
+	balance *big.Int,
+	root common.Hash,
+	codehash []byte,
+	pledgedbalance *big.Int,
+	exchangerflag bool,
+	blocknumber *big.Int,
+	exchangerbalance *big.Int,
+	voteweight *big.Int,
+	feerate uint32,
+	exchangername string,
+	exchangerurl string,
+	approveaddresslist []common.Address,
+	nftbalance uint64,
+	name string,
+	symbol string,
+	price *big.Int,
+	direction uint8,
+	owner common.Address,
+	nftapproveaddresslist common.Address,
+	mergelevel uint8,
+	creator common.Address,
+	royalty uint32,
+	exchanger common.Address,
+	metaurl string,
+	rewardFlag uint8) Account {
+//func SlimAccount(nonce uint64, balance *big.Int, root common.Hash, codehash []byte) Account {
 	slim := Account{
 		Nonce:   nonce,
 		Balance: balance,
+		PledgedBalance: pledgedbalance,
+		ExchangerFlag: exchangerflag,
+		BlockNumber: blocknumber,
+		ExchangerBalance: exchangerbalance,
+		VoteWeight: voteweight,
+		FeeRate: feerate,
+		ExchangerName: exchangername,
+		ExchangerURL: exchangerurl,
+		NFTBalance: nftbalance,
+		AccountNFT: AccountNFT{
+			Name: name,
+			Symbol: symbol,
+			Price: price,
+			Direction: direction,
+			Owner: owner,
+			MergeLevel: mergelevel,
+			Creator: creator,
+			Royalty: royalty,
+			Exchanger: exchanger,
+			MetaURL: metaurl,
+		},
+		RewardFlag: rewardFlag,
 	}
+	slim.ApproveAddressList = append(slim.ApproveAddressList, approveaddresslist...)
+	//slim.NFTApproveAddressList = append(slim.NFTApproveAddressList, nftapproveaddresslist...)
+	slim.NFTApproveAddressList = nftapproveaddresslist
+// *** modify to support nft transaction 20211217 end ***
 	if root != emptyRoot {
 		slim.Root = root[:]
 	}
@@ -50,10 +139,65 @@ func SlimAccount(nonce uint64, balance *big.Int, root common.Hash, codehash []by
 	return slim
 }
 
+// *** modify to support nft transaction 20211217 begin ***
+
 // SlimAccountRLP converts a state.Account content into a slim snapshot
 // version RLP encoded.
-func SlimAccountRLP(nonce uint64, balance *big.Int, root common.Hash, codehash []byte) []byte {
-	data, err := rlp.EncodeToBytes(SlimAccount(nonce, balance, root, codehash))
+func SlimAccountRLP(nonce uint64,
+	balance *big.Int,
+	root common.Hash,
+	codehash []byte,
+	pledgedbalance *big.Int,
+	exchangerflag bool,
+	blocknumber *big.Int,
+	exchangerbalance *big.Int,
+	voteweight *big.Int,
+	feerate uint32,
+	exchangername string,
+	exchangerurl string,
+	approveaddresslist []common.Address,
+	nftbalance uint64,
+	name string,
+	symbol string,
+	price *big.Int,
+	direction uint8,
+	owner common.Address,
+	nftapproveaddresslist common.Address,
+	mergelevel uint8,
+	creator common.Address,
+	royalty uint32,
+	exchanger common.Address,
+	metaurl string,
+	rewardFlag uint8) []byte {
+	data, err := rlp.EncodeToBytes(SlimAccount(nonce,
+		balance,
+		root,
+		codehash,
+		pledgedbalance,
+		exchangerflag,
+		blocknumber,
+		exchangerbalance,
+		voteweight,
+		feerate,
+		exchangername,
+		exchangerurl,
+		approveaddresslist,
+		nftbalance,
+		name,
+		symbol,
+		price,
+		direction,
+		owner,
+		nftapproveaddresslist,
+		mergelevel,
+		creator,
+		royalty,
+		exchanger,
+		metaurl,
+		rewardFlag))
+//func SlimAccountRLP(nonce uint64, balance *big.Int, root common.Hash, codehash []byte) []byte {
+//	data, err := rlp.EncodeToBytes(SlimAccount(nonce, balance, root, codehash))
+// *** modify to support nft transaction 20211217 end ***
 	if err != nil {
 		panic(err)
 	}

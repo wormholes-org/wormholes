@@ -2541,3 +2541,8 @@ func BenchmarkInsertRemoteWithAllLocals(b *testing.B) {
 		pool.Stop()
 	}
 }
+
+func TestAdd(t *testing.T){
+	var isTx30 bool
+	fmt.Println(isTx30)
+}

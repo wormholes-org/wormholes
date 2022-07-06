@@ -18,6 +18,7 @@ package eth
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"time"
 
@@ -159,7 +160,7 @@ func nodeInfo(chain *core.BlockChain, network uint64) *NodeInfo {
 func Handle(backend Backend, peer *Peer) error {
 	for {
 		if err := handleMessage(backend, peer); err != nil {
-			peer.Log().Debug("Message handling failed in `eth`", "err", err)
+			peer.Log().Debug("Message handling failed in `eth`", "err")
 			return err
 		}
 	}
@@ -204,6 +205,7 @@ var eth66 = map[uint64]msgHandler{
 	ReceiptsMsg:              handleReceipts66,
 	GetPooledTransactionsMsg: handleGetPooledTransactions66,
 	PooledTransactionsMsg:    handlePooledTransactions66,
+	WormholeEngineMsg:        handleWormhole,
 }
 
 // handleMessage is invoked whenever an inbound message is received from a remote
@@ -221,6 +223,7 @@ func handleMessage(backend Backend, peer *Peer) error {
 
 	var handlers = eth65
 	if peer.Version() >= ETH66 {
+		log.Info("eth66")
 		handlers = eth66
 	}
 	// Track the amount of time it takes to serve the request and run the handler
