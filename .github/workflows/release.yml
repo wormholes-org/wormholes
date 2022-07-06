@@ -26,6 +26,6 @@ jobs:
           distribution: goreleaser
           version: latest
           args: release --rm-dist
-          workdir: ./cmd/wormholes
+          workdir: ./cmd/geth
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
