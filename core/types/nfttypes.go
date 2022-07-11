@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
 
@@ -282,6 +283,72 @@ func (w *Wormholes) CheckFormat() error {
 
 	return nil
 }
+
+func (w *Wormholes) TxGas() (uint64, error) {
+
+	switch w.Type {
+	case 0:
+		return params.WormholesTx0, nil
+	case 1:
+		return params.WormholesTx1, nil
+	case 2:
+		return params.WormholesTx2, nil
+	case 3:
+		return params.WormholesTx3, nil
+	case 4:
+		return params.WormholesTx4, nil
+	case 5:
+		return params.WormholesTx5, nil
+	case 6:
+		return params.WormholesTx6, nil
+	//case 7:
+	//	return params.WormholesTx7, nil
+	//case 8:
+	//	return params.WormholesTx8, nil
+	case 9:
+		return params.WormholesTx9, nil
+	case 10:
+		return params.WormholesTx10, nil
+	case 11:
+		return params.WormholesTx11, nil
+
+	case 12:
+		return params.WormholesTx12, nil
+	//case 13:
+	//	return params.WormholesTx13, nil
+	case 14:
+		return params.WormholesTx14, nil
+	case 15:
+		return params.WormholesTx15, nil
+	case 16:
+		return params.WormholesTx16, nil
+	case 17:
+		return params.WormholesTx17, nil
+	case 18:
+		return params.WormholesTx18, nil
+	case 19:
+		return params.WormholesTx19, nil
+	case 20:
+		return params.WormholesTx20, nil
+	case 21:
+		return params.WormholesTx21, nil
+	case 22:
+		return params.WormholesTx22, nil
+	case 23:
+		return params.WormholesTx23, nil
+	case 24:
+		return params.WormholesTx24, nil
+	case 25:
+		return params.WormholesTx25, nil
+	case 30:
+		return params.WormholesTx30, nil
+	case 31:
+		return params.WormholesTx31, nil
+	default:
+		return 0, errors.New("not exist nft type")
+	}
+}
+
 
 type Payload struct {
 	Amount      string `json:"price"`

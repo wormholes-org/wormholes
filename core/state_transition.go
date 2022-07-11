@@ -124,6 +124,27 @@ func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation b
 	} else {
 		gas = params.TxGas
 	}
+
+	var wormholes types.Wormholes
+	var nftTransaction bool = false
+	if len(data) > 10 {
+		if string(data[:10]) == "wormholes:" {
+			jsonErr := json.Unmarshal(data[10:], &wormholes)
+			if jsonErr == nil {
+				nftTransaction = true
+			} else {
+				return 0, errors.New("wormholes format error!")
+			}
+		}
+	}
+	if nftTransaction {
+		wormholesTxGas, err := wormholes.TxGas()
+		if err != nil {
+			return 0, err
+		}
+		gas = wormholesTxGas
+	}
+
 	// Bump the required gas by the amount of transactional data
 	if len(data) > 0 {
 		// Zero and non-zero bytes are priced differently
