@@ -762,7 +762,7 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		}
 
 		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
-		if !ok {
+		if !ok && acc.RewardFlag == 0 {
 			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
 		}
 	}
