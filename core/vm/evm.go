@@ -839,6 +839,12 @@ func (evm *EVM) HandleNFT(
 			return nil, gas, ErrFeeRateNotLessThan10000
 		}
 
+		exchangerFlag := evm.Context.GetExchangerFlag(evm.StateDB, caller.Address())
+		if exchangerFlag == true {
+			log.Error("HandleNFT(), OpenExchanger", "wormholes.Type", wormholes.Type, "error", ErrReopenExchanger)
+			return nil, gas, ErrReopenExchanger
+		}
+
 		if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 			log.Info("HandleNFT(), OpenExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type)
 			evm.Context.OpenExchanger(

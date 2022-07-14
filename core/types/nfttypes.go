@@ -349,7 +349,6 @@ func (w *Wormholes) TxGas() (uint64, error) {
 	}
 }
 
-
 type Payload struct {
 	Amount      string `json:"price"`
 	NFTAddress  string `json:"nft_address"`

@@ -56,6 +56,7 @@ var (
 	ErrNftLevel                     = errors.New("input nft level error")
 	ErrMinerProxy                   = errors.New("cannot delegate repeatedly")
 	ErrRepeatedPledge               = errors.New("no repeated pledge")
+	ErrReopenExchanger				= errors.New("reopen exchanger")
 )
 
 // ErrStackUnderflow wraps an evm error when the items on the stack less
