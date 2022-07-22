@@ -223,6 +223,33 @@ func (st *StateTransition) buyGas() error {
 	if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
 	}
+
+	if st.IsWormholesNFTTx() {
+		wormholes, err := st.GetWormholes()
+		if err != nil {
+			return err
+		}
+		if wormholes.Type == 18 || wormholes.Type == 19 {
+			exchangerMsg := wormholes.ExchangerAuth.ExchangerOwner +
+				wormholes.ExchangerAuth.To +
+				wormholes.ExchangerAuth.BlockNumber
+			originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+			if err != nil {
+				//log.Error("StateTransition.buyGas()", "recoverAddress error", err)
+				return err
+			}
+			if originalExchanger != common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner) {
+
+				return fmt.Errorf("recovered address not match exhchanger owner!, recovered address :[%v], exchanger owner :[%v]", originalExchanger.Hex(), wormholes.ExchangerAuth.ExchangerOwner)
+			}
+
+			exchangerBalance := st.state.GetExchangerBalance(originalExchanger)
+			if exchangerBalance.Cmp(balanceCheck) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, originalExchanger.Hex(), exchangerBalance, balanceCheck)
+			}
+		}
+	}
+
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
 	}
@@ -356,21 +383,44 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	//	effectiveTip = cmath.BigMin(st.gasTipCap, new(big.Int).Sub(st.gasFeeCap, st.evm.Context.BaseFee))
 	//}
 
-	// 如果是NFT碎片兑换交易且成功，则不收取gasfee
 	if st.IsWormholesNFTTx() {
-		txType, _ := st.GetWormholesType()
-		if txType == 6 && vmerr == nil {
+		wormholes, _ := st.GetWormholes()
+
+		//if exchanging nft is successful, tx is free.
+		if wormholes.Type == 6 && vmerr == nil {
 			st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 		} else {
 			st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 		}
-		// liveness交易不消耗gasfee
-		//if txType == 30{
-		//	st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
-		//}
+
+		if wormholes.Type == 18 || wormholes.Type == 19 {
+			if vmerr == nil ||
+				vmerr == ErrRecoverAddress ||
+				vmerr == ErrNotMatchAddress {
+				st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+				st.state.SubExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner),
+					new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+			}
+		}
 	} else {
 		st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 	}
+
+	// 如果是NFT碎片兑换交易且成功，则不收取gasfee
+	//if st.IsWormholesNFTTx() {
+	//	txType, _ := st.GetWormholesType()
+	//	if txType == 6 && vmerr == nil {
+	//		st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+	//	} else {
+	//		st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+	//	}
+	//	// liveness交易不消耗gasfee
+	//	//if txType == 30{
+	//	//	st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+	//	//}
+	//} else {
+	//	st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+	//}
 
 	return &ExecutionResult{
 		UsedGas:    st.gasUsed(),
@@ -422,4 +472,18 @@ func (st *StateTransition) GetWormholesType() (uint8, error) {
 	}
 
 	return 0, errors.New("get wormholes type error")
+}
+
+func (st *StateTransition) GetWormholes() (*types.Wormholes, error) {
+	var wormholes types.Wormholes
+	if len(st.data) > 10 {
+		if string(st.data[:10]) == "wormholes:" {
+			jsonErr := json.Unmarshal(st.data[10:], &wormholes)
+			if jsonErr == nil {
+				return &wormholes, nil
+			}
+		}
+	}
+
+	return nil, errors.New("Unmarshal wormholes error")
 }

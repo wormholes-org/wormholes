@@ -91,6 +91,7 @@ type (
 	BuyNFTByExchangerFunc                  func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	AddExchangerTokenFunc                  func(StateDB, common.Address, *big.Int)
 	SubExchangerTokenFunc                  func(StateDB, common.Address, *big.Int)
+	SubExchangerBalanceFunc                func(StateDB, common.Address, *big.Int)
 	VerifyExchangerBalanceFunc             func(StateDB, common.Address, *big.Int) bool
 	GetNftAddressAndLevelFunc              func(string) (common.Address, int, error)
 	VoteOfficialNFTFunc                    func(StateDB, *types.NominatedOfficialNFT)
@@ -176,6 +177,7 @@ type BlockContext struct {
 	BuyNFTByExchanger                  BuyNFTByExchangerFunc
 	AddExchangerToken                  AddExchangerTokenFunc
 	SubExchangerToken                  SubExchangerTokenFunc
+	SubExchangerBalance                SubExchangerBalanceFunc
 	VerifyExchangerBalance             VerifyExchangerBalanceFunc
 	GetNftAddressAndLevel              GetNftAddressAndLevelFunc
 	VoteOfficialNFT                    VoteOfficialNFTFunc
@@ -660,6 +662,12 @@ func (evm *EVM) HandleNFT(
 				return nil, gas, ErrExchangerFormat
 			}
 			exchanger = common.HexToAddress(wormholes.Exchanger)
+
+			exchangerFlag := evm.Context.GetExchangerFlag(evm.StateDB, exchanger)
+			if exchangerFlag != true {
+				log.Error("HandleNFT(), CreateNFTByUser", "wormholes.Type", wormholes.Type, "error", ErrNotExchanger)
+				return nil, gas, ErrNotExchanger
+			}
 		}
 
 		evm.Context.CreateNFTByUser(evm.StateDB,
