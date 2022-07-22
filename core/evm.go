@@ -1691,14 +1691,14 @@ func VoteOfficialNFTByApprovedExchanger(
 	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
-		return err
+		return ErrRecoverAddress
 	}
 	exchangerOwner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
 	if originalExchanger != exchangerOwner {
 		log.Error("VoteOfficialNFTByApprovedExchanger(), exchangerAuth",
 			"wormholes.ExchangerAuth.ExchangerOwner", wormholes.ExchangerAuth.ExchangerOwner,
 			"recovered exchanger ", originalExchanger)
-		return errors.New("exchangerAuth not correct!")
+		return ErrNotMatchAddress
 	}
 
 	//比较exchanger_auth.to与交易发起者是否相同，不同返回错误

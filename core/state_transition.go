@@ -393,7 +393,9 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 		}
 
-		if wormholes.Type == 18 || wormholes.Type == 19 {
+		if wormholes.Type == 18 ||
+			wormholes.Type == 19 ||
+			wormholes.Type == 24 {
 			if vmerr == nil ||
 				vmerr == ErrRecoverAddress ||
 				vmerr == ErrNotMatchAddress {
