@@ -814,9 +814,10 @@ func (evm *EVM) HandleNFT(
 		}
 
 	case 10: // cancel pledge of token
-		if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), value) {
+		pledgedBalance := evm.StateDB.GetPledgedBalance(caller.Address())
+		if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), pledgedBalance) {
 			log.Info("HandleNFT(), CancelPledgedToken>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-			evm.Context.CancelPledgedToken(evm.StateDB, caller.Address(), value)
+			evm.Context.CancelPledgedToken(evm.StateDB, caller.Address(), pledgedBalance)
 			log.Info("HandleNFT(), CancelPledgedToken<<<<<<<<<<", "wormholes.Type", wormholes.Type)
 		} else {
 			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type, "error", ErrInsufficientPledgedBalance)
