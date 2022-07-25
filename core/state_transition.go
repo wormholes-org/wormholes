@@ -397,8 +397,8 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			wormholes.Type == 19 ||
 			wormholes.Type == 24 {
 			if vmerr == nil ||
-				vmerr == ErrRecoverAddress ||
-				vmerr == ErrNotMatchAddress {
+				(vmerr != ErrRecoverAddress &&
+					vmerr != ErrNotMatchAddress) {
 				st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 				st.state.SubExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner),
 					new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
