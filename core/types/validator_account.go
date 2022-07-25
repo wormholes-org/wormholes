@@ -44,7 +44,7 @@ func (vl *ValidatorList) Swap(i, j int) {
 	vl.Validators[i], vl.Validators[j] = vl.Validators[j], vl.Validators[i]
 }
 
-// Sort by distance in ascending order
+// AddValidator Sort by distance in ascending order
 func (sl *ValidatorList) AddValidator(addr common.Address, balance *big.Int, proxy common.Address) bool {
 	empty := common.Address{}
 	for _, v := range sl.Validators {
@@ -64,25 +64,14 @@ func (sl *ValidatorList) AddValidator(addr common.Address, balance *big.Int, pro
 }
 
 func (sl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) bool {
-	for i, v := range sl.Validators {
-		if v.Address() == addr {
-			if v.Balance.Cmp(balance) > 0 {
-				v.Balance.Sub(v.Balance, balance)
-				sort.Sort(sl)
-				return true
-			} else if v.Balance.Cmp(balance) == 0 {
-				v.Balance.Sub(v.Balance, balance)
-				sl.Validators = append(sl.Validators[:i], sl.Validators[i+1:]...)
-				return true
-			}
-			sl.Validators = append(sl.Validators[:i], sl.Validators[i+1:]...)
-			return true
-		}
+	for i, _ := range sl.Validators {
+		sl.Validators = append(sl.Validators[:i], sl.Validators[i+1:]...)
+		return true
 	}
 	return false
 }
 
-// Query K validators closest to random numbers based on distance and pledge amount
+// ValidatorByDistanceAndWeight Query K validators closest to random numbers based on distance and pledge amount
 func (sl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, randomHash common.Hash) []common.Address {
 	// The maximum value of address to big Int
 	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
@@ -126,7 +115,7 @@ func (sl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, ra
 	return res
 }
 
-// Calculate the total amount of the stake account
+// TotalStakeBalance Calculate the total amount of the stake account
 func (sl *ValidatorList) TotalStakeBalance() *big.Int {
 	var total = big.NewInt(0)
 	for _, voter := range sl.Validators {
@@ -135,7 +124,7 @@ func (sl *ValidatorList) TotalStakeBalance() *big.Int {
 	return total
 }
 
-// Returns the amount of the staked node
+// StakeBalance Returns the amount of the staked node
 func (sl *ValidatorList) StakeBalance(address common.Address) *big.Int {
 	for _, st := range sl.Validators {
 		if st.Address().Hex() != address.Hex() && st.Proxy.Hex() != address.Hex() {
