@@ -839,28 +839,55 @@ func (evm *EVM) HandleNFT(
 			return nil, gas, ErrFeeRateNotLessThan10000
 		}
 
-		exchangerFlag := evm.Context.GetExchangerFlag(evm.StateDB, caller.Address())
-		if exchangerFlag == true {
-			log.Error("HandleNFT(), OpenExchanger", "wormholes.Type", wormholes.Type, "error", ErrReopenExchanger)
-			return nil, gas, ErrReopenExchanger
-		}
+		exchangerFlag := evm.Context.GetExchangerFlag(evm.StateDB, addr)
+		if caller.Address() == addr {
+			if exchangerFlag == true {
+				log.Error("HandleNFT(), OpenExchanger", "wormholes.Type", wormholes.Type, "error", ErrReopenExchanger)
+				return nil, gas, ErrReopenExchanger
+			}
 
-		if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
-			log.Info("HandleNFT(), OpenExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-			evm.Context.OpenExchanger(
-				evm.StateDB,
-				caller.Address(),
-				value,
-				evm.Context.BlockNumber,
-				wormholes.FeeRate,
-				wormholes.Name,
-				wormholes.Url)
-			log.Info("HandleNFT(), OpenExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type)
+			if evm.Context.CanTransfer(evm.StateDB, addr, value) {
+				log.Info("HandleNFT(), OpenExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type)
+				evm.Context.OpenExchanger(
+					evm.StateDB,
+					addr,
+					value,
+					evm.Context.BlockNumber,
+					wormholes.FeeRate,
+					wormholes.Name,
+					wormholes.Url)
+				log.Info("HandleNFT(), OpenExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type)
+
+			} else {
+				log.Error("HandleNFT(), OpenExchanger", "wormholes.Type", wormholes.Type, "error", ErrInsufficientBalance)
+				return nil, gas, ErrInsufficientBalance
+			}
 
 		} else {
-			log.Error("HandleNFT(), OpenExchanger", "wormholes.Type", wormholes.Type, "error", ErrInsufficientBalance)
-			return nil, gas, ErrInsufficientBalance
+			// caller give addr a exchanger as a gift, if addr has been a exchanger, add value to exchangerbalance.
+			if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+				evm.Context.Transfer(evm.StateDB, caller.Address(), addr, value)
+			} else {
+				log.Error("HandleNFT(), OpenExchanger", "wormholes.Type", wormholes.Type, "error", ErrInsufficientBalance)
+				return nil, gas, ErrInsufficientBalance
+			}
+
+			if exchangerFlag == true {
+				evm.Context.AddExchangerToken(evm.StateDB, addr, value)
+			} else {
+				log.Info("HandleNFT(), OpenExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type)
+				evm.Context.OpenExchanger(
+					evm.StateDB,
+					addr,
+					value,
+					evm.Context.BlockNumber,
+					wormholes.FeeRate,
+					wormholes.Name,
+					wormholes.Url)
+				log.Info("HandleNFT(), OpenExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type)
+			}
 		}
+
 	case 12: //close exchanger
 		log.Info("HandleNFT(), CloseExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type)
 		//const CloseExchangerInterval = 180 * 720 * 24	// day * blockNumber of per hour * 24h
