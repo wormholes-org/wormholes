@@ -382,7 +382,7 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 	}
 	owner, ok := tx.GetExchangerOwner()
 	if ok {
-		if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
+		if currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
 			return core.ErrInsufficientFunds
 		}
 	}
