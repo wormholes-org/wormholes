@@ -229,23 +229,25 @@ func (st *StateTransition) buyGas() error {
 		if err != nil {
 			return err
 		}
-		if wormholes.Type == 18 || wormholes.Type == 19 {
-			exchangerMsg := wormholes.ExchangerAuth.ExchangerOwner +
-				wormholes.ExchangerAuth.To +
-				wormholes.ExchangerAuth.BlockNumber
-			originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
-			if err != nil {
-				//log.Error("StateTransition.buyGas()", "recoverAddress error", err)
-				return err
-			}
-			if originalExchanger != common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner) {
+		if wormholes.Type == 18 ||
+			wormholes.Type == 19 ||
+			wormholes.Type == 24 {
+			//exchangerMsg := wormholes.ExchangerAuth.ExchangerOwner +
+			//	wormholes.ExchangerAuth.To +
+			//	wormholes.ExchangerAuth.BlockNumber
+			//originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+			//if err != nil {
+			//	//log.Error("StateTransition.buyGas()", "recoverAddress error", err)
+			//	return err
+			//}
+			//if originalExchanger != common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner) {
+			//
+			//	return fmt.Errorf("recovered address not match exhchanger owner!, recovered address :[%v], exchanger owner :[%v]", originalExchanger.Hex(), wormholes.ExchangerAuth.ExchangerOwner)
+			//}
 
-				return fmt.Errorf("recovered address not match exhchanger owner!, recovered address :[%v], exchanger owner :[%v]", originalExchanger.Hex(), wormholes.ExchangerAuth.ExchangerOwner)
-			}
-
-			exchangerBalance := st.state.GetExchangerBalance(originalExchanger)
+			exchangerBalance := st.state.GetExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
 			if exchangerBalance.Cmp(balanceCheck) < 0 {
-				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, originalExchanger.Hex(), exchangerBalance, balanceCheck)
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
 			}
 		}
 	}

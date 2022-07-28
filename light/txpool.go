@@ -380,7 +380,12 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 	if b := currentState.GetBalance(from); b.Cmp(tx.Cost()) < 0 {
 		return core.ErrInsufficientFunds
 	}
-
+	owner, ok := tx.GetExchangerOwner()
+	if ok {
+		if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
+			return core.ErrInsufficientFunds
+		}
+	}
 	// Should supply enough intrinsic gas
 	gas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, true, pool.istanbul)
 	if err != nil {

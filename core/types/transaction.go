@@ -19,6 +19,7 @@ package types
 import (
 	"bytes"
 	"container/heap"
+	"encoding/json"
 	"errors"
 	"io"
 	"math/big"
@@ -291,6 +292,68 @@ func (tx *Transaction) To() *common.Address {
 	}
 	cpy := *ito
 	return &cpy
+}
+
+func (tx *Transaction) IsWormholesNFTTx() bool {
+	data := tx.Data()
+	if len(data) > 10 {
+		if string(data[:10]) == "wormholes:" {
+			return true
+		}
+	}
+	return false
+}
+
+func (tx *Transaction) GetWormholesType() (uint8, error) {
+	var wormholes Wormholes
+	data := tx.Data()
+	if len(data) > 10 {
+		if string(data[:10]) == "wormholes:" {
+			jsonErr := json.Unmarshal(data[10:], &wormholes)
+			if jsonErr == nil {
+				return wormholes.Type, nil
+			}
+		}
+	}
+
+	return 0, errors.New("get wormholes type error")
+}
+
+func (tx *Transaction) GetWormholes() (*Wormholes, error) {
+	var wormholes Wormholes
+	data := tx.Data()
+	if len(data) > 10 {
+		if string(data[:10]) == "wormholes:" {
+			jsonErr := json.Unmarshal(data[10:], &wormholes)
+			if jsonErr == nil {
+				return &wormholes, nil
+			}
+		}
+	}
+
+	return nil, errors.New("Unmarshal wormholes error")
+}
+
+func (tx *Transaction) GetExchangerOwner() (common.Address, bool) {
+	if tx.IsWormholesNFTTx() {
+		wormholes, err := tx.GetWormholes()
+		if err != nil {
+			return common.Address{}, false
+		}
+		if wormholes.Type == 18 ||
+			wormholes.Type == 19 ||
+			wormholes.Type == 24 {
+			return common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner), true
+		}
+	}
+
+	return common.Address{}, false
+}
+
+// Cost returns gas * gasPrice + value.
+func (tx *Transaction) GasFee() *big.Int {
+	total := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
+	return total
 }
 
 // Cost returns gas * gasPrice + value.
