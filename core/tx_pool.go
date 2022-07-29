@@ -620,6 +620,12 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
 		return ErrInsufficientFunds
 	}
+	owner, ok := tx.GetExchangerOwner()
+	if ok {
+		if pool.currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+			return ErrInsufficientFunds
+		}
+	}
 	// Ensure the transaction has more gas than the basic tx fee.
 	intrGas, err := IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, true, pool.istanbul)
 	if err != nil {

@@ -116,6 +116,7 @@ type StateDB interface {
 	InjectOfficialNFT(string, *big.Int, uint64, uint32, string)
 	AddExchangerToken(common.Address, *big.Int)
 	SubExchangerToken(common.Address, *big.Int)
+	SubExchangerBalance(common.Address, *big.Int)
 	GetExchangerBalance(common.Address) *big.Int
 	VoteOfficialNFT(*types.NominatedOfficialNFT)
 	ElectNominatedOfficialNFT()

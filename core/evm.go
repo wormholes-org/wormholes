@@ -32,6 +32,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
+var ErrRecoverAddress = errors.New("recover ExchangerAuth error")
+var ErrNotMatchAddress = errors.New("recovered address not match exchanger owner")
 const InjectRewardRate = 1000	// InjectRewardRate is 10%
 var InjectRewardAddress = common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 
@@ -118,6 +120,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		BuyNFTByExchanger:                  BuyNFTByExchanger,
 		AddExchangerToken:                  AddExchangerToken,
 		SubExchangerToken:                  SubExchangerToken,
+		SubExchangerBalance:                SubExchangerBalance,
 		VerifyExchangerBalance:             VerifyExchangerBalance,
 		GetNftAddressAndLevel:              GetNftAddressAndLevel,
 		VoteOfficialNFT:                    VoteOfficialNFT,
@@ -1086,7 +1089,10 @@ func BuyNFTByApproveExchanger(
 	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyNFTByApproveExchanger()", "Get exchanger public key error", err)
-		return err
+		return ErrRecoverAddress
+	}
+	if originalExchanger != common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner) {
+		return ErrNotMatchAddress
 	}
 
 	//2. 检测当前区块是否大于buyer.blocknumber和exchanger_auth.blocknumber, 大于时返回错误
@@ -1279,7 +1285,10 @@ func BuyAndMintNFTByApprovedExchanger(
 	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
-		return err
+		return ErrRecoverAddress
+	}
+	if originalExchanger != common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner) {
+		return ErrNotMatchAddress
 	}
 
 	//比较exchanger_auth.to与交易发起者是否相同，不同返回错误
@@ -1683,6 +1692,9 @@ func AddExchangerToken(db vm.StateDB, address common.Address, amount *big.Int) {
 func SubExchangerToken(db vm.StateDB, address common.Address, amount *big.Int) {
 	db.SubExchangerToken(address, amount)
 }
+func SubExchangerBalance(db vm.StateDB, address common.Address, amount *big.Int) {
+	db.SubExchangerBalance(address, amount)
+}
 
 // VerifyExchangerBalance checks whether there are enough funds in the address' account to make a transfer.
 // This does not take the necessary gas in to account to make the transfer valid.
@@ -1723,14 +1735,14 @@ func VoteOfficialNFTByApprovedExchanger(
 	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
-		return err
+		return ErrRecoverAddress
 	}
 	exchangerOwner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
 	if originalExchanger != exchangerOwner {
 		log.Error("VoteOfficialNFTByApprovedExchanger(), exchangerAuth",
 			"wormholes.ExchangerAuth.ExchangerOwner", wormholes.ExchangerAuth.ExchangerOwner,
 			"recovered exchanger ", originalExchanger)
-		return errors.New("exchangerAuth not correct!")
+		return ErrNotMatchAddress
 	}
 
 	//比较exchanger_auth.to与交易发起者是否相同，不同返回错误

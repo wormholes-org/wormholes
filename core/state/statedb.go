@@ -1288,7 +1288,6 @@ func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addre
 //	}
 //}
 
-
 // GetNFTOwner retrieves the nft owner from the given nft address
 func (s *StateDB) GetNFTOwner(nftAddr common.Address) common.Address {
 	storeAddr, _, ok := s.GetNFTStoreAddress(nftAddr, 0)
@@ -2468,6 +2467,19 @@ func (s *StateDB) SubExchangerToken(address common.Address, amount *big.Int) {
 	}
 }
 
+func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
+	stateObject := s.GetOrNewStateObject(address)
+	if stateObject != nil {
+		exchangerToken := types.PledgedToken{
+			Address: address,
+			Amount:  amount,
+			Flag:    false,
+		}
+		s.ExchangerTokenPool = append(s.ExchangerTokenPool, &exchangerToken)
+		stateObject.SubExchangerBalance(amount)
+	}
+}
+
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
@@ -2732,7 +2744,7 @@ func (s *StateDB) ElectNominatedOfficialNFT() {
 			Number:     s.NominatedOfficialNFT.Number,
 			Royalty:    s.NominatedOfficialNFT.Royalty,
 			Creator:    s.NominatedOfficialNFT.Creator,
-			Address: 	s.NominatedOfficialNFT.Address,
+			Address:    s.NominatedOfficialNFT.Address,
 		}
 		voteWeight := s.GetVoteWeight(s.NominatedOfficialNFT.Address)
 		injectNFT.VoteWeight = new(big.Int).Set(voteWeight)
