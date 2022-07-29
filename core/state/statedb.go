@@ -2751,6 +2751,11 @@ func (s *StateDB) ElectNominatedOfficialNFT() {
 		s.OfficialNFTPool.InjectedOfficialNFTs = append(s.OfficialNFTPool.InjectedOfficialNFTs, injectNFT)
 		s.SubVoteWeight(s.NominatedOfficialNFT.Address, voteWeight)
 
+		InjectRewardAddress := common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		injectRewardBalance := s.GetBalance(InjectRewardAddress)
+		s.SubBalance(InjectRewardAddress, injectRewardBalance)
+		s.AddBalance(s.NominatedOfficialNFT.Address, injectRewardBalance)
+
 		////s.NominatedOfficialNFT = nil
 		//s.NominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
 		//s.NominatedOfficialNFT.StartIndex = new(big.Int).Set(s.OfficialNFTPool.MaxIndex())
