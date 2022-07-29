@@ -64,9 +64,11 @@ func (sl *ValidatorList) AddValidator(addr common.Address, balance *big.Int, pro
 }
 
 func (sl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) bool {
-	for i, _ := range sl.Validators {
-		sl.Validators = append(sl.Validators[:i], sl.Validators[i+1:]...)
-		return true
+	for i, v := range sl.Validators {
+		if v.Address() == addr {
+			sl.Validators = append(sl.Validators[:i], sl.Validators[i+1:]...)
+			return true
+		}
 	}
 	return false
 }
