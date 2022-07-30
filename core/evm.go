@@ -34,7 +34,8 @@ import (
 
 var ErrRecoverAddress = errors.New("recover ExchangerAuth error")
 var ErrNotMatchAddress = errors.New("recovered address not match exchanger owner")
-const InjectRewardRate = 1000	// InjectRewardRate is 10%
+
+const InjectRewardRate = 1000 // InjectRewardRate is 10%
 var InjectRewardAddress = common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 
 // ChainContext supports retrieving headers and consensus parameters from the
@@ -275,7 +276,7 @@ func ExchangeNFTToCurrency(db vm.StateDB, address common.Address, nftaddress str
 	return nil
 }
 
-func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *types.Wormholes) error {
+func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *types.Wormholes, blocknumber *big.Int) error {
 	empty := common.Address{}
 	log.Info("PledgeToken", "proxy", wh.ProxyAddress, "sign", wh.ProxySign)
 	if wh.ProxyAddress != "" && wh.ProxyAddress != empty.Hex() {
@@ -284,11 +285,11 @@ func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *typ
 		log.Info("PledgeToken", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
 		if err != nil || wh.ProxyAddress != addr.Hex() {
 			log.Error("PledgeToken()", "Get public key error", err)
-			return err
+			return errors.New("recover proxy address error!")
 		}
 	}
 
-	return db.PledgeToken(address, amount, common.HexToAddress(wh.ProxyAddress))
+	return db.PledgeToken(address, amount, common.HexToAddress(wh.ProxyAddress), blocknumber)
 }
 
 func MinerConsign(db vm.StateDB, address common.Address, wh *types.Wormholes) error {

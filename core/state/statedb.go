@@ -498,6 +498,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 			obj.data.Root,
 			obj.data.CodeHash,
 			obj.data.PledgedBalance,
+			obj.data.PledgedBlockNumber,
 			obj.data.ExchangerFlag,
 			obj.data.BlockNumber,
 			obj.data.ExchangerBalance,
@@ -570,20 +571,21 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 				return nil
 			}
 			data = &Account{
-				Nonce:            acc.Nonce,
-				Balance:          acc.Balance,
-				CodeHash:         acc.CodeHash,
-				Root:             common.BytesToHash(acc.Root),
-				PledgedBalance:   acc.PledgedBalance,
-				ExchangerFlag:    acc.ExchangerFlag,
-				BlockNumber:      acc.BlockNumber,
-				ExchangerBalance: acc.ExchangerBalance,
-				VoteWeight:       acc.VoteWeight,
-				FeeRate:          acc.FeeRate,
-				ExchangerName:    acc.ExchangerName,
-				ExchangerURL:     acc.ExchangerURL,
-				NFTBalance:       acc.NFTBalance,
-				RewardFlag:       acc.RewardFlag,
+				Nonce:              acc.Nonce,
+				Balance:            acc.Balance,
+				CodeHash:           acc.CodeHash,
+				Root:               common.BytesToHash(acc.Root),
+				PledgedBalance:     acc.PledgedBalance,
+				PledgedBlockNumber: acc.PledgedBlockNumber,
+				ExchangerFlag:      acc.ExchangerFlag,
+				BlockNumber:        acc.BlockNumber,
+				ExchangerBalance:   acc.ExchangerBalance,
+				VoteWeight:         acc.VoteWeight,
+				FeeRate:            acc.FeeRate,
+				ExchangerName:      acc.ExchangerName,
+				ExchangerURL:       acc.ExchangerURL,
+				NFTBalance:         acc.NFTBalance,
+				RewardFlag:         acc.RewardFlag,
 				// *** modify to support nft transaction 20211217 begin ***
 				AccountNFT: AccountNFT{
 					Name:       acc.Name,
@@ -2272,14 +2274,18 @@ func (s *StateDB) CancelPledgedNFT() {
 //}
 //````
 //
-func (s *StateDB) PledgeToken(address common.Address, amount *big.Int, proxy common.Address) error {
+func (s *StateDB) PledgeToken(address common.Address,
+	amount *big.Int,
+	proxy common.Address,
+	blocknumber *big.Int) error {
+
 	stateObject := s.GetOrNewStateObject(address)
 	log.Info("PledgeToken", "address", address.Hex(), "proxy", proxy.Hex(), "amount", amount, "ValidatorPool", len(s.ValidatorPool))
 
 	//Resolving duplicates is delegated
 	empty := common.Address{}
 	for _, v := range s.ValidatorPool {
-		if v.Proxy.Hex() != empty.Hex() && v.Proxy.Hex() == proxy.Hex() {
+		if v.Proxy != empty && v.Addr != address && v.Proxy == proxy {
 			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
 			return vm.ErrMinerProxy
 		}
@@ -2296,6 +2302,7 @@ func (s *StateDB) PledgeToken(address common.Address, amount *big.Int, proxy com
 		s.PledgedTokenPool = append(s.PledgedTokenPool, &pledgeToken)
 		stateObject.SubBalance(amount)
 		stateObject.AddPledgedBalance(amount)
+		stateObject.SetPledgedBlockNumber(blocknumber)
 	}
 	return nil
 }

@@ -607,20 +607,20 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 		// Retrieve the current account and flatten it into the internal format
 		type AccountNFT struct {
 			//Account
-			Name string
-			Symbol string
-			Price *big.Int
-			Direction uint8 // 0:未交易,1:买入,2:卖出
-			Owner common.Address
+			Name                  string
+			Symbol                string
+			Price                 *big.Int
+			Direction             uint8 // 0:未交易,1:买入,2:卖出
+			Owner                 common.Address
 			NFTApproveAddressList common.Address
 			//Auctions map[string][]common.Address
 			// MergeLevel is the level of NFT merged
 			MergeLevel uint8
 
-			Creator common.Address
-			Royalty uint32
+			Creator   common.Address
+			Royalty   uint32
 			Exchanger common.Address
-			MetaURL string
+			MetaURL   string
 		}
 		var acc struct {
 			Nonce    uint64
@@ -628,16 +628,17 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			Root     common.Hash
 			CodeHash []byte
 
-			PledgedBalance *big.Int
+			PledgedBalance     *big.Int
+			PledgedBlockNumber *big.Int
 			// whether the account has a NFT exchanger
-			ExchangerFlag bool
-			BlockNumber *big.Int
+			ExchangerFlag    bool
+			BlockNumber      *big.Int
 			ExchangerBalance *big.Int
-			VoteWeight *big.Int
+			VoteWeight       *big.Int
 			// The ratio that exchanger get.
-			FeeRate uint32
+			FeeRate       uint32
 			ExchangerName string
-			ExchangerURL string
+			ExchangerURL  string
 			// ApproveAddress have the right to handle all nfts of the account
 			ApproveAddressList []common.Address
 			// NFTBalance is the nft number that the account have
@@ -667,6 +668,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 					acc.Root,
 					acc.CodeHash,
 					acc.PledgedBalance,
+					acc.PledgedBlockNumber,
 					acc.ExchangerFlag,
 					acc.BlockNumber,
 					acc.ExchangerBalance,

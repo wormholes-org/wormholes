@@ -142,43 +142,48 @@ type (
 	// *** modify to support nft transaction 20211215 begin ***
 	// change to the owner
 	nftOwnerChange struct {
-		nftAddr *common.Address
-		oldOwner    common.Address
+		nftAddr  *common.Address
+		oldOwner common.Address
 	}
 	// *** modify to support nft transaction 20211215 end ***
 	nftApproveAddressChange struct {
-		nftAddr *common.Address
-		oldApproveAddressList    []common.Address
+		nftAddr               *common.Address
+		oldApproveAddressList []common.Address
 	}
 
 	nftApproveAddressChangeOne struct {
-		nftAddr *common.Address
-		oldNFTApproveAddressList    common.Address
+		nftAddr                  *common.Address
+		oldNFTApproveAddressList common.Address
 	}
 
 	openExchangerChange struct {
-		address *common.Address
+		address          *common.Address
 		oldExchangerFlag bool
-		oldBlockNumber *big.Int
-		oldFeeRate uint32
+		oldBlockNumber   *big.Int
+		oldFeeRate       uint32
 		oldExchangerName string
-		oldExchangerURL string
+		oldExchangerURL  string
 	}
 
 	nftInfoChange struct {
-		address *common.Address
-		oldName string
-		oldSymbol string
-		oldOwner common.Address
+		address                  *common.Address
+		oldName                  string
+		oldSymbol                string
+		oldOwner                 common.Address
 		oldNFTApproveAddressList common.Address
-		oldMergeLevel uint8
-		oldCreator common.Address
-		oldRoyalty uint32
-		oldExchanger common.Address
-		oldMetaURL string
+		oldMergeLevel            uint8
+		oldCreator               common.Address
+		oldRoyalty               uint32
+		oldExchanger             common.Address
+		oldMetaURL               string
 	}
 
 	pledgedBalanceChange struct {
+		account *common.Address
+		prev    *big.Int
+	}
+
+	pledgedBlockNumberChange struct {
 		account *common.Address
 		prev    *big.Int
 	}
@@ -194,7 +199,7 @@ type (
 	}
 
 	RewardFlagChange struct {
-		account *common.Address
+		account    *common.Address
 		rewardFlag uint8
 	}
 )
@@ -336,6 +341,7 @@ func (ch nftOwnerChange) revert(s *StateDB) {
 func (ch nftOwnerChange) dirtied() *common.Address {
 	return ch.nftAddr
 }
+
 // *** modify to support nft transaction 20211215 end ***
 func (ch nftApproveAddressChange) revert(s *StateDB) {
 	s.getStateObject(*ch.nftAddr).setJournalApproveAddress(ch.oldApproveAddressList)
@@ -391,6 +397,14 @@ func (ch pledgedBalanceChange) revert(s *StateDB) {
 }
 
 func (ch pledgedBalanceChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch pledgedBlockNumberChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setPledgedBlockNumber(ch.prev)
+}
+
+func (ch pledgedBlockNumberChange) dirtied() *common.Address {
 	return ch.account
 }
 

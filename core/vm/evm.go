@@ -55,7 +55,7 @@ type (
 	ChangeNFTApproveAddressFunc func(StateDB, common.Address, common.Address)
 	CancelNFTApproveAddressFunc func(StateDB, common.Address, common.Address)
 	ExchangeNFTToCurrencyFunc   func(StateDB, common.Address, string, *big.Int) error
-	PledgeTokenFunc             func(StateDB, common.Address, *big.Int, *types.Wormholes) error
+	PledgeTokenFunc             func(StateDB, common.Address, *big.Int, *types.Wormholes, *big.Int) error
 	MinerConsignFunc            func(StateDB, common.Address, *types.Wormholes) error
 	CancelPledgedTokenFunc      func(StateDB, common.Address, *big.Int)
 	OpenExchangerFunc           func(StateDB, common.Address, *big.Int, *big.Int, uint32, string, string)
@@ -810,7 +810,7 @@ func (evm *EVM) HandleNFT(
 		log.Info("HandleNFT()", "PledgeToken.req", wormholes)
 		if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 			log.Info("HandleNFT(), PledgeToken>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-			err := evm.Context.PledgeToken(evm.StateDB, caller.Address(), value, &wormholes)
+			err := evm.Context.PledgeToken(evm.StateDB, caller.Address(), value, &wormholes, evm.Context.BlockNumber)
 			if err != nil {
 				log.Info("HandleNFT(), PledgeToken<<<<<<<<<<", "wormholes.Type", wormholes.Type)
 				return nil, gas, err
