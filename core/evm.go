@@ -541,7 +541,7 @@ func BuyNFTBySellerOrExchanger(
 		} else {
 			beneficiaryExchanger = buyerExchanger
 		}
-	} else if CheckSeller1(db, blocknumber, caller, to, wormholes, amount) {
+	} else if db.IsApproved(nftAddress, caller) {
 		if exclusiveExchanger != emptyAddress {
 			if caller != exclusiveExchanger {
 				if db.GetExchangerFlag(exclusiveExchanger) {
