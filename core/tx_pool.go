@@ -617,9 +617,33 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		return ErrInsufficientFunds
+	wormholesType, err := tx.GetWormholesType()
+	if err == nil {
+		if wormholesType == 10 {
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			if pool.currentState.GetPledgedBalance(from).Cmp(tx.Value()) < 0 {
+				return ErrInsufficientFunds
+			}
+		} else if wormholesType == 22 {
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			if pool.currentState.GetExchangerBalance(from).Cmp(tx.Value()) < 0 {
+				return ErrInsufficientFunds
+			}
+		} else {
+			if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+				return ErrInsufficientFunds
+			}
+		}
+	} else {
+		if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+			return ErrInsufficientFunds
+		}
 	}
+
 	owner, ok := tx.GetExchangerOwner()
 	if ok {
 		if pool.currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {

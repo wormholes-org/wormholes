@@ -87,6 +87,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		CancelNFTApproveAddress:            CancelNFTApproveAddress,
 		ExchangeNFTToCurrency:              ExchangeNFTToCurrency,
 		PledgeToken:                        PledgeToken,
+		GetPledgedTime:                     GetPledgedTime,
 		MinerConsign:                       MinerConsign,
 		CancelPledgedToken:                 CancelPledgedToken,
 		OpenExchanger:                      OpenExchanger,
@@ -290,6 +291,10 @@ func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *typ
 	}
 
 	return db.PledgeToken(address, amount, common.HexToAddress(wh.ProxyAddress), blocknumber)
+}
+
+func GetPledgedTime(db vm.StateDB, addr common.Address) *big.Int {
+	return db.GetPledgedTime(addr)
 }
 
 func MinerConsign(db vm.StateDB, address common.Address, wh *types.Wormholes) error {

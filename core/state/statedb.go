@@ -709,6 +709,22 @@ func (s *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	if stateObject == nil {
 		stateObject, _ = s.createObject(addr)
 	}
+	if stateObject.data.PledgedBlockNumber == nil {
+		stateObject.data.PledgedBlockNumber = big.NewInt(0)
+	}
+	if stateObject.data.PledgedBalance == nil {
+		stateObject.data.PledgedBalance = big.NewInt(0)
+	}
+	if stateObject.data.BlockNumber == nil {
+		stateObject.data.BlockNumber = big.NewInt(0)
+	}
+	if stateObject.data.ExchangerBalance == nil {
+		stateObject.data.ExchangerBalance = big.NewInt(0)
+	}
+	if stateObject.data.VoteWeight == nil {
+		stateObject.data.VoteWeight = big.NewInt(0)
+	}
+
 	return stateObject
 }
 
@@ -2516,50 +2532,58 @@ func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 		""
 }
 
+func (s *StateDB) GetPledgedTime(addr common.Address) *big.Int {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		return new(big.Int).Set(stateObject.PledgedBlockNumber())
+	}
+	return common.Big0
+}
+
 func (s *StateDB) GetExchangerFlag(addr common.Address) bool {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetExchangerFlag()
 	}
 	return false
 }
 func (s *StateDB) GetOpenExchangerTime(addr common.Address) *big.Int {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return new(big.Int).Set(stateObject.GetBlockNumber())
 	}
 	return common.Big0
 }
 func (s *StateDB) GetFeeRate(addr common.Address) uint32 {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetFeeRate()
 	}
 	return 0
 }
 func (s *StateDB) GetExchangerName(addr common.Address) string {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetExchangerName()
 	}
 	return ""
 }
 func (s *StateDB) GetExchangerURL(addr common.Address) string {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetExchangerURL()
 	}
 	return ""
 }
 func (s *StateDB) GetApproveAddress(addr common.Address) []common.Address {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetApproveAddress()
 	}
 	return []common.Address{}
 }
 func (s *StateDB) GetNFTBalance(addr common.Address) uint64 {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetNFTBalance()
 	}
@@ -2567,14 +2591,14 @@ func (s *StateDB) GetNFTBalance(addr common.Address) uint64 {
 }
 
 func (s *StateDB) GetNFTName(addr common.Address) string {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetName()
 	}
 	return ""
 }
 func (s *StateDB) GetNFTSymbol(addr common.Address) string {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetSymbol()
 	}
@@ -2589,42 +2613,42 @@ func (s *StateDB) GetNFTSymbol(addr common.Address) string {
 //	return []common.Address{}
 //}
 func (s *StateDB) GetNFTApproveAddress(addr common.Address) common.Address {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetNFTApproveAddress()
 	}
 	return common.Address{}
 }
 func (s *StateDB) GetNFTMergeLevel(addr common.Address) uint8 {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetMergeLevel()
 	}
 	return 0
 }
 func (s *StateDB) GetNFTCreator(addr common.Address) common.Address {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetCreator()
 	}
 	return common.Address{}
 }
 func (s *StateDB) GetNFTRoyalty(addr common.Address) uint32 {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetRoyalty()
 	}
 	return 0
 }
 func (s *StateDB) GetNFTExchanger(addr common.Address) common.Address {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetExchanger()
 	}
 	return common.Address{}
 }
 func (s *StateDB) GetNFTMetaURL(addr common.Address) string {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetMetaURL()
 	}
@@ -2632,7 +2656,7 @@ func (s *StateDB) GetNFTMetaURL(addr common.Address) string {
 }
 
 func (s *StateDB) IsExistNFT(addr common.Address) bool {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.NFTOwner() != common.Address{}
 	}
@@ -2640,7 +2664,7 @@ func (s *StateDB) IsExistNFT(addr common.Address) bool {
 }
 
 func (s *StateDB) IsApprovedOne(nftAddr common.Address, addr common.Address) bool {
-	stateObject := s.getStateObject(nftAddr)
+	stateObject := s.GetOrNewStateObject(nftAddr)
 	if stateObject != nil {
 		return stateObject.data.IsNFTApproveAddress(addr)
 	}
@@ -2648,7 +2672,7 @@ func (s *StateDB) IsApprovedOne(nftAddr common.Address, addr common.Address) boo
 }
 
 func (s *StateDB) IsApprovedForAll(ownerAddr common.Address, addr common.Address) bool {
-	stateObject := s.getStateObject(ownerAddr)
+	stateObject := s.GetOrNewStateObject(ownerAddr)
 	if stateObject != nil {
 		return stateObject.data.IsApproveAddress(addr)
 	}
@@ -2657,7 +2681,7 @@ func (s *StateDB) IsApprovedForAll(ownerAddr common.Address, addr common.Address
 
 func (s *StateDB) IsApprovedForAllByNFT(nftAddr common.Address, addr common.Address) bool {
 	owner := s.GetNFTOwner16(nftAddr)
-	stateObject := s.getStateObject(owner)
+	stateObject := s.GetOrNewStateObject(owner)
 	if stateObject != nil {
 		return stateObject.data.IsApproveAddress(addr)
 	}
@@ -2673,7 +2697,7 @@ func (s *StateDB) IsApproved(nftAddr common.Address, addr common.Address) bool {
 
 // GetPledgedBalance retrieves the pledged balance from the given address or 0 if object not found
 func (s *StateDB) GetPledgedBalance(addr common.Address) *big.Int {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		pledgedBalance := stateObject.PledgedBalance()
 		if pledgedBalance != nil {
@@ -2686,7 +2710,7 @@ func (s *StateDB) GetPledgedBalance(addr common.Address) *big.Int {
 }
 
 func (s *StateDB) GetAccountInfo(addr common.Address) Account {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetAccountInfo()
 	}
@@ -2695,7 +2719,7 @@ func (s *StateDB) GetAccountInfo(addr common.Address) Account {
 
 // GetExchangerBalance retrieves the exchanger balance from the given address or 0 if object not found
 func (s *StateDB) GetExchangerBalance(addr common.Address) *big.Int {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		exchangerBalnace := stateObject.ExchangerBalance()
 		if exchangerBalnace != nil {
@@ -2710,13 +2734,13 @@ func (s *StateDB) GetExchangerBalance(addr common.Address) *big.Int {
 func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialNFT) {
 	voteWeight := big.NewInt(0)
 	nominatedWeight := big.NewInt(0)
-	stateObject := s.getStateObject(nominatedOfficialNFT.Address)
+	stateObject := s.GetOrNewStateObject(nominatedOfficialNFT.Address)
 	if stateObject != nil {
 		voteWeight = stateObject.VoteWeight()
 	}
 	emptyAddress := common.Address{}
 	if s.NominatedOfficialNFT != nil && s.NominatedOfficialNFT.Address != emptyAddress {
-		nominatedObject := s.getStateObject(s.NominatedOfficialNFT.Address)
+		nominatedObject := s.GetOrNewStateObject(s.NominatedOfficialNFT.Address)
 		if nominatedObject != nil {
 			nominatedWeight = nominatedObject.VoteWeight()
 		}
@@ -2807,7 +2831,7 @@ func (s *StateDB) SubVoteWeight(addr common.Address, amount *big.Int) {
 
 // GetVoteWeight retrieves the VoteWeight from the given address or 0 if object not found
 func (s *StateDB) GetVoteWeight(addr common.Address) *big.Int {
-	stateObject := s.getStateObject(addr)
+	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.VoteWeight()
 	}

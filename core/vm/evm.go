@@ -56,6 +56,7 @@ type (
 	CancelNFTApproveAddressFunc func(StateDB, common.Address, common.Address)
 	ExchangeNFTToCurrencyFunc   func(StateDB, common.Address, string, *big.Int) error
 	PledgeTokenFunc             func(StateDB, common.Address, *big.Int, *types.Wormholes, *big.Int) error
+	GetPledgedTimeFunc          func(StateDB, common.Address) *big.Int
 	MinerConsignFunc            func(StateDB, common.Address, *types.Wormholes) error
 	CancelPledgedTokenFunc      func(StateDB, common.Address, *big.Int)
 	OpenExchangerFunc           func(StateDB, common.Address, *big.Int, *big.Int, uint32, string, string)
@@ -143,6 +144,7 @@ type BlockContext struct {
 	CancelNFTApproveAddress            CancelNFTApproveAddressFunc
 	ExchangeNFTToCurrency              ExchangeNFTToCurrencyFunc
 	PledgeToken                        PledgeTokenFunc
+	GetPledgedTime                     GetPledgedTimeFunc
 	MinerConsign                       MinerConsignFunc
 	CancelPledgedToken                 CancelPledgedTokenFunc
 	OpenExchanger                      OpenExchangerFunc
@@ -822,6 +824,14 @@ func (evm *EVM) HandleNFT(
 		}
 
 	case 10: // cancel pledge of token
+		//const CancelPledgedInterval = 365 * 720 * 24	// day * blockNumber of per hour * 24h
+		const CancelPledgedInterval = 3 * 24 // for test
+		pledgedTime := evm.Context.GetPledgedTime(evm.StateDB, caller.Address())
+		if big.NewInt(CancelPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, pledgedTime)) > 0 {
+			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type, "error", ErrTooCloseToCancel)
+			return nil, gas, ErrTooCloseToCancel
+		}
+
 		pledgedBalance := evm.StateDB.GetPledgedBalance(caller.Address())
 		if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), pledgedBalance) {
 			log.Info("HandleNFT(), CancelPledgedToken>>>>>>>>>>", "wormholes.Type", wormholes.Type)
