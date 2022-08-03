@@ -816,7 +816,7 @@ func (evm *EVM) HandleNFT(
 		currentBlockNumber := new(big.Int).Set(evm.Context.BlockNumber)
 		pledgedBalance := evm.StateDB.GetPledgedBalance(caller.Address())
 		// if append pledgebalance, reset pledgedblocknumber
-		if pledgedBalance.Cmp(big.NewInt(0)) > 0 {
+		if pledgedBalance != nil && pledgedBalance.Cmp(big.NewInt(0)) > 0 {
 			pledgedBlockNumber := evm.StateDB.GetPledgedTime(caller.Address())
 			height, err := UnstakingHeight(pledgedBalance, value, pledgedBlockNumber.Uint64(), currentBlockNumber.Uint64(), CancelPledgedInterval)
 			if err != nil {
