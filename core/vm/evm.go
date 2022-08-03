@@ -18,6 +18,7 @@ package vm
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 	"strings"
@@ -1183,4 +1184,48 @@ func IsOfficialNFT(nftAddress common.Address) bool {
 		return true
 	}
 	return false
+}
+
+// UnstakingHeight @title    UnstakingHeight
+// @description   UnstakingHeight Returns the height at which stakers can get their stake back
+// @auth      mindcarver        2022/08/01
+// @param     stakedAmt        *big.Int   the total amount of the current pledge
+// @param     appendAmt        *big.Int   additional amount
+// @param     sno        		uint64    starting height
+// @param     cno       	    uint64    current height
+// @param     lockedNo          uint64    lock time (counted in blocks)
+// @return                      uint64     delay the amount of time (in blocks) that can be unstakes
+func UnstakingHeight(stakedAmt, appendAmt *big.Int, sno, cno, lockedNo uint64) (uint64, error) {
+	_, err := checkParams(stakedAmt, appendAmt, sno, cno)
+	if err != nil {
+		return 0, err
+	}
+	return unstakingHeight(stakedAmt, appendAmt, sno, cno, lockedNo), nil
+}
+
+func unstakingHeight(stakedAmt *big.Int, appendAmt *big.Int, sno uint64, cno uint64, lockedNo uint64) uint64 {
+	var curRemainingTime uint64
+
+	if sno+lockedNo > cno {
+		curRemainingTime = sno + lockedNo - cno
+	}
+
+	total := big.NewFloat(0).Add(new(big.Float).SetInt(stakedAmt), new(big.Float).SetInt(appendAmt))
+	h1 := big.NewFloat(0).Mul(big.NewFloat(0).Quo(new(big.Float).SetInt(stakedAmt), total), new(big.Float).SetInt(big.NewInt(int64(curRemainingTime))))
+	h2 := big.NewFloat(0).Mul(big.NewFloat(0).Quo(new(big.Float).SetInt(appendAmt), total), new(big.Float).SetInt(big.NewInt(int64(lockedNo))))
+	delayHeight, _ := big.NewFloat(0).Add(h1, h2).Uint64()
+	return delayHeight
+}
+
+func checkParams(stakedAmt *big.Int, appendAmt *big.Int, sno uint64, cno uint64) (bool, error) {
+	if stakedAmt.Cmp(big.NewInt(0)) == 0 || appendAmt.Cmp(big.NewInt(0)) == 0 {
+		return false, errors.New("illegal amount")
+	}
+	if sno == 0 || cno == 0 {
+		return false, errors.New("illegal height")
+	}
+	if sno > cno {
+		return false, errors.New("the current height is less than the starting height of the pledge")
+	}
+	return true, nil
 }
