@@ -594,6 +594,44 @@ func BuyNFTBySellerOrExchanger(
 	return nil
 }
 
+func CheckSeller1(db vm.StateDB,
+	blocknumber *big.Int,
+	caller common.Address,
+	to common.Address,
+	wormholes *types.Wormholes,
+	amount *big.Int) bool {
+
+	//1. recove seller address
+	msg := wormholes.Seller1.Amount +
+		wormholes.Seller1.NFTAddress +
+		wormholes.Seller1.Exchanger +
+		wormholes.Seller1.BlockNumber
+	seller, err := recoverAddress(msg, wormholes.Seller1.Sig)
+	if err != nil {
+		log.Error("CheckSeller1()", "Get public key error", err)
+		return false
+	}
+
+	nftAddress, _, err := GetNftAddressAndLevel(wormholes.Seller1.NFTAddress)
+	if err != nil {
+		log.Error("CheckSeller1(), nft address error", "wormholes.Buyer.NFTAddress", wormholes.Buyer.NFTAddress)
+		return false
+	}
+
+	nftOwner := db.GetNFTOwner16(nftAddress)
+	emptyAddress := common.Address{}
+	if nftOwner == emptyAddress {
+		log.Error("CheckSeller1(), Get nft owner error!")
+		return false
+	}
+
+	if seller != nftOwner {
+		return false
+	}
+
+	return true
+}
+
 // BuyNFTByBuyer is tx that buyer send
 func BuyNFTByBuyer(
 	db vm.StateDB,
@@ -1184,7 +1222,7 @@ func BuyNFTByApproveExchanger(
 
 	var beneficiaryExchanger common.Address
 	exclusiveExchanger := db.GetNFTExchanger(nftAddress)
-	if db.IsApproved(nftAddress, originalExchanger) { //检测 是否为该nft授权交易所,
+	if CheckSeller1(db, blocknumber, caller, to, wormholes, amount) { //检测 是否为该nft授权交易所,
 		if exclusiveExchanger != emptyAddress {
 			if originalExchanger != exclusiveExchanger {
 				if db.GetExchangerFlag(exclusiveExchanger) {
