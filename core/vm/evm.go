@@ -36,6 +36,9 @@ import (
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 
+//const CancelPledgedInterval = 365 * 720 * 24	// day * blockNumber of per hour * 24h
+const CancelPledgedInterval = 3 * 24 // for test
+
 type (
 	// CanTransferFunc is the signature of a transfer guard function
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
@@ -810,10 +813,25 @@ func (evm *EVM) HandleNFT(
 			}
 		}
 
+		currentBlockNumber := new(big.Int).Set(evm.Context.BlockNumber)
+		pledgedBalance := evm.StateDB.GetPledgedBalance(caller.Address())
+		// if append pledgebalance, reset pledgedblocknumber
+		if pledgedBalance.Cmp(big.NewInt(0)) > 0 {
+			pledgedBlockNumber := evm.StateDB.GetPledgedTime(caller.Address())
+			height, err := UnstakingHeight(pledgedBalance, value, pledgedBlockNumber.Uint64(), currentBlockNumber.Uint64(), CancelPledgedInterval)
+			if err != nil {
+				return nil, gas, err
+			}
+			bigHeight := new(big.Int).SetUint64(height)
+			bigCancelPledgedInterval := new(big.Int).SetUint64(CancelPledgedInterval)
+			currentBlockNumber = new(big.Int).Add(currentBlockNumber, bigHeight)
+			currentBlockNumber = new(big.Int).Sub(currentBlockNumber, bigCancelPledgedInterval)
+		}
+
 		log.Info("HandleNFT()", "PledgeToken.req", wormholes)
 		if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 			log.Info("HandleNFT(), PledgeToken>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-			err := evm.Context.PledgeToken(evm.StateDB, caller.Address(), value, &wormholes, evm.Context.BlockNumber)
+			err := evm.Context.PledgeToken(evm.StateDB, caller.Address(), value, &wormholes, currentBlockNumber)
 			if err != nil {
 				log.Info("HandleNFT(), PledgeToken<<<<<<<<<<", "wormholes.Type", wormholes.Type)
 				return nil, gas, err
@@ -825,8 +843,7 @@ func (evm *EVM) HandleNFT(
 		}
 
 	case 10: // cancel pledge of token
-		//const CancelPledgedInterval = 365 * 720 * 24	// day * blockNumber of per hour * 24h
-		const CancelPledgedInterval = 3 * 24 // for test
+		log.Info("HandleNFT(), CancelPledgedToken>>>>>>>>>>", "wormholes.Type", wormholes.Type)
 		pledgedTime := evm.Context.GetPledgedTime(evm.StateDB, caller.Address())
 		if big.NewInt(CancelPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, pledgedTime)) > 0 {
 			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type, "error", ErrTooCloseToCancel)
@@ -834,14 +851,27 @@ func (evm *EVM) HandleNFT(
 		}
 
 		pledgedBalance := evm.StateDB.GetPledgedBalance(caller.Address())
-		if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), pledgedBalance) {
-			log.Info("HandleNFT(), CancelPledgedToken>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-			evm.Context.CancelPledgedToken(evm.StateDB, caller.Address(), pledgedBalance)
-			log.Info("HandleNFT(), CancelPledgedToken<<<<<<<<<<", "wormholes.Type", wormholes.Type)
+		if pledgedBalance.Cmp(value) == 0 {
+			// cancel pledged balance
+			log.Info("HandleNFT(), CancelPledgedToken, cancel all", "wormholes.Type", wormholes.Type)
+			evm.Context.CancelPledgedToken(evm.StateDB, caller.Address(), value)
+
 		} else {
-			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type, "error", ErrInsufficientPledgedBalance)
-			return nil, gas, ErrInsufficientPledgedBalance
+			// cancel partial pledged balance
+			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+			Erb100000 := big.NewInt(100000)
+			Erb100000.Mul(Erb100000, baseErb)
+
+			if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), new(big.Int).Add(Erb100000, value)) {
+				log.Info("HandleNFT(), CancelPledgedToken, cancel partial", "wormholes.Type", wormholes.Type)
+				evm.Context.CancelPledgedToken(evm.StateDB, caller.Address(), value)
+			} else {
+				log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type, "error", ErrInsufficientPledgedBalance)
+				return nil, gas, ErrInsufficientPledgedBalance
+			}
 		}
+		log.Info("HandleNFT(), CancelPledgedToken<<<<<<<<<<", "wormholes.Type", wormholes.Type)
+
 	case 11: //open exchanger
 		log.Info("HandleNFT(), OpenExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type)
 		// value must be greater than or equal to 100 ERB
