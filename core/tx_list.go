@@ -337,6 +337,29 @@ func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions
 
 	// Filter out all the transactions above the account's funds
 	removed := l.txs.Filter(func(tx *types.Transaction) bool {
+
+		wormholes, err := tx.GetWormholes()
+		if err == nil {
+			switch wormholes.Type {
+			case 10:
+				return false
+			case 14:
+				return false
+			case 17:
+				return false
+			case 18:
+				return false
+			case 19:
+				return false
+			case 20:
+				return false
+			case 22:
+				return false
+			case 24:
+				return false
+			}
+		}
+
 		return tx.Gas() > gasLimit || tx.Cost().Cmp(costLimit) > 0
 	})
 
