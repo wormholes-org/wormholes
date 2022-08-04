@@ -1448,8 +1448,25 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 		// Drop all transactions that are too costly (low balance or out of gas)
 		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
 		for _, tx := range drops {
-			hash := tx.Hash()
-			pool.all.Remove(hash)
+			wormholes, err := tx.GetWormholes()
+			if err == nil {
+				switch wormholes.Type {
+				case 10:
+				case 14:
+				case 17:
+				case 18:
+				case 19:
+				case 20:
+				case 22:
+				case 24:
+				default:
+					hash := tx.Hash()
+					pool.all.Remove(hash)
+				}
+			} else {
+				hash := tx.Hash()
+				pool.all.Remove(hash)
+			}
 		}
 		log.Trace("Removed unpayable queued transactions", "count", len(drops))
 		queuedNofundsMeter.Mark(int64(len(drops)))
