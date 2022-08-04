@@ -19,7 +19,10 @@ package vm
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"golang.org/x/crypto/sha3"
 	"math/big"
 	"strings"
 	"sync/atomic"
@@ -287,6 +290,37 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 	return evm.interpreter
 }
 
+// hashMsg return the hash of plain msg
+func hashMsg(data []byte) ([]byte, string) {
+	msg := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), string(data))
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write([]byte(msg))
+	return hasher.Sum(nil), msg
+}
+
+// recoverAddress recover the address from sig
+func RecoverAddress(msg string, sigStr string) (common.Address, error) {
+	if !strings.HasPrefix(sigStr, "0x") &&
+		!strings.HasPrefix(sigStr, "0X") {
+		return common.Address{}, fmt.Errorf("signature must be started with 0x or 0X")
+	}
+	sigData := hexutil.MustDecode(sigStr)
+	if len(sigData) != 65 {
+		return common.Address{}, fmt.Errorf("signature must be 65 bytes long")
+	}
+	if sigData[64] != 27 && sigData[64] != 28 {
+		return common.Address{}, fmt.Errorf("invalid Ethereum signature (V is not 27 or 28)")
+	}
+	sigData[64] -= 27
+	hash, _ := hashMsg([]byte(msg))
+	fmt.Println("sigdebug hash=", hexutil.Encode(hash))
+	rpk, err := crypto.SigToPub(hash, sigData)
+	if err != nil {
+		return common.Address{}, err
+	}
+	return crypto.PubkeyToAddress(*rpk), nil
+}
+
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
@@ -301,24 +335,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
-	// Fail if we're trying to transfer more than the available balance
-	if value.Sign() != 0 && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
-		return nil, gas, ErrInsufficientBalance
-	}
-	snapshot := evm.StateDB.Snapshot()
-	p, isPrecompile := evm.precompile(addr)
 
-	if !evm.StateDB.Exist(addr) && nftTransaction {
-		if !isPrecompile && evm.chainRules.IsEIP158 && value.Sign() == 0 {
-			// Calling a non existing account, don't do anything, but ping the tracer
-			if evm.Config.Debug && evm.depth == 0 {
-				evm.Config.Tracer.CaptureStart(evm, caller.Address(), addr, false, input, gas, value)
-				evm.Config.Tracer.CaptureEnd(ret, 0, 0, nil)
-			}
-			return nil, gas, nil
-		}
-		evm.StateDB.CreateAccount(addr)
-	}
 	//fmt.Println("input=", string(input))
 	//fmt.Println("caller.Address=", caller.Address().String())
 	// *** modify to support nft transaction 20211215 begin ***
@@ -334,6 +351,117 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			}
 		}
 	}
+
+	// Fail if we're trying to transfer more than the available balance
+	if nftTransaction {
+		switch wormholes.Type {
+		case 10:
+
+			if value.Sign() > 0 && !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), value) {
+				return nil, gas, ErrInsufficientBalance
+			}
+
+		case 14:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.NFTAddress +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, gas, err
+			}
+			if value.Sign() > 0 && !evm.Context.CanTransfer(evm.StateDB, buyer, value) {
+				return nil, gas, ErrInsufficientBalance
+			}
+
+		case 17:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, gas, err
+			}
+			if value.Sign() > 0 && !evm.Context.CanTransfer(evm.StateDB, buyer, value) {
+				return nil, gas, ErrInsufficientBalance
+			}
+		case 18:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.NFTAddress +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, gas, err
+			}
+			if value.Sign() > 0 && !evm.Context.CanTransfer(evm.StateDB, buyer, value) {
+				return nil, gas, ErrInsufficientBalance
+			}
+		case 19:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, gas, err
+			}
+			if value.Sign() > 0 && !evm.Context.CanTransfer(evm.StateDB, buyer, value) {
+				return nil, gas, ErrInsufficientBalance
+			}
+		case 20:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.NFTAddress +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, gas, err
+			}
+			if value.Sign() > 0 && !evm.Context.CanTransfer(evm.StateDB, buyer, value) {
+				return nil, gas, ErrInsufficientBalance
+			}
+		case 22:
+			if value.Sign() > 0 && !evm.Context.VerifyExchangerBalance(evm.StateDB, caller.Address(), value) {
+				return nil, gas, ErrInsufficientBalance
+			}
+		//case 24:
+
+		default:
+			if value.Sign() != 0 && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+				return nil, gas, ErrInsufficientBalance
+			}
+		}
+	} else {
+		if value.Sign() != 0 && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+			return nil, gas, ErrInsufficientBalance
+		}
+	}
+
+	snapshot := evm.StateDB.Snapshot()
+	p, isPrecompile := evm.precompile(addr)
+
+	if !evm.StateDB.Exist(addr) && !nftTransaction {
+		if !isPrecompile && evm.chainRules.IsEIP158 && value.Sign() == 0 {
+			// Calling a non existing account, don't do anything, but ping the tracer
+			if evm.Config.Debug && evm.depth == 0 {
+				evm.Config.Tracer.CaptureStart(evm, caller.Address(), addr, false, input, gas, value)
+				evm.Config.Tracer.CaptureEnd(ret, 0, 0, nil)
+			}
+			return nil, gas, nil
+		}
+		evm.StateDB.CreateAccount(addr)
+	}
+
 	log.Info("EVM.Call()", "nftTransaction", nftTransaction)
 	if nftTransaction {
 		log.Info("EVM.Call()", "nftTransaction", nftTransaction, "wormholes.Type", wormholes.Type)
