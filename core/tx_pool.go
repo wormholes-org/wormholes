@@ -637,7 +637,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Exchanger +
 				wormholes.Buyer.BlockNumber +
 				wormholes.Buyer.Seller
-			buyer, err := recoverAddress(msg, wormholes.Buyer.Sig)
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
 				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
 				return err
@@ -654,7 +654,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Exchanger +
 				wormholes.Buyer.BlockNumber +
 				wormholes.Buyer.Seller
-			buyer, err := recoverAddress(msg, wormholes.Buyer.Sig)
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
 				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
 				return err
@@ -676,7 +676,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Exchanger +
 				wormholes.Buyer.BlockNumber +
 				wormholes.Buyer.Seller
-			buyer, err := recoverAddress(msg, wormholes.Buyer.Sig)
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
 				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
 				return err
@@ -697,7 +697,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Exchanger +
 				wormholes.Buyer.BlockNumber +
 				wormholes.Buyer.Seller
-			buyer, err := recoverAddress(msg, wormholes.Buyer.Sig)
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
 				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
 				return err
@@ -715,7 +715,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Exchanger +
 				wormholes.Buyer.BlockNumber +
 				wormholes.Buyer.Seller
-			buyer, err := recoverAddress(msg, wormholes.Buyer.Sig)
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
 				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
 				return err
@@ -729,6 +729,11 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				return ErrInsufficientFunds
 			}
 			if pool.currentState.GetExchangerBalance(from).Cmp(tx.Value()) < 0 {
+				return ErrInsufficientFunds
+			}
+		case 24:
+			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
+			if pool.currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
 				return ErrInsufficientFunds
 			}
 		default:
