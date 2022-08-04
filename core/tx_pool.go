@@ -639,7 +639,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Seller
 			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
-				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
+				log.Error("validateTx()", "Get public key error", err)
 				return err
 			}
 			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
@@ -656,7 +656,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Seller
 			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
-				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
+				log.Error("validateTx()", "Get public key error", err)
 				return err
 			}
 			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
@@ -678,7 +678,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Seller
 			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
-				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
+				log.Error("validateTx()", "Get public key error", err)
 				return err
 			}
 			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
@@ -699,7 +699,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Seller
 			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
-				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
+				log.Error("validateTx()", "Get public key error", err)
 				return err
 			}
 			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
@@ -717,7 +717,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				wormholes.Buyer.Seller
 			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 			if err != nil {
-				log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
+				log.Error("validateTx()", "Get public key error", err)
 				return err
 			}
 			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
