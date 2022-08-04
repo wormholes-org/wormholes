@@ -1,9 +1,10 @@
 package types
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"sort"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type Validator struct {
@@ -45,28 +46,37 @@ func (vl *ValidatorList) Swap(i, j int) {
 }
 
 // AddValidator Sort by distance in ascending order
-func (sl *ValidatorList) AddValidator(addr common.Address, balance *big.Int, proxy common.Address) bool {
+func (vl *ValidatorList) AddValidator(addr common.Address, balance *big.Int, proxy common.Address) bool {
 	empty := common.Address{}
-	for _, v := range sl.Validators {
+	for _, v := range vl.Validators {
 		if v.Address() == addr /*&& v.Proxy.String() == "0x0000000000000000000000000000000000000000" */ {
 			// Usage scenarios: pledge, additional pledge, delegation
 			v.Balance.Add(v.Balance, balance)
 			if proxy.Hex() != empty.Hex() {
 				v.Proxy = proxy
 			}
-			sort.Sort(sl)
+			sort.Sort(vl)
 			return true
 		}
 	}
-	sl.Validators = append(sl.Validators, NewValidator(addr, balance, proxy))
-	sort.Sort(sl)
+	vl.Validators = append(vl.Validators, NewValidator(addr, balance, proxy))
+	sort.Sort(vl)
 	return true
 }
 
-func (sl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) bool {
-	for i, v := range sl.Validators {
+func (vl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) bool {
+	for i, v := range vl.Validators {
 		if v.Address() == addr {
-			sl.Validators = append(sl.Validators[:i], sl.Validators[i+1:]...)
+			if v.Balance.Cmp(balance) > 0 {
+				v.Balance.Sub(v.Balance, balance)
+				sort.Sort(vl)
+				return true
+			} else if v.Balance.Cmp(balance) == 0 {
+				v.Balance.Sub(v.Balance, balance)
+				vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
+				return true
+			}
+			vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
 			return true
 		}
 	}
@@ -74,7 +84,7 @@ func (sl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) 
 }
 
 // ValidatorByDistanceAndWeight Query K validators closest to random numbers based on distance and pledge amount
-func (sl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, randomHash common.Hash) []common.Address {
+func (vl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, randomHash common.Hash) []common.Address {
 	// The maximum value of address to big Int
 	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
 
@@ -94,12 +104,12 @@ func (sl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, ra
 		sub1 = sub1.Abs(sub1)
 		sub2 = sub2.Sub(maxValue, sub1)
 		if sub1.Cmp(sub2) < 0 {
-			a := new(big.Int).Mul(sub1, sl.StakeBalance(common.BigToAddress(v)))
-			w := new(big.Int).Div(a, sl.TotalStakeBalance())
+			a := new(big.Int).Mul(sub1, vl.StakeBalance(common.BigToAddress(v)))
+			w := new(big.Int).Div(a, vl.TotalStakeBalance())
 			addrToWeightMap[v] = w
 		} else {
-			a := new(big.Int).Mul(sub2, sl.StakeBalance(common.BigToAddress(v)))
-			w := new(big.Int).Div(a, sl.TotalStakeBalance())
+			a := new(big.Int).Mul(sub2, vl.StakeBalance(common.BigToAddress(v)))
+			w := new(big.Int).Div(a, vl.TotalStakeBalance())
 			addrToWeightMap[v] = w
 		}
 	}
@@ -118,17 +128,17 @@ func (sl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, ra
 }
 
 // TotalStakeBalance Calculate the total amount of the stake account
-func (sl *ValidatorList) TotalStakeBalance() *big.Int {
+func (vl *ValidatorList) TotalStakeBalance() *big.Int {
 	var total = big.NewInt(0)
-	for _, voter := range sl.Validators {
+	for _, voter := range vl.Validators {
 		total.Add(total, voter.Balance)
 	}
 	return total
 }
 
 // StakeBalance Returns the amount of the staked node
-func (sl *ValidatorList) StakeBalance(address common.Address) *big.Int {
-	for _, st := range sl.Validators {
+func (vl *ValidatorList) StakeBalance(address common.Address) *big.Int {
+	for _, st := range vl.Validators {
 		if st.Address().Hex() != address.Hex() && st.Proxy.Hex() != address.Hex() {
 			continue
 		}
@@ -137,22 +147,22 @@ func (sl *ValidatorList) StakeBalance(address common.Address) *big.Int {
 	return big.NewInt(0)
 }
 
-func (sl *ValidatorList) ConvertToAddress() (addrs []common.Address) {
-	for _, validator := range sl.Validators {
+func (vl *ValidatorList) ConvertToAddress() (addrs []common.Address) {
+	for _, validator := range vl.Validators {
 		addrs = append(addrs, validator.Addr)
 	}
 	return
 }
 
-func (sl *ValidatorList) ConvertToBigInt() (bigIntSlice []*big.Int) {
-	for _, validator := range sl.Validators {
+func (vl *ValidatorList) ConvertToBigInt() (bigIntSlice []*big.Int) {
+	for _, validator := range vl.Validators {
 		bigIntSlice = append(bigIntSlice, validator.Addr.Hash().Big())
 	}
 	return
 }
 
-func (sl *ValidatorList) Exist(addr common.Address) bool {
-	for _, v := range sl.Validators {
+func (vl *ValidatorList) Exist(addr common.Address) bool {
+	for _, v := range vl.Validators {
 		if v.Addr == addr || v.Proxy == addr {
 			return true
 		}
@@ -160,9 +170,9 @@ func (sl *ValidatorList) Exist(addr common.Address) bool {
 	return false
 }
 
-func (sl *ValidatorList) ExistProxy(addr common.Address) bool {
+func (vl *ValidatorList) ExistProxy(addr common.Address) bool {
 	emptyAddr := common.Address{}
-	for _, v := range sl.Validators {
+	for _, v := range vl.Validators {
 		if v.Addr == addr && v.Proxy != emptyAddr {
 			return true
 		}
