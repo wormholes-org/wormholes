@@ -356,7 +356,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if nftTransaction {
 		switch wormholes.Type {
 		case 10:
-			pledgedBalance := evm.StateDB.GetExchangerBalance(caller.Address())
+			pledgedBalance := evm.StateDB.GetPledgedBalance(caller.Address())
 			if pledgedBalance.Cmp(value) != 0 {
 				// cancel partial pledged balance
 				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
