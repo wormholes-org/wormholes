@@ -356,9 +356,15 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if nftTransaction {
 		switch wormholes.Type {
 		case 10:
-
-			if value.Sign() > 0 && !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), value) {
-				return nil, gas, ErrInsufficientBalance
+			pledgedBalance := evm.StateDB.GetExchangerBalance(caller.Address())
+			if pledgedBalance.Cmp(value) != 0 {
+				// cancel partial pledged balance
+				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+				Erb100000 := big.NewInt(100000)
+				Erb100000.Mul(Erb100000, baseErb)
+				if value.Sign() > 0 && !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), new(big.Int).Add(value, Erb100000)) {
+					return nil, gas, ErrInsufficientBalance
+				}
 			}
 
 		case 14:
@@ -431,7 +437,10 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 				return nil, gas, ErrInsufficientBalance
 			}
 		case 22:
-			if value.Sign() > 0 && !evm.Context.VerifyExchangerBalance(evm.StateDB, caller.Address(), value) {
+			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+			Erb100 := big.NewInt(100)
+			Erb100.Mul(Erb100, baseErb)
+			if value.Sign() > 0 && !evm.Context.VerifyExchangerBalance(evm.StateDB, caller.Address(), new(big.Int).Add(value, Erb100)) {
 				return nil, gas, ErrInsufficientBalance
 			}
 		//case 24:
@@ -450,15 +459,16 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	snapshot := evm.StateDB.Snapshot()
 	p, isPrecompile := evm.precompile(addr)
 
-	if !evm.StateDB.Exist(addr) && !nftTransaction {
-		if !isPrecompile && evm.chainRules.IsEIP158 && value.Sign() == 0 {
-			// Calling a non existing account, don't do anything, but ping the tracer
-			if evm.Config.Debug && evm.depth == 0 {
-				evm.Config.Tracer.CaptureStart(evm, caller.Address(), addr, false, input, gas, value)
-				evm.Config.Tracer.CaptureEnd(ret, 0, 0, nil)
-			}
-			return nil, gas, nil
-		}
+	//if !evm.StateDB.Exist(addr) && !nftTransaction {
+	if !evm.StateDB.Exist(addr) {
+		//if !isPrecompile && evm.chainRules.IsEIP158 && value.Sign() == 0 {
+		//	// Calling a non existing account, don't do anything, but ping the tracer
+		//	if evm.Config.Debug && evm.depth == 0 {
+		//		evm.Config.Tracer.CaptureStart(evm, caller.Address(), addr, false, input, gas, value)
+		//		evm.Config.Tracer.CaptureEnd(ret, 0, 0, nil)
+		//	}
+		//	return nil, gas, nil
+		//}
 		evm.StateDB.CreateAccount(addr)
 	}
 

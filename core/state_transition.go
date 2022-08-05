@@ -390,9 +390,15 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	if err == nil {
 		switch wormholes.Type {
 		case 10:
-
-			if msg.Value().Sign() > 0 && !st.evm.Context.VerifyPledgedBalance(st.state, msg.From(), msg.Value()) {
-				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			pledgedBalance := st.state.GetPledgedBalance(msg.From())
+			if pledgedBalance.Cmp(msg.Value()) != 0 {
+				// cancel partial pledged balance
+				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+				Erb100000 := big.NewInt(100000)
+				Erb100000.Mul(Erb100000, baseErb)
+				if msg.Value().Sign() > 0 && !st.evm.Context.VerifyPledgedBalance(st.state, msg.From(), new(big.Int).Add(msg.Value(), Erb100000)) {
+					return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+				}
 			}
 
 		case 14:
@@ -465,7 +471,10 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
 			}
 		case 22:
-			if msg.Value().Sign() > 0 && !st.evm.Context.VerifyExchangerBalance(st.state, msg.From(), msg.Value()) {
+			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+			Erb100 := big.NewInt(100)
+			Erb100.Mul(Erb100, baseErb)
+			if msg.Value().Sign() > 0 && !st.evm.Context.VerifyExchangerBalance(st.state, msg.From(), new(big.Int).Add(msg.Value(), Erb100)) {
 				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
 			}
 		//case 24:
