@@ -971,7 +971,7 @@ func (evm *EVM) HandleNFT(
 			log.Info("HandleNFT(), PledgeToken>>>>>>>>>>", "wormholes.Type", wormholes.Type)
 			err := evm.Context.PledgeToken(evm.StateDB, caller.Address(), value, &wormholes, currentBlockNumber)
 			if err != nil {
-				log.Info("HandleNFT(), PledgeToken<<<<<<<<<<", "wormholes.Type", wormholes.Type)
+				log.Error("HandleNFT(), PledgeToken", "wormholes.Type", wormholes.Type)
 				return nil, gas, err
 			}
 			log.Info("HandleNFT(), PledgeToken<<<<<<<<<<", "wormholes.Type", wormholes.Type)
