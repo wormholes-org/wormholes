@@ -612,7 +612,7 @@ func CheckSeller1(db vm.StateDB,
 		wormholes.Seller1.NFTAddress +
 		wormholes.Seller1.Exchanger +
 		wormholes.Seller1.BlockNumber
-	seller, err := recoverAddress(msg, wormholes.Seller1.Sig)
+	seller, err := RecoverAddress(msg, wormholes.Seller1.Sig)
 	if err != nil {
 		log.Error("CheckSeller1()", "Get public key error", err)
 		return false
