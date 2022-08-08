@@ -307,16 +307,16 @@ func (tx *Transaction) IsWormholesNFTTx() bool {
 func (tx *Transaction) GetWormholesType() (uint8, error) {
 	var wormholes Wormholes
 	data := tx.Data()
-	if len(data) > 10 {
-		if string(data[:10]) == "wormholes:" {
-			jsonErr := json.Unmarshal(data[10:], &wormholes)
-			if jsonErr == nil {
-				return wormholes.Type, nil
-			}
+	if tx.IsWormholesNFTTx() {
+		jsonErr := json.Unmarshal(data[10:], &wormholes)
+		if jsonErr == nil {
+			return wormholes.Type, nil
+		} else {
+			return 0, jsonErr
 		}
+	} else {
+		return 0, errors.New("not wormholes")
 	}
-
-	return 0, errors.New("get wormholes type error")
 }
 
 func (tx *Transaction) GetWormholes() (*Wormholes, error) {
@@ -350,7 +350,7 @@ func (tx *Transaction) GetExchangerOwner() (common.Address, bool) {
 	return common.Address{}, false
 }
 
-// Cost returns gas * gasPrice + value.
+// GasFee returns gas * gasPrice .
 func (tx *Transaction) GasFee() *big.Int {
 	total := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
 	return total

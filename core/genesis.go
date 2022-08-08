@@ -295,7 +295,7 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 	for addr, account := range g.Validator {
 		log.Info("caver|ToBlock|validator", "addr", addr, "amount", account.Balance.String())
 		proxy := common.HexToAddress(account.Proxy)
-		statedb.PledgeToken(addr, account.Balance, proxy)
+		statedb.PledgeToken(addr, account.Balance, proxy, big.NewInt(0))
 		if proxy != emptyAddr {
 			statedb.AddOrUpdateActiveMiner(proxy, account.Balance, 0)
 		} else {

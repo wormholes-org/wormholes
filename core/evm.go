@@ -34,7 +34,8 @@ import (
 
 var ErrRecoverAddress = errors.New("recover ExchangerAuth error")
 var ErrNotMatchAddress = errors.New("recovered address not match exchanger owner")
-const InjectRewardRate = 1000	// InjectRewardRate is 10%
+
+const InjectRewardRate = 1000 // InjectRewardRate is 10%
 var InjectRewardAddress = common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 
 // ChainContext supports retrieving headers and consensus parameters from the
@@ -86,6 +87,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		CancelNFTApproveAddress:            CancelNFTApproveAddress,
 		ExchangeNFTToCurrency:              ExchangeNFTToCurrency,
 		PledgeToken:                        PledgeToken,
+		GetPledgedTime:                     GetPledgedTime,
 		MinerConsign:                       MinerConsign,
 		CancelPledgedToken:                 CancelPledgedToken,
 		OpenExchanger:                      OpenExchanger,
@@ -275,25 +277,29 @@ func ExchangeNFTToCurrency(db vm.StateDB, address common.Address, nftaddress str
 	return nil
 }
 
-func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *types.Wormholes) error {
+func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *types.Wormholes, blocknumber *big.Int) error {
 	empty := common.Address{}
 	log.Info("PledgeToken", "proxy", wh.ProxyAddress, "sign", wh.ProxySign)
 	if wh.ProxyAddress != "" && wh.ProxyAddress != empty.Hex() {
 		msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
-		addr, err := recoverAddress(msg, wh.ProxySign)
+		addr, err := RecoverAddress(msg, wh.ProxySign)
 		log.Info("PledgeToken", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
 		if err != nil || wh.ProxyAddress != addr.Hex() {
 			log.Error("PledgeToken()", "Get public key error", err)
-			return err
+			return errors.New("recover proxy address error!")
 		}
 	}
 
-	return db.PledgeToken(address, amount, common.HexToAddress(wh.ProxyAddress))
+	return db.PledgeToken(address, amount, common.HexToAddress(wh.ProxyAddress), blocknumber)
+}
+
+func GetPledgedTime(db vm.StateDB, addr common.Address) *big.Int {
+	return db.GetPledgedTime(addr)
 }
 
 func MinerConsign(db vm.StateDB, address common.Address, wh *types.Wormholes) error {
 	msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
-	addr, err := recoverAddress(msg, wh.ProxySign)
+	addr, err := RecoverAddress(msg, wh.ProxySign)
 	log.Info("MinerConsign", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
 	if err != nil || wh.ProxyAddress != addr.Hex() {
 		log.Error("MinerConsign()", "Get public key error", err)
@@ -417,7 +423,7 @@ func hashMsg(data []byte) ([]byte, string) {
 }
 
 // recoverAddress recover the address from sig
-func recoverAddress(msg string, sigStr string) (common.Address, error) {
+func RecoverAddress(msg string, sigStr string) (common.Address, error) {
 	if !strings.HasPrefix(sigStr, "0x") &&
 		!strings.HasPrefix(sigStr, "0X") {
 		return common.Address{}, fmt.Errorf("signature must be started with 0x or 0X")
@@ -462,7 +468,7 @@ func BuyNFTBySellerOrExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*pubKey)
-	buyer, err := recoverAddress(msg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
 		return err
@@ -654,7 +660,7 @@ func BuyNFTByBuyer(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*pubKey)
-	seller, err := recoverAddress(msg, wormholes.Seller1.Sig)
+	seller, err := RecoverAddress(msg, wormholes.Seller1.Sig)
 	if err != nil {
 		log.Error("BuyNFTByBuyer()", "Get public key error", err)
 		return err
@@ -777,7 +783,7 @@ func BuyAndMintNFTByBuyer(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*pubKey)
-	seller, err := recoverAddress(msg, wormholes.Seller2.Sig)
+	seller, err := RecoverAddress(msg, wormholes.Seller2.Sig)
 	if err != nil {
 		log.Error("BuyNFTByBuyer()", "Get public key error", err)
 		return err
@@ -903,7 +909,7 @@ func BuyAndMintNFTByExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*buyerPubKey)
-	buyer, err := recoverAddress(buyerMsg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(buyerMsg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByExchanger()", "Get buyer public key error", err)
 		return err
@@ -923,7 +929,7 @@ func BuyAndMintNFTByExchanger(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*sellerPubKey)
-	seller, err := recoverAddress(sellerMsg, wormholes.Seller2.Sig)
+	seller, err := RecoverAddress(sellerMsg, wormholes.Seller2.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByExchanger()", "Get seller public key error", err)
 		return err
@@ -1107,7 +1113,7 @@ func BuyNFTByApproveExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*pubKey)
-	buyer, err := recoverAddress(msg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyNFTByApproveExchanger()", "Get buyer public key error", err)
 		return err
@@ -1124,7 +1130,7 @@ func BuyNFTByApproveExchanger(
 	//	return err
 	//}
 	//originalExchanger := crypto.PubkeyToAddress(*exchangerPubKey)
-	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+	originalExchanger, err := RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyNFTByApproveExchanger()", "Get exchanger public key error", err)
 		return ErrRecoverAddress
@@ -1283,7 +1289,7 @@ func BuyAndMintNFTByApprovedExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*buyerPubKey)
-	buyer, err := recoverAddress(buyerMsg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(buyerMsg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
 		return err
@@ -1303,7 +1309,7 @@ func BuyAndMintNFTByApprovedExchanger(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*sellerPubKey)
-	seller, err := recoverAddress(sellerMsg, wormholes.Seller2.Sig)
+	seller, err := RecoverAddress(sellerMsg, wormholes.Seller2.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
 		return err
@@ -1320,7 +1326,7 @@ func BuyAndMintNFTByApprovedExchanger(
 	//	return err
 	//}
 	//originalExchanger := crypto.PubkeyToAddress(*exchangerPubKey)
-	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+	originalExchanger, err := RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
 		return ErrRecoverAddress
@@ -1539,7 +1545,7 @@ func BuyNFTByExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*pubKey)
-	buyer, err := recoverAddress(buyerMsg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(buyerMsg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyNFTByExchanger()", "Get buyer public key error", err)
 		return err
@@ -1557,7 +1563,7 @@ func BuyNFTByExchanger(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*pubKey)
-	seller, err := recoverAddress(sellerMsg, wormholes.Seller1.Sig)
+	seller, err := RecoverAddress(sellerMsg, wormholes.Seller1.Sig)
 	if err != nil {
 		log.Error("BuyNFTByExchanger()", "Get seller public key error", err)
 		return err
@@ -1770,7 +1776,7 @@ func VoteOfficialNFTByApprovedExchanger(
 		wormholes.ExchangerAuth.To +
 		wormholes.ExchangerAuth.BlockNumber
 
-	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+	originalExchanger, err := RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
 		return ErrRecoverAddress
