@@ -617,9 +617,149 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		return ErrInsufficientFunds
+	wormholes, err := tx.GetWormholes()
+	if err == nil {
+		switch wormholes.Type {
+		case 10:
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+
+			pledgedBalance := pool.currentState.GetPledgedBalance(from)
+			if pledgedBalance.Cmp(tx.Value()) != 0 {
+				// cancel partial pledged balance
+				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+				Erb100000 := big.NewInt(100000)
+				Erb100000.Mul(Erb100000, baseErb)
+				if pledgedBalance.Cmp(new(big.Int).Add(tx.Value(), Erb100000)) < 0 {
+					return ErrInsufficientFunds
+				}
+			}
+
+		case 14:
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			// recover buyer address
+			msg := wormholes.Buyer.Amount +
+				wormholes.Buyer.NFTAddress +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
+			if err != nil {
+				log.Error("validateTx()", "Get public key error", err)
+				return err
+			}
+			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
+				return ErrInsufficientFunds
+			}
+		case 17:
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			// recover buyer address
+			msg := wormholes.Buyer.Amount +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
+			if err != nil {
+				log.Error("validateTx()", "Get public key error", err)
+				return err
+			}
+			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
+				return ErrInsufficientFunds
+			}
+		case 18:
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
+			if pool.currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			// recover buyer address
+			msg := wormholes.Buyer.Amount +
+				wormholes.Buyer.NFTAddress +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
+			if err != nil {
+				log.Error("validateTx()", "Get public key error", err)
+				return err
+			}
+			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
+				return ErrInsufficientFunds
+			}
+		case 19:
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
+			if pool.currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			// recover buyer address
+			msg := wormholes.Buyer.Amount +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
+			if err != nil {
+				log.Error("validateTx()", "Get public key error", err)
+				return err
+			}
+			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
+				return ErrInsufficientFunds
+			}
+		case 20:
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			// recover buyer address
+			msg := wormholes.Buyer.Amount +
+				wormholes.Buyer.NFTAddress +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
+			if err != nil {
+				log.Error("validateTx()", "Get public key error", err)
+				return err
+			}
+			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
+				return ErrInsufficientFunds
+			}
+
+		case 22:
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+			Erb100 := big.NewInt(100)
+			Erb100.Mul(Erb100, baseErb)
+			if pool.currentState.GetExchangerBalance(from).Cmp(new(big.Int).Add(tx.Value(), Erb100)) < 0 {
+				return ErrInsufficientFunds
+			}
+		case 24:
+			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
+			if pool.currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+		default:
+			if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+				return ErrInsufficientFunds
+			}
+		}
+
+	} else {
+		if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+			return ErrInsufficientFunds
+		}
 	}
+
 	// Ensure the transaction has more gas than the basic tx fee.
 	intrGas, err := IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, true, pool.istanbul)
 	if err != nil {

@@ -215,14 +215,76 @@ func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.Gas())
 	mgval = mgval.Mul(mgval, st.gasPrice)
 	balanceCheck := mgval
-	if st.gasFeeCap != nil {
-		balanceCheck = new(big.Int).SetUint64(st.msg.Gas())
-		balanceCheck = balanceCheck.Mul(balanceCheck, st.gasFeeCap)
-		balanceCheck.Add(balanceCheck, st.value)
+
+	wormholes, err := st.GetWormholes()
+	if err == nil {
+		switch wormholes.Type {
+		case 10:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+		case 14:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+		case 17:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+		case 18:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+			exchangerBalance := st.state.GetExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
+			if exchangerBalance.Cmp(balanceCheck) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
+			}
+		case 19:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+			exchangerBalance := st.state.GetExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
+			if exchangerBalance.Cmp(balanceCheck) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
+			}
+		case 20:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+		case 22:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+		case 24:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+			exchangerBalance := st.state.GetExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
+			if exchangerBalance.Cmp(balanceCheck) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
+			}
+		default:
+			if st.gasFeeCap != nil {
+				balanceCheck = new(big.Int).SetUint64(st.msg.Gas())
+				balanceCheck = balanceCheck.Mul(balanceCheck, st.gasFeeCap)
+				balanceCheck.Add(balanceCheck, st.value)
+			}
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+		}
+
+	} else {
+		if st.gasFeeCap != nil {
+			balanceCheck = new(big.Int).SetUint64(st.msg.Gas())
+			balanceCheck = balanceCheck.Mul(balanceCheck, st.gasFeeCap)
+			balanceCheck.Add(balanceCheck, st.value)
+		}
+		if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+		}
 	}
-	if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
-		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
-	}
+
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
 	}
@@ -324,8 +386,109 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	st.gas -= gas
 
 	// Check clause 6
-	if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
-		return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+	wormholes, err := st.GetWormholes()
+	if err == nil {
+		switch wormholes.Type {
+		case 10:
+			pledgedBalance := st.state.GetPledgedBalance(msg.From())
+			if pledgedBalance.Cmp(msg.Value()) != 0 {
+				// cancel partial pledged balance
+				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+				Erb100000 := big.NewInt(100000)
+				Erb100000.Mul(Erb100000, baseErb)
+				if msg.Value().Sign() > 0 && !st.evm.Context.VerifyPledgedBalance(st.state, msg.From(), new(big.Int).Add(msg.Value(), Erb100000)) {
+					return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+				}
+			}
+
+		case 14:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.NFTAddress +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, err
+			}
+			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, buyer, msg.Value()) {
+				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			}
+
+		case 17:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, err
+			}
+			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, buyer, msg.Value()) {
+				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			}
+		case 18:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.NFTAddress +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, err
+			}
+			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, buyer, msg.Value()) {
+				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			}
+		case 19:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, err
+			}
+			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, buyer, msg.Value()) {
+				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			}
+		case 20:
+			// recover buyer address
+			msgText := wormholes.Buyer.Amount +
+				wormholes.Buyer.NFTAddress +
+				wormholes.Buyer.Exchanger +
+				wormholes.Buyer.BlockNumber +
+				wormholes.Buyer.Seller
+			buyer, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+			if err != nil {
+				return nil, err
+			}
+			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, buyer, msg.Value()) {
+				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			}
+		case 22:
+			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+			Erb100 := big.NewInt(100)
+			Erb100.Mul(Erb100, baseErb)
+			if msg.Value().Sign() > 0 && !st.evm.Context.VerifyExchangerBalance(st.state, msg.From(), new(big.Int).Add(msg.Value(), Erb100)) {
+				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			}
+		//case 24:
+
+		default:
+			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
+				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			}
+		}
+
+	} else {
+		if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
+			return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+		}
 	}
 
 	// Set up the initial access list.
@@ -356,21 +519,47 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	//	effectiveTip = cmath.BigMin(st.gasTipCap, new(big.Int).Sub(st.gasFeeCap, st.evm.Context.BaseFee))
 	//}
 
-	// 如果是NFT碎片兑换交易且成功，则不收取gasfee
 	if st.IsWormholesNFTTx() {
-		txType, _ := st.GetWormholesType()
-		if txType == 6 && vmerr == nil {
+		wormholes, _ := st.GetWormholes()
+
+		//if exchanging nft is successful, tx is free.
+		if wormholes.Type == 6 && vmerr == nil {
 			st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 		} else {
 			st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 		}
-		// liveness交易不消耗gasfee
-		//if txType == 30{
-		//	st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
-		//}
+
+		if wormholes.Type == 18 ||
+			wormholes.Type == 19 ||
+			wormholes.Type == 24 {
+			//if vmerr == nil ||
+			//	(vmerr != ErrRecoverAddress &&
+			//		vmerr != ErrNotMatchAddress) {
+			if vmerr == nil {
+				st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+				st.state.SubExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner),
+					new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+			}
+		}
 	} else {
 		st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 	}
+
+	// 如果是NFT碎片兑换交易且成功，则不收取gasfee
+	//if st.IsWormholesNFTTx() {
+	//	txType, _ := st.GetWormholesType()
+	//	if txType == 6 && vmerr == nil {
+	//		st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+	//	} else {
+	//		st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+	//	}
+	//	// liveness交易不消耗gasfee
+	//	//if txType == 30{
+	//	//	st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+	//	//}
+	//} else {
+	//	st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
+	//}
 
 	return &ExecutionResult{
 		UsedGas:    st.gasUsed(),
@@ -422,4 +611,18 @@ func (st *StateTransition) GetWormholesType() (uint8, error) {
 	}
 
 	return 0, errors.New("get wormholes type error")
+}
+
+func (st *StateTransition) GetWormholes() (*types.Wormholes, error) {
+	var wormholes types.Wormholes
+	if len(st.data) > 10 {
+		if string(st.data[:10]) == "wormholes:" {
+			jsonErr := json.Unmarshal(st.data[10:], &wormholes)
+			if jsonErr == nil {
+				return &wormholes, nil
+			}
+		}
+	}
+
+	return nil, errors.New("Unmarshal wormholes error")
 }

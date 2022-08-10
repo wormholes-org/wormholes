@@ -725,7 +725,7 @@ func (w *worker) sendLivenessTx() error {
 		return err
 	}
 
-	tx := types.NewTransaction(w.eth.TxPool().Nonce(from), common.Address{}, big.NewInt(0), 50000, big.NewInt(2000000000), txDataByte)
+	tx := types.NewTransaction(w.eth.TxPool().Nonce(from), common.Address{}, big.NewInt(0), 60000, big.NewInt(2000000000), txDataByte)
 	signer := types.LatestSignerForChainID(w.chain.Config().ChainID)
 	signTx, err := types.SignTx(tx, signer, nodeKey)
 	if err != nil {

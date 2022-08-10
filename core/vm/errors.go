@@ -44,6 +44,7 @@ var (
 	ErrInsufficientExchangerBalance = errors.New("insufficient exchanger balance for transfer")
 	ErrNotMoreThan100ERB            = errors.New("not more than 100 ERB")
 	ErrTooCloseWithOpenExchanger    = errors.New("too close with openexchanger")
+	ErrTooCloseToCancel             = errors.New("too close to cancel")
 	ErrRoyaltyNotMoreThan0          = errors.New("royalty not more than 0")
 	ErrRoyaltyNotLessthan10000      = errors.New("royalty not less than 10000")
 	ErrFeeRateNotMoreThan0          = errors.New("feerate not more than 0")
@@ -56,6 +57,7 @@ var (
 	ErrNftLevel                     = errors.New("input nft level error")
 	ErrMinerProxy                   = errors.New("cannot delegate repeatedly")
 	ErrRepeatedPledge               = errors.New("no repeated pledge")
+	ErrReopenExchanger              = errors.New("reopen exchanger")
 )
 
 // ErrStackUnderflow wraps an evm error when the items on the stack less

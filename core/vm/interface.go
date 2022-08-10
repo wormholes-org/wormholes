@@ -87,7 +87,8 @@ type StateDB interface {
 	ChangeNFTApproveAddress(common.Address, common.Address)
 	CancelNFTApproveAddress(common.Address, common.Address)
 	ExchangeNFTToCurrency(common.Address, common.Address, *big.Int, int)
-	PledgeToken(common.Address, *big.Int, common.Address) error
+	PledgeToken(common.Address, *big.Int, common.Address, *big.Int) error
+	GetPledgedTime(common.Address) *big.Int
 	MinerConsign(common.Address, common.Address) error
 	CancelPledgedToken(common.Address, *big.Int)
 	OpenExchanger(common.Address, *big.Int, *big.Int, uint32, string, string)
@@ -116,6 +117,7 @@ type StateDB interface {
 	InjectOfficialNFT(string, *big.Int, uint64, uint32, string)
 	AddExchangerToken(common.Address, *big.Int)
 	SubExchangerToken(common.Address, *big.Int)
+	SubExchangerBalance(common.Address, *big.Int)
 	GetExchangerBalance(common.Address) *big.Int
 	VoteOfficialNFT(*types.NominatedOfficialNFT)
 	ElectNominatedOfficialNFT()

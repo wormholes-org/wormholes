@@ -32,6 +32,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
+var ErrRecoverAddress = errors.New("recover ExchangerAuth error")
+var ErrNotMatchAddress = errors.New("recovered address not match exchanger owner")
+
+const InjectRewardRate = 1000 // InjectRewardRate is 10%
+var InjectRewardAddress = common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
@@ -81,6 +87,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		CancelNFTApproveAddress:            CancelNFTApproveAddress,
 		ExchangeNFTToCurrency:              ExchangeNFTToCurrency,
 		PledgeToken:                        PledgeToken,
+		GetPledgedTime:                     GetPledgedTime,
 		MinerConsign:                       MinerConsign,
 		CancelPledgedToken:                 CancelPledgedToken,
 		OpenExchanger:                      OpenExchanger,
@@ -115,6 +122,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		BuyNFTByExchanger:                  BuyNFTByExchanger,
 		AddExchangerToken:                  AddExchangerToken,
 		SubExchangerToken:                  SubExchangerToken,
+		SubExchangerBalance:                SubExchangerBalance,
 		VerifyExchangerBalance:             VerifyExchangerBalance,
 		GetNftAddressAndLevel:              GetNftAddressAndLevel,
 		VoteOfficialNFT:                    VoteOfficialNFT,
@@ -269,25 +277,29 @@ func ExchangeNFTToCurrency(db vm.StateDB, address common.Address, nftaddress str
 	return nil
 }
 
-func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *types.Wormholes) error {
+func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *types.Wormholes, blocknumber *big.Int) error {
 	empty := common.Address{}
 	log.Info("PledgeToken", "proxy", wh.ProxyAddress, "sign", wh.ProxySign)
 	if wh.ProxyAddress != "" && wh.ProxyAddress != empty.Hex() {
 		msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
-		addr, err := recoverAddress(msg, wh.ProxySign)
+		addr, err := RecoverAddress(msg, wh.ProxySign)
 		log.Info("PledgeToken", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
 		if err != nil || wh.ProxyAddress != addr.Hex() {
 			log.Error("PledgeToken()", "Get public key error", err)
-			return err
+			return errors.New("recover proxy address error!")
 		}
 	}
 
-	return db.PledgeToken(address, amount, common.HexToAddress(wh.ProxyAddress))
+	return db.PledgeToken(address, amount, common.HexToAddress(wh.ProxyAddress), blocknumber)
+}
+
+func GetPledgedTime(db vm.StateDB, addr common.Address) *big.Int {
+	return db.GetPledgedTime(addr)
 }
 
 func MinerConsign(db vm.StateDB, address common.Address, wh *types.Wormholes) error {
 	msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
-	addr, err := recoverAddress(msg, wh.ProxySign)
+	addr, err := RecoverAddress(msg, wh.ProxySign)
 	log.Info("MinerConsign", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
 	if err != nil || wh.ProxyAddress != addr.Hex() {
 		log.Error("MinerConsign()", "Get public key error", err)
@@ -411,7 +423,7 @@ func hashMsg(data []byte) ([]byte, string) {
 }
 
 // recoverAddress recover the address from sig
-func recoverAddress(msg string, sigStr string) (common.Address, error) {
+func RecoverAddress(msg string, sigStr string) (common.Address, error) {
 	if !strings.HasPrefix(sigStr, "0x") &&
 		!strings.HasPrefix(sigStr, "0X") {
 		return common.Address{}, fmt.Errorf("signature must be started with 0x or 0X")
@@ -456,7 +468,7 @@ func BuyNFTBySellerOrExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*pubKey)
-	buyer, err := recoverAddress(msg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
 		return err
@@ -575,11 +587,55 @@ func BuyNFTBySellerOrExchanger(
 	db.SubBalance(buyer, amount)
 	db.AddBalance(nftOwner, nftOwnerAmount)
 	db.AddBalance(creator, royaltyAmount)
-	db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	db.AddVoteWeight(beneficiaryExchanger, amount)
 	db.ChangeNFTOwner(nftAddress, buyer, level)
 
+	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
+	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
+	exchangerAmount = new(big.Int).Sub(exchangerAmount, injectRewardAmount)
+	db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	db.AddBalance(InjectRewardAddress, injectRewardAmount)
+
 	return nil
+}
+
+func CheckSeller1(db vm.StateDB,
+	blocknumber *big.Int,
+	caller common.Address,
+	to common.Address,
+	wormholes *types.Wormholes,
+	amount *big.Int) bool {
+
+	//1. recove seller address
+	msg := wormholes.Seller1.Amount +
+		wormholes.Seller1.NFTAddress +
+		wormholes.Seller1.Exchanger +
+		wormholes.Seller1.BlockNumber
+	seller, err := RecoverAddress(msg, wormholes.Seller1.Sig)
+	if err != nil {
+		log.Error("CheckSeller1()", "Get public key error", err)
+		return false
+	}
+
+	nftAddress, _, err := GetNftAddressAndLevel(wormholes.Seller1.NFTAddress)
+	if err != nil {
+		log.Error("CheckSeller1(), nft address error", "wormholes.Buyer.NFTAddress", wormholes.Buyer.NFTAddress)
+		return false
+	}
+
+	nftOwner := db.GetNFTOwner16(nftAddress)
+	emptyAddress := common.Address{}
+	if nftOwner == emptyAddress {
+		log.Error("CheckSeller1(), Get nft owner error!")
+		return false
+	}
+
+	if seller != nftOwner {
+		return false
+	}
+
+	return true
 }
 
 // BuyNFTByBuyer is tx that buyer send
@@ -604,7 +660,7 @@ func BuyNFTByBuyer(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*pubKey)
-	seller, err := recoverAddress(msg, wormholes.Seller1.Sig)
+	seller, err := RecoverAddress(msg, wormholes.Seller1.Sig)
 	if err != nil {
 		log.Error("BuyNFTByBuyer()", "Get public key error", err)
 		return err
@@ -690,9 +746,15 @@ func BuyNFTByBuyer(
 	db.SubBalance(caller, amount)
 	db.AddBalance(seller, nftOwnerAmount)
 	db.AddBalance(creator, royaltyAmount)
-	db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	db.AddVoteWeight(beneficiaryExchanger, amount)
 	db.ChangeNFTOwner(nftAddress, caller, level)
+
+	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
+	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
+	exchangerAmount = new(big.Int).Sub(exchangerAmount, injectRewardAmount)
+	db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	db.AddBalance(InjectRewardAddress, injectRewardAmount)
 
 	return nil
 }
@@ -721,7 +783,7 @@ func BuyAndMintNFTByBuyer(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*pubKey)
-	seller, err := recoverAddress(msg, wormholes.Seller2.Sig)
+	seller, err := RecoverAddress(msg, wormholes.Seller2.Sig)
 	if err != nil {
 		log.Error("BuyNFTByBuyer()", "Get public key error", err)
 		return err
@@ -814,9 +876,15 @@ func BuyAndMintNFTByBuyer(
 	nftOwnerAmount := new(big.Int).Sub(amount, exchangerAmount)
 	db.SubBalance(caller, amount)
 	db.AddBalance(seller, nftOwnerAmount)
-	db.AddBalance(exchanger, exchangerAmount)
+	//db.AddBalance(exchanger, exchangerAmount)
 	db.AddVoteWeight(exchanger, amount)
 	db.ChangeNFTOwner(nftAddress, caller, 0)
+
+	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
+	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
+	exchangerAmount = new(big.Int).Sub(exchangerAmount, injectRewardAmount)
+	db.AddBalance(exchanger, exchangerAmount)
+	db.AddBalance(InjectRewardAddress, injectRewardAmount)
 
 	return nil
 }
@@ -841,7 +909,7 @@ func BuyAndMintNFTByExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*buyerPubKey)
-	buyer, err := recoverAddress(buyerMsg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(buyerMsg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByExchanger()", "Get buyer public key error", err)
 		return err
@@ -861,7 +929,7 @@ func BuyAndMintNFTByExchanger(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*sellerPubKey)
-	seller, err := recoverAddress(sellerMsg, wormholes.Seller2.Sig)
+	seller, err := RecoverAddress(sellerMsg, wormholes.Seller2.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByExchanger()", "Get seller public key error", err)
 		return err
@@ -1009,9 +1077,15 @@ func BuyAndMintNFTByExchanger(
 	nftOwnerAmount := new(big.Int).Sub(amount, exchangerAmount)
 	db.SubBalance(buyer, amount)
 	db.AddBalance(seller, nftOwnerAmount)
-	db.AddBalance(caller, exchangerAmount)
+	//db.AddBalance(caller, exchangerAmount)
 	db.AddVoteWeight(caller, amount)
 	db.ChangeNFTOwner(nftAddress, buyer, 0)
+
+	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
+	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
+	exchangerAmount = new(big.Int).Sub(exchangerAmount, injectRewardAmount)
+	db.AddBalance(caller, exchangerAmount)
+	db.AddBalance(InjectRewardAddress, injectRewardAmount)
 
 	return nil
 }
@@ -1039,7 +1113,7 @@ func BuyNFTByApproveExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*pubKey)
-	buyer, err := recoverAddress(msg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(msg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyNFTByApproveExchanger()", "Get buyer public key error", err)
 		return err
@@ -1056,10 +1130,13 @@ func BuyNFTByApproveExchanger(
 	//	return err
 	//}
 	//originalExchanger := crypto.PubkeyToAddress(*exchangerPubKey)
-	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+	originalExchanger, err := RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyNFTByApproveExchanger()", "Get exchanger public key error", err)
-		return err
+		return ErrRecoverAddress
+	}
+	if originalExchanger != common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner) {
+		return ErrNotMatchAddress
 	}
 
 	//2. 检测当前区块是否大于buyer.blocknumber和exchanger_auth.blocknumber, 大于时返回错误
@@ -1151,7 +1228,7 @@ func BuyNFTByApproveExchanger(
 
 	var beneficiaryExchanger common.Address
 	exclusiveExchanger := db.GetNFTExchanger(nftAddress)
-	if db.IsApproved(nftAddress, originalExchanger) { //检测 是否为该nft授权交易所,
+	if CheckSeller1(db, blocknumber, caller, to, wormholes, amount) { //检测 是否为该nft授权交易所,
 		if exclusiveExchanger != emptyAddress {
 			if originalExchanger != exclusiveExchanger {
 				if db.GetExchangerFlag(exclusiveExchanger) {
@@ -1179,9 +1256,15 @@ func BuyNFTByApproveExchanger(
 	db.SubBalance(buyer, amount)
 	db.AddBalance(nftOwner, nftOwnerAmount)
 	db.AddBalance(creator, royaltyAmount)
-	db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	db.AddVoteWeight(beneficiaryExchanger, amount)
 	db.ChangeNFTOwner(nftAddress, buyer, level)
+
+	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
+	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
+	exchangerAmount = new(big.Int).Sub(exchangerAmount, injectRewardAmount)
+	db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	db.AddBalance(InjectRewardAddress, injectRewardAmount)
 
 	return nil
 }
@@ -1206,7 +1289,7 @@ func BuyAndMintNFTByApprovedExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*buyerPubKey)
-	buyer, err := recoverAddress(buyerMsg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(buyerMsg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
 		return err
@@ -1226,7 +1309,7 @@ func BuyAndMintNFTByApprovedExchanger(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*sellerPubKey)
-	seller, err := recoverAddress(sellerMsg, wormholes.Seller2.Sig)
+	seller, err := RecoverAddress(sellerMsg, wormholes.Seller2.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
 		return err
@@ -1243,10 +1326,13 @@ func BuyAndMintNFTByApprovedExchanger(
 	//	return err
 	//}
 	//originalExchanger := crypto.PubkeyToAddress(*exchangerPubKey)
-	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+	originalExchanger, err := RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
-		return err
+		return ErrRecoverAddress
+	}
+	if originalExchanger != common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner) {
+		return ErrNotMatchAddress
 	}
 
 	//比较exchanger_auth.to与交易发起者是否相同，不同返回错误
@@ -1424,9 +1510,15 @@ func BuyAndMintNFTByApprovedExchanger(
 	nftOwnerAmount := new(big.Int).Sub(amount, exchangerAmount)
 	db.SubBalance(buyer, amount)
 	db.AddBalance(seller, nftOwnerAmount)
-	db.AddBalance(originalExchanger, exchangerAmount)
+	//db.AddBalance(originalExchanger, exchangerAmount)
 	db.AddVoteWeight(originalExchanger, amount)
 	db.ChangeNFTOwner(nftAddress, buyer, 0)
+
+	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
+	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
+	exchangerAmount = new(big.Int).Sub(exchangerAmount, injectRewardAmount)
+	db.AddBalance(originalExchanger, exchangerAmount)
+	db.AddBalance(InjectRewardAddress, injectRewardAmount)
 
 	return nil
 }
@@ -1453,7 +1545,7 @@ func BuyNFTByExchanger(
 	//	return err
 	//}
 	//buyer := crypto.PubkeyToAddress(*pubKey)
-	buyer, err := recoverAddress(buyerMsg, wormholes.Buyer.Sig)
+	buyer, err := RecoverAddress(buyerMsg, wormholes.Buyer.Sig)
 	if err != nil {
 		log.Error("BuyNFTByExchanger()", "Get buyer public key error", err)
 		return err
@@ -1471,7 +1563,7 @@ func BuyNFTByExchanger(
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*pubKey)
-	seller, err := recoverAddress(sellerMsg, wormholes.Seller1.Sig)
+	seller, err := RecoverAddress(sellerMsg, wormholes.Seller1.Sig)
 	if err != nil {
 		log.Error("BuyNFTByExchanger()", "Get seller public key error", err)
 		return err
@@ -1625,9 +1717,15 @@ func BuyNFTByExchanger(
 	db.SubBalance(buyer, amount)
 	db.AddBalance(nftOwner, nftOwnerAmount)
 	db.AddBalance(creator, royaltyAmount)
-	db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	db.AddVoteWeight(beneficiaryExchanger, amount)
 	db.ChangeNFTOwner(sellerNftAddress, buyer, level)
+
+	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
+	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
+	exchangerAmount = new(big.Int).Sub(exchangerAmount, injectRewardAmount)
+	db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	db.AddBalance(InjectRewardAddress, injectRewardAmount)
 
 	return nil
 }
@@ -1637,6 +1735,9 @@ func AddExchangerToken(db vm.StateDB, address common.Address, amount *big.Int) {
 }
 func SubExchangerToken(db vm.StateDB, address common.Address, amount *big.Int) {
 	db.SubExchangerToken(address, amount)
+}
+func SubExchangerBalance(db vm.StateDB, address common.Address, amount *big.Int) {
+	db.SubExchangerBalance(address, amount)
 }
 
 // VerifyExchangerBalance checks whether there are enough funds in the address' account to make a transfer.
@@ -1675,17 +1776,17 @@ func VoteOfficialNFTByApprovedExchanger(
 		wormholes.ExchangerAuth.To +
 		wormholes.ExchangerAuth.BlockNumber
 
-	originalExchanger, err := recoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+	originalExchanger, err := RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
 		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
-		return err
+		return ErrRecoverAddress
 	}
 	exchangerOwner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
 	if originalExchanger != exchangerOwner {
 		log.Error("VoteOfficialNFTByApprovedExchanger(), exchangerAuth",
 			"wormholes.ExchangerAuth.ExchangerOwner", wormholes.ExchangerAuth.ExchangerOwner,
 			"recovered exchanger ", originalExchanger)
-		return errors.New("exchangerAuth not correct!")
+		return ErrNotMatchAddress
 	}
 
 	//比较exchanger_auth.to与交易发起者是否相同，不同返回错误
