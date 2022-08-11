@@ -20,13 +20,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"golang.org/x/crypto/sha3"
 	"math/big"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -105,7 +106,6 @@ type (
 	VoteOfficialNFTFunc                    func(StateDB, *types.NominatedOfficialNFT)
 	ElectNominatedOfficialNFTFunc          func(StateDB)
 	NextIndexFunc                          func(db StateDB) *big.Int
-	AddOrUpdateActiveMinerFunc             func(StateDB, common.Address, *big.Int, uint64)
 	VoteOfficialNFTByApprovedExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	ChangeRewardFlagFunc                   func(StateDB, common.Address, uint8)
 )
@@ -192,7 +192,6 @@ type BlockContext struct {
 	VoteOfficialNFT                    VoteOfficialNFTFunc
 	ElectNominatedOfficialNFT          ElectNominatedOfficialNFTFunc
 	NextIndex                          NextIndexFunc
-	AddOrUpdateActiveMiner             AddOrUpdateActiveMinerFunc
 	VoteOfficialNFTByApprovedExchanger VoteOfficialNFTByApprovedExchangerFunc
 	ChangeRewardFlag                   ChangeRewardFlagFunc
 
@@ -1241,19 +1240,6 @@ func (evm *EVM) HandleNFT(
 		} else {
 			log.Error("HandleNFT(), SubExchangerToken", "wormholes.Type", wormholes.Type, "error", ErrInsufficientExchangerBalance)
 			return nil, gas, ErrInsufficientExchangerBalance
-		}
-	case 30:
-		log.Info("HandleNFT(), SendLivenessTx>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-		if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
-			log.Info("HandleNFT(), Start|LivenessTx>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-			// Online transaction execution transfer
-			evm.Context.Transfer(evm.StateDB, caller.Address(), addr, value)
-			// Add the online address to the active Miners Pool after the online transaction executes the transfer
-			evm.Context.AddOrUpdateActiveMiner(evm.StateDB, caller.Address(), value, evm.Context.BlockNumber.Uint64())
-			log.Info("HandleNFT(), End|LivenessTx<<<<<<<<<<", "wormholes.Type", wormholes.Type)
-		} else {
-			log.Error("HandleNFT(), SendLivenessTx error", "wormholes.Type", wormholes.Type, "error", ErrInsufficientBalance)
-			return nil, gas, ErrInsufficientBalance
 		}
 	case 31:
 		//MinerConsign

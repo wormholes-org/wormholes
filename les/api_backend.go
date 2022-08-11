@@ -51,11 +51,6 @@ func (b *LesApiBackend) QueryMinerProxy(ctx context.Context, number int64, addr 
 	panic("implement me")
 }
 
-
-func (b *LesApiBackend) GetActiveLivePool(ctx context.Context, number rpc.BlockNumber) (*types.ActiveMinerList, error) {
-	return nil, nil
-}
-
 func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.chainConfig
 }

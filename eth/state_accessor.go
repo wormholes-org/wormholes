@@ -216,12 +216,6 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		statedb.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	activeMiners, err := eth.blockchain.ReadActiveMinersPool(parent.Header())
-	if err != nil {
-		return nil, vm.BlockContext{}, nil, err
-	}
-	statedb.ActiveMinersPool = activeMiners
-
 	vallist := eth.blockchain.ReadValidatorPool(parent.Header())
 	statedb.ValidatorPool = vallist.Validators
 

@@ -154,9 +154,19 @@ func (vl *ValidatorList) ConvertToAddress() (addrs []common.Address) {
 	return
 }
 
-func (vl *ValidatorList) ConvertToBigInt() (bigIntSlice []*big.Int) {
-	for _, validator := range vl.Validators {
-		bigIntSlice = append(bigIntSlice, validator.Addr.Hash().Big())
+// func (vl *ValidatorList) ConvertToBigInt() (bigIntSlice []*big.Int) {
+// 	for _, validator := range vl.Validators {
+// 		bigIntSlice = append(bigIntSlice, validator.Addr.Hash().Big())
+// 	}
+// 	return
+// }
+
+func (l *ValidatorList) ConvertToBigInt(validators []*Validator) (bigIntSlice []*big.Int) {
+	if len(validators) == 0 {
+		return
+	}
+	for _, m := range validators {
+		bigIntSlice = append(bigIntSlice, m.Addr.Hash().Big())
 	}
 	return
 }
@@ -178,4 +188,13 @@ func (vl *ValidatorList) ExistProxy(addr common.Address) bool {
 		}
 	}
 	return false
+}
+
+func (vl *ValidatorList) GetProxy(delegate common.Address) (common.Address, bool) {
+	for _, v := range vl.Validators {
+		if v.Addr == delegate {
+			return v.Proxy, true
+		}
+	}
+	return common.Address{}, false
 }

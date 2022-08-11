@@ -21,10 +21,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/rawdb"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
@@ -104,14 +105,6 @@ func (s *PublicEthereumAPI) QueryMinerProxy(ctx context.Context, number rpc.Bloc
 		MinerProxyList = append(MinerProxyList, &m)
 	}
 	return MinerProxyList, nil
-}
-
-func (s *PublicEthereumAPI) GetActiveLivePool(ctx context.Context, number rpc.BlockNumber) (*types.ActiveMinerList, error) {
-	activeMiners, err := s.b.GetActiveLivePool(ctx, number)
-	if err != nil {
-		return nil, err
-	}
-	return activeMiners, nil
 }
 
 type feeHistoryResult struct {
@@ -950,7 +943,6 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 	return &Info
 }
 
-
 func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFTList {
 	header, err := s.b.HeaderByNumber(ctx, number)
 	if header == nil || err != nil {
@@ -964,11 +956,8 @@ func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc
 		return nil
 	}
 
-
 	return InjectedList
 }
-
-
 
 // Result structs for GetProof
 type AccountResult struct {
