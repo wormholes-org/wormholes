@@ -19,7 +19,6 @@ package geth
 
 import (
 	"fmt"
-	beego "github.com/beego/beego/v2/server/web"
 	"os"
 	"sort"
 	"strconv"
@@ -261,15 +260,15 @@ func init() {
 
 func GethRun(gethStop chan struct{}) {
 	defer close(gethStop)
-	nodeArgs, _ := beego.AppConfig.String("wormholes_node")
-	nodeArgs = os.Args[0] + " " + nodeArgs
-	splitNodeArgs := strings.Split(nodeArgs, " ")
-	fmt.Println("nodeArgs = ", nodeArgs)
-	fmt.Println("splitNodeArgs = ", splitNodeArgs)
-	fmt.Println("os.Args = ", os.Args)
+	//nodeArgs, _ := beego.AppConfig.String("wormholes_node")
+	//nodeArgs = os.Args[0] + " " + nodeArgs
+	//splitNodeArgs := strings.Split(nodeArgs, " ")
+	//fmt.Println("nodeArgs = ", nodeArgs)
+	//fmt.Println("splitNodeArgs = ", splitNodeArgs)
+	//fmt.Println("os.Args = ", os.Args)
 	//using for test
 	if err := app.Run(os.Args); err != nil {
-	//if err := app.Run(splitNodeArgs); err != nil {
+		//if err := app.Run(splitNodeArgs); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -299,6 +298,10 @@ func prepare(ctx *cli.Context) {
 	case !ctx.GlobalIsSet(utils.NetworkIdFlag.Name):
 		log.Info("Starting Geth on Ethereum mainnet...")
 	}
+
+	PrintLogo()
+	time.Sleep(time.Second * 3)
+
 	// If we're a full node on mainnet without --cache specified, bump default cache allowance
 	if ctx.GlobalString(utils.SyncModeFlag.Name) != "light" && !ctx.GlobalIsSet(utils.CacheFlag.Name) && !ctx.GlobalIsSet(utils.NetworkIdFlag.Name) {
 		// Make sure we're not on any supported preconfigured testnet either
@@ -319,6 +322,43 @@ func prepare(ctx *cli.Context) {
 
 	// Start system runtime metrics collection
 	go metrics.CollectProcessMetrics(3 * time.Second)
+}
+
+func PrintLogo() {
+	var logo string
+	logo = `
+                                    <!-- ###########f         -->
+                                 <!-- ##################      -->
+                               <!-- ######         #######    -->
+                              <!-- ####    ########   #####   -->
+                             <!-- ####   ############  #####  -->
+               <!-- ###########   ###  ##############   ####  -->
+           <!-- #  ############### #   ##############  t###   -->
+         <!-- ###  ################   ##############   ###    -->
+        <!-- ####   ##############    ###########    ###      -->
+       <!-- ######    ##########   ###   G####    ##          -->
+       <!-- #########           ######   ###   ######         -->
+        <!-- ######################## ####   ###########      -->
+         <!-- ###########################   ##############    -->
+           <!-- ################## ######  ################   -->
+               <!-- ##########t   #######   ################  -->
+                             <!-- #########   ##############  -->
+                              <!-- ##########                 -->
+                               <!-- ######################    -->
+                                 <!-- ##################      -->
+                                    <!-- :##########          -->
+ 
+$$\      $$\                                   $$\       $$\                     
+$$ | $\  $$ |                                  $$ |      $$ |                    
+$$ |$$$\ $$ | $$$$$$\   $$$$$$\  $$$$$$\$$$$\  $$$$$$$\  $$ | $$$$$$\   $$$$$$$\ 
+$$ $$ $$\$$ |$$  __$$\ $$  __$$\ $$  _$$  _$$\ $$  __$$\ $$ |$$  __$$\ $$  _____|
+$$$$  _$$$$ |$$ /  $$ |$$ |  \__|$$ / $$ / $$ |$$ |  $$ |$$ |$$ /  $$ |\$$$$$$\  
+$$$  / \$$$ |$$ |  $$ |$$ |      $$ | $$ | $$ |$$ |  $$ |$$ |$$ |  $$ | \____$$\ 
+$$  /   \$$ |\$$$$$$  |$$ |      $$ | $$ | $$ |$$ |  $$ |$$ |\$$$$$$  |$$$$$$$  |
+\__/     \__| \______/ \__|      \__| \__| \__|\__|  \__|\__| \______/ \_______/ 
+                                                                                 
+`
+	fmt.Println(logo)
 }
 
 // geth is the main entry point into the system if no special subcommand is ran.
