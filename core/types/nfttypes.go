@@ -43,7 +43,7 @@ func (ex *SNFTExchange) MaxNFTAddress() common.Address {
 	minAddrInt.SetBytes(ex.NFTAddress.Bytes())
 	nftNumber := math.BigPow(256, int64(ex.MergeLevel))
 	maxAddrInt := big.NewInt(0)
-	maxAddrInt.Add(minAddrInt, nftNumber)
+	maxAddrInt.Add(minAddrInt, new(big.Int).Sub(nftNumber, big.NewInt(1)))
 	maxAddr := common.BytesToAddress(maxAddrInt.Bytes())
 	return maxAddr
 }
@@ -55,7 +55,7 @@ func (ex *SNFTExchange) MaxNFTAddress16() common.Address {
 	minAddrInt.SetBytes(ex.NFTAddress.Bytes())
 	nftNumber := math.BigPow(16, int64(ex.MergeLevel))
 	maxAddrInt := big.NewInt(0)
-	maxAddrInt.Add(minAddrInt, nftNumber)
+	maxAddrInt.Add(minAddrInt, new(big.Int).Sub(nftNumber, big.NewInt(1)))
 	maxAddr := common.BytesToAddress(maxAddrInt.Bytes())
 	return maxAddr
 }
@@ -98,13 +98,13 @@ type PledgedToken struct {
 }
 
 type InjectedOfficialNFT struct {
-	Dir        string   `json:"dir"`
-	StartIndex *big.Int `json:"start_index"`
-	Number     uint64   `json:"number"`
-	Royalty    uint32   `json:"royalty"`
-	Creator    string   `json:"creator"`
-	Address common.Address `json:"address"`
-	VoteWeight *big.Int    `json:"vote_weight"`
+	Dir        string         `json:"dir"`
+	StartIndex *big.Int       `json:"start_index"`
+	Number     uint64         `json:"number"`
+	Royalty    uint32         `json:"royalty"`
+	Creator    string         `json:"creator"`
+	Address    common.Address `json:"address"`
+	VoteWeight *big.Int       `json:"vote_weight"`
 }
 
 type InjectedOfficialNFTList struct {
