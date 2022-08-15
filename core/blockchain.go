@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/rpc"
 	"io"
 	"math/big"
 	mrand "math/rand"
@@ -29,6 +28,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
@@ -2701,18 +2702,18 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	if err != nil {
 		return nil, err
 	}
-	// Get the top 7 validators of the pledge amount
-	fixedValidators := sortedAddr.ActiveMiners[:7]
+	// Get the top 5 validators of the pledge amount
+	fixedValidators := sortedAddr.ActiveMiners[:5]
 
 	for i, v := range fixedValidators {
-		log.Info("Random11ValidatorFromPool : seven addr", "i", i, "addr", v, "no", header.Number.Uint64())
+		log.Info("Random11ValidatorFromPool : five addr", "i", i, "addr", v, "no", header.Number.Uint64())
 	}
 
-	// Get 4 other validators besides the above 7
-	random4Validators := activeMiners.ValidatorByDistanceAndWeight(activeMiners.ConvertToBigInt(sortedAddr.ActiveMiners[7:]), 4, header.Hash())
+	// Get 6 other validators besides the above 5
+	random6Validators := activeMiners.ValidatorByDistanceAndWeight(activeMiners.ConvertToBigInt(sortedAddr.ActiveMiners[5:]), 6, header.Hash())
 
 	validators := make([]common.Address, 0)
-	validators = append(validators, random4Validators...)
+	validators = append(validators, random6Validators...)
 	for _, v := range fixedValidators {
 		validators = append(validators, v.Address)
 	}
