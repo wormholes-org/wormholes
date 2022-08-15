@@ -22,12 +22,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"math/big"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/vm"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -740,7 +741,7 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 			s.snapDestructs[prev.addrHash] = struct{}{}
 		}
 	}
-	newobj = newObject(s, addr, Account{})
+	newobj = newObject(s, addr, Account{RewardFlag: 1})
 	if prev == nil {
 		s.journal.append(createObjectChange{account: &addr})
 	} else {
