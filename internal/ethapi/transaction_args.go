@@ -19,6 +19,7 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -291,4 +292,60 @@ func (args *TransactionArgs) toTransaction() *types.Transaction {
 // This assumes that setDefaults has been called.
 func (args *TransactionArgs) ToTransaction() *types.Transaction {
 	return args.toTransaction()
+}
+
+func (args *TransactionArgs) IsWormholesNFTTx() bool {
+	data := args.data()
+	if len(data) > 10 {
+		if string(data[:10]) == "wormholes:" {
+			return true
+		}
+	}
+	return false
+}
+
+func (args *TransactionArgs) GetWormholesType() (uint8, error) {
+	var wormholes types.Wormholes
+	data := args.data()
+	if args.IsWormholesNFTTx() {
+		jsonErr := json.Unmarshal(data[10:], &wormholes)
+		if jsonErr == nil {
+			return wormholes.Type, nil
+		} else {
+			return 0, jsonErr
+		}
+	} else {
+		return 0, errors.New("not wormholes")
+	}
+}
+
+func (args *TransactionArgs) GetWormholes() (*types.Wormholes, error) {
+	var wormholes types.Wormholes
+	data := args.data()
+	if len(data) > 10 {
+		if string(data[:10]) == "wormholes:" {
+			jsonErr := json.Unmarshal(data[10:], &wormholes)
+			if jsonErr == nil {
+				return &wormholes, nil
+			}
+		}
+	}
+
+	return nil, errors.New("Unmarshal wormholes error")
+}
+
+func (args *TransactionArgs) GetExchangerOwner() (common.Address, bool) {
+	if args.IsWormholesNFTTx() {
+		wormholes, err := args.GetWormholes()
+		if err != nil {
+			return common.Address{}, false
+		}
+		if wormholes.Type == 18 ||
+			wormholes.Type == 19 ||
+			wormholes.Type == 24 {
+			return common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner), true
+		}
+	}
+
+	return common.Address{}, false
 }

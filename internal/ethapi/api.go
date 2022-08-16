@@ -1363,7 +1363,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		available := new(big.Int).Set(balance)
 		if args.Value != nil {
 
-			wormholes, err := args.toTransaction().GetWormholes()
+			wormholes, err := args.GetWormholes()
 			if err == nil {
 				switch wormholes.Type {
 				case 10:
