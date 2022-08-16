@@ -950,7 +950,6 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 	return &Info
 }
 
-
 func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFTList {
 	header, err := s.b.HeaderByNumber(ctx, number)
 	if header == nil || err != nil {
@@ -964,11 +963,8 @@ func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc
 		return nil
 	}
 
-
 	return InjectedList
 }
-
-
 
 // Result structs for GetProof
 type AccountResult struct {
@@ -1366,10 +1362,40 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		balance := state.GetBalance(*args.From) // from can't be nil
 		available := new(big.Int).Set(balance)
 		if args.Value != nil {
-			if args.Value.ToInt().Cmp(available) >= 0 {
-				return 0, errors.New("insufficient funds for transfer")
+
+			wormholes, err := args.GetWormholes()
+			if err == nil {
+				switch wormholes.Type {
+				case 10:
+
+				case 14:
+
+				case 17:
+
+				case 18:
+
+				case 19:
+
+				case 20:
+
+				case 22:
+
+				case 24:
+
+				default:
+					if args.Value.ToInt().Cmp(available) >= 0 {
+						return 0, errors.New("insufficient funds for transfer")
+					}
+					available.Sub(available, args.Value.ToInt())
+				}
+
+			} else {
+				if args.Value.ToInt().Cmp(available) >= 0 {
+					return 0, errors.New("insufficient funds for transfer")
+				}
+				available.Sub(available, args.Value.ToInt())
 			}
-			available.Sub(available, args.Value.ToInt())
+
 		}
 		allowance := new(big.Int).Div(available, feeCap)
 
