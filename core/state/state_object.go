@@ -19,10 +19,11 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -146,7 +147,7 @@ type Account struct {
 	// NFTBalance is the nft number that the account have
 	NFTBalance uint64
 	// Indicates the reward method chosen by the miner
-	RewardFlag uint8 // 0:SNFT 1:ERB default:0
+	RewardFlag uint8 // 0:SNFT 1:ERB default:1
 	AccountNFT
 }
 
