@@ -360,7 +360,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			if pledgedBalance.Cmp(value) != 0 {
 				// cancel partial pledged balance
 				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-				Erb100000 := big.NewInt(100000)
+				Erb100000 := big.NewInt(50000)
 				Erb100000.Mul(Erb100000, baseErb)
 				if value.Sign() > 0 && !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), new(big.Int).Add(value, Erb100000)) {
 					return nil, gas, ErrInsufficientBalance
@@ -438,7 +438,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			}
 		case 22:
 			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-			Erb100 := big.NewInt(100)
+			Erb100 := big.NewInt(200)
 			Erb100.Mul(Erb100, baseErb)
 			if value.Sign() > 0 && !evm.Context.VerifyExchangerBalance(evm.StateDB, caller.Address(), new(big.Int).Add(value, Erb100)) {
 				return nil, gas, ErrInsufficientBalance
@@ -941,7 +941,7 @@ func (evm *EVM) HandleNFT(
 
 	case 9: // pledge token
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-		Erb100000 := big.NewInt(100000)
+		Erb100000 := big.NewInt(50000)
 		Erb100000.Mul(Erb100000, baseErb)
 		if !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
 			//if this account has not pledged
@@ -997,7 +997,7 @@ func (evm *EVM) HandleNFT(
 		} else {
 			// cancel partial pledged balance
 			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-			Erb100000 := big.NewInt(100000)
+			Erb100000 := big.NewInt(50000)
 			Erb100000.Mul(Erb100000, baseErb)
 
 			if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), new(big.Int).Add(Erb100000, value)) {
@@ -1014,7 +1014,7 @@ func (evm *EVM) HandleNFT(
 		log.Info("HandleNFT(), OpenExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type)
 		// value must be greater than or equal to 100 ERB
 		unitErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-		if value.Cmp(new(big.Int).Mul(big.NewInt(100), unitErb)) < 0 {
+		if value.Cmp(new(big.Int).Mul(big.NewInt(200), unitErb)) < 0 {
 			log.Error("HandleNFT(), OpenExchanger", "wormholes.Type", wormholes.Type, "error", ErrNotMoreThan100ERB)
 			return nil, gas, ErrNotMoreThan100ERB
 		}
@@ -1232,7 +1232,7 @@ func (evm *EVM) HandleNFT(
 		}
 	case 22:
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-		Erb100 := big.NewInt(100)
+		Erb100 := big.NewInt(200)
 		Erb100.Mul(Erb100, baseErb)
 		if evm.Context.VerifyExchangerBalance(evm.StateDB, caller.Address(), new(big.Int).Add(value, Erb100)) {
 			log.Info("HandleNFT(), SubExchangerToken>>>>>>>>>>", "wormholes.Type", wormholes.Type)
