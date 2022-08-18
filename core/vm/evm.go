@@ -41,6 +41,8 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 
 //const CancelPledgedInterval = 365 * 720 * 24	// day * blockNumber of per hour * 24h
 const CancelPledgedInterval = 3 * 24 // for test
+//const CloseExchangerInterval = 180 * 720 * 24	// day * blockNumber of per hour * 24h
+const CloseExchangerInterval = 3 * 24 // for test
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
@@ -1078,8 +1080,6 @@ func (evm *EVM) HandleNFT(
 
 	case 12: //close exchanger
 		log.Info("HandleNFT(), CloseExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-		//const CloseExchangerInterval = 180 * 720 * 24	// day * blockNumber of per hour * 24h
-		const CloseExchangerInterval = 3 * 24 // for test
 		openExchangerTime := evm.Context.GetOpenExchangerTime(evm.StateDB, caller.Address())
 		if big.NewInt(CloseExchangerInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, openExchangerTime)) > 0 {
 			log.Error("HandleNFT(), CloseExchanger", "wormholes.Type", wormholes.Type, "error", ErrTooCloseWithOpenExchanger)
