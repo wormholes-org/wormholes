@@ -121,6 +121,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		BuyAndMintNFTByApprovedExchanger:   BuyAndMintNFTByApprovedExchanger,
 		BuyNFTByExchanger:                  BuyNFTByExchanger,
 		AddExchangerToken:                  AddExchangerToken,
+		ModifyOpenExchangerTime:            ModifyOpenExchangerTime,
 		SubExchangerToken:                  SubExchangerToken,
 		SubExchangerBalance:                SubExchangerBalance,
 		VerifyExchangerBalance:             VerifyExchangerBalance,
@@ -1732,6 +1733,9 @@ func BuyNFTByExchanger(
 
 func AddExchangerToken(db vm.StateDB, address common.Address, amount *big.Int) {
 	db.AddExchangerToken(address, amount)
+}
+func ModifyOpenExchangerTime(db vm.StateDB, address common.Address, blockNumber *big.Int) {
+	db.ModifyOpenExchangerTime(address, blockNumber)
 }
 func SubExchangerToken(db vm.StateDB, address common.Address, amount *big.Int) {
 	db.SubExchangerToken(address, amount)

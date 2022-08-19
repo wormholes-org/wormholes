@@ -100,6 +100,7 @@ type (
 	BuyAndMintNFTByApprovedExchangerFunc   func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	BuyNFTByExchangerFunc                  func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	AddExchangerTokenFunc                  func(StateDB, common.Address, *big.Int)
+	ModifyOpenExchangerTimeFunc            func(StateDB, common.Address, *big.Int)
 	SubExchangerTokenFunc                  func(StateDB, common.Address, *big.Int)
 	SubExchangerBalanceFunc                func(StateDB, common.Address, *big.Int)
 	VerifyExchangerBalanceFunc             func(StateDB, common.Address, *big.Int) bool
@@ -187,6 +188,7 @@ type BlockContext struct {
 	BuyAndMintNFTByApprovedExchanger   BuyAndMintNFTByApprovedExchangerFunc
 	BuyNFTByExchanger                  BuyNFTByExchangerFunc
 	AddExchangerToken                  AddExchangerTokenFunc
+	ModifyOpenExchangerTime            ModifyOpenExchangerTimeFunc
 	SubExchangerToken                  SubExchangerTokenFunc
 	SubExchangerBalance                SubExchangerBalanceFunc
 	VerifyExchangerBalance             VerifyExchangerBalanceFunc
@@ -1224,6 +1226,20 @@ func (evm *EVM) HandleNFT(
 	case 21:
 		if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 			log.Info("HandleNFT(), AddExchangerToken>>>>>>>>>>", "wormholes.Type", wormholes.Type)
+			currentBlockNumber := new(big.Int).Set(evm.Context.BlockNumber)
+			exchangerBalance := evm.StateDB.GetExchangerBalance(caller.Address())
+			if exchangerBalance != nil && exchangerBalance.Cmp(big.NewInt(0)) > 0 {
+				openExchangerBlockNumber := evm.Context.GetOpenExchangerTime(evm.StateDB, caller.Address())
+				height, err := UnstakingHeight(exchangerBalance, value, openExchangerBlockNumber.Uint64(), currentBlockNumber.Uint64(), CloseExchangerInterval)
+				if err != nil {
+					return nil, gas, err
+				}
+				bigHeight := new(big.Int).SetUint64(height)
+				bigCloseExchangerInterval := new(big.Int).SetUint64(CloseExchangerInterval)
+				currentBlockNumber = new(big.Int).Add(currentBlockNumber, bigHeight)
+				currentBlockNumber = new(big.Int).Sub(currentBlockNumber, bigCloseExchangerInterval)
+			}
+			evm.Context.ModifyOpenExchangerTime(evm.StateDB, caller.Address(), currentBlockNumber)
 			evm.Context.AddExchangerToken(evm.StateDB, caller.Address(), value)
 			log.Info("HandleNFT(), AddExchangerToken<<<<<<<<<<", "wormholes.Type", wormholes.Type)
 		} else {
@@ -1231,6 +1247,11 @@ func (evm *EVM) HandleNFT(
 			return nil, gas, ErrInsufficientBalance
 		}
 	case 22:
+		openExchangerTime := evm.Context.GetOpenExchangerTime(evm.StateDB, caller.Address())
+		if big.NewInt(CloseExchangerInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, openExchangerTime)) > 0 {
+			log.Error("HandleNFT(), SubExchangerToken", "wormholes.Type", wormholes.Type, "error", ErrTooCloseWithOpenExchanger)
+			return nil, gas, ErrTooCloseForWithdraw
+		}
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
 		Erb100 := big.NewInt(200)
 		Erb100.Mul(Erb100, baseErb)

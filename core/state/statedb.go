@@ -2444,6 +2444,13 @@ func (s *StateDB) OpenExchanger(addr common.Address,
 	}
 }
 
+func (s *StateDB) ModifyOpenExchangerTime(addr common.Address, blocknumber *big.Int) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SetBlockNumber(blocknumber)
+	}
+}
+
 func (s *StateDB) CloseExchanger(addr common.Address,
 	blocknumber *big.Int) {
 	stateObject := s.GetOrNewStateObject(addr)

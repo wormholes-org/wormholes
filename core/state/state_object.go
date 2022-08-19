@@ -1172,6 +1172,21 @@ func (s *stateObject) setExchangerBalance(amount *big.Int) {
 	s.data.ExchangerBalance = amount
 }
 
+func (s *stateObject) SetBlockNumber(blocknumber *big.Int) {
+	if s.data.BlockNumber == nil {
+		s.data.BlockNumber = big.NewInt(0)
+	}
+	s.db.journal.append(blockNumberChange{
+		account: &s.address,
+		prev:    new(big.Int).Set(s.data.BlockNumber),
+	})
+	s.setBlockNumber(blocknumber)
+}
+
+func (s *stateObject) setBlockNumber(blocknumber *big.Int) {
+	s.data.BlockNumber = blocknumber
+}
+
 func (s *stateObject) SetVoteWeight(amount *big.Int) {
 	s.db.journal.append(voteWeightChange{
 		account: &s.address,

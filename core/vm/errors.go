@@ -44,6 +44,7 @@ var (
 	ErrInsufficientExchangerBalance = errors.New("insufficient exchanger balance for transfer")
 	ErrNotMoreThan100ERB            = errors.New("not more than 200 ERB")
 	ErrTooCloseWithOpenExchanger    = errors.New("too close with openexchanger")
+	ErrTooCloseForWithdraw          = errors.New("too close for Withdraw")
 	ErrTooCloseToCancel             = errors.New("too close to cancel")
 	ErrRoyaltyNotMoreThan0          = errors.New("royalty not more than 0")
 	ErrRoyaltyNotLessthan10000      = errors.New("royalty not less than 10000")
