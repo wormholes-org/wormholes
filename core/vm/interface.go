@@ -116,6 +116,7 @@ type StateDB interface {
 	GetPledgedBalance(common.Address) *big.Int
 	InjectOfficialNFT(string, *big.Int, uint64, uint32, string)
 	AddExchangerToken(common.Address, *big.Int)
+	ModifyOpenExchangerTime(common.Address, *big.Int)
 	SubExchangerToken(common.Address, *big.Int)
 	SubExchangerBalance(common.Address, *big.Int)
 	GetExchangerBalance(common.Address) *big.Int

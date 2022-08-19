@@ -193,6 +193,11 @@ type (
 		prev    *big.Int
 	}
 
+	blockNumberChange struct {
+		account *common.Address
+		prev    *big.Int
+	}
+
 	voteWeightChange struct {
 		account *common.Address
 		prev    *big.Int
@@ -413,6 +418,14 @@ func (ch exchangerBalanceChange) revert(s *StateDB) {
 }
 
 func (ch exchangerBalanceChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch blockNumberChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setBlockNumber(ch.prev)
+}
+
+func (ch blockNumberChange) dirtied() *common.Address {
 	return ch.account
 }
 
