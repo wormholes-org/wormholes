@@ -1249,7 +1249,7 @@ func (evm *EVM) HandleNFT(
 	case 22:
 		openExchangerTime := evm.Context.GetOpenExchangerTime(evm.StateDB, caller.Address())
 		if big.NewInt(CloseExchangerInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, openExchangerTime)) > 0 {
-			log.Error("HandleNFT(), SubExchangerToken", "wormholes.Type", wormholes.Type, "error", ErrTooCloseWithOpenExchanger)
+			log.Error("HandleNFT(), SubExchangerToken", "wormholes.Type", wormholes.Type, "error", ErrTooCloseForWithdraw)
 			return nil, gas, ErrTooCloseForWithdraw
 		}
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
