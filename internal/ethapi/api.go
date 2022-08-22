@@ -736,7 +736,6 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		}
 	}
 
-	var beneficiaryAddress BeneficiaryAddress
 	validators := istanbulExtra.ValidatorAddr
 	exchangers := istanbulExtra.ExchangerAddr
 	for _, addr := range validators {
@@ -759,7 +758,7 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 			return nil, err
 		}
 		acc := st.GetAccountInfo(owner)
-
+		var beneficiaryAddress BeneficiaryAddress
 		if acc.RewardFlag == 0 {
 			beneficiaryAddress = BeneficiaryAddress{
 				Address:    owner,
@@ -784,7 +783,7 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 			nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
 		}
 
-		beneficiaryAddress = BeneficiaryAddress{
+		beneficiaryAddress := BeneficiaryAddress{
 			Address:    owner,
 			NftAddress: nftAddr,
 		}
