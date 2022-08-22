@@ -2031,15 +2031,15 @@ func (s *StateDB) CreateNFTByOfficial(owners []common.Address, blocknumber *big.
 func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address, blocknumber *big.Int) {
 
 	// reward ERB or SNFT to validators
-	log.Info("CreateNFTByOfficial16", "validators len=", len(validators))
+	log.Info("CreateNFTByOfficial16", "validators len=", len(validators), "blocknumber=", blocknumber.Uint64())
 	for _, addr := range validators {
-		log.Info("CreateNFTByOfficial16", "validators=", addr)
+		log.Info("CreateNFTByOfficial16", "validators=", addr, "blocknumber=", blocknumber.Uint64())
 	}
 	for _, owner := range validators {
 		ownerObject := s.GetOrNewStateObject(owner)
 		if ownerObject != nil {
 			if ownerObject.data.RewardFlag == 1 {
-				log.Info("ownerobj", "addr", ownerObject.address.Hex())
+				log.Info("ownerobj", "addr", ownerObject.address.Hex(), "blocknumber=", blocknumber.Uint64())
 				ownerObject.AddBalance(DREBlockReward)
 			} else if ownerObject.data.RewardFlag == 0 {
 				nftAddr := common.Address{}
@@ -2089,9 +2089,9 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	}
 
 	// reward SNFT to exchangers
-	log.Info("CreateNFTByOfficial16", "exchangers len=", len(exchangers))
+	log.Info("CreateNFTByOfficial16", "exchangers len=", len(exchangers), "blocknumber=", blocknumber.Uint64())
 	for _, addr := range exchangers {
-		log.Info("CreateNFTByOfficial16", "exchangers=", addr)
+		log.Info("CreateNFTByOfficial16", "exchangers=", addr, "blocknumber=", blocknumber.Uint64())
 	}
 	for _, owner := range exchangers {
 		nftAddr := common.Address{}
