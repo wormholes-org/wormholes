@@ -736,8 +736,11 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		}
 	}
 
-	beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
-	for _, owner := range beneficiaryAddrs {
+	var beneficiaryAddress BeneficiaryAddress
+	validators := istanbulExtra.ValidatorAddr
+	exchangers := istanbulExtra.ExchangerAddr
+	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
+	for _, owner := range validators {
 		nftAddr := common.Address{}
 		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
 		if !ok {
@@ -750,7 +753,6 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		}
 		acc := st.GetAccountInfo(owner)
 
-		var beneficiaryAddress BeneficiaryAddress
 		if acc.RewardFlag == 0 {
 			beneficiaryAddress = BeneficiaryAddress{
 				Address:    owner,
@@ -765,6 +767,23 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 
 		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
 		if !ok && acc.RewardFlag == 0 {
+			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
+		}
+	}
+	for _, owner := range exchangers {
+		nftAddr := common.Address{}
+		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
+		if !ok {
+			nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
+		}
+
+		beneficiaryAddress = BeneficiaryAddress{
+			Address:    owner,
+			NftAddress: nftAddr,
+		}
+
+		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
+		if !ok {
 			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
 		}
 	}
