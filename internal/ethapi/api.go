@@ -739,6 +739,13 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 	var beneficiaryAddress BeneficiaryAddress
 	validators := istanbulExtra.ValidatorAddr
 	exchangers := istanbulExtra.ExchangerAddr
+	for _, addr := range validators {
+		log.Info("GetBlockBeneficiaryAddressByNumber", "validators=", addr)
+	}
+	for _, addr := range exchangers {
+		log.Info("GetBlockBeneficiaryAddressByNumber", "exchangers=", addr)
+	}
+
 	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
 	for _, owner := range validators {
 		nftAddr := common.Address{}

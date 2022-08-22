@@ -2031,6 +2031,10 @@ func (s *StateDB) CreateNFTByOfficial(owners []common.Address, blocknumber *big.
 func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address, blocknumber *big.Int) {
 
 	// reward ERB or SNFT to validators
+	log.Info("CreateNFTByOfficial16", "validators len=", len(validators))
+	for _, addr := range validators {
+		log.Info("CreateNFTByOfficial16", "validators=", addr)
+	}
 	for _, owner := range validators {
 		ownerObject := s.GetOrNewStateObject(owner)
 		if ownerObject != nil {
@@ -2085,6 +2089,10 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	}
 
 	// reward SNFT to exchangers
+	log.Info("CreateNFTByOfficial16", "exchangers len=", len(exchangers))
+	for _, addr := range exchangers {
+		log.Info("CreateNFTByOfficial16", "exchangers=", addr)
+	}
 	for _, owner := range exchangers {
 		nftAddr := common.Address{}
 		var metaUrl string
