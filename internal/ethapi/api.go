@@ -21,10 +21,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/rawdb"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
@@ -735,7 +736,8 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		}
 	}
 
-	for _, owner := range istanbulExtra.BeneficiaryAddr {
+	beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
+	for _, owner := range beneficiaryAddrs {
 		nftAddr := common.Address{}
 		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
 		if !ok {
@@ -766,10 +768,6 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
 		}
 	}
-
-	//if !s.checkBeneficiaryList(ctx, number + 1, beneficiaryList) {
-	//	return nil, errors.New("BeneficiaryList error")
-	//}
 
 	return beneficiaryList, nil
 }
