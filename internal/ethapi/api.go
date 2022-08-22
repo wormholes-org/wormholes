@@ -829,6 +829,29 @@ func (s *PublicBlockChainAPI) GetUserMintDeep(ctx context.Context, number rpc.Bl
 	return mintDeep.UserMint.Text(16)
 }
 
+func (s *PublicBlockChainAPI) GetOfficialMintDeep(ctx context.Context, number rpc.BlockNumber) string {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return ""
+	}
+
+	db := s.b.ChainDb()
+	data, err := db.Get(rawdb.MintDeepKey(header.Number.Uint64(), header.Hash()))
+	if err != nil {
+		return ""
+	}
+	mintDeep := &types.MintDeep{
+		UserMint:     big.NewInt(0),
+		OfficialMint: big.NewInt(0),
+	}
+	if err := rlp.Decode(bytes.NewReader(data), mintDeep); err != nil {
+		log.Error("Invalid mintdeep RLP", "blocknumber", number, "err", err)
+		return ""
+	}
+
+	return mintDeep.OfficialMint.Text(16)
+}
+
 func (s *PublicBlockChainAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.StakerList {
 	header, err := s.b.HeaderByNumber(ctx, number)
 	if header == nil || err != nil {
