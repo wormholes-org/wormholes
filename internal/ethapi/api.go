@@ -21,10 +21,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/rawdb"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
@@ -735,21 +736,29 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		}
 	}
 
-	for _, owner := range istanbulExtra.BeneficiaryAddr {
-		nftAddr := common.Address{}
-		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
-		if !ok {
-			nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
-		}
+	validators := istanbulExtra.ValidatorAddr
+	exchangers := istanbulExtra.ExchangerAddr
+	//for _, addr := range validators {
+	//	log.Info("GetBlockBeneficiaryAddressByNumber", "validators=", addr)
+	//}
+	//for _, addr := range exchangers {
+	//	log.Info("GetBlockBeneficiaryAddressByNumber", "exchangers=", addr)
+	//}
 
+	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
+	for _, owner := range validators {
 		st, _, err := s.b.StateAndHeaderByNumber(ctx, number)
 		if err != nil {
 			return nil, err
 		}
 		acc := st.GetAccountInfo(owner)
-
 		var beneficiaryAddress BeneficiaryAddress
 		if acc.RewardFlag == 0 {
+			nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
+			if !ok {
+				nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
+				deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
+			}
 			beneficiaryAddress = BeneficiaryAddress{
 				Address:    owner,
 				NftAddress: nftAddr,
@@ -762,14 +771,21 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		}
 
 		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
-		if !ok && acc.RewardFlag == 0 {
+	}
+	for _, owner := range exchangers {
+		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
+		if !ok {
+			nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
 			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
 		}
-	}
 
-	//if !s.checkBeneficiaryList(ctx, number + 1, beneficiaryList) {
-	//	return nil, errors.New("BeneficiaryList error")
-	//}
+		beneficiaryAddress := BeneficiaryAddress{
+			Address:    owner,
+			NftAddress: nftAddr,
+		}
+
+		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
+	}
 
 	return beneficiaryList, nil
 }
@@ -810,6 +826,29 @@ func (s *PublicBlockChainAPI) GetUserMintDeep(ctx context.Context, number rpc.Bl
 	}
 
 	return mintDeep.UserMint.Text(16)
+}
+
+func (s *PublicBlockChainAPI) GetOfficialMintDeep(ctx context.Context, number rpc.BlockNumber) string {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return ""
+	}
+
+	db := s.b.ChainDb()
+	data, err := db.Get(rawdb.MintDeepKey(header.Number.Uint64(), header.Hash()))
+	if err != nil {
+		return ""
+	}
+	mintDeep := &types.MintDeep{
+		UserMint:     big.NewInt(0),
+		OfficialMint: big.NewInt(0),
+	}
+	if err := rlp.Decode(bytes.NewReader(data), mintDeep); err != nil {
+		log.Error("Invalid mintdeep RLP", "blocknumber", number, "err", err)
+		return ""
+	}
+
+	return mintDeep.OfficialMint.Text(16)
 }
 
 func (s *PublicBlockChainAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.StakerList {

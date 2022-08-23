@@ -2028,12 +2028,18 @@ func (s *StateDB) CreateNFTByOfficial(owners []common.Address, blocknumber *big.
 	}
 }
 
-func (s *StateDB) CreateNFTByOfficial16(owners []common.Address, blocknumber *big.Int) {
-	for _, owner := range owners {
+func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address, blocknumber *big.Int) {
+
+	// reward ERB or SNFT to validators
+	log.Info("CreateNFTByOfficial16", "validators len=", len(validators), "blocknumber=", blocknumber.Uint64())
+	for _, addr := range validators {
+		log.Info("CreateNFTByOfficial16", "validators=", addr, "blocknumber=", blocknumber.Uint64())
+	}
+	for _, owner := range validators {
 		ownerObject := s.GetOrNewStateObject(owner)
 		if ownerObject != nil {
 			if ownerObject.data.RewardFlag == 1 {
-				log.Info("ownerobj", "addr", ownerObject.address.Hex())
+				log.Info("ownerobj", "addr", ownerObject.address.Hex(), "blocknumber=", blocknumber.Uint64())
 				ownerObject.AddBalance(DREBlockReward)
 			} else if ownerObject.data.RewardFlag == 0 {
 				nftAddr := common.Address{}
@@ -2078,6 +2084,56 @@ func (s *StateDB) CreateNFTByOfficial16(owners []common.Address, blocknumber *bi
 						s.MintDeep.OfficialMint.Add(s.MintDeep.OfficialMint, big.NewInt(1))
 					}
 				}
+			}
+		}
+	}
+
+	// reward SNFT to exchangers
+	log.Info("CreateNFTByOfficial16", "exchangers len=", len(exchangers), "blocknumber=", blocknumber.Uint64())
+	for _, addr := range exchangers {
+		log.Info("CreateNFTByOfficial16", "exchangers=", addr, "blocknumber=", blocknumber.Uint64())
+	}
+	for _, owner := range exchangers {
+		nftAddr := common.Address{}
+		var metaUrl string
+		var royalty uint32
+		var creator string
+		nftAddr, info, ok := s.SNFTExchangePool.PopAddress(blocknumber)
+		if !ok {
+			nftAddr = common.BytesToAddress(s.MintDeep.OfficialMint.Bytes())
+			injectedInfo := s.OfficialNFTPool.GetInjectedInfo(nftAddr)
+			if injectedInfo == nil {
+				return
+			}
+			metaUrl = injectedInfo.Dir + "/" + nftAddr.String()
+			royalty = injectedInfo.Royalty
+			creator = injectedInfo.Creator
+		} else {
+			metaUrl = info.MetalUrl + "/" + nftAddr.String()
+			royalty = info.Royalty
+			creator = info.Creator
+		}
+		log.Info("CreateNFTByOfficial()", "--nftAddr=", nftAddr.String())
+
+		s.CreateAccount(nftAddr)
+		stateObject := s.GetOrNewStateObject(nftAddr)
+		if stateObject != nil {
+			stateObject.SetNFTInfo(
+				"",
+				"",
+				big.NewInt(0),
+				0,
+				owner,
+				common.Address{},
+				0,
+				common.HexToAddress(creator),
+				royalty,
+				common.Address{},
+				metaUrl)
+			s.MergeNFT16(nftAddr)
+			if !ok {
+				s.OfficialNFTPool.DeleteExpireElem(s.MintDeep.OfficialMint)
+				s.MintDeep.OfficialMint.Add(s.MintDeep.OfficialMint, big.NewInt(1))
 			}
 		}
 	}

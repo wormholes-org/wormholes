@@ -2,10 +2,11 @@ package ibftengine
 
 import (
 	"bytes"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -290,7 +291,8 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	// use the same difficulty for all blocks
 	header.Difficulty = istanbulcommon.DefaultDifficulty
 	var (
-		benifitedAddr []common.Address
+		validatorAddr []common.Address
+		exchangerAddr []common.Address
 		addrBigInt    []*big.Int
 	)
 	if c, ok := chain.(*core.BlockChain); ok {
@@ -300,7 +302,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			addrBigInt = append(addrBigInt, staker.Addr.Hash().Big())
 		}
 		benifitedStakers := stakeList.ValidatorByDistanceAndWeight(addrBigInt, 4, c.CurrentBlock().Header().Hash())
-		benifitedAddr = append(benifitedAddr, benifitedStakers...)
+		exchangerAddr = append(exchangerAddr, benifitedStakers...)
 
 		// reward to validators
 		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
@@ -308,10 +310,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			return err
 		}
 		benifitedValidators := c.RandomNValidatorFromEleven(6, validatorList, c.CurrentBlock().Header().Hash())
-		benifitedAddr = append(benifitedAddr, benifitedValidators...)
+		validatorAddr = append(validatorAddr, benifitedValidators...)
 
 		// reward to miner
-		benifitedAddr = append(benifitedAddr, header.Coinbase)
+		validatorAddr = append(validatorAddr, header.Coinbase)
 
 		//new&update  at 20220523
 		validatorPool := c.ReadValidatorPool(c.CurrentBlock().Header())
@@ -325,15 +327,15 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			}
 
 			//If the reward address is on a proxy account, it will be restored to a pledge account
-			for index, a := range benifitedAddr {
+			for index, a := range validatorAddr {
 				if v, ok := mp[a.String()]; ok {
-					benifitedAddr[index] = v.Addr
+					validatorAddr[index] = v.Addr
 				}
 			}
 		}
 	}
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), benifitedAddr)
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr)
 	if err != nil {
 		return err
 	}
@@ -360,7 +362,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		return
 	}
 
-	state.CreateNFTByOfficial16(istanbulExtra.BeneficiaryAddr, header.Number)
+	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -376,7 +378,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		return nil, err
 	}
 
-	state.CreateNFTByOfficial16(istanbulExtra.BeneficiaryAddr, header.Number)
+	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -528,7 +530,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 }
 
 // prepareExtra returns a extra-data of the given header and validators
-func prepareExtra(header *types.Header, vals, benifitedAddr []common.Address) ([]byte, error) {
+func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
@@ -538,10 +540,11 @@ func prepareExtra(header *types.Header, vals, benifitedAddr []common.Address) ([
 	buf.Write(header.Extra[:types.IstanbulExtraVanity])
 
 	ist := &types.IstanbulExtra{
-		Validators:      vals,
-		Seal:            []byte{},
-		CommittedSeal:   [][]byte{},
-		BeneficiaryAddr: benifitedAddr,
+		Validators:    vals,
+		Seal:          []byte{},
+		CommittedSeal: [][]byte{},
+		ExchangerAddr: exchangerAddr,
+		ValidatorAddr: validatorAddr,
 	}
 
 	payload, err := rlp.EncodeToBytes(&ist)
@@ -580,27 +583,27 @@ func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 	return nil
 }
 
-func WriteBenifitedAddr(h *types.Header, benifitedAddr []common.Address) error {
-	if len(benifitedAddr) == 0 {
-		return istanbulcommon.ErrInvalidBenifitedAddr
-	}
+// func WriteBenifitedAddr(h *types.Header, benifitedAddr []common.Address) error {
+// 	if len(benifitedAddr) == 0 {
+// 		return istanbulcommon.ErrInvalidBenifitedAddr
+// 	}
 
-	istanbulExtra, err := types.ExtractIstanbulExtra(h)
-	if err != nil {
-		return err
-	}
+// 	istanbulExtra, err := types.ExtractIstanbulExtra(h)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	istanbulExtra.BeneficiaryAddr = make([]common.Address, len(benifitedAddr))
-	copy(istanbulExtra.BeneficiaryAddr, benifitedAddr)
+// 	// istanbulExtra.BeneficiaryAddr = make([]common.Address, len(benifitedAddr))
+// 	// copy(istanbulExtra.BeneficiaryAddr, benifitedAddr)
 
-	payload, err := rlp.EncodeToBytes(&istanbulExtra)
-	if err != nil {
-		return err
-	}
+// 	payload, err := rlp.EncodeToBytes(&istanbulExtra)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
-	return nil
-}
+// 	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
+// 	return nil
+// }
 
 // PrepareCommittedSeal returns a committed seal for the given hash
 func PrepareCommittedSeal(hash common.Hash) []byte {

@@ -18,9 +18,10 @@ package backend
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/core"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -138,7 +139,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
-		if err != nil{
+		if err != nil {
 			return err
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
@@ -154,11 +155,11 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	if c, ok := chain.(*core.BlockChain); ok {
 		log.Info("Prepare", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number.String())
 		cHeader := c.CurrentBlock().Header()
-		if cHeader == nil{
+		if cHeader == nil {
 			return errors.New("prepare err: current header is nil")
 		}
 		validatorList, err := c.Random11ValidatorFromPool(cHeader)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
@@ -192,7 +193,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 
-	if sb.core == nil{
+	if sb.core == nil {
 		return errors.New("seal|ibft engine not active")
 	}
 
