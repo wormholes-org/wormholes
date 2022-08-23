@@ -738,21 +738,15 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 
 	validators := istanbulExtra.ValidatorAddr
 	exchangers := istanbulExtra.ExchangerAddr
-	for _, addr := range validators {
-		log.Info("GetBlockBeneficiaryAddressByNumber", "validators=", addr)
-	}
-	for _, addr := range exchangers {
-		log.Info("GetBlockBeneficiaryAddressByNumber", "exchangers=", addr)
-	}
+	//for _, addr := range validators {
+	//	log.Info("GetBlockBeneficiaryAddressByNumber", "validators=", addr)
+	//}
+	//for _, addr := range exchangers {
+	//	log.Info("GetBlockBeneficiaryAddressByNumber", "exchangers=", addr)
+	//}
 
 	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
 	for _, owner := range validators {
-		nftAddr := common.Address{}
-		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
-		if !ok {
-			nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
-		}
-
 		st, _, err := s.b.StateAndHeaderByNumber(ctx, number)
 		if err != nil {
 			return nil, err
@@ -760,6 +754,11 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		acc := st.GetAccountInfo(owner)
 		var beneficiaryAddress BeneficiaryAddress
 		if acc.RewardFlag == 0 {
+			nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
+			if !ok {
+				nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
+				deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
+			}
 			beneficiaryAddress = BeneficiaryAddress{
 				Address:    owner,
 				NftAddress: nftAddr,
@@ -772,15 +771,12 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		}
 
 		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
-		if !ok && acc.RewardFlag == 0 {
-			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
-		}
 	}
 	for _, owner := range exchangers {
-		nftAddr := common.Address{}
 		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
 		if !ok {
 			nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
+			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
 		}
 
 		beneficiaryAddress := BeneficiaryAddress{
@@ -789,9 +785,6 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		}
 
 		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
-		if !ok {
-			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
-		}
 	}
 
 	return beneficiaryList, nil
