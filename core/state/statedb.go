@@ -49,7 +49,7 @@ type revision struct {
 var (
 	// emptyRoot is the known root hash of an empty trie.
 	emptyRoot      = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	DREBlockReward = big.NewInt(1e+17)
+	DREBlockReward = big.NewInt(1.1e+17)
 )
 
 type proofList [][]byte
@@ -1819,7 +1819,7 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address) error {
 }
 
 // Get the store address for a nft
-const QUERYDEPTHLIMIT16 = 6
+const QUERYDEPTHLIMIT16 = 3
 
 func (s *StateDB) GetNFTStoreAddress16(address common.Address,
 	depth int) (nftStoreAddress, owner common.Address, ok bool) {
@@ -2038,53 +2038,8 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	for _, owner := range validators {
 		ownerObject := s.GetOrNewStateObject(owner)
 		if ownerObject != nil {
-			if ownerObject.data.RewardFlag == 1 {
-				log.Info("ownerobj", "addr", ownerObject.address.Hex(), "blocknumber=", blocknumber.Uint64())
-				ownerObject.AddBalance(DREBlockReward)
-			} else if ownerObject.data.RewardFlag == 0 {
-				nftAddr := common.Address{}
-				var metaUrl string
-				var royalty uint32
-				var creator string
-				nftAddr, info, ok := s.SNFTExchangePool.PopAddress(blocknumber)
-				if !ok {
-					nftAddr = common.BytesToAddress(s.MintDeep.OfficialMint.Bytes())
-					injectedInfo := s.OfficialNFTPool.GetInjectedInfo(nftAddr)
-					if injectedInfo == nil {
-						return
-					}
-					metaUrl = injectedInfo.Dir + "/" + nftAddr.String()
-					royalty = injectedInfo.Royalty
-					creator = injectedInfo.Creator
-				} else {
-					metaUrl = info.MetalUrl + "/" + nftAddr.String()
-					royalty = info.Royalty
-					creator = info.Creator
-				}
-				log.Info("CreateNFTByOfficial()", "--nftAddr=", nftAddr.String())
-
-				s.CreateAccount(nftAddr)
-				stateObject := s.GetOrNewStateObject(nftAddr)
-				if stateObject != nil {
-					stateObject.SetNFTInfo(
-						"",
-						"",
-						big.NewInt(0),
-						0,
-						owner,
-						common.Address{},
-						0,
-						common.HexToAddress(creator),
-						royalty,
-						common.Address{},
-						metaUrl)
-					s.MergeNFT16(nftAddr)
-					if !ok {
-						s.OfficialNFTPool.DeleteExpireElem(s.MintDeep.OfficialMint)
-						s.MintDeep.OfficialMint.Add(s.MintDeep.OfficialMint, big.NewInt(1))
-					}
-				}
-			}
+			log.Info("ownerobj", "addr", ownerObject.address.Hex(), "blocknumber=", blocknumber.Uint64())
+			ownerObject.AddBalance(DREBlockReward)
 		}
 	}
 
@@ -2282,17 +2237,17 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 func (s *StateDB) calculateExchangeAmount(level uint8) *big.Int {
 	nftNumber := math.BigPow(16, int64(level))
 	switch {
-	case level < 2:
-		radix, _ := big.NewInt(0).SetString("100000000000000000", 10)
+	case level == 0:
+		radix, _ := big.NewInt(0).SetString("95000000000000000", 10)
+		return big.NewInt(0).Mul(nftNumber, radix)
+	case level == 1:
+		radix, _ := big.NewInt(0).SetString("143000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	case level == 2:
-		radix, _ := big.NewInt(0).SetString("150000000000000000", 10)
-		return big.NewInt(0).Mul(nftNumber, radix)
-	case level == 3:
-		radix, _ := big.NewInt(0).SetString("225000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("271000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	default:
-		radix, _ := big.NewInt(0).SetString("300000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("650000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	}
 }
