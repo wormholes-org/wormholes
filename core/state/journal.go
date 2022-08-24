@@ -203,10 +203,10 @@ type (
 		prev    *big.Int
 	}
 
-	RewardFlagChange struct {
-		account    *common.Address
-		rewardFlag uint8
-	}
+	//RewardFlagChange struct {
+	//	account    *common.Address
+	//	rewardFlag uint8
+	//}
 )
 
 func (ch createObjectChange) revert(s *StateDB) {
@@ -437,10 +437,10 @@ func (ch voteWeightChange) dirtied() *common.Address {
 	return ch.account
 }
 
-func (r RewardFlagChange) revert(s *StateDB) {
-	s.getStateObject(*r.account).setRewardFlag(r.rewardFlag)
-}
-
-func (r RewardFlagChange) dirtied() *common.Address {
-	return r.account
-}
+//func (r RewardFlagChange) revert(s *StateDB) {
+//	s.getStateObject(*r.account).setRewardFlag(r.rewardFlag)
+//}
+//
+//func (r RewardFlagChange) dirtied() *common.Address {
+//	return r.account
+//}

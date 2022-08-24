@@ -110,7 +110,7 @@ type (
 	NextIndexFunc                          func(db StateDB) *big.Int
 	AddOrUpdateActiveMinerFunc             func(StateDB, common.Address, *big.Int, uint64)
 	VoteOfficialNFTByApprovedExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
-	ChangeRewardFlagFunc                   func(StateDB, common.Address, uint8)
+	//ChangeRewardFlagFunc                   func(StateDB, common.Address, uint8)
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -198,7 +198,7 @@ type BlockContext struct {
 	NextIndex                          NextIndexFunc
 	AddOrUpdateActiveMiner             AddOrUpdateActiveMinerFunc
 	VoteOfficialNFTByApprovedExchanger VoteOfficialNFTByApprovedExchangerFunc
-	ChangeRewardFlag                   ChangeRewardFlagFunc
+	//ChangeRewardFlag                   ChangeRewardFlagFunc
 
 	// Block information
 	Coinbase    common.Address // Provides information for COINBASE
@@ -1348,13 +1348,13 @@ func (evm *EVM) HandleNFT(
 		}
 
 		log.Info("HandleNFT(), VoteOfficialNFTByApprovedExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type)
-	case 25:
-		log.Info("HandleNFT(), ChangeRewardFlag>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-		evm.Context.ChangeRewardFlag(
-			evm.StateDB,
-			caller.Address(),
-			wormholes.RewardFlag)
-		log.Info("HandleNFT(), ChangeRewardFlag<<<<<<<<<<", "wormholes.Type", wormholes.Type)
+	//case 25:
+	//	log.Info("HandleNFT(), ChangeRewardFlag>>>>>>>>>>", "wormholes.Type", wormholes.Type)
+	//	evm.Context.ChangeRewardFlag(
+	//		evm.StateDB,
+	//		caller.Address(),
+	//		wormholes.RewardFlag)
+	//	log.Info("HandleNFT(), ChangeRewardFlag<<<<<<<<<<", "wormholes.Type", wormholes.Type)
 
 	default:
 		log.Error("HandleNFT()", "wormholes.Type", wormholes.Type, "error", ErrNotExistNFTType)

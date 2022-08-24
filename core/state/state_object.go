@@ -147,7 +147,7 @@ type Account struct {
 	// NFTBalance is the nft number that the account have
 	NFTBalance uint64
 	// Indicates the reward method chosen by the miner
-	RewardFlag uint8 // 0:SNFT 1:ERB default:1
+	//RewardFlag uint8 // 0:SNFT 1:ERB default:1
 	AccountNFT
 }
 
@@ -1199,18 +1199,18 @@ func (s *stateObject) setVoteWeight(amount *big.Int) {
 	s.data.VoteWeight = amount
 }
 
-func (s *stateObject) ChangeRewardFlag(flag uint8) {
-	s.db.journal.append(RewardFlagChange{
-		account:    &s.address,
-		rewardFlag: flag,
-	})
-	s.setRewardFlag(flag)
-}
+//func (s *stateObject) ChangeRewardFlag(flag uint8) {
+//	s.db.journal.append(RewardFlagChange{
+//		account:    &s.address,
+//		rewardFlag: flag,
+//	})
+//	s.setRewardFlag(flag)
+//}
 
-func (s *stateObject) RewardFlag() uint8 {
-	return s.data.RewardFlag
-}
-
-func (s *stateObject) setRewardFlag(flag uint8) {
-	s.data.RewardFlag = flag
-}
+//func (s *stateObject) RewardFlag() uint8 {
+//	return s.data.RewardFlag
+//}
+//
+//func (s *stateObject) setRewardFlag(flag uint8) {
+//	s.data.RewardFlag = flag
+//}

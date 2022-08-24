@@ -100,8 +100,7 @@ func SlimAccount(nonce uint64,
 	creator common.Address,
 	royalty uint32,
 	exchanger common.Address,
-	metaurl string,
-	rewardFlag uint8) Account {
+	metaurl string) Account {
 	//func SlimAccount(nonce uint64, balance *big.Int, root common.Hash, codehash []byte) Account {
 	slim := Account{
 		Nonce:              nonce,
@@ -128,7 +127,7 @@ func SlimAccount(nonce uint64,
 			Exchanger:  exchanger,
 			MetaURL:    metaurl,
 		},
-		RewardFlag: rewardFlag,
+		//RewardFlag: rewardFlag,
 	}
 	slim.ApproveAddressList = append(slim.ApproveAddressList, approveaddresslist...)
 	//slim.NFTApproveAddressList = append(slim.NFTApproveAddressList, nftapproveaddresslist...)
@@ -172,8 +171,7 @@ func SlimAccountRLP(nonce uint64,
 	creator common.Address,
 	royalty uint32,
 	exchanger common.Address,
-	metaurl string,
-	rewardFlag uint8) []byte {
+	metaurl string) []byte {
 	data, err := rlp.EncodeToBytes(SlimAccount(nonce,
 		balance,
 		root,
@@ -200,7 +198,8 @@ func SlimAccountRLP(nonce uint64,
 		royalty,
 		exchanger,
 		metaurl,
-		rewardFlag))
+		//rewardFlag
+	))
 	//func SlimAccountRLP(nonce uint64, balance *big.Int, root common.Hash, codehash []byte) []byte {
 	//	data, err := rlp.EncodeToBytes(SlimAccount(nonce, balance, root, codehash))
 	// *** modify to support nft transaction 20211217 end ***

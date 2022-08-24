@@ -688,8 +688,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 					acc.Creator,
 					acc.Royalty,
 					acc.Exchanger,
-					acc.MetaURL,
-					acc.RewardFlag)
+					acc.MetaURL)
 				//data := SlimAccountRLP(acc.Nonce, acc.Balance, acc.Root, acc.CodeHash)
 				// *** modify to support nft transaction 20211217 end ***
 				dataLen = len(data)

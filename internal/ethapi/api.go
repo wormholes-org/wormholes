@@ -747,27 +747,10 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 
 	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
 	for _, owner := range validators {
-		st, _, err := s.b.StateAndHeaderByNumber(ctx, number)
-		if err != nil {
-			return nil, err
-		}
-		acc := st.GetAccountInfo(owner)
-		var beneficiaryAddress BeneficiaryAddress
-		if acc.RewardFlag == 0 {
-			nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
-			if !ok {
-				nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
-				deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
-			}
-			beneficiaryAddress = BeneficiaryAddress{
-				Address:    owner,
-				NftAddress: nftAddr,
-			}
-		} else if acc.RewardFlag == 1 {
-			beneficiaryAddress = BeneficiaryAddress{
-				Address:      owner,
-				RewardAmount: big.NewInt(1e+17),
-			}
+
+		beneficiaryAddress := BeneficiaryAddress{
+			Address:      owner,
+			RewardAmount: big.NewInt(1.1e+17),
 		}
 
 		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)

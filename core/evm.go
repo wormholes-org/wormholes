@@ -131,7 +131,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		NextIndex:                          NextIndex,
 		AddOrUpdateActiveMiner:             AddOrUpdateActiveMiner,
 		VoteOfficialNFTByApprovedExchanger: VoteOfficialNFTByApprovedExchanger,
-		ChangeRewardFlag:                   ChangeRewardFlag,
+		//ChangeRewardFlag:                   ChangeRewardFlag,
 	}
 }
 
@@ -1837,6 +1837,6 @@ func VoteOfficialNFTByApprovedExchanger(
 	return nil
 }
 
-func ChangeRewardFlag(db vm.StateDB, address common.Address, flag uint8) {
-	db.ChangeRewardFlag(address, flag)
-}
+//func ChangeRewardFlag(db vm.StateDB, address common.Address, flag uint8) {
+//	db.ChangeRewardFlag(address, flag)
+//}

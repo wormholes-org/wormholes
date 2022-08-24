@@ -519,8 +519,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 			obj.data.Creator,
 			obj.data.Royalty,
 			obj.data.Exchanger,
-			obj.data.MetaURL,
-			obj.data.RewardFlag)
+			obj.data.MetaURL)
 		//s.snapAccounts[obj.addrHash] = snapshot.SlimAccountRLP(obj.data.Nonce, obj.data.Balance, obj.data.Root, obj.data.CodeHash)
 	}
 }
@@ -586,7 +585,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 				ExchangerName:      acc.ExchangerName,
 				ExchangerURL:       acc.ExchangerURL,
 				NFTBalance:         acc.NFTBalance,
-				RewardFlag:         acc.RewardFlag,
+				//RewardFlag:         acc.RewardFlag,
 				// *** modify to support nft transaction 20211217 begin ***
 				AccountNFT: AccountNFT{
 					Name:       acc.Name,
@@ -741,7 +740,8 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 			s.snapDestructs[prev.addrHash] = struct{}{}
 		}
 	}
-	newobj = newObject(s, addr, Account{RewardFlag: 1})
+	//newobj = newObject(s, addr, Account{RewardFlag: 1})
+	newobj = newObject(s, addr, Account{})
 	if prev == nil {
 		s.journal.append(createObjectChange{account: &addr})
 	} else {
@@ -2861,9 +2861,9 @@ func (s *StateDB) NextIndex() *big.Int {
 	return s.OfficialNFTPool.MaxIndex()
 }
 
-func (s *StateDB) ChangeRewardFlag(addr common.Address, flag uint8) {
-	stateObject := s.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.ChangeRewardFlag(flag)
-	}
-}
+//func (s *StateDB) ChangeRewardFlag(addr common.Address, flag uint8) {
+//	stateObject := s.GetOrNewStateObject(addr)
+//	if stateObject != nil {
+//		stateObject.ChangeRewardFlag(flag)
+//	}
+//}
