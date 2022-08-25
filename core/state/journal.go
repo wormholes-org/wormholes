@@ -172,6 +172,9 @@ type (
 		oldOwner                 common.Address
 		oldNFTApproveAddressList common.Address
 		oldMergeLevel            uint8
+		oldMergeNumber           uint32
+		oldPledgedFlag           bool
+		oldNFTPledgedBlockNumber *big.Int
 		oldCreator               common.Address
 		oldRoyalty               uint32
 		oldExchanger             common.Address

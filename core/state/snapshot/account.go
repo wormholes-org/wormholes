@@ -53,20 +53,23 @@ type Account struct {
 	// NFTBalance is the nft number that the account have
 	NFTBalance uint64
 	// Indicates the reward method chosen by the miner
-	RewardFlag uint8 // 0:SNFT 1:ERB default:0
+	//RewardFlag uint8 // 0:SNFT 1:ERB default:0
 	AccountNFT
 }
 type AccountNFT struct {
 	//Account
-	Name                  string
-	Symbol                string
-	Price                 *big.Int
-	Direction             uint8 // 0:未交易,1:买入,2:卖出
+	Name   string
+	Symbol string
+	//Price                 *big.Int
+	//Direction             uint8 // 0:未交易,1:买入,2:卖出
 	Owner                 common.Address
 	NFTApproveAddressList common.Address
 	//Auctions map[string][]common.Address
 	// MergeLevel is the level of NFT merged
-	MergeLevel uint8
+	MergeLevel            uint8
+	MergeNumber           uint32
+	PledgedFlag           bool
+	NFTPledgedBlockNumber *big.Int
 
 	Creator   common.Address
 	Royalty   uint32
@@ -92,11 +95,14 @@ func SlimAccount(nonce uint64,
 	nftbalance uint64,
 	name string,
 	symbol string,
-	price *big.Int,
-	direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftapproveaddresslist common.Address,
 	mergelevel uint8,
+	mergenumber uint32,
+	pledgedflag bool,
+	nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint32,
 	exchanger common.Address,
@@ -116,16 +122,19 @@ func SlimAccount(nonce uint64,
 		ExchangerURL:       exchangerurl,
 		NFTBalance:         nftbalance,
 		AccountNFT: AccountNFT{
-			Name:       name,
-			Symbol:     symbol,
-			Price:      price,
-			Direction:  direction,
-			Owner:      owner,
-			MergeLevel: mergelevel,
-			Creator:    creator,
-			Royalty:    royalty,
-			Exchanger:  exchanger,
-			MetaURL:    metaurl,
+			Name:   name,
+			Symbol: symbol,
+			//Price:      price,
+			//Direction:  direction,
+			Owner:                 owner,
+			MergeLevel:            mergelevel,
+			MergeNumber:           mergenumber,
+			PledgedFlag:           pledgedflag,
+			NFTPledgedBlockNumber: nftpledgedblocknumber,
+			Creator:               creator,
+			Royalty:               royalty,
+			Exchanger:             exchanger,
+			MetaURL:               metaurl,
 		},
 		//RewardFlag: rewardFlag,
 	}
@@ -163,11 +172,14 @@ func SlimAccountRLP(nonce uint64,
 	nftbalance uint64,
 	name string,
 	symbol string,
-	price *big.Int,
-	direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftapproveaddresslist common.Address,
 	mergelevel uint8,
+	mergenumber uint32,
+	pledgedflag bool,
+	nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint32,
 	exchanger common.Address,
@@ -189,11 +201,14 @@ func SlimAccountRLP(nonce uint64,
 		nftbalance,
 		name,
 		symbol,
-		price,
-		direction,
+		//price,
+		//direction,
 		owner,
 		nftapproveaddresslist,
 		mergelevel,
+		mergenumber,
+		pledgedflag,
+		nftpledgedblocknumber,
 		creator,
 		royalty,
 		exchanger,
