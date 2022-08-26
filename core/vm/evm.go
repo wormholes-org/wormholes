@@ -20,13 +20,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"golang.org/x/crypto/sha3"
 	"math/big"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -1426,6 +1427,7 @@ func UnstakingHeight(stakedAmt, appendAmt *big.Int, sno, cno, lockedNo uint64) (
 	return unstakingHeight(stakedAmt, appendAmt, sno, cno, lockedNo), nil
 }
 
+// reference:https://github.com/wormholes-org/wormholes/issues/9
 func unstakingHeight(stakedAmt *big.Int, appendAmt *big.Int, sno uint64, cno uint64, lockedNo uint64) uint64 {
 	var curRemainingTime uint64
 
@@ -1444,7 +1446,7 @@ func checkParams(stakedAmt *big.Int, appendAmt *big.Int, sno uint64, cno uint64)
 	if stakedAmt.Cmp(big.NewInt(0)) == 0 || appendAmt.Cmp(big.NewInt(0)) == 0 {
 		return false, errors.New("illegal amount")
 	}
-	if sno == 0 || cno == 0 {
+	if cno == 0 {
 		return false, errors.New("illegal height")
 	}
 	if sno > cno {

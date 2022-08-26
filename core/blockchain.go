@@ -18,6 +18,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -2698,6 +2699,9 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 		return nil, err
 	}
 
+	// Obtain random landing points according to the surrounding chain algorithm
+	randomHash := GetRandomDrop(activeMiners, header)
+
 	sortedAddr, err := activeMiners.SortByPledgeAmount()
 	if err != nil {
 		return nil, err
@@ -2710,7 +2714,7 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	}
 
 	// Get 6 other validators besides the above 5
-	random6Validators := activeMiners.ValidatorByDistanceAndWeight(activeMiners.ConvertToBigInt(sortedAddr.ActiveMiners[5:]), 6, header.Hash())
+	random6Validators := activeMiners.ValidatorByDistanceAndWeight(activeMiners.ConvertToBigInt(sortedAddr.ActiveMiners[5:]), 6, randomHash)
 
 	validators := make([]common.Address, 0)
 	validators = append(validators, random6Validators...)
@@ -2845,4 +2849,143 @@ func (bc *BlockChain) GetActiveLivePool(no rpc.BlockNumber) (*types.ActiveMinerL
 		return nil, err
 	}
 	return activeMiners, nil
+}
+
+func GetRandomDrop(activeMinerList *types.ActiveMinerList, header *types.Header) common.Hash {
+	// Get the index of the coinbase of the previous block,
+	// if it is a genesis block, the index is 0
+	i := 0
+	if header.Number.Uint64() > 0 {
+		i = activeMinerList.GetByAddress(header.Coinbase)
+	}
+
+	// Get three random validator indexes
+	np := activeMinerList.Len()/4 + 1
+	vals := getSurroundingChainNo(i, 4, np)
+
+	var (
+		buffer     bytes.Buffer
+		randomHex  string
+		randomHash common.Hash
+	)
+
+	// The index calculated according to the multilateral chain may be greater than the total number of validators
+	for _, v := range vals {
+		activeMiner := activeMinerList.GetByIndex(uint64(v))
+		if (activeMiner == types.ActiveMiner{}) {
+			buffer.WriteString(common.Hash{}.Hex())
+			continue
+		}
+		buffer.WriteString(activeMiner.Address.Hash().Hex())
+	}
+	buffer.WriteString(header.Hash().Hex())
+	randomHex = common.Bytes2Hex(buffer.Bytes())
+	randomHash = common.HexToHash(randomHex)
+	return randomHash
+}
+
+func getSurroundingChainNo(i, Nr, Np int) []int {
+	chainNoSet := make([]int, 3, 4)
+
+	Nt := Nr * Np
+	j := 0
+	if i >= 4 && i <= (Nt)-5 {
+		if i%4 == 0 {
+
+			if (i/4)%2 == 0 {
+				j = i - 4
+			}
+			if (i/4)%2 == 1 {
+				j = i + 4
+			}
+			chainNoSet = []int{i, i + 1, i + Nr - 1, j}
+		}
+
+		if i%4 == 3 {
+			if (i/4)%2 == 0 {
+				j = i + 4
+			}
+			if (i/4)%2 == 1 {
+				j = i - 4
+			}
+			chainNoSet = []int{i, i - 1, i - Nr - 1, j}
+		}
+
+		if i%4 != 0 && i%4 != 3 {
+			if (i%2 == 0 && (i/4)%2 == 0) || (i%2 == 1 && (i/4)%2 == 1) {
+				j = i - 4
+			}
+			if (i%2 == 0 && (i/4)%2 == 1) || (i%2 == 1 && (i/4)%2 == 0) {
+				j = i + 4
+			}
+			chainNoSet = []int{i, i - 1, i + 1, j}
+		}
+	}
+
+	if i >= Nt-4 && i <= Nt-1 {
+		if i%4 == 0 {
+			if (i/4)%2 == 1 {
+				j = 0
+			}
+			if (i/4)%2 == 0 {
+				j = i - 4
+			}
+			chainNoSet = []int{i, i + 1, i + 3, j}
+		}
+
+		//------
+		if i%4 == 3 {
+			if (i/4)%2 == 0 {
+				j = 2
+			}
+			if (i/4)%2 == 1 {
+				j = i - 4
+			}
+			chainNoSet = []int{i, i - 1, i - 3, j}
+		}
+
+		if i%4 != 0 && i%4 != 3 {
+			if i%2 == 0 && (i/4)%2 == 1 {
+				j = i % 4
+			}
+			if i%2 == 1 && (i/4)%2 == 0 {
+				j = i%4 - 1
+			}
+			if (i%2 == 0 && (i/4)%2 == 0) || (i%2 == 1 && (i/4)%2 == 1) {
+				j = i - 4
+			}
+			chainNoSet = []int{i, i - 1, i + 1, j}
+		}
+	}
+
+	if i >= 0 && i <= 3 {
+		if i == 0 {
+			if (i/4)%2 == 0 {
+				j = Nt - 3
+			}
+			if (i/4)%2 == 1 {
+				j = Nt - 4
+			}
+			chainNoSet = []int{i, i + 1, i + 3, j}
+		}
+
+		if i%4 == 3 {
+			j = i - 4
+			chainNoSet = []int{i, i - 1, i - 5, j}
+		}
+
+		if i%4 != 0 && i%4 != 3 {
+			if i%2 == 0 && (Nt/4)%2 == 0 {
+				j = Nt - 3 + i
+			}
+			if i%2 == 0 && (Nt/4)%2 == 1 {
+				j = Nt - 4 + i
+			}
+			if i%2 == 1 {
+				j = i + 4
+			}
+			chainNoSet = []int{i, i - 1, i + 1, j}
+		}
+	}
+	return chainNoSet
 }
