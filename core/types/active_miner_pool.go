@@ -169,3 +169,19 @@ func InsertSort(arr *ActiveMinerList) (*ActiveMinerList, error) {
 	}
 	return arr, nil
 }
+
+func (al *ActiveMinerList) GetByAddress(addr common.Address) int {
+	for i, v := range al.ActiveMiners {
+		if v.Address == addr {
+			return i
+		}
+	}
+	return -1
+}
+
+func (al *ActiveMinerList) GetByIndex(i uint64) ActiveMiner {
+	if i >= uint64(al.Len()) {
+		return ActiveMiner{}
+	}
+	return *al.ActiveMiners[i]
+}
