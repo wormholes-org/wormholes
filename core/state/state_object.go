@@ -1258,3 +1258,28 @@ func (s *stateObject) setVoteWeight(amount *big.Int) {
 //func (s *stateObject) setRewardFlag(flag uint8) {
 //	s.data.RewardFlag = flag
 //}
+
+func (s *stateObject) PledgeNFT(blocknumber *big.Int) {
+	s.SetPledgedNFTInfo(true, blocknumber)
+}
+
+func (s *stateObject) CancelPledgedNFT() {
+	s.SetPledgedNFTInfo(false, big.NewInt(-1))
+}
+
+func (s *stateObject) SetPledgedNFTInfo(pledgedflag bool, blocknumber *big.Int) {
+	if s.data.NFTPledgedBlockNumber == nil {
+		s.data.NFTPledgedBlockNumber = big.NewInt(-1)
+	}
+	s.db.journal.append(pledgedNFTInfo{
+		account:               &s.address,
+		pledgedFlag:           s.data.PledgedFlag,
+		nftPledgedBlockNumber: new(big.Int).Set(s.data.NFTPledgedBlockNumber),
+	})
+	s.setPledgedNFTInfo(pledgedflag, blocknumber)
+}
+
+func (s *stateObject) setPledgedNFTInfo(pledgedflag bool, blocknumber *big.Int) {
+	s.data.PledgedFlag = pledgedflag
+	s.data.NFTPledgedBlockNumber = blocknumber
+}

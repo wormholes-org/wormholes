@@ -2280,7 +2280,7 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		emptyAddress := common.Address{}
 		creator := nftStateObject.GetCreator()
 		creatorObj := s.GetOrNewStateObject(creator)
-		amount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel())
+		amount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel(), nftStateObject.GetMergeNumber())
 
 		if creator != emptyAddress && creatorObj != nil {
 			creatorObj.AddBalance(big.NewInt(0).Div(amount, big.NewInt(10)))
@@ -2290,8 +2290,9 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		stateObject.AddBalance(amount)
 	}
 }
-func (s *StateDB) calculateExchangeAmount(level uint8) *big.Int {
-	nftNumber := math.BigPow(16, int64(level))
+func (s *StateDB) calculateExchangeAmount(level uint8, mergenumber uint32) *big.Int {
+	//nftNumber := math.BigPow(16, int64(level))
+	nftNumber := big.NewInt(int64(mergenumber))
 	switch {
 	case level == 0:
 		radix, _ := big.NewInt(0).SetString("95000000000000000", 10)
@@ -2324,8 +2325,19 @@ func (s *StateDB) calculateExchangeAmount(level uint8) *big.Int {
 //}
 //````
 //
-func (s *StateDB) PledgeNFT() {
-
+func (s *StateDB) PledgeNFT(nftaddress common.Address, blocknumber *big.Int) {
+	nftStateObject := s.GetOrNewStateObject(nftaddress)
+	if nftStateObject != nil {
+		amount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel(), nftStateObject.GetMergeNumber())
+		addr := nftStateObject.NFTOwner()
+		nftToken := &types.PledgedToken{
+			Address: addr,
+			Amount:  amount,
+			Flag:    true,
+		}
+		s.ExchangerTokenPool = append(s.ExchangerTokenPool, nftToken)
+		nftStateObject.PledgeNFT(blocknumber)
+	}
 }
 
 //- cancel nft pledge
@@ -2341,8 +2353,19 @@ func (s *StateDB) PledgeNFT() {
 //}
 //````
 //
-func (s *StateDB) CancelPledgedNFT() {
-
+func (s *StateDB) CancelPledgedNFT(nftaddress common.Address) {
+	nftStateObject := s.GetOrNewStateObject(nftaddress)
+	if nftStateObject != nil {
+		amount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel(), nftStateObject.GetMergeNumber())
+		addr := nftStateObject.NFTOwner()
+		nftToken := &types.PledgedToken{
+			Address: addr,
+			Amount:  amount,
+			Flag:    false,
+		}
+		s.ExchangerTokenPool = append(s.ExchangerTokenPool, nftToken)
+		nftStateObject.CancelPledgedNFT()
+	}
 }
 
 //-  pledge token: a user who want to be a miner need to pledge token, must more than 100000 erb
@@ -2735,6 +2758,30 @@ func (s *StateDB) GetNFTMetaURL(addr common.Address) string {
 		return stateObject.GetMetaURL()
 	}
 	return ""
+}
+
+func (s *StateDB) GetMergeNumber(addr common.Address) uint32 {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		return stateObject.GetMergeNumber()
+	}
+	return 0
+}
+
+func (s *StateDB) GetPledgedFlag(addr common.Address) bool {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		return stateObject.GetPledgedFlag()
+	}
+	return false
+}
+
+func (s *StateDB) GetNFTPledgedBlockNumber(addr common.Address) *big.Int {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		return stateObject.GetNFTPledgedBlockNumber()
+	}
+	return big.NewInt(-1)
 }
 
 func (s *StateDB) IsExistNFT(addr common.Address) bool {

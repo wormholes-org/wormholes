@@ -132,6 +132,11 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		AddOrUpdateActiveMiner:             AddOrUpdateActiveMiner,
 		VoteOfficialNFTByApprovedExchanger: VoteOfficialNFTByApprovedExchanger,
 		//ChangeRewardFlag:                   ChangeRewardFlag,
+		PledgeNFT:                PledgeNFT,
+		CancelPledgedNFT:         CancelPledgedNFT,
+		GetMergeNumber:           GetMergeNumber,
+		GetPledgedFlag:           GetPledgedFlag,
+		GetNFTPledgedBlockNumber: GetNFTPledgedBlockNumber,
 	}
 }
 
@@ -198,10 +203,10 @@ func VerifyNFTOwner(db vm.StateDB, nftAddr string, owner common.Address) bool {
 		return false
 	}
 	returnOwner := db.GetNFTOwner16(address)
-	fmt.Println("nftAddr=", nftAddr)
-	fmt.Println("fact owner=", returnOwner.String())
-	fmt.Println("expected owner=", owner.String())
-	fmt.Println("is the same owner=", returnOwner == owner)
+	//fmt.Println("nftAddr=", nftAddr)
+	//fmt.Println("fact owner=", returnOwner.String())
+	//fmt.Println("expected owner=", owner.String())
+	//fmt.Println("is the same owner=", returnOwner == owner)
 	return returnOwner == owner
 	//return db.GetNFTOwner(nftAddr) == owner
 }
@@ -1840,3 +1845,23 @@ func VoteOfficialNFTByApprovedExchanger(
 //func ChangeRewardFlag(db vm.StateDB, address common.Address, flag uint8) {
 //	db.ChangeRewardFlag(address, flag)
 //}
+
+func PledgeNFT(db vm.StateDB, nftaddress common.Address, blocknumber *big.Int) {
+	db.PledgeNFT(nftaddress, blocknumber)
+}
+
+func CancelPledgedNFT(db vm.StateDB, nftaddress common.Address) {
+	db.CancelPledgedNFT(nftaddress)
+}
+
+func GetMergeNumber(db vm.StateDB, nftaddress common.Address) uint32 {
+	return db.GetMergeNumber(nftaddress)
+}
+
+func GetPledgedFlag(db vm.StateDB, nftaddress common.Address) bool {
+	return db.GetPledgedFlag(nftaddress)
+}
+
+func GetNFTPledgedBlockNumber(db vm.StateDB, nftaddress common.Address) *big.Int {
+	return db.GetNFTPledgedBlockNumber(nftaddress)
+}

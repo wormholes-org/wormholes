@@ -59,6 +59,7 @@ var (
 	ErrMinerProxy                   = errors.New("cannot delegate repeatedly")
 	ErrRepeatedPledge               = errors.New("no repeated pledge")
 	ErrReopenExchanger              = errors.New("reopen exchanger")
+	ErrNotPledge                    = errors.New("not pledge")
 )
 
 // ErrStackUnderflow wraps an evm error when the items on the stack less

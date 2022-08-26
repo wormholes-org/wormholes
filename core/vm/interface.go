@@ -127,6 +127,11 @@ type StateDB interface {
 	NextIndex() *big.Int
 	AddOrUpdateActiveMiner(address common.Address, balance *big.Int, height uint64)
 	//ChangeRewardFlag(address common.Address, flag uint8)
+	PledgeNFT(common.Address, *big.Int)
+	CancelPledgedNFT(common.Address)
+	GetMergeNumber(common.Address) uint32
+	GetPledgedFlag(common.Address) bool
+	GetNFTPledgedBlockNumber(common.Address) *big.Int
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

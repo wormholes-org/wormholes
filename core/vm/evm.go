@@ -111,6 +111,11 @@ type (
 	AddOrUpdateActiveMinerFunc             func(StateDB, common.Address, *big.Int, uint64)
 	VoteOfficialNFTByApprovedExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	//ChangeRewardFlagFunc                   func(StateDB, common.Address, uint8)
+	PledgeNFTFunc                func(StateDB, common.Address, *big.Int)
+	CancelPledgedNFTFunc         func(StateDB, common.Address)
+	GetMergeNumberFunc           func(StateDB, common.Address) uint32
+	GetPledgedFlagFunc           func(StateDB, common.Address) bool
+	GetNFTPledgedBlockNumberFunc func(StateDB, common.Address) *big.Int
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -199,6 +204,11 @@ type BlockContext struct {
 	AddOrUpdateActiveMiner             AddOrUpdateActiveMinerFunc
 	VoteOfficialNFTByApprovedExchanger VoteOfficialNFTByApprovedExchangerFunc
 	//ChangeRewardFlag                   ChangeRewardFlagFunc
+	PledgeNFT                PledgeNFTFunc
+	CancelPledgedNFT         CancelPledgedNFTFunc
+	GetMergeNumber           GetMergeNumberFunc
+	GetPledgedFlag           GetPledgedFlagFunc
+	GetNFTPledgedBlockNumber GetNFTPledgedBlockNumberFunc
 
 	// Block information
 	Coinbase    common.Address // Provides information for COINBASE
@@ -940,8 +950,32 @@ func (evm *EVM) HandleNFT(
 			evm.Context.BlockNumber)
 		log.Info("HandleNFT(), ExchangeNFTToCurrency<<<<<<<<<<", "wormholes.Type", wormholes.Type)
 	case 7: //NFT pledge
+		if !strings.HasPrefix(wormholes.NFTAddress, "0x") &&
+			!strings.HasPrefix(wormholes.NFTAddress, "0X") {
+			return nil, gas, ErrStartIndex
+		}
+		nftAddress := common.HexToAddress(wormholes.NFTAddress)
+		if !evm.Context.VerifyNFTOwner(evm.StateDB, wormholes.NFTAddress, caller.Address()) {
+			return nil, gas, ErrNotOwner
+		}
+		if evm.Context.GetPledgedFlag(evm.StateDB, nftAddress) {
+			return nil, gas, ErrRepeatedPledge
+		}
+		evm.Context.PledgeNFT(evm.StateDB, nftAddress, evm.Context.BlockNumber)
 
 	case 8: //cancel nft pledge
+		if !strings.HasPrefix(wormholes.NFTAddress, "0x") &&
+			!strings.HasPrefix(wormholes.NFTAddress, "0X") {
+			return nil, gas, ErrStartIndex
+		}
+		nftAddress := common.HexToAddress(wormholes.NFTAddress)
+		if !evm.Context.VerifyNFTOwner(evm.StateDB, wormholes.NFTAddress, caller.Address()) {
+			return nil, gas, ErrNotOwner
+		}
+		if !evm.Context.GetPledgedFlag(evm.StateDB, nftAddress) {
+			return nil, gas, ErrNotPledge
+		}
+		evm.Context.CancelPledgedNFT(evm.StateDB, nftAddress)
 
 	case 9: // pledge token
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)

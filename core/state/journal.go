@@ -206,6 +206,12 @@ type (
 		prev    *big.Int
 	}
 
+	pledgedNFTInfo struct {
+		account               *common.Address
+		pledgedFlag           bool
+		nftPledgedBlockNumber *big.Int
+	}
+
 	//RewardFlagChange struct {
 	//	account    *common.Address
 	//	rewardFlag uint8
@@ -447,3 +453,11 @@ func (ch voteWeightChange) dirtied() *common.Address {
 //func (r RewardFlagChange) dirtied() *common.Address {
 //	return r.account
 //}
+
+func (ch pledgedNFTInfo) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setPledgedNFTInfo(ch.pledgedFlag, ch.nftPledgedBlockNumber)
+}
+
+func (ch pledgedNFTInfo) dirtied() *common.Address {
+	return ch.account
+}
