@@ -842,7 +842,7 @@ func (s *stateObject) setExchangerInfo(exchangerflag bool, blocknumber *big.Int,
 
 func (s *stateObject) CleanNFT() {
 	if s.data.NFTPledgedBlockNumber == nil {
-		s.data.NFTPledgedBlockNumber = big.NewInt(-1)
+		s.data.NFTPledgedBlockNumber = big.NewInt(0)
 	}
 	change := nftInfoChange{
 		address:                  &s.address,
@@ -873,7 +873,7 @@ func (s *stateObject) cleanNFT() {
 	s.data.MergeLevel = 0
 	s.data.MergeNumber = 0
 	s.data.PledgedFlag = false
-	s.data.NFTPledgedBlockNumber = big.NewInt(-1)
+	s.data.NFTPledgedBlockNumber = big.NewInt(0)
 	s.data.Creator = common.Address{}
 	s.data.Royalty = 0
 	s.data.Exchanger = common.Address{}
@@ -883,8 +883,8 @@ func (s *stateObject) cleanNFT() {
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
@@ -896,7 +896,7 @@ func (s *stateObject) SetNFTInfo(
 	exchanger common.Address,
 	metaURL string) {
 	if s.data.NFTPledgedBlockNumber == nil {
-		s.data.NFTPledgedBlockNumber = big.NewInt(-1)
+		s.data.NFTPledgedBlockNumber = big.NewInt(0)
 	}
 	change := nftInfoChange{
 		address:                  &s.address,
@@ -934,8 +934,8 @@ func (s *stateObject) SetNFTInfo(
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
@@ -995,8 +995,8 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
@@ -1270,12 +1270,12 @@ func (s *stateObject) PledgeNFT(blocknumber *big.Int) {
 }
 
 func (s *stateObject) CancelPledgedNFT() {
-	s.SetPledgedNFTInfo(false, big.NewInt(-1))
+	s.SetPledgedNFTInfo(false, big.NewInt(0))
 }
 
 func (s *stateObject) SetPledgedNFTInfo(pledgedflag bool, blocknumber *big.Int) {
 	if s.data.NFTPledgedBlockNumber == nil {
-		s.data.NFTPledgedBlockNumber = big.NewInt(-1)
+		s.data.NFTPledgedBlockNumber = big.NewInt(0)
 	}
 	s.db.journal.append(pledgedNFTInfo{
 		account:               &s.address,

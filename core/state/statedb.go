@@ -2060,7 +2060,7 @@ func (s *StateDB) CreateNFTByOfficial(owners []common.Address, blocknumber *big.
 				0,
 				1,
 				false,
-				big.NewInt(-1),
+				big.NewInt(0),
 				common.HexToAddress(creator),
 				royalty,
 				common.Address{},
@@ -2133,7 +2133,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 				0,
 				1,
 				false,
-				big.NewInt(-1),
+				big.NewInt(0),
 				common.HexToAddress(creator),
 				royalty,
 				common.Address{},
@@ -2184,7 +2184,7 @@ func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 			0,
 			1,
 			false,
-			big.NewInt(-1),
+			big.NewInt(0),
 			owner,
 			royalty,
 			exchanger,
@@ -2781,7 +2781,7 @@ func (s *StateDB) GetNFTPledgedBlockNumber(addr common.Address) *big.Int {
 	if stateObject != nil {
 		return stateObject.GetNFTPledgedBlockNumber()
 	}
-	return big.NewInt(-1)
+	return big.NewInt(0)
 }
 
 func (s *StateDB) IsExistNFT(addr common.Address) bool {
