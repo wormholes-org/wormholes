@@ -841,6 +841,9 @@ func (s *stateObject) setExchangerInfo(exchangerflag bool, blocknumber *big.Int,
 }
 
 func (s *stateObject) CleanNFT() {
+	if s.data.NFTPledgedBlockNumber == nil {
+		s.data.NFTPledgedBlockNumber = big.NewInt(-1)
+	}
 	change := nftInfoChange{
 		address:                  &s.address,
 		oldName:                  s.data.Name,
@@ -880,8 +883,8 @@ func (s *stateObject) cleanNFT() {
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-	//price *big.Int,
-	//direction uint8,
+//price *big.Int,
+//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
@@ -892,6 +895,9 @@ func (s *stateObject) SetNFTInfo(
 	royalty uint32,
 	exchanger common.Address,
 	metaURL string) {
+	if s.data.NFTPledgedBlockNumber == nil {
+		s.data.NFTPledgedBlockNumber = big.NewInt(-1)
+	}
 	change := nftInfoChange{
 		address:                  &s.address,
 		oldName:                  s.data.Name,
@@ -928,8 +934,8 @@ func (s *stateObject) SetNFTInfo(
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-	//price *big.Int,
-	//direction uint8,
+//price *big.Int,
+//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
@@ -989,8 +995,8 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
-	//*big.Int,
-	//uint8,
+//*big.Int,
+//uint8,
 	common.Address,
 	common.Address,
 	uint8,
