@@ -1333,7 +1333,7 @@ func (evm *EVM) HandleNFT(
 		//}
 		//startIndex, _ := new(big.Int).SetString(wormholes.StartIndex[2:], 16)
 		startIndex := evm.StateDB.NextIndex()
-		var number uint64 = 65536
+		var number uint64 = 4096
 		if wormholes.Royalty <= 0 {
 			log.Error("HandleNFT(), VoteOfficialNFT", "wormholes.Type", wormholes.Type, "error", ErrRoyaltyNotMoreThan0)
 			return nil, gas, ErrRoyaltyNotMoreThan0

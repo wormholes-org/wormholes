@@ -1779,7 +1779,7 @@ func VoteOfficialNFTByApprovedExchanger(
 	wormholes *types.Wormholes,
 	amount *big.Int) error {
 
-	var number uint64 = 65536
+	var number uint64 = 4096
 
 	exchangerMsg := wormholes.ExchangerAuth.ExchangerOwner +
 		wormholes.ExchangerAuth.To +

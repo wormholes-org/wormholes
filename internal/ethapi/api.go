@@ -964,7 +964,7 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 		Info.VoteWeight = big.NewInt(0)
 		Info.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
 		Info.StartIndex = big.NewInt(0)
-		Info.Number = 65536
+		Info.Number = 4096
 		Info.Royalty = 100
 		Info.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
 	}

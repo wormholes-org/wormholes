@@ -2927,7 +2927,7 @@ func (s *StateDB) ElectNominatedOfficialNFT() {
 		injectNFT := &types.InjectedOfficialNFT{
 			Dir:        "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3",
 			StartIndex: new(big.Int).Set(s.OfficialNFTPool.MaxIndex()),
-			Number:     65536,
+			Number:     4096,
 			Royalty:    100,
 			Creator:    "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
 		}
@@ -2936,7 +2936,7 @@ func (s *StateDB) ElectNominatedOfficialNFT() {
 
 	s.NominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
 	s.NominatedOfficialNFT.StartIndex = new(big.Int).Set(s.OfficialNFTPool.MaxIndex())
-	s.NominatedOfficialNFT.Number = 65536
+	s.NominatedOfficialNFT.Number = 4096
 	s.NominatedOfficialNFT.Royalty = 100
 	s.NominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
 	s.NominatedOfficialNFT.Address = common.Address{}
