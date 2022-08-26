@@ -301,10 +301,10 @@ func (w *Wormholes) TxGas() (uint64, error) {
 		return params.WormholesTx5, nil
 	case 6:
 		return params.WormholesTx6, nil
-	//case 7:
-	//	return params.WormholesTx7, nil
-	//case 8:
-	//	return params.WormholesTx8, nil
+	case 7:
+		return params.WormholesTx7, nil
+	case 8:
+		return params.WormholesTx8, nil
 	case 9:
 		return params.WormholesTx9, nil
 	case 10:
