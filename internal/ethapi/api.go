@@ -989,6 +989,22 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 	return &Info
 }
 
+func (s *PublicBlockChainAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.BlockNumber) *InjectedOfficialNFT {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return nil
+	}
+	InjectedList, err := rawdb.ReadOfficialNFTPool(s.b.ChainDb(), header.Hash(), header.Number.Uint64())
+	if err != nil {
+		return nil
+	}
+	if length := len(InjectedList.InjectedOfficialNFTs); length > 0 {
+		return InjectedList.InjectedOfficialNFTs[length-1]
+	} else {
+		return nil
+	}
+}
+
 func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFTList {
 	header, err := s.b.HeaderByNumber(ctx, number)
 	if header == nil || err != nil {
@@ -1100,10 +1116,10 @@ func (s *PublicBlockChainAPI) GetHeaderByHash(ctx context.Context, hash common.H
 }
 
 // GetBlockByNumber returns the requested canonical block.
-// * When blockNr is -1 the chain head is returned.
-// * When blockNr is -2 the pending chain head is returned.
-// * When fullTx is true all transactions in the block are returned, otherwise
-//   only the transaction hash is returned.
+//   - When blockNr is -1 the chain head is returned.
+//   - When blockNr is -2 the pending chain head is returned.
+//   - When fullTx is true all transactions in the block are returned, otherwise
+//     only the transaction hash is returned.
 func (s *PublicBlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	block, err := s.b.BlockByNumber(ctx, number)
 	if block != nil && err == nil {
