@@ -3,8 +3,6 @@ package types
 import (
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 )
@@ -15,80 +13,80 @@ type MintDeep struct {
 	//ExchangeList SNFTExchangeList
 }
 
-type SNFTExchange struct {
-	InjectedInfo
-	NFTAddress         common.Address
-	MergeLevel         uint8
-	CurrentMintAddress common.Address
-	BlockNumber        *big.Int
-}
-type InjectedInfo struct {
-	MetalUrl string
-	Royalty  uint32
-	Creator  string
-}
-
-type SNFTExchangeList struct {
-	SNFTExchanges []*SNFTExchange
-}
-
-func (ex *SNFTExchange) MinNFTAddress() common.Address {
-	return ex.NFTAddress
-}
-func (ex *SNFTExchange) MaxNFTAddress() common.Address {
-	if ex.MergeLevel == 0 {
-		return ex.NFTAddress
-	}
-	minAddrInt := big.NewInt(0)
-	minAddrInt.SetBytes(ex.NFTAddress.Bytes())
-	nftNumber := math.BigPow(256, int64(ex.MergeLevel))
-	maxAddrInt := big.NewInt(0)
-	maxAddrInt.Add(minAddrInt, new(big.Int).Sub(nftNumber, big.NewInt(1)))
-	maxAddr := common.BytesToAddress(maxAddrInt.Bytes())
-	return maxAddr
-}
-func (ex *SNFTExchange) MaxNFTAddress16() common.Address {
-	if ex.MergeLevel == 0 {
-		return ex.NFTAddress
-	}
-	minAddrInt := big.NewInt(0)
-	minAddrInt.SetBytes(ex.NFTAddress.Bytes())
-	nftNumber := math.BigPow(16, int64(ex.MergeLevel))
-	maxAddrInt := big.NewInt(0)
-	maxAddrInt.Add(minAddrInt, new(big.Int).Sub(nftNumber, big.NewInt(1)))
-	maxAddr := common.BytesToAddress(maxAddrInt.Bytes())
-	return maxAddr
-}
-
-func (list *SNFTExchangeList) PopAddress(blocknumber *big.Int) (common.Address, *InjectedInfo, bool) {
-	if len(list.SNFTExchanges) > 0 {
-		log.Info("PopAddress()", "SNFTExchanges[0].BlockNumber=", list.SNFTExchanges[0].BlockNumber.Uint64())
-		log.Info("PopAddress()", "-----------------blocknumber=", blocknumber.Uint64())
-		if list.SNFTExchanges[0].BlockNumber.Cmp(blocknumber) >= 0 {
-			return common.Address{}, nil, false
-		}
-		addr := list.SNFTExchanges[0].CurrentMintAddress
-		InjectedInfo := &InjectedInfo{
-			MetalUrl: list.SNFTExchanges[0].MetalUrl,
-			Royalty:  list.SNFTExchanges[0].Royalty,
-			Creator:  list.SNFTExchanges[0].Creator,
-		}
-		//if list.SNFTExchanges[0].CurrentMintAddress == list.SNFTExchanges[0].MaxNFTAddress() {
-		if list.SNFTExchanges[0].CurrentMintAddress == list.SNFTExchanges[0].MaxNFTAddress16() {
-			if len(list.SNFTExchanges) > 1 {
-				list.SNFTExchanges = list.SNFTExchanges[1:]
-			} else {
-				list.SNFTExchanges = list.SNFTExchanges[:0]
-			}
-		} else {
-			currentMintInt := new(big.Int).SetBytes(list.SNFTExchanges[0].CurrentMintAddress.Bytes())
-			currentMintInt.Add(currentMintInt, big.NewInt(1))
-			list.SNFTExchanges[0].CurrentMintAddress = common.BytesToAddress(currentMintInt.Bytes())
-		}
-		return addr, InjectedInfo, true
-	}
-	return common.Address{}, nil, false
-}
+//type SNFTExchange struct {
+//	InjectedInfo
+//	NFTAddress         common.Address
+//	MergeLevel         uint8
+//	CurrentMintAddress common.Address
+//	BlockNumber        *big.Int
+//}
+//type InjectedInfo struct {
+//	MetalUrl string
+//	Royalty  uint32
+//	Creator  string
+//}
+//
+//type SNFTExchangeList struct {
+//	SNFTExchanges []*SNFTExchange
+//}
+//
+//func (ex *SNFTExchange) MinNFTAddress() common.Address {
+//	return ex.NFTAddress
+//}
+//func (ex *SNFTExchange) MaxNFTAddress() common.Address {
+//	if ex.MergeLevel == 0 {
+//		return ex.NFTAddress
+//	}
+//	minAddrInt := big.NewInt(0)
+//	minAddrInt.SetBytes(ex.NFTAddress.Bytes())
+//	nftNumber := math.BigPow(256, int64(ex.MergeLevel))
+//	maxAddrInt := big.NewInt(0)
+//	maxAddrInt.Add(minAddrInt, new(big.Int).Sub(nftNumber, big.NewInt(1)))
+//	maxAddr := common.BytesToAddress(maxAddrInt.Bytes())
+//	return maxAddr
+//}
+//func (ex *SNFTExchange) MaxNFTAddress16() common.Address {
+//	if ex.MergeLevel == 0 {
+//		return ex.NFTAddress
+//	}
+//	minAddrInt := big.NewInt(0)
+//	minAddrInt.SetBytes(ex.NFTAddress.Bytes())
+//	nftNumber := math.BigPow(16, int64(ex.MergeLevel))
+//	maxAddrInt := big.NewInt(0)
+//	maxAddrInt.Add(minAddrInt, new(big.Int).Sub(nftNumber, big.NewInt(1)))
+//	maxAddr := common.BytesToAddress(maxAddrInt.Bytes())
+//	return maxAddr
+//}
+//
+//func (list *SNFTExchangeList) PopAddress(blocknumber *big.Int) (common.Address, *InjectedInfo, bool) {
+//	if len(list.SNFTExchanges) > 0 {
+//		log.Info("PopAddress()", "SNFTExchanges[0].BlockNumber=", list.SNFTExchanges[0].BlockNumber.Uint64())
+//		log.Info("PopAddress()", "-----------------blocknumber=", blocknumber.Uint64())
+//		if list.SNFTExchanges[0].BlockNumber.Cmp(blocknumber) >= 0 {
+//			return common.Address{}, nil, false
+//		}
+//		addr := list.SNFTExchanges[0].CurrentMintAddress
+//		InjectedInfo := &InjectedInfo{
+//			MetalUrl: list.SNFTExchanges[0].MetalUrl,
+//			Royalty:  list.SNFTExchanges[0].Royalty,
+//			Creator:  list.SNFTExchanges[0].Creator,
+//		}
+//		//if list.SNFTExchanges[0].CurrentMintAddress == list.SNFTExchanges[0].MaxNFTAddress() {
+//		if list.SNFTExchanges[0].CurrentMintAddress == list.SNFTExchanges[0].MaxNFTAddress16() {
+//			if len(list.SNFTExchanges) > 1 {
+//				list.SNFTExchanges = list.SNFTExchanges[1:]
+//			} else {
+//				list.SNFTExchanges = list.SNFTExchanges[:0]
+//			}
+//		} else {
+//			currentMintInt := new(big.Int).SetBytes(list.SNFTExchanges[0].CurrentMintAddress.Bytes())
+//			currentMintInt.Add(currentMintInt, big.NewInt(1))
+//			list.SNFTExchanges[0].CurrentMintAddress = common.BytesToAddress(currentMintInt.Bytes())
+//		}
+//		return addr, InjectedInfo, true
+//	}
+//	return common.Address{}, nil, false
+//}
 
 type PledgedToken struct {
 	Address      common.Address

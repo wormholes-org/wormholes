@@ -706,7 +706,7 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 	}
 
 	var deep *types.MintDeep
-	var snftExchangePool *types.SNFTExchangeList
+	//var snftExchangePool *types.SNFTExchangeList
 	if parentHeader.Number.Uint64() > 0 {
 		db := s.b.ChainDb()
 		deep, err = rawdb.ReadMintDeep(db, parentHeader.Hash(), parentHeader.Number.Uint64())
@@ -714,15 +714,15 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 			return nil, err
 		}
 
-		snftExchangePool, err = rawdb.ReadSNFTExchangePool(db, parentHeader.Hash(), parentHeader.Number.Uint64())
-		if err != nil {
-			return nil, err
-		}
-		if snftExchangePool == nil {
-			snftExchangePool = &types.SNFTExchangeList{
-				SNFTExchanges: make([]*types.SNFTExchange, 0),
-			}
-		}
+		//snftExchangePool, err = rawdb.ReadSNFTExchangePool(db, parentHeader.Hash(), parentHeader.Number.Uint64())
+		//if err != nil {
+		//	return nil, err
+		//}
+		//if snftExchangePool == nil {
+		//	snftExchangePool = &types.SNFTExchangeList{
+		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//	}
+		//}
 	} else {
 		deep = new(types.MintDeep)
 		deep.UserMint = big.NewInt(1)
@@ -731,9 +731,9 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 		deep.OfficialMint.Add(big.NewInt(0), maskB)
 
-		snftExchangePool = &types.SNFTExchangeList{
-			SNFTExchanges: make([]*types.SNFTExchange, 0),
-		}
+		//snftExchangePool = &types.SNFTExchangeList{
+		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//}
 	}
 
 	validators := istanbulExtra.ValidatorAddr
@@ -756,11 +756,11 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
 	}
 	for _, owner := range exchangers {
-		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
-		if !ok {
-			nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
-			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
-		}
+		//nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
+		//if !ok {
+		nftAddr := common.BytesToAddress(deep.OfficialMint.Bytes())
+		deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
+		//}
 
 		beneficiaryAddress := BeneficiaryAddress{
 			Address:    owner,

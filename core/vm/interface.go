@@ -80,7 +80,7 @@ type StateDB interface {
 	GetNFTOwner(common.Address) common.Address
 	GetNFTOwner16(common.Address) common.Address
 	// *** modify to support nft transaction 20211215 end ***
-	CreateNFTByOfficial([]common.Address, *big.Int)
+	//CreateNFTByOfficial([]common.Address, *big.Int)
 	CreateNFTByUser(common.Address, common.Address, uint32, string) (common.Address, bool)
 	ChangeApproveAddress(common.Address, common.Address)
 	CancelApproveAddress(common.Address, common.Address)

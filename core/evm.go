@@ -79,7 +79,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		VerifyNFTOwner: VerifyNFTOwner,
 		TransferNFT:    TransferNFT,
 		// *** modify to support nft transaction 20211215 end ***
-		CreateNFTByOfficial:                CreateNFTByOfficial,
+		//CreateNFTByOfficial:                CreateNFTByOfficial,
 		CreateNFTByUser:                    CreateNFTByUser,
 		ChangeApproveAddress:               ChangeApproveAddress,
 		CancelApproveAddress:               CancelApproveAddress,
@@ -246,9 +246,9 @@ func TransferNFT(db vm.StateDB, nftAddr string, newOwner common.Address) error {
 
 // *** modify to support nft transaction 20211215 end ***
 
-func CreateNFTByOfficial(db vm.StateDB, addrs []common.Address, blocknumber *big.Int) {
-	db.CreateNFTByOfficial(addrs, blocknumber)
-}
+//func CreateNFTByOfficial(db vm.StateDB, addrs []common.Address, blocknumber *big.Int) {
+//	db.CreateNFTByOfficial(addrs, blocknumber)
+//}
 
 func CreateNFTByUser(db vm.StateDB, exchanger common.Address,
 	owner common.Address,
