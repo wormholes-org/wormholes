@@ -1646,7 +1646,7 @@ func (s *StateDB) ChangeNFTOwner(nftAddr common.Address,
 	stateObject := s.GetOrNewStateObject(nftAddr)
 	if stateObject != nil {
 		if s.IsOfficialNFT(nftAddr) {
-			s.SplitNFT16(nftAddr, level)
+			//s.SplitNFT16(nftAddr, level)
 		}
 		stateObject.ChangeNFTOwner(newOwner)
 		// merge nft automatically
@@ -1657,15 +1657,24 @@ func (s *StateDB) ChangeNFTOwner(nftAddr common.Address,
 }
 
 // GetNFTOwner16 retrieves the nft owner from the given nft address
+//func (s *StateDB) GetNFTOwner16(nftAddr common.Address) common.Address {
+//	storeAddr, _, ok := s.GetNFTStoreAddress16(nftAddr, 0)
+//	if ok {
+//		log.Info("StateDB.GetNFTOwner16()", "nftAddr", nftAddr.String(), "storeAddr", storeAddr.String())
+//		stateObject := s.getStateObject(storeAddr)
+//		//stateObject := s.getDeletedStateObject2(nftAddr)
+//		if stateObject != nil {
+//			return stateObject.NFTOwner()
+//		}
+//	}
+//
+//	return common.Address{}
+//}
+// if snfts have been merged, original snfts are not exist, they become a new merged snft
 func (s *StateDB) GetNFTOwner16(nftAddr common.Address) common.Address {
-	storeAddr, _, ok := s.GetNFTStoreAddress16(nftAddr, 0)
-	if ok {
-		log.Info("StateDB.GetNFTOwner16()", "nftAddr", nftAddr.String(), "storeAddr", storeAddr.String())
-		stateObject := s.getStateObject(storeAddr)
-		//stateObject := s.getDeletedStateObject2(nftAddr)
-		if stateObject != nil {
-			return stateObject.NFTOwner()
-		}
+	stateObject := s.getStateObject(nftAddr)
+	if stateObject != nil {
+		return stateObject.NFTOwner()
 	}
 
 	return common.Address{}
@@ -1675,6 +1684,8 @@ func (s *StateDB) IsCanMergeNFT16(nftAddr common.Address) bool {
 	if len(nftAddr) == 0 {
 		return false
 	}
+	emptyAddress := common.Address{}
+
 	nftAddrS := nftAddr.String()
 	if strings.HasPrefix(nftAddrS, "0x") ||
 		strings.HasPrefix(nftAddrS, "0X") {
@@ -1720,6 +1731,10 @@ func (s *StateDB) IsCanMergeNFT16(nftAddr common.Address) bool {
 		}
 
 		siblingStateObject := s.getStateObject(siblingAddr)
+		if siblingStateObject != nil &&
+			siblingStateObject.NFTOwner() == emptyAddress {
+			continue
+		}
 		if siblingStateObject == nil ||
 			siblingStateObject.NFTOwner() != nftStateObject.NFTOwner() ||
 			siblingStateObject.GetNFTMergeLevel() != nftStateObject.GetNFTMergeLevel() ||
@@ -1745,6 +1760,8 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address) error {
 	if !s.IsCanMergeNFT16(nftAddr) {
 		return nil
 	}
+	emptyAddress := common.Address{}
+
 	nftAddrS := nftAddr.String()
 	if strings.HasPrefix(nftAddrS, "0x") ||
 		strings.HasPrefix(nftAddrS, "0X") {
@@ -1766,6 +1783,7 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address) error {
 	// 3. retrieve all the sibling leaf nodes of nftAddr
 	siblingInt := big.NewInt(0)
 	//nftAddrSLen := len(nftAddrS)
+	var mergeNumber uint32 = 0
 	for i := 0; i < 16; i++ {
 		// 4. convert bigInt to common.Address,
 		// and then delete all sibling nodes and itself from the trie.
@@ -1789,7 +1807,10 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address) error {
 		//fmt.Println("nftAddr=", nftAddr.String())
 		siblingStateObject := s.getStateObject(siblingAddr)
 		//siblingStateObject.data.AccountNFT = AccountNFT{}
-		siblingStateObject.CleanNFT()
+		if siblingStateObject.NFTOwner() != emptyAddress {
+			mergeNumber = mergeNumber + siblingStateObject.GetMergeNumber()
+			siblingStateObject.CleanNFT()
+		}
 		//s.deleteStateObject(siblingStateObject)
 		//s.updateStateObject(siblingStateObject)
 
@@ -1809,8 +1830,8 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address) error {
 		newMergeStateObject = s.getStateObject(newMergedAddr)
 		//newMergeStateObject.data.MergeLevel = nftStateObject.data.MergeLevel + 1
 		//newMergeStateObject.data.Owner = nftStateObject.data.Owner
-		var mergeNumber uint32 = 0
-		mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.MergeLevel+1)).Uint64())
+		//var mergeNumber uint32 = 0
+		//mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.MergeLevel+1)).Uint64())
 		newMergeStateObject.SetNFTInfo(
 			nftStateObject.data.Name,
 			nftStateObject.data.Symbol,
@@ -1831,8 +1852,8 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address) error {
 		newMergeStateObject = s.getStateObject(newMergedAddr)
 		//newMergeStateObject.data.MergeLevel = nftStateObject.data.MergeLevel + 1
 		//newMergeStateObject.data.Owner = nftStateObject.data.Owner
-		var mergeNumber uint32 = 0
-		mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.MergeLevel+1)).Uint64())
+		//var mergeNumber uint32 = 0
+		//mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.MergeLevel+1)).Uint64())
 		newMergeStateObject.SetNFTInfo(
 			nftStateObject.data.Name,
 			nftStateObject.data.Symbol,
@@ -2257,7 +2278,7 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 	nftaddress common.Address,
 	blocknumber *big.Int,
 	level int) {
-	s.SplitNFT16(nftaddress, level)
+	//s.SplitNFT16(nftaddress, level)
 	nftStateObject := s.GetOrNewStateObject(nftaddress)
 	stateObject := s.GetOrNewStateObject(address)
 	if nftStateObject != nil && stateObject != nil {
