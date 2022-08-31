@@ -55,11 +55,13 @@ var (
 	ErrNotMoreThan100000ERB         = errors.New("not more than 70000 ERB")
 	ErrNotAllowedOfficialNFT        = errors.New("not allowed approve official nft")
 	ErrExchangerFormat              = errors.New("exchanger format error")
-	ErrNftLevel                     = errors.New("input nft level error")
+	ErrNotExistNft                  = errors.New("not exist nft")
 	ErrMinerProxy                   = errors.New("cannot delegate repeatedly")
 	ErrRepeatedPledge               = errors.New("no repeated pledge")
 	ErrReopenExchanger              = errors.New("reopen exchanger")
 	ErrNotPledge                    = errors.New("not pledge")
+	ErrNotMergedSNFT                = errors.New("not merged snft")
+	ErrHasBeenPledged               = errors.New("has been pledged")
 )
 
 // ErrStackUnderflow wraps an evm error when the items on the stack less

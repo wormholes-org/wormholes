@@ -842,16 +842,16 @@ func (evm *EVM) HandleNFT(
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 
 	case 1: //transfer nft
-		nftAddress, _, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
-		if err != nil {
-			log.Error("HandleNFT(), TransferNFT", "wormholes.Type", wormholes.Type, "error",
-				err, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, err
-		}
+		//nftAddress, _, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
+		//if err != nil {
+		//	log.Error("HandleNFT(), TransferNFT", "wormholes.Type", wormholes.Type, "error",
+		//		err, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, err
+		//}
 		if evm.Context.VerifyNFTOwner(evm.StateDB, wormholes.NFTAddress, caller.Address()) {
-			if !evm.StateDB.Exist(nftAddress) {
-				evm.StateDB.CreateAccount(nftAddress)
-			}
+			//if !evm.StateDB.Exist(nftAddress) {
+			//	evm.StateDB.CreateAccount(nftAddress)
+			//}
 			log.Info("HandleNFT(), TransferNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
 			err := evm.Context.TransferNFT(evm.StateDB, wormholes.NFTAddress, addr)
@@ -876,11 +876,17 @@ func (evm *EVM) HandleNFT(
 				"error", ErrNotExchanger, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, ErrNotExchanger
 		}
-		nftAddress, _, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
+		nftAddress, level1, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
 		if err != nil {
 			log.Error("HandleNFT(), ChangeNFTApproveAddress", "wormholes.Type", wormholes.Type,
 				"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, err
+		}
+		level2 := evm.StateDB.GetNFTMergeLevel(nftAddress)
+		if int(level2) != level1 {
+			log.Error("HandleNFT(), ChangeNFTApproveAddress", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
+				"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotExistNft
 		}
 		if IsOfficialNFT(nftAddress) {
 			log.Error("HandleNFT(), ChangeNFTApproveAddress", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
@@ -905,11 +911,17 @@ func (evm *EVM) HandleNFT(
 	case 3:
 		log.Info("HandleNFT(), CancelNFTApproveAddress>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
-		nftAddress, _, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
+		nftAddress, level1, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
 		if err != nil {
 			log.Error("HandleNFT(), CancelNFTApproveAddress", "wormholes.Type", wormholes.Type,
 				"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, err
+		}
+		level2 := evm.StateDB.GetNFTMergeLevel(nftAddress)
+		if int(level2) != level1 {
+			log.Error("HandleNFT(), CancelNFTApproveAddress", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
+				"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotExistNft
 		}
 		nftOwner := evm.StateDB.GetNFTOwner16(nftAddress)
 		log.Info("HandleNFT(), CancelNFTApproveAddress", "wormholes.Type", wormholes.Type,
@@ -968,10 +980,14 @@ func (evm *EVM) HandleNFT(
 			return nil, gas, ErrNotOwner
 		}
 		level2 := evm.StateDB.GetNFTMergeLevel(nftAddress)
-		if int(level2) < level1 {
+		if int(level2) != level1 {
 			log.Error("HandleNFT(), ExchangeNFTToCurrency", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
 				"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrNftLevel
+			return nil, gas, ErrNotExistNft
+		}
+		pledgedFlag := evm.Context.GetPledgedFlag(evm.StateDB, nftAddress)
+		if pledgedFlag {
+			return nil, gas, ErrHasBeenPledged
 		}
 		evm.Context.ExchangeNFTToCurrency(
 			evm.StateDB,
@@ -987,7 +1003,26 @@ func (evm *EVM) HandleNFT(
 			!strings.HasPrefix(wormholes.NFTAddress, "0X") {
 			return nil, gas, ErrStartIndex
 		}
-		nftAddress := common.HexToAddress(wormholes.NFTAddress)
+		nftAddress, level1, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
+		if err != nil {
+			return nil, gas, err
+		}
+		if !IsOfficialNFT(nftAddress) {
+			log.Error("HandleNFT(), PledgeNFT", "wormholes.Type", wormholes.Type,
+				"nft address", wormholes.NFTAddress, "error", ErrNotMintByOfficial, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotMintByOfficial
+		}
+		level2 := evm.StateDB.GetNFTMergeLevel(nftAddress)
+		if int(level2) != level1 {
+			log.Error("HandleNFT(), PledgeNFT", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
+				"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotExistNft
+		}
+		if level2 < 1 {
+			log.Error("HandleNFT(), PledgeNFT", "wormholes.Type", wormholes.Type,
+				"error", ErrNotMergedSNFT, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotMergedSNFT
+		}
 		if !evm.Context.VerifyNFTOwner(evm.StateDB, wormholes.NFTAddress, caller.Address()) {
 			return nil, gas, ErrNotOwner
 		}
@@ -1004,7 +1039,26 @@ func (evm *EVM) HandleNFT(
 			!strings.HasPrefix(wormholes.NFTAddress, "0X") {
 			return nil, gas, ErrStartIndex
 		}
-		nftAddress := common.HexToAddress(wormholes.NFTAddress)
+		nftAddress, level1, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
+		if err != nil {
+			return nil, gas, err
+		}
+		if !IsOfficialNFT(nftAddress) {
+			log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type,
+				"nft address", wormholes.NFTAddress, "error", ErrNotMintByOfficial, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotMintByOfficial
+		}
+		level2 := evm.StateDB.GetNFTMergeLevel(nftAddress)
+		if int(level2) != level1 {
+			log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
+				"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotExistNft
+		}
+		if level2 < 1 {
+			log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type,
+				"error", ErrNotMergedSNFT, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotMergedSNFT
+		}
 		if !evm.Context.VerifyNFTOwner(evm.StateDB, wormholes.NFTAddress, caller.Address()) {
 			return nil, gas, ErrNotOwner
 		}

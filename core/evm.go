@@ -240,6 +240,16 @@ func TransferNFT(db vm.StateDB, nftAddr string, newOwner common.Address) error {
 		return err
 	}
 
+	level2 := db.GetNFTMergeLevel(address)
+	if level != int(level2) {
+		return errors.New("not exist nft")
+	}
+
+	pledgedFlag := db.GetPledgedFlag(address)
+	if pledgedFlag {
+		return errors.New("has been pledged")
+	}
+
 	db.ChangeNFTOwner(address, newOwner, level)
 	return nil
 }
@@ -527,6 +537,16 @@ func BuyNFTBySellerOrExchanger(
 		log.Error("BuyNFTBySellerOrExchanger(), nft address error", "wormholes.Buyer.NFTAddress", wormholes.Buyer.NFTAddress)
 		return err
 	}
+	level2 := db.GetNFTMergeLevel(nftAddress)
+	if int(level2) != level {
+		log.Error("BuyNFTBySellerOrExchanger()", "wormholes.Type", wormholes.Type, "nft address", wormholes.Buyer.NFTAddress,
+			"input nft level", level, "real nft level", level2)
+		return errors.New("not exist nft")
+	}
+	pledgedFlag := db.GetPledgedFlag(nftAddress)
+	if pledgedFlag {
+		return errors.New("has been pledged")
+	}
 	buyerExchanger := common.HexToAddress(wormholes.Buyer.Exchanger)
 	nftOwner := db.GetNFTOwner16(nftAddress)
 	emptyAddress := common.Address{}
@@ -624,12 +644,21 @@ func CheckSeller1(db vm.StateDB,
 		return false
 	}
 
-	nftAddress, _, err := GetNftAddressAndLevel(wormholes.Seller1.NFTAddress)
+	nftAddress, level, err := GetNftAddressAndLevel(wormholes.Seller1.NFTAddress)
 	if err != nil {
 		log.Error("CheckSeller1(), nft address error", "wormholes.Buyer.NFTAddress", wormholes.Buyer.NFTAddress)
 		return false
 	}
-
+	level2 := db.GetNFTMergeLevel(nftAddress)
+	if int(level2) != level {
+		log.Error("CheckSeller1()", "nft address", wormholes.Seller1.NFTAddress,
+			"input nft level", level, "real nft level", level2)
+		return false
+	}
+	pledgedFlag := db.GetPledgedFlag(nftAddress)
+	if pledgedFlag {
+		return false
+	}
 	nftOwner := db.GetNFTOwner16(nftAddress)
 	emptyAddress := common.Address{}
 	if nftOwner == emptyAddress {
@@ -694,6 +723,16 @@ func BuyNFTByBuyer(
 	if err != nil {
 		log.Error("BuyNFTByBuyer(), nft address error", "wormholes.Seller1.NFTAddress", wormholes.Seller1.NFTAddress)
 		return err
+	}
+	level2 := db.GetNFTMergeLevel(nftAddress)
+	if int(level2) != level {
+		log.Error("BuyNFTByBuyer()", "wormholes.Type", wormholes.Type, "nft address", wormholes.Seller1.NFTAddress,
+			"input nft level", level, "real nft level", level2)
+		return errors.New("not exist nft")
+	}
+	pledgedFlag := db.GetPledgedFlag(nftAddress)
+	if pledgedFlag {
+		return errors.New("has been pledged")
 	}
 	//sellerExchanger := common.HexToAddress(wormholes.Seller1.Exchanger)
 	nftOwner := db.GetNFTOwner16(nftAddress)
@@ -1217,6 +1256,16 @@ func BuyNFTByApproveExchanger(
 		log.Error("BuyNFTByApproveExchanger(), nft address error", "wormholes.Buyer.NFTAddress", wormholes.Buyer.NFTAddress)
 		return err
 	}
+	level2 := db.GetNFTMergeLevel(nftAddress)
+	if int(level2) != level {
+		log.Error("BuyNFTByApproveExchanger()", "wormholes.Type", wormholes.Type, "nft address", wormholes.Buyer.NFTAddress,
+			"input nft level", level, "real nft level", level2)
+		return errors.New("not exist nft")
+	}
+	pledgedFlag := db.GetPledgedFlag(nftAddress)
+	if pledgedFlag {
+		return errors.New("has been pledged")
+	}
 	//buyerExchanger := common.HexToAddress(wormholes.Buyer.Exchanger)
 	nftOwner := db.GetNFTOwner16(nftAddress)
 	emptyAddress := common.Address{}
@@ -1652,10 +1701,16 @@ func BuyNFTByExchanger(
 
 	//5. 判断from是否为nft拥有者
 	//buyerNftAddress := common.HexToAddress(wormholes.Buyer.NFTAddress)
-	buyerNftAddress, _, err := GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
+	buyerNftAddress, level, err := GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
 	if err != nil {
 		log.Error("BuyNFTByExchanger(), buyer nft address error", "wormholes.Buyer.NFTAddress", wormholes.Buyer.NFTAddress)
 		return err
+	}
+	level2 := db.GetNFTMergeLevel(buyerNftAddress)
+	if int(level2) != level {
+		log.Error("BuyNFTByExchanger()", "wormholes.Type", wormholes.Type, "buyer nft address", wormholes.Buyer.NFTAddress,
+			"input nft level", level, "real nft level", level2)
+		return errors.New("not exist nft")
 	}
 	//sellerNftAddress := common.HexToAddress(wormholes.Seller1.NFTAddress)
 	sellerNftAddress, level, err := GetNftAddressAndLevel(wormholes.Seller1.NFTAddress)
@@ -1663,10 +1718,20 @@ func BuyNFTByExchanger(
 		log.Error("BuyNFTByExchanger(), seller nft address error", "wormholes.Seller1.NFTAddress", wormholes.Seller1.NFTAddress)
 		return err
 	}
+	level2 = db.GetNFTMergeLevel(sellerNftAddress)
+	if int(level2) != level {
+		log.Error("BuyNFTByExchanger()", "wormholes.Type", wormholes.Type, "seller nft address", wormholes.Seller1.NFTAddress,
+			"input nft level", level, "real nft level", level2)
+		return errors.New("not exist nft")
+	}
 	if buyerNftAddress != sellerNftAddress {
 		log.Error("BuyNFTByExchanger(), the nft address is not same from buyer and seller!",
 			"buyerNftAddress", buyerNftAddress.String(), "sellerNftAddress", sellerNftAddress.String())
 		return errors.New("the nft address is not same from buyer and seller!")
+	}
+	pledgedFlag := db.GetPledgedFlag(buyerNftAddress)
+	if pledgedFlag {
+		return errors.New("has been pledged")
 	}
 
 	buyerExchanger := common.HexToAddress(wormholes.Buyer.Exchanger)
