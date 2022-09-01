@@ -44,6 +44,8 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 const CancelPledgedInterval = 3 * 24 // for test
 //const CloseExchangerInterval = 180 * 720 * 24	// day * blockNumber of per hour * 24h
 const CloseExchangerInterval = 3 * 24 // for test
+//const CancelNFTPledgedInterval = 365 * 720 * 24	// day * blockNumber of per hour * 24h
+const CancelNFTPledgedInterval = 3 * 24 // for test
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
@@ -1035,6 +1037,12 @@ func (evm *EVM) HandleNFT(
 	case 8: //cancel nft pledge
 		log.Info("HandleNFT(), CancelPledgedNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
+		nftPledgedTime := evm.Context.GetNFTPledgedBlockNumber(evm.StateDB, caller.Address())
+		if big.NewInt(CancelNFTPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, nftPledgedTime)) > 0 {
+			log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type,
+				"error", ErrTooCloseToCancel, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrTooCloseToCancel
+		}
 		if !strings.HasPrefix(wormholes.NFTAddress, "0x") &&
 			!strings.HasPrefix(wormholes.NFTAddress, "0X") {
 			return nil, gas, ErrStartIndex
