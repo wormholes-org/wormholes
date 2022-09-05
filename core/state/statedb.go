@@ -1740,7 +1740,11 @@ func (s *StateDB) IsCanMergeNFT16(nftAddr common.Address) bool {
 		siblingStateObject := s.getStateObject(siblingAddr)
 		if siblingStateObject != nil &&
 			siblingStateObject.NFTOwner() == emptyAddress {
-			continue
+			if siblingStateObject.GetNFTMergeLevel() != mergeLevel {
+				return false
+			} else {
+				continue
+			}
 		}
 		if siblingStateObject == nil ||
 			siblingStateObject.NFTOwner() != nftStateObject.NFTOwner() ||
@@ -2708,8 +2712,8 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,

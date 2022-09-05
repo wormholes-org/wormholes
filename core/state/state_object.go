@@ -870,7 +870,9 @@ func (s *stateObject) cleanNFT() {
 	s.data.Owner = common.Address{}
 	//s.data.NFTApproveAddressList = s.data.NFTApproveAddressList[:0]
 	s.data.NFTApproveAddressList = common.Address{}
-	s.data.MergeLevel = 0
+	// Don't reset MergeLevel, because merging snft need to check this value
+	// we use this value to check if snfts are in same layer
+	//s.data.MergeLevel = 0
 	s.data.MergeNumber = 0
 	s.data.PledgedFlag = false
 	s.data.NFTPledgedBlockNumber = big.NewInt(0)
