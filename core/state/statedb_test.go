@@ -917,17 +917,16 @@ func TestStateDBAccessList(t *testing.T) {
 	}
 }
 
-
 func TestMergeNFT(t *testing.T) {
 	memDb := rawdb.NewMemoryDatabase()
 	db := NewDatabase(memDb)
 	state, _ := New(common.Hash{}, db, nil)
 
-	for i:=0; i<256*256; i++ {
+	for i := 0; i < 256*256; i++ {
 		bigi := big.NewInt(int64(i))
 		bigiS := hex.EncodeToString(bigi.Bytes())
 		var prefix0 string
-		for j:=0; j<40-len(bigiS); j++ {
+		for j := 0; j < 40-len(bigiS); j++ {
 			prefix0 = prefix0 + "0"
 		}
 		bigiS = prefix0 + bigiS
@@ -960,11 +959,11 @@ func TestGetNFTStoreAddress(t *testing.T) {
 	db := NewDatabase(memDb)
 	state, _ := New(common.Hash{}, db, nil)
 	bigi := big.NewInt(0)
-	for i:=0; i<256*256; i++ {
+	for i := 0; i < 256*256; i++ {
 		bigi.SetInt64(int64(i))
 		bigiS := hex.EncodeToString(bigi.Bytes())
 		var prefix0 string
-		for j:=0; j<40-len(bigiS); j++ {
+		for j := 0; j < 40-len(bigiS); j++ {
 			prefix0 = prefix0 + "0"
 		}
 		bigiS = prefix0 + bigiS
@@ -997,11 +996,11 @@ func TestSplitNFT(t *testing.T) {
 	db := NewDatabase(memDb)
 	state, _ := New(common.Hash{}, db, nil)
 	bigi := big.NewInt(0)
-	for i:=0; i<256*256; i++ {
+	for i := 0; i < 256*256; i++ {
 		bigi.SetInt64(int64(i))
 		bigiS := hex.EncodeToString(bigi.Bytes())
 		var prefix0 string
-		for j:=0; j<40-len(bigiS); j++ {
+		for j := 0; j < 40-len(bigiS); j++ {
 			prefix0 = prefix0 + "0"
 		}
 		bigiS = prefix0 + bigiS
@@ -1016,7 +1015,7 @@ func TestSplitNFT(t *testing.T) {
 	}
 
 	addr := common.HexToAddress("0000000000000000000000000000000000000000")
-	for i:=0; i<256; i++ {
+	for i := 0; i < 256; i++ {
 		addrBytes := addr.Bytes()
 		addrBytes[18] = byte(i)
 		addr = common.BytesToAddress(addrBytes)
@@ -1028,11 +1027,11 @@ func TestSplitNFT(t *testing.T) {
 	fmt.Println(address.String(), owner.String(), ok, object.GetNFTMergeLevel())
 
 	addrtemp := common.HexToAddress("0000000000000000000000000000000000000000")
-	for i:=0; i<256*256; i++ {
+	for i := 0; i < 256*256; i++ {
 		bigi.SetInt64(int64(i))
 		bigiS := hex.EncodeToString(bigi.Bytes())
 		var prefix0 string
-		for j:=0; j<40-len(bigiS); j++ {
+		for j := 0; j < 40-len(bigiS); j++ {
 			prefix0 = prefix0 + "0"
 		}
 		bigiS = prefix0 + bigiS
@@ -1114,12 +1113,12 @@ func TestMergeNFT16(t *testing.T) {
 
 	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 
-	for i:=0; i<16; i++ {
+	for i := 0; i < 16; i++ {
 		bigi := big.NewInt(int64(i))
 		bigi.Add(bigi, maskB)
 		bigiS := hex.EncodeToString(bigi.Bytes())
 		var prefix0 string
-		for j:=0; j<40-len(bigiS); j++ {
+		for j := 0; j < 40-len(bigiS); j++ {
 			prefix0 = prefix0 + "0"
 		}
 		bigiS = prefix0 + bigiS
@@ -1149,7 +1148,6 @@ func TestMergeNFT16(t *testing.T) {
 	//nftAddr = common.HexToAddress("0000000000000000000000000000000000000000")
 	//state.MergeNFT(nftAddr)
 
-
 	fmt.Println(state.trie)
 }
 
@@ -1161,12 +1159,12 @@ func TestSplitNFT16(t *testing.T) {
 	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 
 	bigi := new(big.Int).Set(maskB)
-	for i:=0; i<16; i++ {
+	for i := 0; i < 16; i++ {
 		bigi.SetInt64(int64(i))
 		bigi.Add(bigi, maskB)
 		bigiS := hex.EncodeToString(bigi.Bytes())
 		var prefix0 string
-		for j:=0; j<40-len(bigiS); j++ {
+		for j := 0; j < 40-len(bigiS); j++ {
 			prefix0 = prefix0 + "0"
 		}
 		bigiS = prefix0 + bigiS
@@ -1189,9 +1187,8 @@ func TestSplitNFT16(t *testing.T) {
 	state.MergeNFT16(nftAddr1)
 	state.SplitNFT16(nftAddr1, 0)
 
-
 	addr := common.HexToAddress("0000000000000000000000000000000000000000")
-	for i:=0; i<256; i++ {
+	for i := 0; i < 256; i++ {
 		addrBytes := addr.Bytes()
 		addrBytes[18] = byte(i)
 		addr = common.BytesToAddress(addrBytes)
@@ -1203,11 +1200,11 @@ func TestSplitNFT16(t *testing.T) {
 	fmt.Println(address.String(), owner.String(), ok, object.GetNFTMergeLevel())
 
 	addrtemp := common.HexToAddress("0000000000000000000000000000000000000000")
-	for i:=0; i<256*256; i++ {
+	for i := 0; i < 256*256; i++ {
 		bigi.SetInt64(int64(i))
 		bigiS := hex.EncodeToString(bigi.Bytes())
 		var prefix0 string
-		for j:=0; j<40-len(bigiS); j++ {
+		for j := 0; j < 40-len(bigiS); j++ {
 			prefix0 = prefix0 + "0"
 		}
 		bigiS = prefix0 + bigiS
@@ -1282,4 +1279,136 @@ func TestSplitNFT16(t *testing.T) {
 	fmt.Println(addrStateObject.NFTOwner(), addrStateObject.GetNFTMergeLevel())
 }
 
+func TestGetExistAddress(t *testing.T) {
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	state, _ := New(common.Hash{}, db, nil)
 
+	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+
+	bigi := new(big.Int).Set(maskB)
+	for i := 4096; i < 8192; i++ {
+		bigi.SetInt64(int64(i))
+		bigi.Add(bigi, maskB)
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j := 0; j < 40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+		newAccount := common.HexToAddress(bigiS)
+		state.CreateAccount(newAccount)
+		newObject := state.getStateObject(newAccount)
+		newObject.address = newAccount
+		newObject.addrHash = newAccount.Hash()
+		//if i >= 256 {
+		//	newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA")
+		//} else {
+		//	newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		//}
+
+		if i == 4353 {
+			newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA")
+		} else {
+			newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		}
+
+		//newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+
+		newObject.data.MergeLevel = 0
+		newObject.data.MetaURL = "ipfs/" + newAccount.String()
+		newObject.data.NFTPledgedBlockNumber = big.NewInt(0)
+		state.updateStateObject(newObject)
+	}
+
+	for i := 4096; i < 8192; i++ {
+		bigi.SetInt64(int64(i))
+		bigi.Add(bigi, maskB)
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j := 0; j < 40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+
+		if (i+1)%16 == 0 {
+			newAccount := common.HexToAddress(bigiS)
+			state.MergeNFT16(newAccount)
+		}
+
+	}
+	address := common.HexToAddress("0x8000000000000000000000000000000000001000")
+	object := state.GetOrNewStateObject(address)
+	//object.CleanNFT()
+	t.Log("address.MergeLevel=", object.GetMergeLevel())
+	nftAddress := common.HexToAddress("8000000000000000000000000000000000000010")
+	existAddress := state.GetExistAddress(nftAddress, 2)
+	t.Log("exist address=", existAddress.String())
+}
+
+func TestGetExistAddress2(t *testing.T) {
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	state, _ := New(common.Hash{}, db, nil)
+
+	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+
+	bigi := new(big.Int).Set(maskB)
+	for i := 0; i < 16; i++ {
+		bigi.SetInt64(int64(i))
+		bigi.Add(bigi, maskB)
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j := 0; j < 40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+		newAccount := common.HexToAddress(bigiS)
+		state.CreateAccount(newAccount)
+		newObject := state.getStateObject(newAccount)
+		newObject.address = newAccount
+		newObject.addrHash = newAccount.Hash()
+		//if i >= 256 {
+		//	newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA")
+		//} else {
+		//	newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		//}
+
+		if i == 5 {
+			newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA")
+		} else {
+			newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+		}
+
+		//newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+
+		newObject.data.MergeLevel = 0
+		newObject.data.MetaURL = "ipfs/" + newAccount.String()
+		newObject.data.NFTPledgedBlockNumber = big.NewInt(0)
+		state.updateStateObject(newObject)
+	}
+
+	for i := 0; i < 16; i++ {
+		bigi.SetInt64(int64(i))
+		bigi.Add(bigi, maskB)
+		bigiS := hex.EncodeToString(bigi.Bytes())
+		var prefix0 string
+		for j := 0; j < 40-len(bigiS); j++ {
+			prefix0 = prefix0 + "0"
+		}
+		bigiS = prefix0 + bigiS
+
+		if (i+1)%16 == 0 {
+			newAccount := common.HexToAddress(bigiS)
+			state.MergeNFT16(newAccount)
+		}
+
+	}
+	address := common.HexToAddress("0x8000000000000000000000000000000000000000")
+	object := state.GetOrNewStateObject(address)
+	//object.CleanNFT()
+	t.Log("address.MergeLevel=", object.GetMergeLevel())
+	nftAddress := common.HexToAddress("8000000000000000000000000000000000000010")
+	existAddress := state.GetExistAddress(nftAddress, 2)
+	t.Log("exist address=", existAddress.String())
+}
