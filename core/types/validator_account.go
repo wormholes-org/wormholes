@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sort"
 
@@ -72,13 +73,16 @@ func (vl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) 
 			if v.Balance.Cmp(balance) > 0 {
 				v.Balance.Sub(v.Balance, balance)
 				sort.Sort(vl)
+				//vl.CalculateAddressRange(addr, balance)
 				return true
 			} else if v.Balance.Cmp(balance) == 0 {
 				v.Balance.Sub(v.Balance, balance)
 				vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
+				//vl.CalculateAddressRange(addr, balance)
 				return true
 			}
 			vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
+			//vl.CalculateAddressRange(addr, balance)
 			return true
 		}
 	}
@@ -99,34 +103,34 @@ func (vl *ValidatorList) CalculateAddressRange(address common.Address, stakeAmt 
 		vl.AddAddrRange(address, addrRange)
 	}
 
-	//if big.NewInt(0).Add(addrNo, rangeLenth).Cmp(maxValue) < 0 {
-	//	addrRange := []*big.Int{addrNo, big.NewInt(0).Add(addrNo, rangeLenth)}
-	//	vl.AddAddrRange(address, addrRange)
-	//} else {
-	//	modValue := big.NewInt(0).Mod(big.NewInt(0).Add(addrNo, rangeLenth), maxValue)
-	//	addrRange := []*big.Int{addrNo, maxValue, minValue, modValue}
+	if big.NewInt(0).Add(addrNo, rangeLenth).Cmp(maxValue) < 0 {
+		addrRange := []*big.Int{addrNo, big.NewInt(0).Add(addrNo, rangeLenth)}
+		vl.AddAddrRange(address, addrRange)
+	} else {
+		modValue := big.NewInt(0).Mod(big.NewInt(0).Add(addrNo, rangeLenth), maxValue)
+		addrRange := []*big.Int{addrNo, maxValue, minValue, modValue}
+		vl.AddAddrRange(address, addrRange)
+	}
+
+	//if rangeLenth.Cmp(maxValue) > 0 {
+	//	addrRange := []*big.Int{minValue, maxValue}
 	//	vl.AddAddrRange(address, addrRange)
 	//}
-
-	if rangeLenth.Cmp(maxValue) > 0 {
-		addrRange := []*big.Int{minValue, maxValue}
-		vl.AddAddrRange(address, addrRange)
-	}
-	if addrNo.Cmp(rangeLenth) > 0 && big.NewInt(0).Add(addrNo, rangeLenth).Cmp(maxValue) < 0 {
-		addrRange := []*big.Int{big.NewInt(0).Sub(addrNo, rangeLenth), big.NewInt(0).Add(addrNo, rangeLenth)}
-		vl.AddAddrRange(address, addrRange)
-	}
-
-	if addrNo.Cmp(rangeLenth) < 0 && big.NewInt(0).Add(addrNo, rangeLenth).Cmp(maxValue) < 0 {
-		addrRange := []*big.Int{minValue, big.NewInt(0).Add(addrNo, rangeLenth),
-			big.NewInt(0).Add(big.NewInt(0).Sub(maxValue, rangeLenth), addrNo), maxValue}
-		vl.AddAddrRange(address, addrRange)
-	}
-
-	if addrNo.Cmp(rangeLenth) > 0 && big.NewInt(0).Add(addrNo, rangeLenth).Cmp(maxValue) > 0 {
-		addrRange := []*big.Int{big.NewInt(0).Sub(addrNo, rangeLenth), maxValue, minValue, big.NewInt(0).Sub(big.NewInt(0).Add(addrNo, rangeLenth), maxValue)}
-		vl.AddAddrRange(address, addrRange)
-	}
+	//if addrNo.Cmp(rangeLenth) > 0 && big.NewInt(0).Add(addrNo, rangeLenth).Cmp(maxValue) < 0 {
+	//	addrRange := []*big.Int{big.NewInt(0).Sub(addrNo, rangeLenth), big.NewInt(0).Add(addrNo, rangeLenth)}
+	//	vl.AddAddrRange(address, addrRange)
+	//}
+	//
+	//if addrNo.Cmp(rangeLenth) < 0 && big.NewInt(0).Add(addrNo, rangeLenth).Cmp(maxValue) < 0 {
+	//	addrRange := []*big.Int{minValue, big.NewInt(0).Add(addrNo, rangeLenth),
+	//		big.NewInt(0).Add(big.NewInt(0).Sub(maxValue, rangeLenth), addrNo), maxValue}
+	//	vl.AddAddrRange(address, addrRange)
+	//}
+	//
+	//if addrNo.Cmp(rangeLenth) > 0 && big.NewInt(0).Add(addrNo, rangeLenth).Cmp(maxValue) > 0 {
+	//	addrRange := []*big.Int{big.NewInt(0).Sub(addrNo, rangeLenth), maxValue, minValue, big.NewInt(0).Sub(big.NewInt(0).Add(addrNo, rangeLenth), maxValue)}
+	//	vl.AddAddrRange(address, addrRange)
+	//}
 
 	return
 }
@@ -180,6 +184,23 @@ func (vl *ValidatorList) RandomValidatorV2(k int, randomHash common.Hash) []comm
 	if err != nil {
 		return []common.Address{}
 	}
+
+	// Make up for less than K
+	diffCount := k - len(validators)
+	for _, v := range vl.Validators {
+		flg := false
+		for _, vv := range validators {
+			if vv == v.Addr {
+				flg = true
+				break
+			}
+		}
+		if !flg && diffCount > 0 {
+			validators = append(validators, v.Addr)
+			diffCount--
+		}
+	}
+	log.Info("ccccccccc", "len", len(validators), "k", k)
 	return validators
 }
 
@@ -211,7 +232,6 @@ func (vl *ValidatorList) CollectValidators(randomHash common.Hash, k int) (error
 			}
 		}
 	}
-	// TODO  must be proxy or delegate address
 	return nil, validators
 }
 
@@ -282,7 +302,7 @@ func (vl *ValidatorList) GetProxy(delegate common.Address) (common.Address, bool
 
 func (vl *ValidatorList) ExistAdderRange(addr common.Address) bool {
 	for _, v := range vl.Validators {
-		if v.Addr == addr && v.Weight != nil {
+		if (v.Addr == addr || v.Proxy == addr) && v.Weight != nil {
 			return true
 		}
 	}
@@ -291,7 +311,7 @@ func (vl *ValidatorList) ExistAdderRange(addr common.Address) bool {
 
 func (vl *ValidatorList) AddAddrRange(addr common.Address, weight []*big.Int) {
 	for _, v := range vl.Validators {
-		if v.Addr == addr {
+		if v.Addr == addr || v.Proxy == addr {
 			v.Weight = weight
 		}
 	}

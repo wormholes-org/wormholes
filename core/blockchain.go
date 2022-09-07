@@ -1575,6 +1575,11 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		state.PledgedTokenPool = state.PledgedTokenPool[:0]
 	}
 
+	// Recalculate the weight, which needs to be calculated after the list is determined
+	for _, account := range validatorPool.Validators {
+		validatorPool.CalculateAddressRange(account.Addr, account.Balance)
+	}
+
 	bc.WriteValidatorPool(block.Header(), validatorPool)
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 
@@ -2665,23 +2670,8 @@ func (bc *BlockChain) ReadValidatorPool(header *types.Header) *types.ValidatorLi
 func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
 	validatorList := bc.ReadValidatorPool(header)
 
-	// todo strategy to change
-	// Get the top 7 validators of the pledge amount
-	fixedValidators := validatorList.Validators[:7]
-
-	for i, v := range fixedValidators {
-		log.Info("Random11ValidatorFromPool : seven addr", "i", i, "addr", v, "no", header.Number.Uint64())
-	}
-
-	// Get 4 other validators besides the above 7
-	random4Validators := validatorList.ValidatorByDistanceAndWeight(validatorList.ConvertToBigInt(validatorList.Validators[7:]), 4, header.Hash())
-
-	validators := make([]common.Address, 0)
-	validators = append(validators, random4Validators...)
-	for _, v := range fixedValidators {
-		validators = append(validators, v.Addr)
-	}
-
+	validators := validatorList.RandomValidatorV2(11, header.Hash())
+	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	elevenValidator := new(types.ValidatorList)
 	for _, addr := range validators {
 		//todo proxy 全部空值
@@ -2697,8 +2687,10 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 }
 
 func (bc *BlockChain) RandomNValidatorFromEleven(amount int, elevenValidator *types.ValidatorList, parentHash common.Hash) []common.Address {
-	validators := elevenValidator.ValidatorByDistanceAndWeight(elevenValidator.ConvertToBigInt(elevenValidator.Validators), amount, parentHash)
-	return validators
+	//validators := elevenValidator.ValidatorByDistanceAndWeight(elevenValidator.ConvertToBigInt(elevenValidator.Validators), amount, parentHash)
+	//return validators
+
+	return elevenValidator.RandomValidatorV2(amount, parentHash)
 }
 
 // WriteMintDeep writes mintdeep to chaindb

@@ -91,6 +91,28 @@ func TestCollectValidators(t *testing.T) {
 	//fmt.Println("11StakeAmt====", random11Amt, "totalAmt", validatorList.TotalStakeBalance(), "hash", hash.Hex())
 }
 
+func TestStability(t *testing.T) {
+	//cannot have random addresses
+	validatorList := prepareFixedValidator()
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+	for i, v := range validatorList.Validators {
+		fmt.Println("=====i====", i, "====weight====", v.Weight)
+	}
+	hash := common.HexToHash("0xba84ce252cfa4ac640ddbbec2e634d544cb4aacf1880b24126d9300b9a38534d")
+	err, res := validatorList.CollectValidators(hash, 11)
+	if err != nil {
+		fmt.Println("error collect validators", err)
+	}
+	random11Amt := big.NewInt(0)
+	for i, v := range res {
+		fmt.Println("i===", i, "v====", v, "balance=====", validatorList.StakeBalance(v))
+		random11Amt.Add(random11Amt, validatorList.StakeBalance(v))
+	}
+	fmt.Println("11StakeAmt====", random11Amt, "totalAmt", validatorList.TotalStakeBalance(), "hash", hash.Hex())
+}
+
 func prepareFixedValidator() *ValidatorList {
 	var validators []*Validator
 	stakeAmt := []*big.Int{
@@ -110,34 +132,14 @@ func prepareFixedValidator() *ValidatorList {
 		big.NewInt(15),
 		big.NewInt(16),
 		big.NewInt(17),
-		big.NewInt(1),
-		big.NewInt(7),
-		big.NewInt(7),
-		big.NewInt(5),
-		big.NewInt(4),
-		big.NewInt(3),
-		big.NewInt(1),
-		big.NewInt(1),
-		big.NewInt(1),
-		big.NewInt(1),
-		big.NewInt(1),
-		big.NewInt(1),
-		big.NewInt(15),
-		big.NewInt(14),
-		big.NewInt(13),
-		big.NewInt(14),
-		big.NewInt(13),
-		big.NewInt(12),
-		big.NewInt(13),
-		big.NewInt(13),
-		big.NewInt(14),
-		big.NewInt(12),
-		big.NewInt(13),
-		big.NewInt(13),
-		big.NewInt(14),
-		big.NewInt(15),
-		big.NewInt(16),
+
+		//
 		big.NewInt(17),
+		big.NewInt(1),
+		big.NewInt(1),
+		big.NewInt(13),
+		big.NewInt(13),
+		big.NewInt(14),
 	}
 
 	addrs := []common.Address{
@@ -158,34 +160,13 @@ func prepareFixedValidator() *ValidatorList {
 		common.HexToAddress("0xc067825f4B7a53Bb9f2Daf72fF22C8EE39736afF"),
 		common.HexToAddress("0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09"),
 
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
-		common.HexToAddress(RandomAddr().Hex()),
+		//
+		common.HexToAddress("0xB6FD5851a8c1d9B1C22a210664Fbe7187C137582"),
+		common.HexToAddress("0xa4E91908d98aC1b0F232B6873F0989cDE07c7C71"),
+		common.HexToAddress("0x1778B78658dDb31a8F0b8ba80E8471225050c62d"),
+		common.HexToAddress("0xC12703f9708eE5A5A704696Ea3Dcb0f1c784273a"),
+		common.HexToAddress("0xb67Db7D7e97486b3f23369160363430c0e98dFC9"),
+		common.HexToAddress("0x7d5412AeA1e796fC58b3A8Be12a2d853528007dC"),
 	}
 
 	for i := 0; i < len(addrs); i++ {
@@ -199,4 +180,33 @@ func prepareFixedValidator() *ValidatorList {
 func RandomAddr() common.Address {
 	priKey, _ := crypto.GenerateKey()
 	return crypto.PubkeyToAddress(priKey.PublicKey)
+}
+
+func TestGetAddr(t *testing.T) {
+	for i, address := range Get11Addr() {
+		fmt.Println("i====", i, "====addr===", address)
+	}
+}
+
+func Get11Addr() []common.Address {
+	var addrs []common.Address
+	for i := 0; i < 11; i++ {
+		priKey, _ := crypto.GenerateKey()
+		addrs = append(addrs, crypto.PubkeyToAddress(priKey.PublicKey))
+	}
+	return addrs
+}
+
+func TestRandomValidatorV2(t *testing.T) {
+	validatorList := prepareFixedValidator()
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+	// This hash will calculate less than 15 validators
+	// Stable calculation of a validator
+	hash := common.HexToHash("0xd95b0361af0635770474311d57c543c90c609b41d18fa0af95583872c3e2ad6f")
+	vals := validatorList.RandomValidatorV2(15, hash)
+	for i, val := range vals {
+		fmt.Println("====i====", i, "====val====", val)
+	}
 }

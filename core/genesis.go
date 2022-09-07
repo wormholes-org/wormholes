@@ -367,7 +367,14 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 		proxy := common.HexToAddress(account.Proxy)
 		validatorList.AddValidator(addr, account.Balance, proxy)
 	}
+	// Recalculate the weight, which needs to be calculated after the list is determined
+	for addr, account := range g.Validator {
+		validatorList.CalculateAddressRange(addr, account.Balance)
+	}
 
+	for _, v := range validatorList.Validators {
+		log.Info("genesis|validator|weight", "addr", v.Addr, "balance", v.Balance, "weight", v.Weight)
+	}
 	rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
 	rawdb.WriteValidatorPool(db, block.Hash(), block.NumberU64(), &validatorList)
 
