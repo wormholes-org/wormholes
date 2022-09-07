@@ -62,7 +62,7 @@ var (
 	ErrNotPledge                    = errors.New("not pledge")
 	ErrNotMergedSNFT                = errors.New("not merged snft")
 	ErrHasBeenPledged               = errors.New("has been pledged")
-	ErrNotExistFrozenAccount        = errors.New("not exist frozen account")
+	ErrNotExistFrozenAccount        = errors.New("not exist frozen account or unfrozen time not arrive in")
 )
 
 // ErrStackUnderflow wraps an evm error when the items on the stack less

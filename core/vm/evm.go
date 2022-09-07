@@ -1569,10 +1569,12 @@ func (evm *EVM) HandleNFT(
 		log.Info("HandleNFT(), UnfrozenAccount", "wormholes.Type", wormholes.Type,
 			"parentblocknumber", evm.Context.ParentHeader.Number.Uint64(), "parenttime", evm.Context.ParentHeader.Time)
 		var existFlag bool
+		var frozenAmount *big.Int
 		for _, frozenAccount := range FrozenAcconts {
 			if frozenAccount.Account == caller.Address() &&
 				frozenAccount.UnfrozenTime <= evm.Context.ParentHeader.Time {
 				existFlag = true
+				frozenAmount = new(big.Int).Set(frozenAccount.Amount)
 				break
 			}
 		}
@@ -1583,7 +1585,7 @@ func (evm *EVM) HandleNFT(
 			return nil, gas, ErrNotExistFrozenAccount
 		}
 
-		evm.Context.UnfrozenAccount(evm.StateDB, caller.Address(), value)
+		evm.Context.UnfrozenAccount(evm.StateDB, caller.Address(), frozenAmount)
 		log.Info("HandleNFT(), UnfrozenAccount<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 
