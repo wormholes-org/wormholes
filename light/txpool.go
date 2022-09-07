@@ -436,7 +436,7 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 				return core.ErrInsufficientFunds
 			}
 			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
-			if currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+			if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
 				return core.ErrInsufficientFunds
 			}
 			// recover buyer address
@@ -458,7 +458,7 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 				return core.ErrInsufficientFunds
 			}
 			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
-			if currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+			if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
 				return core.ErrInsufficientFunds
 			}
 			// recover buyer address
@@ -505,7 +505,7 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 			}
 		case 24:
 			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
-			if currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+			if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
 				return core.ErrInsufficientFunds
 			}
 		default:

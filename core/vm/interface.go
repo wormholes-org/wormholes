@@ -132,6 +132,7 @@ type StateDB interface {
 	GetMergeNumber(common.Address) uint32
 	GetPledgedFlag(common.Address) bool
 	GetNFTPledgedBlockNumber(common.Address) *big.Int
+	UnfrozenAccount(common.Address, *big.Int)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

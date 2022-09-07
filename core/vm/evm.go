@@ -119,6 +119,7 @@ type (
 	GetMergeNumberFunc           func(StateDB, common.Address) uint32
 	GetPledgedFlagFunc           func(StateDB, common.Address) bool
 	GetNFTPledgedBlockNumberFunc func(StateDB, common.Address) *big.Int
+	UnfrozenAccountFunc          func(StateDB, common.Address, *big.Int)
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -212,8 +213,12 @@ type BlockContext struct {
 	GetMergeNumber           GetMergeNumberFunc
 	GetPledgedFlag           GetPledgedFlagFunc
 	GetNFTPledgedBlockNumber GetNFTPledgedBlockNumberFunc
+	UnfrozenAccount          UnfrozenAccountFunc
 
 	// Block information
+
+	ParentHeader *types.Header
+
 	Coinbase    common.Address // Provides information for COINBASE
 	GasLimit    uint64         // Provides information for GASLIMIT
 	BlockNumber *big.Int       // Provides information for NUMBER
@@ -321,7 +326,10 @@ func RecoverAddress(msg string, sigStr string) (common.Address, error) {
 		!strings.HasPrefix(sigStr, "0X") {
 		return common.Address{}, fmt.Errorf("signature must be started with 0x or 0X")
 	}
-	sigData := hexutil.MustDecode(sigStr)
+	sigData, err := hexutil.Decode(sigStr)
+	if err != nil {
+		return common.Address{}, err
+	}
 	if len(sigData) != 65 {
 		return common.Address{}, fmt.Errorf("signature must be 65 bytes long")
 	}
@@ -330,7 +338,7 @@ func RecoverAddress(msg string, sigStr string) (common.Address, error) {
 	}
 	sigData[64] -= 27
 	hash, _ := hashMsg([]byte(msg))
-	fmt.Println("sigdebug hash=", hexutil.Encode(hash))
+	//fmt.Println("sigdebug hash=", hexutil.Encode(hash))
 	rpk, err := crypto.SigToPub(hash, sigData)
 	if err != nil {
 		return common.Address{}, err
@@ -1555,6 +1563,29 @@ func (evm *EVM) HandleNFT(
 	//		caller.Address(),
 	//		wormholes.RewardFlag)
 	//	log.Info("HandleNFT(), ChangeRewardFlag<<<<<<<<<<", "wormholes.Type", wormholes.Type)
+	case 25:
+		log.Info("HandleNFT(), UnfrozenAccount>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
+		log.Info("HandleNFT(), UnfrozenAccount", "wormholes.Type", wormholes.Type,
+			"parentblocknumber", evm.Context.ParentHeader.Number.Uint64(), "parenttime", evm.Context.ParentHeader.Time)
+		var existFlag bool
+		for _, frozenAccount := range FrozenAcconts {
+			if frozenAccount.Account == caller.Address() &&
+				frozenAccount.UnfrozenTime <= evm.Context.ParentHeader.Time {
+				existFlag = true
+				break
+			}
+		}
+
+		if !existFlag {
+			log.Error("HandleNFT(), UnfrozenAccount", "wormholes.Type", wormholes.Type, "error", ErrNotExistFrozenAccount,
+				"blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotExistFrozenAccount
+		}
+
+		evm.Context.UnfrozenAccount(evm.StateDB, caller.Address(), value)
+		log.Info("HandleNFT(), UnfrozenAccount<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
 
 	default:
 		log.Error("HandleNFT()", "wormholes.Type", wormholes.Type, "error", ErrNotExistNFTType,

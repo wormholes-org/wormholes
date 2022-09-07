@@ -235,7 +235,7 @@ func (st *StateTransition) buyGas() error {
 			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
 			}
-			exchangerBalance := st.state.GetExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
+			exchangerBalance := st.state.GetBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
 			if exchangerBalance.Cmp(balanceCheck) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
 			}
@@ -243,7 +243,7 @@ func (st *StateTransition) buyGas() error {
 			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
 			}
-			exchangerBalance := st.state.GetExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
+			exchangerBalance := st.state.GetBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
 			if exchangerBalance.Cmp(balanceCheck) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
 			}
@@ -259,7 +259,7 @@ func (st *StateTransition) buyGas() error {
 			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
 			}
-			exchangerBalance := st.state.GetExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
+			exchangerBalance := st.state.GetBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
 			if exchangerBalance.Cmp(balanceCheck) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
 			}
@@ -537,7 +537,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			//		vmerr != ErrNotMatchAddress) {
 			if vmerr == nil {
 				st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
-				st.state.SubExchangerBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner),
+				st.state.SubBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner),
 					new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 			}
 		}

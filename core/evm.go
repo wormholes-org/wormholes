@@ -75,6 +75,8 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		BaseFee:     baseFee,
 		GasLimit:    header.GasLimit,
 
+		ParentHeader: chain.GetHeader(header.ParentHash, header.Number.Uint64()),
+
 		// *** modify to support nft transaction 20211215 begin ***
 		VerifyNFTOwner: VerifyNFTOwner,
 		TransferNFT:    TransferNFT,
@@ -137,6 +139,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		GetMergeNumber:           GetMergeNumber,
 		GetPledgedFlag:           GetPledgedFlag,
 		GetNFTPledgedBlockNumber: GetNFTPledgedBlockNumber,
+		UnfrozenAccount:          UnfrozenAccount,
 	}
 }
 
@@ -444,7 +447,10 @@ func RecoverAddress(msg string, sigStr string) (common.Address, error) {
 		!strings.HasPrefix(sigStr, "0X") {
 		return common.Address{}, fmt.Errorf("signature must be started with 0x or 0X")
 	}
-	sigData := hexutil.MustDecode(sigStr)
+	sigData, err := hexutil.Decode(sigStr)
+	if err != nil {
+		return common.Address{}, err
+	}
 	if len(sigData) != 65 {
 		return common.Address{}, fmt.Errorf("signature must be 65 bytes long")
 	}
@@ -453,7 +459,7 @@ func RecoverAddress(msg string, sigStr string) (common.Address, error) {
 	}
 	sigData[64] -= 27
 	hash, _ := hashMsg([]byte(msg))
-	fmt.Println("sigdebug hash=", hexutil.Encode(hash))
+	//fmt.Println("sigdebug hash=", hexutil.Encode(hash))
 	rpk, err := crypto.SigToPub(hash, sigData)
 	if err != nil {
 		return common.Address{}, err
@@ -1929,4 +1935,8 @@ func GetPledgedFlag(db vm.StateDB, nftaddress common.Address) bool {
 
 func GetNFTPledgedBlockNumber(db vm.StateDB, nftaddress common.Address) *big.Int {
 	return db.GetNFTPledgedBlockNumber(nftaddress)
+}
+
+func UnfrozenAccount(db vm.StateDB, address common.Address, amount *big.Int) {
+	db.UnfrozenAccount(address, amount)
 }

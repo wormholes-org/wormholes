@@ -135,6 +135,8 @@ type StateDB struct {
 	OfficialNFTPool      *types.InjectedOfficialNFTList
 	NominatedOfficialNFT *types.NominatedOfficialNFT
 
+	FrozenAccounts []*types.FrozenAccount
+
 	ValidatorPool []*types.Validator
 }
 
@@ -829,6 +831,7 @@ func (s *StateDB) Copy() *StateDB {
 		ActiveMinersPool:     new(types.ActiveMinerList),
 		OfficialNFTPool:      new(types.InjectedOfficialNFTList),
 		NominatedOfficialNFT: new(types.NominatedOfficialNFT),
+		FrozenAccounts:       make([]*types.FrozenAccount, 0),
 	}
 	// Copy the dirty states, logs, and preimages
 	for addr := range s.journal.dirties {
@@ -1002,6 +1005,16 @@ func (s *StateDB) Copy() *StateDB {
 				Balance: v.Balance,
 			}
 			state.ValidatorPool = append(state.ValidatorPool, &a)
+		}
+	}
+
+	if s.FrozenAccounts != nil && len(s.FrozenAccounts) > 0 {
+		for _, v := range s.FrozenAccounts {
+			var frozenAccount types.FrozenAccount
+			frozenAccount.Account = v.Account
+			frozenAccount.Amount = new(big.Int).Set(v.Amount)
+			frozenAccount.UnfrozenTime = v.UnfrozenTime
+			state.FrozenAccounts = append(state.FrozenAccounts, &frozenAccount)
 		}
 	}
 
@@ -3085,3 +3098,14 @@ func (s *StateDB) NextIndex() *big.Int {
 //		stateObject.ChangeRewardFlag(flag)
 //	}
 //}
+
+func (s *StateDB) UnfrozenAccount(addr common.Address, amount *big.Int) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.AddBalance(amount)
+		var frozenAccount types.FrozenAccount
+		frozenAccount.Account = addr
+		frozenAccount.Amount = new(big.Int).Set(amount)
+		s.FrozenAccounts = append(s.FrozenAccounts, &frozenAccount)
+	}
+}

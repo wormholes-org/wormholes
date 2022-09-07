@@ -1602,6 +1602,11 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 
 	log.Info("caver|len-activeMinerPool", "after", len(state.ActiveMinersPool.ActiveMiners), "no", block.NumberU64())
 
+	if state.FrozenAccounts != nil && len(state.FrozenAccounts) > 0 {
+		UpdateFrozenAccounts(state.FrozenAccounts)
+		state.FrozenAccounts = state.FrozenAccounts[:0]
+	}
+
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
@@ -2988,4 +2993,24 @@ func getSurroundingChainNo(i, Nr, Np int) []int {
 		}
 	}
 	return chainNoSet
+}
+
+func UpdateFrozenAccounts(unfrozenAccounts []*types.FrozenAccount) {
+	var exist bool
+	var tempFrozenAccounts []*types.FrozenAccount
+
+	if unfrozenAccounts != nil && len(unfrozenAccounts) > 0 {
+		for _, frozenAccount := range vm.FrozenAcconts {
+			exist = false
+			for _, unfrozenAccount := range unfrozenAccounts {
+				if frozenAccount.Account == unfrozenAccount.Account {
+					exist = true
+				}
+			}
+			if !exist {
+				tempFrozenAccounts = append(tempFrozenAccounts, frozenAccount)
+			}
+		}
+		vm.FrozenAcconts = tempFrozenAccounts
+	}
 }
