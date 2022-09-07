@@ -1,7 +1,6 @@
 package types
 
 import (
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sort"
 
@@ -95,19 +94,19 @@ func (vl *ValidatorList) CalculateAddressRange(address common.Address, stakeAmt 
 	minValue := big.NewInt(0)
 	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
 
-	// stakeAmt / totalStakeAmt * maxValue * 7 * 2
-	rangeLenth := big.NewInt(0).Div(big.NewInt(0).Mul(big.NewInt(14), big.NewInt(0).Mul(stakeAmt, maxValue)), totalAmt)
+	// stakeAmt / totalStakeAmt * maxValue * 7
+	rangeLength := big.NewInt(0).Div(big.NewInt(0).Mul(big.NewInt(7), big.NewInt(0).Mul(stakeAmt, maxValue)), totalAmt)
 
-	if rangeLenth.Cmp(maxValue) > 0 {
+	if rangeLength.Cmp(maxValue) > 0 {
 		addrRange := []*big.Int{minValue, maxValue}
 		vl.AddAddrRange(address, addrRange)
 	}
 
-	if big.NewInt(0).Add(addrNo, rangeLenth).Cmp(maxValue) < 0 {
-		addrRange := []*big.Int{addrNo, big.NewInt(0).Add(addrNo, rangeLenth)}
+	if big.NewInt(0).Add(addrNo, rangeLength).Cmp(maxValue) < 0 {
+		addrRange := []*big.Int{addrNo, big.NewInt(0).Add(addrNo, rangeLength)}
 		vl.AddAddrRange(address, addrRange)
 	} else {
-		modValue := big.NewInt(0).Mod(big.NewInt(0).Add(addrNo, rangeLenth), maxValue)
+		modValue := big.NewInt(0).Mod(big.NewInt(0).Add(addrNo, rangeLength), maxValue)
 		addrRange := []*big.Int{addrNo, maxValue, minValue, modValue}
 		vl.AddAddrRange(address, addrRange)
 	}
@@ -200,7 +199,6 @@ func (vl *ValidatorList) RandomValidatorV2(k int, randomHash common.Hash) []comm
 			diffCount--
 		}
 	}
-	log.Info("ccccccccc", "len", len(validators), "k", k)
 	return validators
 }
 
