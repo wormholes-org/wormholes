@@ -11,13 +11,13 @@ var FrozenAcconts []*types.FrozenAccount = []*types.FrozenAccount{
 	&types.FrozenAccount{
 		Account:      common.HexToAddress("0xC65F08C9Dfceb0988631B175E293Af5666535CF0"),
 		Amount:       getBig("10000000000000000000000"),
-		UnfrozenTime: getUnixTimestamp("2022-09-08 00:00:00"),
+		UnfrozenTime: getUnixTimestamp("2022-09-08 07:55:00"),
 		//UnfrozenTime: uint64(time.Now().Unix() + 600),
 	},
 	&types.FrozenAccount{
 		Account:      common.HexToAddress("0x8C1931096C17f32FF6a1eFabe642422995a5013B"),
 		Amount:       getBig("10000000000000000000000"),
-		UnfrozenTime: getUnixTimestamp("2022-09-08 00:00:00"),
+		UnfrozenTime: getUnixTimestamp("2022-09-08 08:10:00"),
 		//UnfrozenTime: uint64(time.Now().Unix() + 1200),
 	},
 }
