@@ -274,14 +274,13 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	}
 
 	header := block.Header()
-	//snap, err := sb.snapshot(sb.chain, header.Number.Uint64()-1, header.ParentHash, nil)
-	//if err != nil {
-	//	return 0, err
-	//}
 	var valSet istanbul.ValidatorSet
 	if c, ok := sb.chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
-		if err != nil{
+		for _, v := range validatorList.Validators {
+			log.Info("Backend|Verify", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
+		}
+		if err != nil {
 			return 0, err
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
@@ -341,7 +340,10 @@ func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 	var valSet istanbul.ValidatorSet
 	if c, ok := sb.chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.GetHeaderByHash(hash))
-		if err != nil{
+		for _, v := range validatorList.Validators {
+			log.Info("Backend|getValidators", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v.Addr.Hex())
+		}
+		if err != nil {
 			log.Info("getValidators", "err", err)
 			return nil
 		}

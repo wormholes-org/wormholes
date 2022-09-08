@@ -131,9 +131,10 @@ type StateDB struct {
 	//SNFTExchangePool     *types.SNFTExchangeList
 	PledgedTokenPool     []*types.PledgedToken
 	ExchangerTokenPool   []*types.PledgedToken
-	ActiveMinersPool     *types.ActiveMinerList
 	OfficialNFTPool      *types.InjectedOfficialNFTList
 	NominatedOfficialNFT *types.NominatedOfficialNFT
+
+	FrozenAccounts []*types.FrozenAccount
 
 	ValidatorPool []*types.Validator
 }
@@ -826,9 +827,9 @@ func (s *StateDB) Copy() *StateDB {
 		//SNFTExchangePool:     new(types.SNFTExchangeList),
 		PledgedTokenPool:     make([]*types.PledgedToken, 0),
 		ExchangerTokenPool:   make([]*types.PledgedToken, 0),
-		ActiveMinersPool:     new(types.ActiveMinerList),
 		OfficialNFTPool:      new(types.InjectedOfficialNFTList),
 		NominatedOfficialNFT: new(types.NominatedOfficialNFT),
+		FrozenAccounts:       make([]*types.FrozenAccount, 0),
 	}
 	// Copy the dirty states, logs, and preimages
 	for addr := range s.journal.dirties {
@@ -983,16 +984,6 @@ func (s *StateDB) Copy() *StateDB {
 		state.NominatedOfficialNFT.Address = s.NominatedOfficialNFT.Address
 	}
 
-	state.ActiveMinersPool.ActiveMiners = make([]*types.ActiveMiner, 0)
-	if s.ActiveMinersPool != nil && len(s.ActiveMinersPool.ActiveMiners) > 0 {
-		for _, v := range s.ActiveMinersPool.ActiveMiners {
-			var activeMiner types.ActiveMiner
-			activeMiner.Address = v.Address
-			activeMiner.Balance = v.Balance
-			activeMiner.Height = v.Height
-			state.ActiveMinersPool.ActiveMiners = append(state.ActiveMinersPool.ActiveMiners, &activeMiner)
-		}
-	}
 	state.ValidatorPool = make([]*types.Validator, 0)
 	if s.ValidatorPool != nil && len(s.ValidatorPool) < 0 {
 		for _, v := range s.ValidatorPool {
@@ -1002,6 +993,16 @@ func (s *StateDB) Copy() *StateDB {
 				Balance: v.Balance,
 			}
 			state.ValidatorPool = append(state.ValidatorPool, &a)
+		}
+	}
+
+	if s.FrozenAccounts != nil && len(s.FrozenAccounts) > 0 {
+		for _, v := range s.FrozenAccounts {
+			var frozenAccount types.FrozenAccount
+			frozenAccount.Account = v.Account
+			frozenAccount.Amount = new(big.Int).Set(v.Amount)
+			frozenAccount.UnfrozenTime = v.UnfrozenTime
+			state.FrozenAccounts = append(state.FrozenAccounts, &frozenAccount)
 		}
 	}
 
@@ -2559,27 +2560,6 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 	return nil
 }
 
-func (s *StateDB) AddOrUpdateActiveMiner(address common.Address, balance *big.Int, height uint64) {
-	if s.ActiveMinersPool == nil {
-		s.ActiveMinersPool = new(types.ActiveMinerList)
-	}
-	for _, v := range s.ActiveMinersPool.ActiveMiners {
-		if v.Address == address {
-			v.Height = height
-			return
-		}
-	}
-	// The balance of this part is actually only initialized in the genesisblock
-	// The online proof transaction sent later will get the actual pledge value from the validatorpool when the state is written to the db
-	activeMiner := &types.ActiveMiner{
-		Address: address,
-		Balance: balance,
-		Height:  height,
-	}
-	s.ActiveMinersPool.ActiveMiners = append(s.ActiveMinersPool.ActiveMiners, activeMiner)
-	log.Info("caver|AddOrUpdateActiveMiner", "no", height, "addr", address.Hex(), "len", len(s.ActiveMinersPool.ActiveMiners))
-}
-
 //- cancel pledged token
 //````
 //{
@@ -3085,3 +3065,14 @@ func (s *StateDB) NextIndex() *big.Int {
 //		stateObject.ChangeRewardFlag(flag)
 //	}
 //}
+
+func (s *StateDB) UnfrozenAccount(addr common.Address, amount *big.Int) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.AddBalance(amount)
+		var frozenAccount types.FrozenAccount
+		frozenAccount.Account = addr
+		frozenAccount.Amount = new(big.Int).Set(amount)
+		s.FrozenAccounts = append(s.FrozenAccounts, &frozenAccount)
+	}
+}

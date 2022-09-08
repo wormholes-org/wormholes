@@ -27,9 +27,8 @@ import (
 
 // The fields below define the low level database schema prefixing.
 var (
-	stakePoolKeyPrefix        = []byte("stake-pool")
-	validatorPoolKeyPrefix    = []byte("validator-pool")
-	activeMinersPoolKeyPrefix = []byte("active-miners-pool")
+	stakePoolKeyPrefix     = []byte("stake-pool")
+	validatorPoolKeyPrefix = []byte("validator-pool")
 	// databaseVersionKey tracks the current database version.
 	databaseVersionKey = []byte("DatabaseVersion")
 
@@ -245,10 +244,6 @@ func StakePoolKey(number uint64, hash common.Hash) []byte {
 
 func ValidatorPoolKey(number uint64, hash common.Hash) []byte {
 	return append(append(validatorPoolKeyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
-}
-
-func ActiveMinersPoolKey(number uint64, hash common.Hash) []byte {
-	return append(append(activeMinersPoolKeyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }
 
 // mintDeepKey = mintDeepPrefix + num (uint64 big endian) + hash

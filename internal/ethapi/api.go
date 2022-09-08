@@ -107,14 +107,6 @@ func (s *PublicEthereumAPI) QueryMinerProxy(ctx context.Context, number rpc.Bloc
 	return MinerProxyList, nil
 }
 
-func (s *PublicEthereumAPI) GetActiveLivePool(ctx context.Context, number rpc.BlockNumber) (*types.ActiveMinerList, error) {
-	activeMiners, err := s.b.GetActiveLivePool(ctx, number)
-	if err != nil {
-		return nil, err
-	}
-	return activeMiners, nil
-}
-
 type feeHistoryResult struct {
 	OldestBlock  *hexutil.Big     `json:"oldestBlock"`
 	Reward       [][]*hexutil.Big `json:"reward,omitempty"`
@@ -972,7 +964,7 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 	return &Info
 }
 
-func (s *PublicBlockChainAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.BlockNumber) *InjectedOfficialNFT {
+func (s *PublicBlockChainAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFT {
 	header, err := s.b.HeaderByNumber(ctx, number)
 	if header == nil || err != nil {
 		return nil
