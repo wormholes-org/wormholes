@@ -299,11 +299,12 @@ func (c *Console) AutoCompleteInput(line string, pos int) (string, []string, str
 // Welcome show summary of current Geth instance and some metadata about the
 // console's available modules.
 func (c *Console) Welcome() {
-	message := "Welcome to the Geth JavaScript console!\n\n"
-
+	message := "Welcome to the Wormholes JavaScript console!\n\n"
+	message = message + PrintLogo()
 	// Print some generic Geth metadata
 	if res, err := c.jsre.Run(`
-		var message = "instance: " + web3.version.node + "\n";
+		//var message = "instance: " + web3.version.node + "\n";
+		var message = "instance: " + "Wormholes" + "\n";
 		try {
 			message += "coinbase: " + eth.coinbase + "\n";
 		} catch (err) {}
@@ -484,4 +485,43 @@ func (c *Console) Stop(graceful bool) error {
 	}
 	c.jsre.Stop(graceful)
 	return nil
+}
+
+func PrintLogo() string {
+	var logo string
+	logo = `
+                                          <!-- ###########f         -->
+                                       <!-- ##################      -->
+                                     <!-- ######         #######    -->
+                                    <!-- ####    ########   #####   -->
+                                   <!-- ####   ############  #####  -->
+                     <!-- ###########   ###  ##############   ####  -->
+                 <!-- #  ############### #   ##############  t###   -->
+               <!-- ###  ################   ##############   ###    -->
+              <!-- ####   ##############    ###########    ###      -->
+             <!-- ######    ##########   ###   G####    ##          -->
+             <!-- #########           ######   ###   ######         -->
+              <!-- ######################## ####   ###########      -->
+               <!-- ###########################   ##############    -->
+                 <!-- ################## ######  ################   -->
+                     <!-- ##########t   #######   ################  -->
+                                   <!-- #########   ##############  -->
+                                    <!-- ##########                 -->
+                                     <!-- ######################    -->
+                                       <!-- ##################      -->
+                                          <!-- :##########          -->
+ 
+$$\      $$\                                   $$\                 $$\                     
+$$ | $\  $$ |                                  $$ |                $$ |                    
+$$ |$$$\ $$ | $$$$$$\   $$$$$$\  $$$$$$\$$$$\  $$$$$$$\   $$$$$$\  $$ | $$$$$$\   $$$$$$$\ 
+$$ $$ $$\$$ |$$  __$$\ $$  __$$\ $$  _$$  _$$\ $$  __$$\ $$  __$$\ $$ |$$  __$$\ $$  _____|
+$$$$  _$$$$ |$$ /  $$ |$$ |  \__|$$ / $$ / $$ |$$ |  $$ |$$ /  $$ |$$ |$$$$$$$$ |\$$$$$$\  
+$$$  / \$$$ |$$ |  $$ |$$ |      $$ | $$ | $$ |$$ |  $$ |$$ |  $$ |$$ |$$   ____| \____$$\ 
+$$  /   \$$ |\$$$$$$  |$$ |      $$ | $$ | $$ |$$ |  $$ |\$$$$$$  |$$ |\$$$$$$$\ $$$$$$$  |
+\__/     \__| \______/ \__|      \__| \__| \__|\__|  \__| \______/ \__| \_______|\_______/ 
+                                                                                
+`
+	//fmt.Println(logo)
+
+	return logo
 }

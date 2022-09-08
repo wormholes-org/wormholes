@@ -698,7 +698,7 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 	}
 
 	var deep *types.MintDeep
-	var snftExchangePool *types.SNFTExchangeList
+	//var snftExchangePool *types.SNFTExchangeList
 	if parentHeader.Number.Uint64() > 0 {
 		db := s.b.ChainDb()
 		deep, err = rawdb.ReadMintDeep(db, parentHeader.Hash(), parentHeader.Number.Uint64())
@@ -706,15 +706,15 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 			return nil, err
 		}
 
-		snftExchangePool, err = rawdb.ReadSNFTExchangePool(db, parentHeader.Hash(), parentHeader.Number.Uint64())
-		if err != nil {
-			return nil, err
-		}
-		if snftExchangePool == nil {
-			snftExchangePool = &types.SNFTExchangeList{
-				SNFTExchanges: make([]*types.SNFTExchange, 0),
-			}
-		}
+		//snftExchangePool, err = rawdb.ReadSNFTExchangePool(db, parentHeader.Hash(), parentHeader.Number.Uint64())
+		//if err != nil {
+		//	return nil, err
+		//}
+		//if snftExchangePool == nil {
+		//	snftExchangePool = &types.SNFTExchangeList{
+		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//	}
+		//}
 	} else {
 		deep = new(types.MintDeep)
 		deep.UserMint = big.NewInt(1)
@@ -723,46 +723,44 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 		deep.OfficialMint.Add(big.NewInt(0), maskB)
 
-		snftExchangePool = &types.SNFTExchangeList{
-			SNFTExchanges: make([]*types.SNFTExchange, 0),
-		}
+		//snftExchangePool = &types.SNFTExchangeList{
+		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//}
 	}
 
-	for _, owner := range istanbulExtra.BeneficiaryAddr {
-		nftAddr := common.Address{}
-		nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
-		if !ok {
-			nftAddr = common.BytesToAddress(deep.OfficialMint.Bytes())
-		}
+	validators := istanbulExtra.ValidatorAddr
+	exchangers := istanbulExtra.ExchangerAddr
+	//for _, addr := range validators {
+	//	log.Info("GetBlockBeneficiaryAddressByNumber", "validators=", addr)
+	//}
+	//for _, addr := range exchangers {
+	//	log.Info("GetBlockBeneficiaryAddressByNumber", "exchangers=", addr)
+	//}
 
-		st, _, err := s.b.StateAndHeaderByNumber(ctx, number)
-		if err != nil {
-			return nil, err
-		}
-		acc := st.GetAccountInfo(owner)
+	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
+	for _, owner := range validators {
 
-		var beneficiaryAddress BeneficiaryAddress
-		if acc.RewardFlag == 0 {
-			beneficiaryAddress = BeneficiaryAddress{
-				Address:    owner,
-				NftAddress: nftAddr,
-			}
-		} else if acc.RewardFlag == 1 {
-			beneficiaryAddress = BeneficiaryAddress{
-				Address:      owner,
-				RewardAmount: big.NewInt(1e+17),
-			}
+		beneficiaryAddress := BeneficiaryAddress{
+			Address:      owner,
+			RewardAmount: big.NewInt(1.1e+17),
 		}
 
 		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
-		if !ok && acc.RewardFlag == 0 {
-			deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
-		}
 	}
+	for _, owner := range exchangers {
+		//nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
+		//if !ok {
+		nftAddr := common.BytesToAddress(deep.OfficialMint.Bytes())
+		deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
+		//}
 
-	//if !s.checkBeneficiaryList(ctx, number + 1, beneficiaryList) {
-	//	return nil, errors.New("BeneficiaryList error")
-	//}
+		beneficiaryAddress := BeneficiaryAddress{
+			Address:    owner,
+			NftAddress: nftAddr,
+		}
+
+		beneficiaryList = append(beneficiaryList, &beneficiaryAddress)
+	}
 
 	return beneficiaryList, nil
 }
@@ -803,6 +801,29 @@ func (s *PublicBlockChainAPI) GetUserMintDeep(ctx context.Context, number rpc.Bl
 	}
 
 	return mintDeep.UserMint.Text(16)
+}
+
+func (s *PublicBlockChainAPI) GetOfficialMintDeep(ctx context.Context, number rpc.BlockNumber) string {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return ""
+	}
+
+	db := s.b.ChainDb()
+	data, err := db.Get(rawdb.MintDeepKey(header.Number.Uint64(), header.Hash()))
+	if err != nil {
+		return ""
+	}
+	mintDeep := &types.MintDeep{
+		UserMint:     big.NewInt(0),
+		OfficialMint: big.NewInt(0),
+	}
+	if err := rlp.Decode(bytes.NewReader(data), mintDeep); err != nil {
+		log.Error("Invalid mintdeep RLP", "blocknumber", number, "err", err)
+		return ""
+	}
+
+	return mintDeep.OfficialMint.Text(16)
 }
 
 func (s *PublicBlockChainAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.StakerList {
@@ -935,12 +956,28 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 		Info.VoteWeight = big.NewInt(0)
 		Info.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
 		Info.StartIndex = big.NewInt(0)
-		Info.Number = 65536
+		Info.Number = 4096
 		Info.Royalty = 100
 		Info.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
 	}
 
 	return &Info
+}
+
+func (s *PublicBlockChainAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFT {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return nil
+	}
+	InjectedList, err := rawdb.ReadOfficialNFTPool(s.b.ChainDb(), header.Hash(), header.Number.Uint64())
+	if err != nil {
+		return nil
+	}
+	if length := len(InjectedList.InjectedOfficialNFTs); length > 0 {
+		return InjectedList.InjectedOfficialNFTs[length-1]
+	} else {
+		return nil
+	}
 }
 
 func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFTList {
@@ -1054,10 +1091,10 @@ func (s *PublicBlockChainAPI) GetHeaderByHash(ctx context.Context, hash common.H
 }
 
 // GetBlockByNumber returns the requested canonical block.
-// * When blockNr is -1 the chain head is returned.
-// * When blockNr is -2 the pending chain head is returned.
-// * When fullTx is true all transactions in the block are returned, otherwise
-//   only the transaction hash is returned.
+//   - When blockNr is -1 the chain head is returned.
+//   - When blockNr is -2 the pending chain head is returned.
+//   - When fullTx is true all transactions in the block are returned, otherwise
+//     only the transaction hash is returned.
 func (s *PublicBlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	block, err := s.b.BlockByNumber(ctx, number)
 	if block != nil && err == nil {
@@ -1355,10 +1392,40 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		balance := state.GetBalance(*args.From) // from can't be nil
 		available := new(big.Int).Set(balance)
 		if args.Value != nil {
-			if args.Value.ToInt().Cmp(available) >= 0 {
-				return 0, errors.New("insufficient funds for transfer")
+
+			wormholes, err := args.GetWormholes()
+			if err == nil {
+				switch wormholes.Type {
+				case 10:
+
+				case 14:
+
+				case 17:
+
+				case 18:
+
+				case 19:
+
+				case 20:
+
+				case 22:
+
+				case 24:
+
+				default:
+					if args.Value.ToInt().Cmp(available) >= 0 {
+						return 0, errors.New("insufficient funds for transfer")
+					}
+					available.Sub(available, args.Value.ToInt())
+				}
+
+			} else {
+				if args.Value.ToInt().Cmp(available) >= 0 {
+					return 0, errors.New("insufficient funds for transfer")
+				}
+				available.Sub(available, args.Value.ToInt())
 			}
-			available.Sub(available, args.Value.ToInt())
+
 		}
 		allowance := new(big.Int).Div(available, feeCap)
 

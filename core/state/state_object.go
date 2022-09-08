@@ -19,10 +19,11 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -146,7 +147,7 @@ type Account struct {
 	// NFTBalance is the nft number that the account have
 	NFTBalance uint64
 	// Indicates the reward method chosen by the miner
-	RewardFlag uint8 // 0:SNFT 1:ERB default:0
+	//RewardFlag uint8 // 0:SNFT 1:ERB default:1
 	AccountNFT
 }
 
@@ -163,15 +164,18 @@ func (acc *Account) IsApproveAddress(address common.Address) bool {
 
 type AccountNFT struct {
 	//Account
-	Name                  string
-	Symbol                string
-	Price                 *big.Int
-	Direction             uint8 // 0:未交易,1:买入,2:卖出
+	Name   string
+	Symbol string
+	//Price                 *big.Int
+	//Direction             uint8 // 0:未交易,1:买入,2:卖出
 	Owner                 common.Address
 	NFTApproveAddressList common.Address
 	//Auctions map[string][]common.Address
 	// MergeLevel is the level of NFT merged
-	MergeLevel uint8
+	MergeLevel            uint8
+	MergeNumber           uint32
+	PledgedFlag           bool
+	NFTPledgedBlockNumber *big.Int
 
 	Creator   common.Address
 	Royalty   uint32
@@ -837,16 +841,22 @@ func (s *stateObject) setExchangerInfo(exchangerflag bool, blocknumber *big.Int,
 }
 
 func (s *stateObject) CleanNFT() {
+	if s.data.NFTPledgedBlockNumber == nil {
+		s.data.NFTPledgedBlockNumber = big.NewInt(0)
+	}
 	change := nftInfoChange{
-		address:       &s.address,
-		oldName:       s.data.Name,
-		oldSymbol:     s.data.Symbol,
-		oldOwner:      s.data.Owner,
-		oldMergeLevel: s.data.MergeLevel,
-		oldCreator:    s.data.Creator,
-		oldRoyalty:    s.data.Royalty,
-		oldExchanger:  s.data.Exchanger,
-		oldMetaURL:    s.data.MetaURL,
+		address:                  &s.address,
+		oldName:                  s.data.Name,
+		oldSymbol:                s.data.Symbol,
+		oldOwner:                 s.data.Owner,
+		oldMergeLevel:            s.data.MergeLevel,
+		oldMergeNumber:           s.data.MergeNumber,
+		oldPledgedFlag:           s.data.PledgedFlag,
+		oldNFTPledgedBlockNumber: new(big.Int).Set(s.data.NFTPledgedBlockNumber),
+		oldCreator:               s.data.Creator,
+		oldRoyalty:               s.data.Royalty,
+		oldExchanger:             s.data.Exchanger,
+		oldMetaURL:               s.data.MetaURL,
 	}
 	//change.oldNFTApproveAddressList = append(change.oldNFTApproveAddressList, s.data.NFTApproveAddressList...)
 	change.oldNFTApproveAddressList = s.data.NFTApproveAddressList
@@ -860,7 +870,12 @@ func (s *stateObject) cleanNFT() {
 	s.data.Owner = common.Address{}
 	//s.data.NFTApproveAddressList = s.data.NFTApproveAddressList[:0]
 	s.data.NFTApproveAddressList = common.Address{}
-	s.data.MergeLevel = 0
+	// Don't reset MergeLevel, because merging snft need to check this value
+	// we use this value to check if snfts are in same layer
+	//s.data.MergeLevel = 0
+	s.data.MergeNumber = 0
+	s.data.PledgedFlag = false
+	s.data.NFTPledgedBlockNumber = big.NewInt(0)
 	s.data.Creator = common.Address{}
 	s.data.Royalty = 0
 	s.data.Exchanger = common.Address{}
@@ -870,36 +885,48 @@ func (s *stateObject) cleanNFT() {
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-	price *big.Int,
-	direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
+	mergenumber uint32,
+	pledgedflag bool,
+	nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint32,
 	exchanger common.Address,
 	metaURL string) {
+	if s.data.NFTPledgedBlockNumber == nil {
+		s.data.NFTPledgedBlockNumber = big.NewInt(0)
+	}
 	change := nftInfoChange{
-		address:       &s.address,
-		oldName:       s.data.Name,
-		oldSymbol:     s.data.Symbol,
-		oldOwner:      s.data.Owner,
-		oldMergeLevel: s.data.MergeLevel,
-		oldCreator:    s.data.Creator,
-		oldRoyalty:    s.data.Royalty,
-		oldExchanger:  s.data.Exchanger,
-		oldMetaURL:    s.data.MetaURL,
+		address:                  &s.address,
+		oldName:                  s.data.Name,
+		oldSymbol:                s.data.Symbol,
+		oldOwner:                 s.data.Owner,
+		oldMergeLevel:            s.data.MergeLevel,
+		oldMergeNumber:           s.data.MergeNumber,
+		oldPledgedFlag:           s.data.PledgedFlag,
+		oldNFTPledgedBlockNumber: new(big.Int).Set(s.data.NFTPledgedBlockNumber),
+		oldCreator:               s.data.Creator,
+		oldRoyalty:               s.data.Royalty,
+		oldExchanger:             s.data.Exchanger,
+		oldMetaURL:               s.data.MetaURL,
 	}
 	//change.oldNFTApproveAddressList = append(change.oldNFTApproveAddressList, s.data.NFTApproveAddressList...)
 	change.oldNFTApproveAddressList = s.data.NFTApproveAddressList
 	s.db.journal.append(change)
 	s.setNFTInfo(name,
 		symbol,
-		price,
-		direction,
+		//price,
+		//direction,
 		owner,
 		nftApproveAddress,
 		mergeLevel,
+		mergenumber,
+		pledgedflag,
+		nftpledgedblocknumber,
 		creator,
 		royalty,
 		exchanger,
@@ -909,11 +936,14 @@ func (s *stateObject) SetNFTInfo(
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-	price *big.Int,
-	direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
+	mergenumber uint32,
+	pledgedflag bool,
+	nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint32,
 	exchanger common.Address,
@@ -925,6 +955,9 @@ func (s *stateObject) setNFTInfo(
 	//s.data.NFTApproveAddressList = append(s.data.NFTApproveAddressList, nftApproveAddress)
 	s.data.NFTApproveAddressList = nftApproveAddress
 	s.data.MergeLevel = mergeLevel
+	s.data.MergeNumber = mergenumber
+	s.data.PledgedFlag = pledgedflag
+	s.data.NFTPledgedBlockNumber = nftpledgedblocknumber
 	s.data.Creator = creator
 	s.data.Royalty = royalty
 	s.data.Exchanger = exchanger
@@ -964,11 +997,14 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
+	//*big.Int,
+	//uint8,
+	common.Address,
+	common.Address,
+	uint8,
+	uint32,
+	bool,
 	*big.Int,
-	uint8,
-	common.Address,
-	common.Address,
-	uint8,
 	common.Address,
 	uint32,
 	common.Address,
@@ -976,11 +1012,14 @@ func (s *stateObject) GetNFTInfo() (
 
 	return s.data.Name,
 		s.data.Symbol,
-		s.data.Price,
-		s.data.Direction,
+		//s.data.Price,
+		//s.data.Direction,
 		s.data.Owner,
 		s.data.NFTApproveAddressList,
 		s.data.MergeLevel,
+		s.data.MergeNumber,
+		s.data.PledgedFlag,
+		s.data.NFTPledgedBlockNumber,
 		s.data.Creator,
 		s.data.Royalty,
 		s.data.Exchanger,
@@ -1006,6 +1045,7 @@ func (s *stateObject) GetExchangerURL() string {
 func (s *stateObject) GetApproveAddress() []common.Address {
 	return s.data.ApproveAddressList
 }
+
 func (s *stateObject) GetNFTBalance() uint64 {
 	return s.data.NFTBalance
 }
@@ -1026,6 +1066,19 @@ func (s *stateObject) GetNFTApproveAddress() common.Address {
 func (s *stateObject) GetMergeLevel() uint8 {
 	return s.data.MergeLevel
 }
+
+func (s *stateObject) GetMergeNumber() uint32 {
+	return s.data.MergeNumber
+}
+
+func (s *stateObject) GetPledgedFlag() bool {
+	return s.data.PledgedFlag
+}
+
+func (s *stateObject) GetNFTPledgedBlockNumber() *big.Int {
+	return s.data.NFTPledgedBlockNumber
+}
+
 func (s *stateObject) GetCreator() common.Address {
 	return s.data.Creator
 }
@@ -1171,6 +1224,21 @@ func (s *stateObject) setExchangerBalance(amount *big.Int) {
 	s.data.ExchangerBalance = amount
 }
 
+func (s *stateObject) SetBlockNumber(blocknumber *big.Int) {
+	if s.data.BlockNumber == nil {
+		s.data.BlockNumber = big.NewInt(0)
+	}
+	s.db.journal.append(blockNumberChange{
+		account: &s.address,
+		prev:    new(big.Int).Set(s.data.BlockNumber),
+	})
+	s.setBlockNumber(blocknumber)
+}
+
+func (s *stateObject) setBlockNumber(blocknumber *big.Int) {
+	s.data.BlockNumber = blocknumber
+}
+
 func (s *stateObject) SetVoteWeight(amount *big.Int) {
 	s.db.journal.append(voteWeightChange{
 		account: &s.address,
@@ -1183,18 +1251,43 @@ func (s *stateObject) setVoteWeight(amount *big.Int) {
 	s.data.VoteWeight = amount
 }
 
-func (s *stateObject) ChangeRewardFlag(flag uint8) {
-	s.db.journal.append(RewardFlagChange{
-		account:    &s.address,
-		rewardFlag: flag,
+//func (s *stateObject) ChangeRewardFlag(flag uint8) {
+//	s.db.journal.append(RewardFlagChange{
+//		account:    &s.address,
+//		rewardFlag: flag,
+//	})
+//	s.setRewardFlag(flag)
+//}
+
+//func (s *stateObject) RewardFlag() uint8 {
+//	return s.data.RewardFlag
+//}
+//
+//func (s *stateObject) setRewardFlag(flag uint8) {
+//	s.data.RewardFlag = flag
+//}
+
+func (s *stateObject) PledgeNFT(blocknumber *big.Int) {
+	s.SetPledgedNFTInfo(true, blocknumber)
+}
+
+func (s *stateObject) CancelPledgedNFT() {
+	s.SetPledgedNFTInfo(false, big.NewInt(0))
+}
+
+func (s *stateObject) SetPledgedNFTInfo(pledgedflag bool, blocknumber *big.Int) {
+	if s.data.NFTPledgedBlockNumber == nil {
+		s.data.NFTPledgedBlockNumber = big.NewInt(0)
+	}
+	s.db.journal.append(pledgedNFTInfo{
+		account:               &s.address,
+		pledgedFlag:           s.data.PledgedFlag,
+		nftPledgedBlockNumber: new(big.Int).Set(s.data.NFTPledgedBlockNumber),
 	})
-	s.setRewardFlag(flag)
+	s.setPledgedNFTInfo(pledgedflag, blocknumber)
 }
 
-func (s *stateObject) RewardFlag() uint8 {
-	return s.data.RewardFlag
-}
-
-func (s *stateObject) setRewardFlag(flag uint8) {
-	s.data.RewardFlag = flag
+func (s *stateObject) setPledgedNFTInfo(pledgedflag bool, blocknumber *big.Int) {
+	s.data.PledgedFlag = pledgedflag
+	s.data.NFTPledgedBlockNumber = blocknumber
 }

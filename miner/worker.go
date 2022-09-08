@@ -694,19 +694,19 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	state.StartPrefetcher("miner")
 
 	var mintDeep *types.MintDeep
-	var exchangeList *types.SNFTExchangeList
+	//var exchangeList *types.SNFTExchangeList
 	if parent.NumberU64() > 0 {
 		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
 		if err != nil {
 			log.Error("Failed get mintdeep ", "err", err)
 			return err
 		}
-		exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
-		if exchangeList == nil {
-			exchangeList = &types.SNFTExchangeList{
-				SNFTExchanges: make([]*types.SNFTExchange, 0),
-			}
-		}
+		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
+		//if exchangeList == nil {
+		//	exchangeList = &types.SNFTExchangeList{
+		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//	}
+		//}
 	} else {
 		mintDeep = new(types.MintDeep)
 		//mintDeep.OfficialMint = big.NewInt(1)
@@ -720,12 +720,12 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
 
-		exchangeList = &types.SNFTExchangeList{
-			SNFTExchanges: make([]*types.SNFTExchange, 0),
-		}
+		//exchangeList = &types.SNFTExchangeList{
+		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//}
 	}
 	state.MintDeep = mintDeep
-	state.SNFTExchangePool = exchangeList
+	//state.SNFTExchangePool = exchangeList
 
 	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
 	state.OfficialNFTPool = officialNFTList
@@ -745,7 +745,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
 		nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
 		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
-		nominatedOfficialNFT.Number = 65536
+		nominatedOfficialNFT.Number = 4096
 		nominatedOfficialNFT.Royalty = 100
 		nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
 		nominatedOfficialNFT.Address = common.Address{}

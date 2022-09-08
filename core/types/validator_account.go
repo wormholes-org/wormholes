@@ -314,3 +314,19 @@ func (vl *ValidatorList) AddAddrRange(addr common.Address, weight []*big.Int) {
 		}
 	}
 }
+
+func (vl *ValidatorList) GetByAddress(addr common.Address) int {
+	for i, v := range vl.Validators {
+		if v.Addr == addr || v.Proxy == addr {
+			return i
+		}
+	}
+	return -1
+}
+
+func (vl *ValidatorList) GetByIndex(i uint64) Validator {
+	if i >= uint64(vl.Len()) {
+		return Validator{}
+	}
+	return *vl.Validators[i]
+}

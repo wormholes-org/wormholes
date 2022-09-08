@@ -18,6 +18,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -1537,8 +1538,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 
 	// write mintdeep
 	bc.WriteMintDeep(block.Header(), state.MintDeep)
-	// write SNFTExchangePool
-	bc.WriteSNFTExchangePool(block.Header(), state.SNFTExchangePool)
+	//// write SNFTExchangePool
+	//bc.WriteSNFTExchangePool(block.Header(), state.SNFTExchangePool)
 	// write OfficialNFTPool
 	bc.WriteOfficialNFTPool(block.Header(), state.OfficialNFTPool)
 	// write NominatedOfficialNFT
@@ -1917,19 +1918,19 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		substart := time.Now()
 
 		var mintDeep *types.MintDeep
-		var exchangeList *types.SNFTExchangeList
+		//var exchangeList *types.SNFTExchangeList
 		if parent.Number.Uint64() > 0 {
 			mintDeep, err = bc.ReadMintDeep(parent)
 			if err != nil {
 				log.Error("Failed get mintdeep ", "err", err)
 				return it.index, err
 			}
-			exchangeList, _ = bc.ReadSNFTExchangePool(parent)
-			if exchangeList == nil {
-				exchangeList = &types.SNFTExchangeList{
-					SNFTExchanges: make([]*types.SNFTExchange, 0),
-				}
-			}
+			//exchangeList, _ = bc.ReadSNFTExchangePool(parent)
+			//if exchangeList == nil {
+			//	exchangeList = &types.SNFTExchangeList{
+			//		SNFTExchanges: make([]*types.SNFTExchange, 0),
+			//	}
+			//}
 		} else {
 			mintDeep = new(types.MintDeep)
 			//mintDeep.OfficialMint = big.NewInt(1)
@@ -1943,12 +1944,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 			mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
 
-			exchangeList = &types.SNFTExchangeList{
-				SNFTExchanges: make([]*types.SNFTExchange, 0),
-			}
+			//exchangeList = &types.SNFTExchangeList{
+			//	SNFTExchanges: make([]*types.SNFTExchange, 0),
+			//}
 		}
 		statedb.MintDeep = mintDeep
-		statedb.SNFTExchangePool = exchangeList
+		//statedb.SNFTExchangePool = exchangeList
 		log.Info("caver|MintDeep", "no", parent.Number.Text(10), "OfficialMint", statedb.MintDeep.OfficialMint.Text(16),
 			"UserMint", statedb.MintDeep.UserMint.Text(16))
 		officialNFTList, _ := bc.ReadOfficialNFTPool(parent)
@@ -1966,7 +1967,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			nominatedOfficialNFT = new(types.NominatedOfficialNFT)
 			nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
 			nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.OfficialNFTPool.MaxIndex())
-			nominatedOfficialNFT.Number = 65536
+			nominatedOfficialNFT.Number = 4096
 			nominatedOfficialNFT.Royalty = 100
 			nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
 			nominatedOfficialNFT.Address = common.Address{}
@@ -2669,8 +2670,9 @@ func (bc *BlockChain) ReadValidatorPool(header *types.Header) *types.ValidatorLi
 
 func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
 	validatorList := bc.ReadValidatorPool(header)
-
-	validators := validatorList.RandomValidatorV2(11, header.Hash())
+	// Obtain random landing points according to the surrounding chain algorithm
+	randomHash := GetRandomDrop(validatorList, header)
+	validators := validatorList.RandomValidatorV2(11, randomHash)
 	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	elevenValidator := new(types.ValidatorList)
 	for _, addr := range validators {
@@ -2707,16 +2709,16 @@ func (bc *BlockChain) ReadMintDeep(header *types.Header) (*types.MintDeep, error
 	return rawdb.ReadMintDeep(bc.db, header.Hash(), header.Number.Uint64())
 }
 
-func (bc *BlockChain) WriteSNFTExchangePool(header *types.Header, SNFTExchangePool *types.SNFTExchangeList) {
-	poolBatch := bc.db.NewBatch()
-	rawdb.WriteSNFTExchangePool(poolBatch, header.Hash(), header.Number.Uint64(), SNFTExchangePool)
-	if err := poolBatch.Write(); err != nil {
-		log.Crit("Failed to write SNFTExchangePool disk", "err", err)
-	}
-}
-func (bc *BlockChain) ReadSNFTExchangePool(header *types.Header) (*types.SNFTExchangeList, error) {
-	return rawdb.ReadSNFTExchangePool(bc.db, header.Hash(), header.Number.Uint64())
-}
+//func (bc *BlockChain) WriteSNFTExchangePool(header *types.Header, SNFTExchangePool *types.SNFTExchangeList) {
+//	poolBatch := bc.db.NewBatch()
+//	rawdb.WriteSNFTExchangePool(poolBatch, header.Hash(), header.Number.Uint64(), SNFTExchangePool)
+//	if err := poolBatch.Write(); err != nil {
+//		log.Crit("Failed to write SNFTExchangePool disk", "err", err)
+//	}
+//}
+//func (bc *BlockChain) ReadSNFTExchangePool(header *types.Header) (*types.SNFTExchangeList, error) {
+//	return rawdb.ReadSNFTExchangePool(bc.db, header.Hash(), header.Number.Uint64())
+//}
 
 func (bc *BlockChain) WriteOfficialNFTPool(header *types.Header, OfficialNFTPool *types.InjectedOfficialNFTList) {
 	poolBatch := bc.db.NewBatch()
@@ -2757,4 +2759,136 @@ func (bc *BlockChain) QueryMinerProxy(ctx context.Context, number int64, minerAd
 	//	}
 	//}
 	//return nil, errors.New("proxy is empty")
+}
+
+func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common.Hash {
+	// Get the index of the coinbase of the previous block,
+	// if it is a genesis block, the index is 0
+	i := 0
+	if header.Number.Uint64() > 0 {
+		i = validators.GetByAddress(header.Coinbase)
+	}
+
+	// Get three random validator indexes
+	np := validators.Len()/4 + 1
+	vals := getSurroundingChainNo(i, 4, np)
+
+	var buffer bytes.Buffer
+	// The index calculated according to the multilateral chain may be greater than the total number of validators
+	for _, v := range vals {
+		val := validators.GetByIndex(uint64(v))
+		if val.Address() == (common.Address{}) {
+			buffer.WriteString(common.Hash{}.Hex())
+			continue
+		}
+		buffer.WriteString(val.Address().Hash().Hex())
+	}
+	buffer.WriteString(header.Hash().Hex())
+	return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))
+}
+
+func getSurroundingChainNo(i, Nr, Np int) []int {
+	chainNoSet := make([]int, 3, 4)
+
+	Nt := Nr * Np
+	j := 0
+	if i >= 4 && i <= (Nt)-5 {
+		if i%4 == 0 {
+
+			if (i/4)%2 == 0 {
+				j = i - 4
+			}
+			if (i/4)%2 == 1 {
+				j = i + 4
+			}
+			chainNoSet = []int{i, i + 1, i + Nr - 1, j}
+		}
+
+		if i%4 == 3 {
+			if (i/4)%2 == 0 {
+				j = i + 4
+			}
+			if (i/4)%2 == 1 {
+				j = i - 4
+			}
+			chainNoSet = []int{i, i - 1, i - Nr - 1, j}
+		}
+
+		if i%4 != 0 && i%4 != 3 {
+			if (i%2 == 0 && (i/4)%2 == 0) || (i%2 == 1 && (i/4)%2 == 1) {
+				j = i - 4
+			}
+			if (i%2 == 0 && (i/4)%2 == 1) || (i%2 == 1 && (i/4)%2 == 0) {
+				j = i + 4
+			}
+			chainNoSet = []int{i, i - 1, i + 1, j}
+		}
+	}
+
+	if i >= Nt-4 && i <= Nt-1 {
+		if i%4 == 0 {
+			if (i/4)%2 == 1 {
+				j = 0
+			}
+			if (i/4)%2 == 0 {
+				j = i - 4
+			}
+			chainNoSet = []int{i, i + 1, i + 3, j}
+		}
+
+		//------
+		if i%4 == 3 {
+			if (i/4)%2 == 0 {
+				j = 2
+			}
+			if (i/4)%2 == 1 {
+				j = i - 4
+			}
+			chainNoSet = []int{i, i - 1, i - 3, j}
+		}
+
+		if i%4 != 0 && i%4 != 3 {
+			if i%2 == 0 && (i/4)%2 == 1 {
+				j = i % 4
+			}
+			if i%2 == 1 && (i/4)%2 == 0 {
+				j = i%4 - 1
+			}
+			if (i%2 == 0 && (i/4)%2 == 0) || (i%2 == 1 && (i/4)%2 == 1) {
+				j = i - 4
+			}
+			chainNoSet = []int{i, i - 1, i + 1, j}
+		}
+	}
+
+	if i >= 0 && i <= 3 {
+		if i == 0 {
+			if (i/4)%2 == 0 {
+				j = Nt - 3
+			}
+			if (i/4)%2 == 1 {
+				j = Nt - 4
+			}
+			chainNoSet = []int{i, i + 1, i + 3, j}
+		}
+
+		if i%4 == 3 {
+			j = i - 4
+			chainNoSet = []int{i, i - 1, i - 5, j}
+		}
+
+		if i%4 != 0 && i%4 != 3 {
+			if i%2 == 0 && (Nt/4)%2 == 0 {
+				j = Nt - 3 + i
+			}
+			if i%2 == 0 && (Nt/4)%2 == 1 {
+				j = Nt - 4 + i
+			}
+			if i%2 == 1 {
+				j = i + 4
+			}
+			chainNoSet = []int{i, i - 1, i + 1, j}
+		}
+	}
+	return chainNoSet
 }
