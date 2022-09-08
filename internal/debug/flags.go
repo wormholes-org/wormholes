@@ -42,6 +42,11 @@ var (
 		Usage: "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail",
 		Value: 3,
 	}
+	logpathFlag = cli.StringFlag{
+		Name:  "log.path",
+		Usage: "where is the log",
+		Value: "",
+	}
 	vmoduleFlag = cli.StringFlag{
 		Name:  "vmodule",
 		Usage: "Per-module verbosity: comma-separated list of <pattern>=<level> (e.g. eth/*=5,p2p=4)",
@@ -133,6 +138,7 @@ var (
 // Flags holds all command-line flags required for debugging.
 var Flags = []cli.Flag{
 	verbosityFlag,
+	logpathFlag,
 	vmoduleFlag,
 	logjsonFlag,
 	backtraceAtFlag,
@@ -175,9 +181,10 @@ func init() {
 
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
-func Setup(ctx *cli.Context, logdir string) error {
+func Setup(ctx *cli.Context) error {
 	// logging
 	log.PrintOrigins(ctx.GlobalBool(debugFlag.Name))
+	logdir := ctx.GlobalString(logpathFlag.Name)
 	if logdir != "" {
 		rfh, err := log.RotatingFileHandler(
 			logdir,
