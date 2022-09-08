@@ -19,8 +19,9 @@ package rawdb
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/core/types"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -189,29 +190,4 @@ func ReadValidatorPool(db ethdb.Reader, hash common.Hash, number uint64) (*types
 		return nil, err
 	}
 	return validatorList, nil
-}
-
-func WriteActiveMinersPool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, activeMiners *types.ActiveMinerList) {
-	data, err := rlp.EncodeToBytes(activeMiners)
-	if err != nil {
-		log.Crit("Failed to RLP activeMinersPool", "err", err)
-	}
-
-	if err := db.Put(ActiveMinersPoolKey(number, hash), data); err != nil {
-		log.Crit("Failed to store activeMinersPool", "err", err)
-	}
-}
-
-func ReadActiveMinersPool(db ethdb.Reader, hash common.Hash, number uint64) (*types.ActiveMinerList, error) {
-	data, err := db.Get(ActiveMinersPoolKey(number, hash))
-	if err != nil {
-		return nil, err
-	}
-
-	activeMiners := new(types.ActiveMinerList)
-	if err := rlp.Decode(bytes.NewReader(data), activeMiners); err != nil {
-		log.Error("Invalid activeMiners RLP", "hash", hash, "err", err)
-		return nil, err
-	}
-	return activeMiners, nil
 }

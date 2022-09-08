@@ -19,12 +19,13 @@ package core
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"strings"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/crypto/sha3"
-	"math/big"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -131,7 +132,6 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		VoteOfficialNFT:                    VoteOfficialNFT,
 		ElectNominatedOfficialNFT:          ElectNominatedOfficialNFT,
 		NextIndex:                          NextIndex,
-		AddOrUpdateActiveMiner:             AddOrUpdateActiveMiner,
 		VoteOfficialNFTByApprovedExchanger: VoteOfficialNFTByApprovedExchanger,
 		//ChangeRewardFlag:                   ChangeRewardFlag,
 		PledgeNFT:                PledgeNFT,
@@ -1836,10 +1836,6 @@ func ElectNominatedOfficialNFT(db vm.StateDB) {
 
 func NextIndex(db vm.StateDB) *big.Int {
 	return db.NextIndex()
-}
-
-func AddOrUpdateActiveMiner(db vm.StateDB, address common.Address, balance *big.Int, height uint64) {
-	db.AddOrUpdateActiveMiner(address, balance, height)
 }
 
 func VoteOfficialNFTByApprovedExchanger(

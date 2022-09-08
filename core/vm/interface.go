@@ -125,8 +125,6 @@ type StateDB interface {
 	SubVoteWeight(common.Address, *big.Int)
 	AddVoteWeight(common.Address, *big.Int)
 	NextIndex() *big.Int
-	AddOrUpdateActiveMiner(address common.Address, balance *big.Int, height uint64)
-	//ChangeRewardFlag(address common.Address, flag uint8)
 	PledgeNFT(common.Address, *big.Int)
 	CancelPledgedNFT(common.Address)
 	GetMergeNumber(common.Address) uint32

@@ -111,7 +111,6 @@ type (
 	VoteOfficialNFTFunc                    func(StateDB, *types.NominatedOfficialNFT)
 	ElectNominatedOfficialNFTFunc          func(StateDB)
 	NextIndexFunc                          func(db StateDB) *big.Int
-	AddOrUpdateActiveMinerFunc             func(StateDB, common.Address, *big.Int, uint64)
 	VoteOfficialNFTByApprovedExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	//ChangeRewardFlagFunc                   func(StateDB, common.Address, uint8)
 	PledgeNFTFunc                func(StateDB, common.Address, *big.Int)
@@ -205,7 +204,6 @@ type BlockContext struct {
 	VoteOfficialNFT                    VoteOfficialNFTFunc
 	ElectNominatedOfficialNFT          ElectNominatedOfficialNFTFunc
 	NextIndex                          NextIndexFunc
-	AddOrUpdateActiveMiner             AddOrUpdateActiveMinerFunc
 	VoteOfficialNFTByApprovedExchanger VoteOfficialNFTByApprovedExchangerFunc
 	//ChangeRewardFlag                   ChangeRewardFlagFunc
 	PledgeNFT                PledgeNFTFunc
@@ -1456,21 +1454,6 @@ func (evm *EVM) HandleNFT(
 			log.Error("HandleNFT(), SubExchangerToken", "wormholes.Type", wormholes.Type,
 				"error", ErrInsufficientExchangerBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, ErrInsufficientExchangerBalance
-		}
-	case 30:
-		log.Info("HandleNFT(), SendLivenessTx>>>>>>>>>>", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64())
-		if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
-			// Online transaction execution transfer
-			evm.Context.Transfer(evm.StateDB, caller.Address(), addr, value)
-			// Add the online address to the active Miners Pool after the online transaction executes the transfer
-			evm.Context.AddOrUpdateActiveMiner(evm.StateDB, caller.Address(), value, evm.Context.BlockNumber.Uint64())
-			log.Info("HandleNFT(), End|LivenessTx<<<<<<<<<<", "wormholes.Type", wormholes.Type,
-				"blocknumber", evm.Context.BlockNumber.Uint64())
-		} else {
-			log.Error("HandleNFT(), SendLivenessTx error", "wormholes.Type", wormholes.Type,
-				"error", ErrInsufficientBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrInsufficientBalance
 		}
 	case 31:
 		//MinerConsign

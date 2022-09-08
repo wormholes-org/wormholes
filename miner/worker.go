@@ -18,15 +18,14 @@ package miner
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/rawdb"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
@@ -410,13 +409,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			commit(false, commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
-			if w.chain.CurrentBlock().NumberU64()%activeCycle == 0 {
-				log.Info("caver|w.chainHeadch", "no", head.Block.NumberU64())
-				if err := w.sendLivenessTx(); err != nil {
-					log.Error("caver|sendLivenessTx", "err", err.Error())
-					continue
-				}
-			}
 			if h, ok := w.engine.(consensus.Handler); ok {
 				h.NewChainHead()
 			}
@@ -691,54 +683,6 @@ func (w *worker) resultLoop() {
 	}
 }
 
-func (w *worker) sendLivenessTx() error {
-	nodeKey := w.eth.GetNodeKey()
-	from := crypto.PubkeyToAddress(nodeKey.PublicKey)
-	// The engine must be started, and the online proof transaction will not be sent in the synchronous state
-	if !w.isRunning() {
-		log.Info("caver|sendLivenessTx|w.isrunning", "w.isRunning()", w.isRunning())
-		return nil
-	}
-	// Must be validator to send online proof transaction
-	validatorPool := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-	if validatorPool == nil || len(validatorPool.Validators) == 0 {
-		log.Info("caver|sendLivenessTx|validator pool || validators empty", "validatorPool == nil", validatorPool == nil)
-		return nil
-	}
-
-	// Judging whether it exists in the validator Pool, ordinary nodes cannot send offline transactions
-	if !validatorPool.Exist(from) {
-		log.Info("caver|sendLivenessTx|not validator", "self", from.Hex())
-		return nil
-	}
-
-	// Determine whether it is the entrusted address, the entrusted address can no longer send offline transactions
-	if validatorPool.ExistProxy(from) {
-		log.Info("caver|sendLivenessTx|exist proxy addr", "self", from.Hex())
-		return nil
-	}
-
-	innerData := `wormholes:{"type":30,"version":"v0.0.1"}`
-	txData := hex.EncodeToString([]byte(innerData))
-	txDataByte, err := hex.DecodeString(txData)
-	if err != nil {
-		return err
-	}
-
-	tx := types.NewTransaction(w.eth.TxPool().Nonce(from), common.Address{}, big.NewInt(0), 60000, big.NewInt(2000000000), txDataByte)
-	signer := types.LatestSignerForChainID(w.chain.Config().ChainID)
-	signTx, err := types.SignTx(tx, signer, nodeKey)
-	if err != nil {
-		return err
-	}
-	err = w.eth.TxPool().AddLocal(signTx)
-	if err != nil {
-		return err
-	}
-	log.Info("carver|sendLivenessTx|success")
-	return nil
-}
-
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	// Retrieve the parent state to execute on top and start a prefetcher for
@@ -807,12 +751,6 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		nominatedOfficialNFT.Address = common.Address{}
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
-
-	activeMiners, err := w.chain.ReadActiveMinersPool(parent.Header())
-	if err != nil {
-		return err
-	}
-	state.ActiveMinersPool = activeMiners
 
 	vallist := w.chain.ReadValidatorPool(parent.Header())
 	state.ValidatorPool = vallist.Validators

@@ -139,6 +139,9 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
+		for _, v := range validatorList.Validators {
+			log.Info("Backend|VerifySeal", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
+		}
 		if err != nil {
 			return err
 		}
@@ -159,6 +162,9 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 			return errors.New("prepare err: current header is nil")
 		}
 		validatorList, err := c.Random11ValidatorFromPool(cHeader)
+		for _, v := range validatorList.Validators {
+			log.Info("Backend|Prepare", "height", cHeader.Number.Uint64(), "v", v)
+		}
 		if err != nil {
 			return err
 		}
