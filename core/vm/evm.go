@@ -1621,6 +1621,9 @@ func unstakingHeight(stakedAmt *big.Int, appendAmt *big.Int, sno uint64, cno uin
 	h1 := big.NewFloat(0).Mul(big.NewFloat(0).Quo(new(big.Float).SetInt(stakedAmt), total), new(big.Float).SetInt(big.NewInt(int64(curRemainingTime))))
 	h2 := big.NewFloat(0).Mul(big.NewFloat(0).Quo(new(big.Float).SetInt(appendAmt), total), new(big.Float).SetInt(big.NewInt(int64(lockedNo))))
 	delayHeight, _ := big.NewFloat(0).Add(h1, h2).Uint64()
+	if delayHeight < lockedNo/2 {
+		delayHeight = lockedNo / 2
+	}
 	return delayHeight
 }
 
