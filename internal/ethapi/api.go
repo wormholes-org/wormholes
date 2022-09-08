@@ -989,7 +989,7 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 	return &Info
 }
 
-func (s *PublicBlockChainAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.BlockNumber) *InjectedOfficialNFT {
+func (s *PublicBlockChainAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFT {
 	header, err := s.b.HeaderByNumber(ctx, number)
 	if header == nil || err != nil {
 		return nil

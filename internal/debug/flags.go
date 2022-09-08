@@ -158,36 +158,36 @@ var DeprecatedFlags = []cli.Flag{
 	legacyDebugFlag,
 }
 
-var glogger *log.GlogHandler
+var (
+	ostream log.Handler
+	glogger *log.GlogHandler
+)
 
 func init() {
-	glogger = log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
-	glogger.Verbosity(log.LvlInfo)
-	log.Root().SetHandler(glogger)
+	usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
+	output := io.Writer(os.Stderr)
+	if usecolor {
+		output = colorable.NewColorableStderr()
+	}
+	ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
+	glogger = log.NewGlogHandler(ostream)
 }
 
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
-func Setup(ctx *cli.Context) error {
-	logPath := "./mergelog"
-	if _, err := os.Open(logPath); err != nil {
-		os.Create(logPath)
-	}
-	var ostream log.Handler
-	output := io.Writer(os.Stderr)
-	if ctx.GlobalBool(logjsonFlag.Name) {
-		ostream = log.StreamHandler(output, log.JSONFormat())
-	} else {
-		usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
-		if usecolor {
-			output = colorable.NewColorableStderr()
-		}
-		//ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
-		ostream, _ = log.RotatingFileHandler(logPath, 100, log.TerminalFormat(usecolor))
-	}
-	glogger.SetHandler(ostream)
-
+func Setup(ctx *cli.Context, logdir string) error {
 	// logging
+	log.PrintOrigins(ctx.GlobalBool(debugFlag.Name))
+	if logdir != "" {
+		rfh, err := log.RotatingFileHandler(
+			logdir,
+			100,
+			log.JSONFormatOrderedEx(false, true))
+		if err != nil {
+			return err
+		}
+		glogger.SetHandler(log.MultiHandler(ostream, rfh))
+	}
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)
 	glogger.Verbosity(log.Lvl(verbosity))
 	vmodule := ctx.GlobalString(vmoduleFlag.Name)
