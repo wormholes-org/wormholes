@@ -2,6 +2,7 @@ package log
 
 import (
 	"os"
+	"runtime"
 )
 
 var (
@@ -42,6 +43,26 @@ func Debug(msg string, ctx ...interface{}) {
 // Info is a convenient alias for Root().Info
 func Info(msg string, ctx ...interface{}) {
 	root.write(msg, LvlInfo, ctx, skipLevel)
+}
+
+// Info2 .
+// className:  类名或者包名.
+// methodName: 函数名称.
+func Info2(className string, methodName string, ctx ...interface{}) {
+	if len(ctx)%2 != 0 {
+		ctx = append(ctx, "end")
+	}
+	root.write(className+"|"+methodName, LvlInfo, ctx, skipLevel)
+}
+
+// Info3 .
+func Info3(ctx ...interface{}) {
+	funcName, _, _, _ := runtime.Caller(1)
+	if len(ctx)%2 != 0 {
+		ctx = append(ctx, "end")
+	}
+	//i := strings.LastIndex(file, "/")
+	root.write(runtime.FuncForPC(funcName).Name(), LvlInfo, ctx, skipLevel)
 }
 
 // Warn is a convenient alias for Root().Warn

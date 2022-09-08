@@ -169,6 +169,10 @@ func init() {
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) error {
+	logPath := "./mergelog"
+	if _, err := os.Open(logPath); err != nil {
+		os.Create(logPath)
+	}
 	var ostream log.Handler
 	output := io.Writer(os.Stderr)
 	if ctx.GlobalBool(logjsonFlag.Name) {
@@ -178,7 +182,8 @@ func Setup(ctx *cli.Context) error {
 		if usecolor {
 			output = colorable.NewColorableStderr()
 		}
-		ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
+		//ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
+		ostream, _ = log.RotatingFileHandler(logPath, 100, log.TerminalFormat(usecolor))
 	}
 	glogger.SetHandler(ostream)
 
