@@ -42,7 +42,7 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 
 //const CancelPledgedInterval = 365 * 720 * 24	// day * blockNumber of per hour * 24h
 const CancelPledgedInterval = 3 * 24 // for test
-//const CloseExchangerInterval = 180 * 720 * 24	// day * blockNumber of per hour * 24h
+//const CloseExchangerInterval = 365 * 720 * 24	// day * blockNumber of per hour * 24h
 const CloseExchangerInterval = 3 * 24 // for test
 //const CancelNFTPledgedInterval = 365 * 720 * 24	// day * blockNumber of per hour * 24h
 const CancelNFTPledgedInterval = 3 * 24 // for test

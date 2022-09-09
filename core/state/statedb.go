@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	gomath "math"
 	"math/big"
 	"sort"
 	"strings"
@@ -50,6 +51,9 @@ var (
 	// emptyRoot is the known root hash of an empty trie.
 	emptyRoot      = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 	DREBlockReward = big.NewInt(1.1e+17)
+	// reduce 12% block reward in per period
+	ReduceRewardPeriod = uint64(365 * 720 * 24)
+	ExchangePeriod     = uint64(6159) // 365 * 720 * 24 * 4 / 4096
 )
 
 type proofList [][]byte
@@ -2181,6 +2185,14 @@ MetaURL string
 //	}
 //}
 
+func GetRewardAmount(blocknumber uint64, initamount *big.Int) *big.Int {
+	times := blocknumber / ReduceRewardPeriod
+	rewardratio := gomath.Pow(0.88, float64(times))
+	u, _ := new(big.Float).Mul(big.NewFloat(rewardratio), new(big.Float).SetInt(initamount)).Uint64()
+
+	return new(big.Int).SetUint64(u)
+}
+
 func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address, blocknumber *big.Int) {
 
 	// reward ERB or SNFT to validators
@@ -2188,11 +2200,12 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	for _, addr := range validators {
 		log.Info("CreateNFTByOfficial16", "validators=", addr, "blocknumber=", blocknumber.Uint64())
 	}
+	rewardAmount := GetRewardAmount(blocknumber.Uint64(), DREBlockReward)
 	for _, owner := range validators {
 		ownerObject := s.GetOrNewStateObject(owner)
 		if ownerObject != nil {
 			log.Info("ownerobj", "addr", ownerObject.address.Hex(), "blocknumber=", blocknumber.Uint64())
-			ownerObject.AddBalance(DREBlockReward)
+			ownerObject.AddBalance(rewardAmount)
 		}
 	}
 
@@ -2383,7 +2396,8 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		emptyAddress := common.Address{}
 		creator := nftStateObject.GetCreator()
 		creatorObj := s.GetOrNewStateObject(creator)
-		amount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel(), nftStateObject.GetMergeNumber())
+		initAmount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel(), nftStateObject.GetMergeNumber())
+		amount := GetExchangAmount(nftaddress, initAmount)
 
 		if creator != emptyAddress && creatorObj != nil {
 			creatorObj.AddBalance(big.NewInt(0).Div(amount, big.NewInt(10)))
@@ -2399,6 +2413,22 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		}
 	}
 }
+
+func GetExchangAmount(nftaddress common.Address, initamount *big.Int) *big.Int {
+	var ExchangePeriod = uint64(6159)
+	nftInt := new(big.Int).SetBytes(nftaddress.Bytes())
+	baseInt, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+	nftInt.Sub(nftInt, baseInt)
+	nftInt.Add(nftInt, big.NewInt(1))
+	nftInt.Div(nftInt, big.NewInt(4096))
+	times := nftInt.Uint64() / ExchangePeriod
+	rewardratio := gomath.Pow(0.88, float64(times))
+	result := big.NewInt(0)
+	new(big.Float).Mul(big.NewFloat(rewardratio), new(big.Float).SetInt(initamount)).Int(result)
+
+	return result
+}
+
 func (s *StateDB) calculateExchangeAmount(level uint8, mergenumber uint32) *big.Int {
 	//nftNumber := math.BigPow(16, int64(level))
 	nftNumber := big.NewInt(int64(mergenumber))
