@@ -43,6 +43,7 @@ type GlogHandler struct {
 	override  uint32 // Flag whether overrides are used, atomically accessible
 	backtrace uint32 // Flag whether backtrace location is set
 
+	merge     bool            // whether merge the log
 	patterns  []pattern       // Current list of patterns to override with
 	siteCache map[uintptr]Lvl // Cache of callsite pattern evaluations
 	location  string          // file:line location where to do a stackdump at
@@ -173,6 +174,11 @@ func (h *GlogHandler) BacktraceAt(location string) error {
 	h.location = location
 	atomic.StoreUint32(&h.backtrace, uint32(len(location)))
 
+	return nil
+}
+
+func (h *GlogHandler) MergeFlag(merge bool) error {
+	h.merge = merge
 	return nil
 }
 

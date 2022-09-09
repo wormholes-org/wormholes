@@ -18,6 +18,7 @@ package debug
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/miniredis"
 	"io"
 	"net/http"
@@ -42,10 +43,9 @@ var (
 		Usage: "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail",
 		Value: 3,
 	}
-	logpathFlag = cli.StringFlag{
-		Name:  "log.path",
-		Usage: "where is the log",
-		Value: "",
+	mergeLogeFlag = cli.BoolFlag{
+		Name:  "log.merge",
+		Usage: "merge the log",
 	}
 	vmoduleFlag = cli.StringFlag{
 		Name:  "vmodule",
@@ -138,7 +138,7 @@ var (
 // Flags holds all command-line flags required for debugging.
 var Flags = []cli.Flag{
 	verbosityFlag,
-	logpathFlag,
+	mergeLogeFlag,
 	vmoduleFlag,
 	logjsonFlag,
 	backtraceAtFlag,
@@ -179,22 +179,19 @@ func init() {
 	glogger = log.NewGlogHandler(ostream)
 }
 
+func SetLog(node *eth.Ethereum) error {
+	setChain := func(log log.Record) {
+		log.Chain = node
+	}
+	logger := log.Logger(setChain)
+}
+
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) error {
 	// logging
-	log.PrintOrigins(ctx.GlobalBool(debugFlag.Name))
-	logdir := ctx.GlobalString(logpathFlag.Name)
-	if logdir != "" {
-		rfh, err := log.RotatingFileHandler(
-			logdir,
-			100,
-			log.JSONFormatOrderedEx(false, true))
-		if err != nil {
-			return err
-		}
-		glogger.SetHandler(log.MultiHandler(ostream, rfh))
-	}
+	logMerge := ctx.GlobalBool(mergeLogeFlag.Name)
+	glogger.MergeFlag(logMerge)
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)
 	glogger.Verbosity(log.Lvl(verbosity))
 	vmodule := ctx.GlobalString(vmoduleFlag.Name)

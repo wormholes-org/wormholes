@@ -20,6 +20,7 @@ package utils
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/ethereum/go-ethereum/internal/debug"
 	"io"
 	"io/ioutil"
 	"math"
@@ -1734,6 +1735,9 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		return backend.ApiBackend, nil
 	}
 	backend, err := eth.New(stack, cfg)
+
+	debug.SetLog(backend)
+
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}
