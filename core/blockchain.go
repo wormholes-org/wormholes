@@ -2786,7 +2786,12 @@ func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common
 			buffer.WriteString(common.Hash{}.Hex())
 			continue
 		}
-		buffer.WriteString(val.Address().Hash().Hex())
+		encValidator, err := rlp.EncodeToBytes(validators.GetValidatorByAddr(val.Address()))
+		if err != nil {
+			buffer.WriteString(common.Hash{}.Hex())
+		} else {
+			buffer.WriteString(string(common.BytesToHash(encValidator).Hex()))
+		}
 	}
 	buffer.WriteString(header.Hash().Hex())
 	return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))

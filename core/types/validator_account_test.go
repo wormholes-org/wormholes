@@ -2,12 +2,14 @@ package types
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func TestCalculateAddressRange(t *testing.T) {
@@ -325,4 +327,11 @@ func MockValidatorList() *ValidatorList {
 		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
 	}
 	return validatorList
+}
+
+func TestRlpToHash(t *testing.T) {
+	validator := NewValidator(RandomAddr(), big.NewInt(1000000), common.Address{})
+	encValidator, _ := rlp.EncodeToBytes(validator)
+	hash := common.BytesToHash(encValidator)
+	t.Log("===hash===", hash.Hex())
 }

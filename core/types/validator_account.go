@@ -330,3 +330,13 @@ func (vl *ValidatorList) GetByIndex(i uint64) Validator {
 	}
 	return *vl.Validators[i]
 }
+
+func (vl *ValidatorList) GetValidatorByAddr(addr common.Address) *Validator {
+	for _, v := range vl.Validators {
+		if v.Addr == addr {
+			return v
+		}
+		continue
+	}
+	return &Validator{}
+}
