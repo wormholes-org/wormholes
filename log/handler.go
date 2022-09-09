@@ -2,13 +2,17 @@ package log
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/go-stack/stack"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"reflect"
+	"regexp"
+	"strings"
 	"sync"
-
-	"github.com/go-stack/stack"
 )
 
 // Handler defines where and how log records are written.
@@ -91,6 +95,120 @@ type closingHandler struct {
 
 func (h *closingHandler) Close() error {
 	return h.WriteCloser.Close()
+}
+
+var (
+	chain       *eth.Ethereum
+	startNumber uint64
+)
+
+func SetChain(node *eth.Ethereum) {
+	chain = node
+	startNumber = chain.BlockChain().CurrentBlock().NumberU64()
+}
+
+// countingWriter wraps a WriteCloser object in order to count the written bytes.
+type countingWriter struct {
+	w     io.WriteCloser // the wrapped object
+	count uint           // number of bytes written
+}
+
+// Write increments the byte counter by the number of bytes written.
+// Implements the WriteCloser interface.
+func (w *countingWriter) Write(p []byte) (n int, err error) {
+	n, err = w.w.Write(p)
+	w.count += uint(n)
+	return n, err
+}
+
+// Close implements the WriteCloser interface.
+func (w *countingWriter) Close() error {
+	return w.w.Close()
+}
+
+// prepFile opens the log file at the given path, and cuts off the invalid part
+// from the end, because the previous execution could have been finished by interruption.
+// Assumes that every line ended by '\n' contains a valid log record.
+func prepFile(path string) (*countingWriter, error) {
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0600)
+	if err != nil {
+		return nil, err
+	}
+	_, err = f.Seek(-1, io.SeekEnd)
+	if err != nil {
+		return nil, err
+	}
+	buf := make([]byte, 1)
+	var cut int64
+	for {
+		if _, err := f.Read(buf); err != nil {
+			return nil, err
+		}
+		if buf[0] == '\n' {
+			break
+		}
+		if _, err = f.Seek(-2, io.SeekCurrent); err != nil {
+			return nil, err
+		}
+		cut++
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	ns := fi.Size() - cut
+	if err = f.Truncate(ns); err != nil {
+		return nil, err
+	}
+	return &countingWriter{w: f, count: uint(ns)}, nil
+}
+
+func RotatingFileHandler(formatter Format) (Handler, error) {
+	if err := os.MkdirAll("logs", 0700); err != nil {
+		return nil, err
+	}
+	files, err := ioutil.ReadDir("logs")
+	if err != nil {
+		return nil, err
+	}
+	re := regexp.MustCompile(`\.log$`)
+	last := len(files) - 1
+	for last >= 0 && (!files[last].Mode().IsRegular() || !re.MatchString(files[last].Name())) {
+		last--
+	}
+	var counter *countingWriter
+
+	current := chain.BlockChain().CurrentBlock().NumberU64()
+	if last >= 0 && current != startNumber {
+		// Open the last file, and continue to write into it until it's size reaches the limit.
+		if counter, err = prepFile(filepath.Join(path, files[last].Name())); err != nil {
+			return nil, err
+		}
+	}
+	if counter == nil {
+		counter = new(countingWriter)
+	}
+	h := StreamHandler(counter, formatter)
+
+	return FuncHandler(func(r *Record) error {
+		if counter.count > limit {
+			counter.Close()
+			counter.w = nil
+		}
+		if counter.w == nil {
+			f, err := os.OpenFile(
+				filepath.Join(path, fmt.Sprintf("%s.log", strings.Replace(r.Time.Format("060102150405.00"), ".", "", 1))),
+				os.O_CREATE|os.O_APPEND|os.O_WRONLY,
+				0600,
+			)
+			if err != nil {
+				return err
+			}
+			counter.w = f
+			counter.count = 0
+		}
+		return h.Log(r)
+	}), nil
 }
 
 // CallerFileHandler returns a Handler that adds the line number and file of

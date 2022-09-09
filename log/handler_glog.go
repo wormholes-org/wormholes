@@ -19,6 +19,7 @@ package log
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/eth"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -43,7 +44,8 @@ type GlogHandler struct {
 	override  uint32 // Flag whether overrides are used, atomically accessible
 	backtrace uint32 // Flag whether backtrace location is set
 
-	merge     bool            // whether merge the log
+	merge     bool // whether merge the log
+	chain     *eth.Ethereum
 	patterns  []pattern       // Current list of patterns to override with
 	siteCache map[uintptr]Lvl // Cache of callsite pattern evaluations
 	location  string          // file:line location where to do a stackdump at

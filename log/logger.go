@@ -118,8 +118,6 @@ type Logger interface {
 	// SetHandler updates the logger to write records to the specified handler.
 	SetHandler(h Handler)
 
-	SetChain()
-
 	// Log a message at the given level with context key/value pairs
 	Trace(msg string, ctx ...interface{})
 	Debug(msg string, ctx ...interface{})
@@ -132,11 +130,6 @@ type Logger interface {
 type logger struct {
 	ctx []interface{}
 	h   *swapHandler
-}
-
-func (l *logger) SetChain() {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {

@@ -18,7 +18,6 @@ package debug
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/miniredis"
 	"io"
 	"net/http"
@@ -177,13 +176,6 @@ func init() {
 	}
 	ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
 	glogger = log.NewGlogHandler(ostream)
-}
-
-func SetLog(node *eth.Ethereum) error {
-	setChain := func(log log.Record) {
-		log.Chain = node
-	}
-	logger := log.Logger(setChain)
 }
 
 // Setup initializes profiling and logging based on the CLI flags.

@@ -50,11 +50,6 @@ type logger struct {
 	h  *bufHandler
 }
 
-func (l *logger) SetChain() {
-	//TODO implement me
-	panic("implement me")
-}
-
 type bufHandler struct {
 	buf []*log.Record
 	fmt log.Format
