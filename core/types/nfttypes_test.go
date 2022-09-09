@@ -1,9 +1,10 @@
 package types
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestInjectedOfficialNFTList(t *testing.T) {
@@ -32,30 +33,30 @@ func TestInjectedOfficialNFTList(t *testing.T) {
 
 }
 
-func TestSNFTExchangeList(t *testing.T) {
-	snftExchange := &SNFTExchange{
-		InjectedInfo: InjectedInfo{
-			MetalUrl: "/ipfs/test1111",
-			Royalty:  100,
-			Creator:  "0xB7987546EA03f4167e1F424C89C094BebbC112A6",
-		},
-		NFTAddress:         common.HexToAddress("0x8000000000000000000000000000000000000100"),
-		MergeLevel:         2,
-		CurrentMintAddress: common.HexToAddress("0x8000000000000000000000000000000000000100"),
-		BlockNumber:        new(big.Int).SetUint64(1),
-	}
-	var SNFTExchangePool SNFTExchangeList
+// func TestSNFTExchangeList(t *testing.T) {
+// 	snftExchange := &SNFTExchange{
+// 		InjectedInfo: InjectedInfo{
+// 			MetalUrl: "/ipfs/test1111",
+// 			Royalty:  100,
+// 			Creator:  "0xB7987546EA03f4167e1F424C89C094BebbC112A6",
+// 		},
+// 		NFTAddress:         common.HexToAddress("0x8000000000000000000000000000000000000100"),
+// 		MergeLevel:         2,
+// 		CurrentMintAddress: common.HexToAddress("0x8000000000000000000000000000000000000100"),
+// 		BlockNumber:        new(big.Int).SetUint64(1),
+// 	}
+// 	var SNFTExchangePool SNFTExchangeList
 
-	SNFTExchangePool.SNFTExchanges = append(SNFTExchangePool.SNFTExchanges, snftExchange)
-	var num int = 0
-	for {
-		address, _, b := SNFTExchangePool.PopAddress(new(big.Int).SetInt64(2))
-		if !b {
-			t.Log("num= ", num)
-			break
-		}
-		num++
-		t.Log(address.Hex())
-	}
+// 	SNFTExchangePool.SNFTExchanges = append(SNFTExchangePool.SNFTExchanges, snftExchange)
+// 	var num int = 0
+// 	for {
+// 		address, _, b := SNFTExchangePool.PopAddress(new(big.Int).SetInt64(2))
+// 		if !b {
+// 			t.Log("num= ", num)
+// 			break
+// 		}
+// 		num++
+// 		t.Log(address.Hex())
+// 	}
 
-}
+// }
