@@ -183,7 +183,14 @@ func init() {
 func Setup(ctx *cli.Context) error {
 	// logging
 	logMerge := ctx.GlobalBool(mergeLogeFlag.Name)
-	glogger.MergeFlag(logMerge)
+	if logMerge {
+		usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
+		rotatingFile, err := log.RotatingFileHandler(log.TerminalFormat(usecolor))
+		if err != nil {
+			return err
+		}
+		log.Root().SetHandler(log.MultiHandler(ostream, rotatingFile))
+	}
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)
 	glogger.Verbosity(log.Lvl(verbosity))
 	vmodule := ctx.GlobalString(vmoduleFlag.Name)
