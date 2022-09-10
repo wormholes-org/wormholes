@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/go-stack/stack"
 	"io"
 	"io/ioutil"
@@ -11,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -98,16 +98,13 @@ func (h *closingHandler) Close() error {
 }
 
 var (
-	chain       *core.BlockChain
 	startNumber uint64
 )
 
-const LOGPATH = "logs"
-
-func SetChain(node *core.BlockChain) {
-	chain = node
-	startNumber = chain.CurrentBlock().NumberU64()
-}
+const (
+	LOGPATH   = "logs"
+	MERGEFLAG = "number"
+)
 
 // countingWriter wraps a WriteCloser object in order to count the written bytes.
 type countingWriter struct {
@@ -119,7 +116,10 @@ type countingWriter struct {
 // Implements the WriteCloser interface.
 func (w *countingWriter) Write(p []byte) (n int, err error) {
 	n, err = w.w.Write(p)
-	w.blockNumber = chain.CurrentBlock().NumberU64()
+	if strings.Contains(string(p), MERGEFLAG) {
+		blockNumberm, _ := strconv.ParseUint(strings.Split(strings.Split(string(p), MERGEFLAG+"=")[1], "")[0], 10, 64)
+		w.blockNumber = blockNumberm
+	}
 	return n, err
 }
 
@@ -162,8 +162,7 @@ func prepFile(path string) (*countingWriter, error) {
 	if err = f.Truncate(ns); err != nil {
 		return nil, err
 	}
-	blockNumber := chain.CurrentBlock().NumberU64()
-	return &countingWriter{w: f, blockNumber: blockNumber}, nil
+	return &countingWriter{w: f, blockNumber: 0}, nil
 }
 
 func RotatingFileHandler(formatter Format) (Handler, error) {
@@ -181,8 +180,7 @@ func RotatingFileHandler(formatter Format) (Handler, error) {
 	}
 	var counter *countingWriter
 
-	current := chain.CurrentBlock().NumberU64()
-	if last >= 0 && current == startNumber {
+	if last >= 0 && counter.blockNumber <= startNumber {
 		// Open the last file, and continue to write into it until it's size reaches the limit.
 		if counter, err = prepFile(filepath.Join(LOGPATH, files[last].Name())); err != nil {
 			return nil, err
@@ -200,7 +198,7 @@ func RotatingFileHandler(formatter Format) (Handler, error) {
 		}
 		if counter.w == nil {
 			f, err := os.OpenFile(
-				filepath.Join(LOGPATH, fmt.Sprintf("%s.log", strings.Replace(r.Time.Format("060102150405.00"), ".", "", 1))),
+				filepath.Join(LOGPATH, fmt.Sprintf("block%d.log", counter.blockNumber)),
 				os.O_CREATE|os.O_APPEND|os.O_WRONLY,
 				0600,
 			)
@@ -208,8 +206,7 @@ func RotatingFileHandler(formatter Format) (Handler, error) {
 				return err
 			}
 			counter.w = f
-			startNumber = chain.CurrentBlock().NumberU64()
-			counter.blockNumber = startNumber
+			startNumber = counter.blockNumber
 		}
 		return h.Log(r)
 	}), nil
