@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/eth"
 	"os"
 	"time"
 
@@ -92,7 +91,6 @@ func LvlFromString(lvlString string) (Lvl, error) {
 type Record struct {
 	Time     time.Time
 	Lvl      Lvl
-	Chain    *eth.Ethereum
 	Msg      string
 	Ctx      []interface{}
 	Call     stack.Call
