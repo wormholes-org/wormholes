@@ -32,12 +32,6 @@ func FuncHandler(fn func(r *Record) error) Handler {
 type funcHandler func(r *Record) error
 
 func (h funcHandler) Log(r *Record) error {
-	fc := reflect.ValueOf(h)
-	fmt.Println(fc)
-	fmt.Println(fc.Addr().String())
-	fmt.Println(fc.Elem().String())
-	f, _ := os.OpenFile("tet", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
-	f.Write(fc.Bytes())
 	return h(r)
 }
 
@@ -103,13 +97,8 @@ func (h *closingHandler) Close() error {
 	return h.WriteCloser.Close()
 }
 
-var (
-	startNumber uint64
-)
-
 const (
-	LOGPATH   = "logs"
-	MERGEFLAG = "number"
+	LOGPATH = "logs"
 )
 
 // countingWriter wraps a WriteCloser object in order to count the written bytes.
@@ -122,53 +111,12 @@ type countingWriter struct {
 // Implements the WriteCloser interface.
 func (w *countingWriter) Write(p []byte) (n int, err error) {
 	n, err = w.w.Write(p)
-	if strings.Contains(string(p), MERGEFLAG) {
-		blockNumberm, _ := strconv.ParseUint(strings.Split(strings.Split(string(p), MERGEFLAG+"=")[1], "")[0], 10, 64)
-		w.blockNumber = blockNumberm
-	}
 	return n, err
 }
 
 // Close implements the WriteCloser interface.
 func (w *countingWriter) Close() error {
 	return w.w.Close()
-}
-
-// prepFile opens the log file at the given path, and cuts off the invalid part
-// from the end, because the previous execution could have been finished by interruption.
-// Assumes that every line ended by '\n' contains a valid log record.
-func prepFile(path string) (*countingWriter, error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0600)
-	if err != nil {
-		return nil, err
-	}
-	_, err = f.Seek(-1, io.SeekEnd)
-	if err != nil {
-		return nil, err
-	}
-	buf := make([]byte, 1)
-	var cut int64
-	for {
-		if _, err := f.Read(buf); err != nil {
-			return nil, err
-		}
-		if buf[0] == '\n' {
-			break
-		}
-		if _, err = f.Seek(-2, io.SeekCurrent); err != nil {
-			return nil, err
-		}
-		cut++
-	}
-	fi, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	ns := fi.Size() - cut
-	if err = f.Truncate(ns); err != nil {
-		return nil, err
-	}
-	return &countingWriter{w: f, blockNumber: 0}, nil
 }
 
 func RotatingFileHandler(formatter Format) (Handler, error) {
@@ -186,11 +134,13 @@ func RotatingFileHandler(formatter Format) (Handler, error) {
 	}
 	var counter *countingWriter
 
-	if last >= 0 && counter.blockNumber <= startNumber {
-		// Open the last file, and continue to write into it until it's size reaches the limit.
-		if counter, err = prepFile(filepath.Join(LOGPATH, files[last].Name())); err != nil {
+	if last >= 0 {
+		num := strings.Split(strings.Split(files[last].Name(), ".")[0], "block")[1]
+		blockNumber, err := strconv.ParseUint(num, 10, 64)
+		if err != nil {
 			return nil, err
 		}
+		counter.blockNumber = blockNumber
 	}
 	if counter == nil {
 		counter = new(countingWriter)
@@ -198,7 +148,7 @@ func RotatingFileHandler(formatter Format) (Handler, error) {
 	h := StreamHandler(counter, formatter)
 
 	return FuncHandler(func(r *Record) error {
-		if counter.blockNumber > startNumber {
+		if r.BlockNumber > counter.blockNumber {
 			counter.Close()
 			counter.w = nil
 		}
@@ -212,7 +162,7 @@ func RotatingFileHandler(formatter Format) (Handler, error) {
 				return err
 			}
 			counter.w = f
-			startNumber = counter.blockNumber
+			counter.blockNumber = r.BlockNumber
 		}
 		return h.Log(r)
 	}), nil

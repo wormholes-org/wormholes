@@ -93,7 +93,7 @@ func LvlFromString(lvlString string) (Lvl, error) {
 // A Record is what a Logger asks its handler to write
 type Record struct {
 	Time        time.Time
-	BlockNumber interface{}
+	BlockNumber uint64
 	Lvl         Lvl
 	Msg         string
 	Ctx         []interface{}
@@ -199,12 +199,15 @@ func (l *logger) SetHandler(h Handler) {
 }
 
 func getBlockNumber() uint64 {
-	block := reflect.ValueOf(Chain).Elem()
-	currentBlock := block.MethodByName("CurrentBlock").Call([]reflect.Value{})
-	fmt.Println(currentBlock)
-	num := reflect.ValueOf(currentBlock).Elem().MethodByName("NumberU64").Call([]reflect.Value{})
-	fmt.Println(num)
-	return 0
+	if Chain == nil {
+		return 0
+	} else {
+		block := reflect.ValueOf(Chain)
+		currentBlock := block.MethodByName("CurrentBlock").Call([]reflect.Value{})[0]
+		num := currentBlock.MethodByName("NumberU64").Call([]reflect.Value{})[0].Uint()
+		fmt.Println("num", num)
+		return num
+	}
 }
 
 func normalize(ctx []interface{}) []interface{} {
