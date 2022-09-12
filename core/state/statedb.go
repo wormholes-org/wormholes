@@ -53,7 +53,10 @@ var (
 	DREBlockReward = big.NewInt(1.1e+17)
 	// reduce 12% block reward in per period
 	ReduceRewardPeriod = uint64(365 * 720 * 24)
-	ExchangePeriod     = uint64(6159) // 365 * 720 * 24 * 4 / 4096
+	ExchangePeriod     = uint64(6160) // 365 * 720 * 24 * 4 / 4096
+	//for test
+	//ReduceRewardPeriod = uint64(1024)
+	//ExchangePeriod     = uint64(1) // 365 * 720 * 24 * 4 / 4096
 )
 
 type proofList [][]byte
@@ -2415,11 +2418,10 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 }
 
 func GetExchangAmount(nftaddress common.Address, initamount *big.Int) *big.Int {
-	var ExchangePeriod = uint64(6159)
 	nftInt := new(big.Int).SetBytes(nftaddress.Bytes())
 	baseInt, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 	nftInt.Sub(nftInt, baseInt)
-	nftInt.Add(nftInt, big.NewInt(1))
+	//nftInt.Add(nftInt, big.NewInt(1))
 	nftInt.Div(nftInt, big.NewInt(4096))
 	times := nftInt.Uint64() / ExchangePeriod
 	rewardratio := gomath.Pow(0.88, float64(times))
