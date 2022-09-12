@@ -1734,7 +1734,6 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		return backend.ApiBackend, nil
 	}
 	backend, err := eth.New(stack, cfg)
-	backend.BlockChain()
 	log.Chain = backend.BlockChain().CurrentBlock()
 
 	if err != nil {

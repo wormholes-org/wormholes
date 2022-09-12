@@ -117,8 +117,6 @@ type Logger interface {
 	// GetHandler gets the handler associated with the logger.
 	GetHandler() Handler
 
-	SetChain(chain interface{})
-
 	// SetHandler updates the logger to write records to the specified handler.
 	SetHandler(h Handler)
 
@@ -198,10 +196,6 @@ func (l *logger) GetHandler() Handler {
 
 func (l *logger) SetHandler(h Handler) {
 	l.h.Swap(h)
-}
-
-func (l *logger) SetChain(chain interface{}) {
-	Chain = chain
 }
 
 func getBlockNumber() uint64 {
