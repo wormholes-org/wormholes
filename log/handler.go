@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Handler defines where and how log records are written.
@@ -98,20 +99,25 @@ func (h *closingHandler) Close() error {
 }
 
 const (
-	LOGPATH = "logs"
+	LOGPATH   = "logs"
+	DEFERTIME = time.Second * 20
 )
 
 // countingWriter wraps a WriteCloser object in order to count the written bytes.
 type countingWriter struct {
 	w           io.WriteCloser // the wrapped object
 	blockNumber uint64         // number of bytes written
+	closed      bool
 }
 
 // Write increments the byte counter by the number of bytes written.
 // Implements the WriteCloser interface.
 func (w *countingWriter) Write(p []byte) (n int, err error) {
-	n, err = w.w.Write(p)
-	return n, err
+	stdr, _ := os.OpenFile(filepath.Join(LOGPATH, "unknown.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+	if w.closed {
+		return stdr.Write(p)
+	}
+	return w.w.Write(p)
 }
 
 // Close implements the WriteCloser interface.
@@ -148,20 +154,22 @@ func RotatingFileHandler(formatter Format) (Handler, error) {
 	h := StreamHandler(counter, formatter)
 
 	return FuncHandler(func(r *Record) error {
-		if r.BlockNumber > counter.blockNumber {
+		if r.BlockNumber > counter.blockNumber && !counter.closed {
 			counter.Close()
+			counter.closed = true
 			counter.w = nil
 		}
 		if counter.w == nil {
-			f, err := os.OpenFile(
-				filepath.Join(LOGPATH, fmt.Sprintf("block%d.log", counter.blockNumber)),
+			f, err1 := os.OpenFile(
+				filepath.Join(LOGPATH, fmt.Sprintf("block%d.log", r.BlockNumber)),
 				os.O_CREATE|os.O_APPEND|os.O_WRONLY,
 				0600,
 			)
-			if err != nil {
+			if err1 != nil {
 				return err
 			}
 			counter.w = f
+			counter.closed = false
 			counter.blockNumber = r.BlockNumber
 		}
 		return h.Log(r)

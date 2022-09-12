@@ -205,7 +205,6 @@ func getBlockNumber() uint64 {
 		block := reflect.ValueOf(Chain)
 		currentBlock := block.MethodByName("CurrentBlock").Call([]reflect.Value{})[0]
 		num := currentBlock.MethodByName("NumberU64").Call([]reflect.Value{})[0].Uint()
-		fmt.Println("num", num)
 		return num
 	}
 }

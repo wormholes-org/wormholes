@@ -188,7 +188,7 @@ func Setup(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		log.Root().SetHandler(log.MultiHandler(ostream, rotatingFile))
+		glogger.SetHandler(log.MultiHandler(ostream, rotatingFile))
 	}
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)
 	glogger.Verbosity(log.Lvl(verbosity))
