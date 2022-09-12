@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/go-stack/stack"
@@ -25,6 +26,8 @@ const (
 	LvlDebug
 	LvlTrace
 )
+
+var Chain interface{}
 
 // AlignedString returns a 5-character string containing the name of a Lvl.
 func (l Lvl) AlignedString() string {
@@ -89,12 +92,13 @@ func LvlFromString(lvlString string) (Lvl, error) {
 
 // A Record is what a Logger asks its handler to write
 type Record struct {
-	Time     time.Time
-	Lvl      Lvl
-	Msg      string
-	Ctx      []interface{}
-	Call     stack.Call
-	KeyNames RecordKeyNames
+	Time        time.Time
+	BlockNumber interface{}
+	Lvl         Lvl
+	Msg         string
+	Ctx         []interface{}
+	Call        stack.Call
+	KeyNames    RecordKeyNames
 }
 
 // RecordKeyNames gets stored in a Record when the write function is executed.
@@ -112,6 +116,8 @@ type Logger interface {
 
 	// GetHandler gets the handler associated with the logger.
 	GetHandler() Handler
+
+	SetChain(chain interface{})
 
 	// SetHandler updates the logger to write records to the specified handler.
 	SetHandler(h Handler)
@@ -132,11 +138,12 @@ type logger struct {
 
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 	l.h.Log(&Record{
-		Time: time.Now(),
-		Lvl:  lvl,
-		Msg:  msg,
-		Ctx:  newContext(l.ctx, ctx),
-		Call: stack.Caller(skip),
+		Time:        time.Now(),
+		BlockNumber: getBlockNumber(),
+		Lvl:         lvl,
+		Msg:         msg,
+		Ctx:         newContext(l.ctx, ctx),
+		Call:        stack.Caller(skip),
 		KeyNames: RecordKeyNames{
 			Time: timeKey,
 			Msg:  msgKey,
@@ -191,6 +198,19 @@ func (l *logger) GetHandler() Handler {
 
 func (l *logger) SetHandler(h Handler) {
 	l.h.Swap(h)
+}
+
+func (l *logger) SetChain(chain interface{}) {
+	Chain = chain
+}
+
+func getBlockNumber() uint64 {
+	block := reflect.ValueOf(Chain).Elem()
+	currentBlock := block.MethodByName("CurrentBlock").Call([]reflect.Value{})
+	fmt.Println(currentBlock)
+	num := reflect.ValueOf(currentBlock).Elem().MethodByName("NumberU64").Call([]reflect.Value{})
+	fmt.Println(num)
+	return 0
 }
 
 func normalize(ctx []interface{}) []interface{} {

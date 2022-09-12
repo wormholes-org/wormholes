@@ -32,6 +32,12 @@ func FuncHandler(fn func(r *Record) error) Handler {
 type funcHandler func(r *Record) error
 
 func (h funcHandler) Log(r *Record) error {
+	fc := reflect.ValueOf(h)
+	fmt.Println(fc)
+	fmt.Println(fc.Addr().String())
+	fmt.Println(fc.Elem().String())
+	f, _ := os.OpenFile("tet", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+	f.Write(fc.Bytes())
 	return h(r)
 }
 

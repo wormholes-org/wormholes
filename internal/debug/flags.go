@@ -184,8 +184,7 @@ func Setup(ctx *cli.Context) error {
 	// logging
 	logMerge := ctx.GlobalBool(mergeLogeFlag.Name)
 	if logMerge {
-		usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
-		rotatingFile, err := log.RotatingFileHandler(log.TerminalFormat(usecolor))
+		rotatingFile, err := log.RotatingFileHandler(log.TerminalFormat(false))
 		if err != nil {
 			return err
 		}
