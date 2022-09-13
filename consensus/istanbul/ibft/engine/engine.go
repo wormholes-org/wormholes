@@ -288,6 +288,21 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		return consensus.ErrUnknownAncestor
 	}
 
+	// Parse online validator related data
+	var (
+		decodeErr        error
+		onlineValidators = new(types.OnlineValidatorInfo)
+	)
+	if len(header.Extra) > 32 {
+		log.Info("Prepare extra", "height", header.Number, "len", len(header.Extra), "extra", header.Extra)
+		err := rlp.DecodeBytes(header.Extra[32:], &onlineValidators)
+		if err != nil {
+			decodeErr = err
+			log.Info("decode err", "err", err.Error())
+		} else {
+			log.Info("onlineValidators", "height", onlineValidators.Height, "addr", onlineValidators.Addrs, "hashs", onlineValidators.Hashs)
+		}
+	}
 	// use the same difficulty for all blocks
 	header.Difficulty = istanbulcommon.DefaultDifficulty
 	var (
@@ -305,6 +320,16 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		exchangerAddr = append(exchangerAddr, benifitedStakers...)
 
 		// reward to validators
+		if decodeErr == nil && len(onlineValidators.Addrs) >= 6 {
+			validatorAddr = append(validatorAddr, onlineValidators.Addrs[:7]...)
+		} else {
+			validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
+			if err != nil {
+				return err
+			}
+			benifitedValidators := c.RandomNValidatorFromEleven(6, validatorList, c.CurrentBlock().Header().Hash())
+			validatorAddr = append(validatorAddr, benifitedValidators...)
+		}
 		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
 		if err != nil {
 			return err
@@ -334,8 +359,21 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			}
 		}
 	}
+
+	// write random hash number to extra
+	var randomHash common.Hash
+	var writeBuffer bytes.Buffer
+	if decodeErr == nil && len(onlineValidators.Hashs) > 0 {
+		for _, h := range onlineValidators.Hashs {
+			writeBuffer.WriteString(h.Hex())
+		}
+		randomHash = common.HexToHash(common.Bytes2Hex(writeBuffer.Bytes()))
+	} else {
+		randomHash = common.Hash{}
+	}
+
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr)
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, randomHash)
 	if err != nil {
 		return err
 	}
@@ -530,7 +568,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 }
 
 // prepareExtra returns a extra-data of the given header and validators
-func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address) ([]byte, error) {
+func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address, randomHash common.Hash) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
@@ -545,6 +583,7 @@ func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []com
 		CommittedSeal: [][]byte{},
 		ExchangerAddr: exchangerAddr,
 		ValidatorAddr: validatorAddr,
+		RandomHash:    randomHash,
 	}
 
 	payload, err := rlp.EncodeToBytes(&ist)

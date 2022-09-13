@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	MsgPreprepare uint64 = iota
+	MsgOnlineProof uint64 = iota
+	MsgPreprepare
 	MsgPrepare
 	MsgCommit
 	MsgRoundChange

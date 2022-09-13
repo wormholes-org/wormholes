@@ -118,6 +118,8 @@ type Backend struct {
 	knownMessages  *lru.ARCCache // the cache of self messages
 
 	qbftConsensusEnabled bool // qbft consensus
+
+	notifyBlockCh chan *types.OnlineValidatorInfo // Notify worker modules to produce blocks
 }
 
 func (sb *Backend) Engine() istanbul.Engine {
@@ -451,4 +453,8 @@ func (sb *Backend) StartQBFTConsensus() error {
 	}
 
 	return sb.startQBFT()
+}
+
+func (sb *Backend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorInfo) {
+	sb.notifyBlockCh <- onlineValidators
 }

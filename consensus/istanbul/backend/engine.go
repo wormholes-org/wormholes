@@ -568,3 +568,54 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	}
 	return nil
 }
+
+func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorInfo, stop <-chan struct{}) error {
+	log.Info("SealOnlineProofBlk : info", "height", block.Number())
+	// Only this round of validators can send online proofs
+	header := block.Header()
+
+	if sb.core == nil {
+		log.Error("SealOnlineProofBlk : sb.core", "err", errors.New("SealOnlineProofBlk : ibft engine not active !"))
+		return errors.New("SealOnlineProofBlk : ibft engine not active !")
+	}
+
+	//Get the validatorset for this round
+	istanbulExtra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		log.Error("SealOnlineProofBlk  : istanbulExtra", "err", err.Error())
+		return err
+	}
+
+	valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
+	if _, v := valSet.GetByAddress(sb.address); v == nil {
+		log.Error("SealOnlineProofBlk  : ErrUnauthorized", "err", istanbulcommon.ErrUnauthorized)
+		return istanbulcommon.ErrUnauthorized
+	}
+
+	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+	if parent == nil {
+		log.Error("SealOnlineProofBlk  : ErrUnknownAncestor", "err", consensus.ErrUnknownAncestor)
+		return consensus.ErrUnknownAncestor
+	}
+
+	// generate a local random number
+	localTime := time.Now().Nanosecond()
+	common.BigToHash(big.NewInt(int64(localTime)))
+
+	log.Info("SealOnlineProofBlk : post OnlineProofEvent")
+	go sb.EventMux().Post(istanbul.OnlineProofEvent{
+		Proposal:   block,
+		RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
+	})
+
+	for {
+		select {
+		case onlineValidators := <-sb.notifyBlockCh:
+			if onlineValidators != nil {
+				notifyBlockCh <- onlineValidators
+			}
+		case <-stop:
+			return nil
+		}
+	}
+}

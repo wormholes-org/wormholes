@@ -18,9 +18,10 @@
 package consensus
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/p2p"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -121,6 +122,9 @@ type Engine interface {
 
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error
+
+	//
+	SealOnlineProofBlk(chain ChainHeaderReader, block *types.Block, results chan *types.OnlineValidatorInfo, stop <-chan struct{}) error
 }
 
 // Handler should be implemented is the consensus needs to handle and send peer's message

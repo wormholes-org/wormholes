@@ -46,6 +46,7 @@ type IstanbulExtra struct {
 	CommittedSeal [][]byte
 	ExchangerAddr []common.Address
 	ValidatorAddr []common.Address
+	RandomHash    common.Hash
 }
 
 // EncodeRLP serializes ist into the Ethereum RLP format.
@@ -56,6 +57,7 @@ func (ist *IstanbulExtra) EncodeRLP(w io.Writer) error {
 		ist.CommittedSeal,
 		ist.ExchangerAddr,
 		ist.ValidatorAddr,
+		ist.RandomHash,
 	})
 }
 
@@ -67,11 +69,12 @@ func (ist *IstanbulExtra) DecodeRLP(s *rlp.Stream) error {
 		CommittedSeal [][]byte
 		ExchangerAddr []common.Address
 		ValidatorAddr []common.Address
+		RandomHash    common.Hash
 	}
 	if err := s.Decode(&istanbulExtra); err != nil {
 		return err
 	}
-	ist.Validators, ist.Seal, ist.CommittedSeal, ist.ExchangerAddr, ist.ValidatorAddr = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr
+	ist.Validators, ist.Seal, ist.CommittedSeal, ist.ExchangerAddr, ist.ValidatorAddr, ist.RandomHash = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr, istanbulExtra.RandomHash
 	return nil
 }
 

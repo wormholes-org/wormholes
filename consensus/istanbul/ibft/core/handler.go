@@ -31,12 +31,10 @@ func (c *core) Start() error {
 	c.subscribeEvents()
 	c.handlerWg.Add(1)
 
-
 	// Start a new round from last sequence + 1
 	c.startNewRound(common.Big0)
 
 	go c.handleEvents()
-
 
 	return nil
 }
@@ -101,6 +99,17 @@ func (c *core) handleEvents() {
 				if err == istanbulcommon.ErrFutureMessage {
 					c.storeRequestMsg(r)
 				}
+			case istanbul.OnlineProofEvent:
+				log.Info("OnlineProofEvent", "height", ev.Proposal.Number())
+				o := &istanbul.OnlineProofRequest{
+					Proposal:   ev.Proposal,
+					RandomHash: ev.RandomHash,
+				}
+				err := c.handleOnlineProofRequest(o)
+				if err == istanbulcommon.ErrFutureMessage {
+					c.storeOnlineProofRequestMsg(o)
+				}
+
 			case istanbul.MessageEvent:
 				// If it is a normal node or not the validator of this round, gossip message directly
 				if c.valSet != nil {

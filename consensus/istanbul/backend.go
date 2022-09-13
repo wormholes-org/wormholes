@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 )
 
@@ -81,4 +82,7 @@ type Backend interface {
 
 	// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
 	StartQBFTConsensus() error
+
+	// Notify miners to submit blocks
+	NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorInfo)
 }

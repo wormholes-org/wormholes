@@ -17,9 +17,10 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/log"
 	"strconv"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -112,7 +113,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 		} else {
 			logger.Warn("Failed to verify proposal", "err", err, "duration", duration)
 			log.Info("caver|handlePreprepare|sendNextRoundChange1", "no", preprepare.Proposal.Number().String(),
-				"round", preprepare.View.Round.String(),"is proposer", strconv.FormatBool(c.IsProposer()))
+				"round", preprepare.View.Round.String(), "is proposer", strconv.FormatBool(c.IsProposer()))
 			c.sendNextRoundChange()
 		}
 		return err

@@ -89,6 +89,10 @@ type core struct {
 	pendingRequests   *prque.Prque
 	pendingRequestsMu *sync.Mutex
 
+	//
+	pendingOnlineProofRequests      *prque.Prque
+	pendindingOnlineProofRequestsMu *sync.Mutex
+
 	consensusTimestamp time.Time
 }
 

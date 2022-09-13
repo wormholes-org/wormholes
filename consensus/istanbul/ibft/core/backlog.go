@@ -45,7 +45,7 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 
 	if msgCode == ibfttypes.MsgRoundChange {
 		if view.Sequence.Cmp(c.currentView().Sequence) > 0 {
-			log.Error("carver|view.Sequence.Cmp(c.currentView().Sequence) > 0", "view.sequence", view.Sequence, "c.currentView().Sequence", c.currentView().Sequence)
+			log.Error("checkMessage  :  sequence", "view.sequence", view.Sequence, "c.currentView().Sequence", c.currentView().Sequence)
 			return istanbulcommon.ErrFutureMessage
 		} else if view.Cmp(c.currentView()) < 0 {
 			return istanbulcommon.ErrOldMessage
@@ -54,7 +54,7 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	}
 
 	if view.Cmp(c.currentView()) > 0 {
-		log.Error("carver|view.Cmp(c.currentView()) > 0")
+		log.Error("checkMessage : currentView")
 		return istanbulcommon.ErrFutureMessage
 	}
 
@@ -63,7 +63,7 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	}
 
 	if c.waitingForRoundChange {
-		log.Error("carver|c.waitingForRoundChange")
+		log.Error("checkMessage : waitingForRoundChange")
 		return istanbulcommon.ErrFutureMessage
 	}
 
@@ -71,7 +71,15 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	// other messages are future messages
 	if c.state == ibfttypes.StateAcceptRequest {
 		if msgCode > ibfttypes.MsgPreprepare {
-			log.Error("carver|msgCode > ibfttypes.MsgPreprepare")
+			log.Error("checkMessage : MsgPreprepare")
+			return istanbulcommon.ErrFutureMessage
+		}
+		return nil
+	}
+
+	if c.state == ibfttypes.StateAcceptOnlineProofRequest {
+		if msgCode > ibfttypes.MsgOnlineProof {
+			log.Error("checkMessage : MsgOnlineProof")
 			return istanbulcommon.ErrFutureMessage
 		}
 		return nil

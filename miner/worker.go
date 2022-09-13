@@ -155,6 +155,7 @@ type worker struct {
 	exitCh             chan struct{}
 	resubmitIntervalCh chan time.Duration
 	resubmitAdjustCh   chan *intervalAdjust
+	notifyBlockCh      chan *types.OnlineValidatorInfo
 
 	current      *environment                 // An environment for current running cycle.
 	localUncles  map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
@@ -192,6 +193,9 @@ type worker struct {
 	skipSealHook func(*task) bool                   // Method to decide whether skipping the sealing.
 	fullTaskHook func()                             // Method to call before pushing the full sealing task.
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
+
+	// onlineValidators
+	onlineValidators *types.OnlineValidatorInfo
 }
 
 func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
@@ -371,9 +375,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		timestamp   int64      // timestamp for each round of mining.
 	)
 
-	timer := time.NewTimer(0)
-	defer timer.Stop()
-	<-timer.C // discard the initial tick
+	// timer := time.NewTimer(0)
+	// defer timer.Stop()
+	// <-timer.C // discard the initial tick
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(noempty bool, s int32) {
@@ -386,7 +390,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-w.exitCh:
 			return
 		}
-		timer.Reset(recommit)
+		//timer.Reset(recommit)
 		atomic.StoreInt32(&w.newTxs, 0)
 	}
 	// clearPending cleans the stale pending tasks.
@@ -409,26 +413,33 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			commit(false, commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
+			log.Info("w.chainHeadCh", "height", head.Block.Number())
 			if h, ok := w.engine.(consensus.Handler); ok {
 				h.NewChainHead()
 			}
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
-			commit(false, commitInterruptNewHead)
+			// Start submitting online proof blocks
+			w.CommitOnlineProofBlock()
 
-		case <-timer.C:
-			// If mining is running resubmit a new work cycle periodically to pull in
-			// higher priced transactions. Disable this overhead for pending blocks.
-			if w.isRunning() && (w.chainConfig.Clique == nil || w.chainConfig.Clique.Period > 0) {
-				// Short circuit if no new transaction arrives.
-				if atomic.LoadInt32(&w.newTxs) == 0 {
-					log.Info("caver|newWorkLoop|timer.Reset")
-					timer.Reset(recommit)
-					continue
-				}
-				log.Info("caver|timer.C|Resubmit", "w.currentNo", w.current.header.Number.Uint64())
-				commit(true, commitInterruptResubmit)
-			}
+		case onlineValidators := <-w.notifyBlockCh:
+			w.onlineValidators = onlineValidators
+			clearPending(onlineValidators.Height.Uint64())
+			timestamp = time.Now().Unix()
+			commit(false, commitInterruptNewHead)
+		// case <-timer.C:
+		// 	// If mining is running resubmit a new work cycle periodically to pull in
+		// 	// higher priced transactions. Disable this overhead for pending blocks.
+		// 	if w.isRunning() && (w.chainConfig.Clique == nil || w.chainConfig.Clique.Period > 0) {
+		// 		// Short circuit if no new transaction arrives.
+		// 		if atomic.LoadInt32(&w.newTxs) == 0 {
+		// 			log.Info("caver|newWorkLoop|timer.Reset")
+		// 			timer.Reset(recommit)
+		// 			continue
+		// 		}
+		// 		log.Info("caver|timer.C|Resubmit", "w.currentNo", w.current.header.Number.Uint64())
+		// 		commit(true, commitInterruptResubmit)
+		// 	}
 
 		case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.
@@ -478,7 +489,6 @@ func (w *worker) mainLoop() {
 			w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
 
 		case ev := <-w.chainSideCh:
-			log.Info("caver|mainLoop|chainSideCh")
 			// Short circuit for duplicate side blocks
 			if _, exist := w.localUncles[ev.Block.Hash()]; exist {
 				continue
@@ -999,6 +1009,20 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 			header.GasLimit = core.CalcGasLimit(parentGasLimit, w.config.GasCeil)
 		}
 	}
+
+	// Collect data related to online certification validator
+
+	if w.onlineValidators != nil && w.onlineValidators.Height.Cmp(header.Number) == 0 {
+		payload, _ := w.onlineValidators.Encode()
+		if len(w.extra) > 32 {
+			w.extra = w.extra[:32]
+			w.extra = append(w.extra, payload...)
+		} else {
+			w.extra = append(w.extra, bytes.Repeat([]byte{0x00}, 32-len(w.extra))...)
+			w.extra = append(w.extra, payload...)
+		}
+	}
+
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
 	if w.isRunning() {
 		if w.coinbase == (common.Address{}) {
@@ -1176,4 +1200,44 @@ func totalFees(block *types.Block, receipts []*types.Receipt) *big.Float {
 
 func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
+}
+
+func (w *worker) CommitOnlineProofBlock() error {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	var stopCh <-chan struct{}
+
+	parent := w.chain.CurrentBlock()
+
+	num := parent.Number()
+	header := &types.Header{
+		ParentHash: parent.Hash(),
+		Number:     num.Add(num, common.Big1),
+		GasLimit:   21000,
+		Extra:      w.extra,
+		Time:       10000,
+	}
+
+	header.Coinbase = w.coinbase
+
+	if err := w.engine.Prepare(w.chain, header); err != nil {
+		return errors.New("CommitOnlineProofBlock : Failed to prepare header for mining")
+	}
+
+	err := w.makeCurrent(parent, header)
+	if err != nil {
+		return errors.New("CommitOnlineProofBlock : Failed to create mining context")
+	}
+
+	receipts := copyReceipts(w.current.receipts)
+	s := w.current.state.Copy()
+	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, nil, receipts)
+	if err != nil {
+		return err
+	}
+
+	w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, stopCh)
+
+	return nil
 }

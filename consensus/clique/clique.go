@@ -757,3 +757,7 @@ func encodeSigHeader(w io.Writer, header *types.Header) {
 func (c *Clique) Protocol() consensus.Protocol {
 	return consensus.CliqueProtocol
 }
+
+func (c *Clique) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorInfo, stop <-chan struct{}) error {
+	return nil
+}
