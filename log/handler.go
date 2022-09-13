@@ -117,7 +117,12 @@ func (w *countingWriter) Write(p []byte) (n int, err error) {
 	if w.closed {
 		return stdr.Write(p)
 	}
-	return w.w.Write(p)
+	n, err = w.w.Write(p)
+	if err != nil {
+		return stdr.Write(p)
+	} else {
+		return n, err
+	}
 }
 
 // Close implements the WriteCloser interface.
