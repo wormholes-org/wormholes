@@ -98,7 +98,7 @@ type Ethereum struct {
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 
-	nodekey  *ecdsa.PrivateKey
+	nodekey *ecdsa.PrivateKey
 }
 
 // New creates a new Ethereum object (including the
@@ -600,6 +600,6 @@ func (s *Ethereum) Stop() error {
 	return nil
 }
 
-func (s *Ethereum) GetNodeKey() (*ecdsa.PrivateKey){
+func (s *Ethereum) GetNodeKey() *ecdsa.PrivateKey {
 	return s.nodekey
 }
