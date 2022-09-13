@@ -18,7 +18,9 @@ package debug
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/miniredis"
+	"github.com/ethereum/go-ethereum/node"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
@@ -182,9 +184,15 @@ func init() {
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) error {
 	// logging
+	var datadir string
+	if ctx.GlobalString(utils.DataDirFlag.Name) == "" {
+		datadir = node.DefaultDataDir()
+	} else {
+		datadir = ctx.GlobalString(utils.DataDirFlag.Name)
+	}
 	logMerge := ctx.GlobalBool(mergeLogeFlag.Name)
 	if logMerge {
-		rotatingFile, err := log.RotatingFileHandler(log.TerminalFormat(false))
+		rotatingFile, err := log.RotatingFileHandler(datadir, log.TerminalFormat(false))
 		if err != nil {
 			return err
 		}

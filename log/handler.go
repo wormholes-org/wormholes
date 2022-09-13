@@ -130,15 +130,16 @@ func (w *countingWriter) Close() error {
 	return w.w.Close()
 }
 
-func RotatingFileHandler(formatter Format) (Handler, error) {
-	if err := os.MkdirAll(LOGPATH, 0700); err != nil {
+func RotatingFileHandler(datadir string, formatter Format) (Handler, error) {
+	logPath := filepath.Join(datadir, LOGPATH)
+	if err := os.MkdirAll(logPath, 0700); err != nil {
 		return nil, err
 	}
-	files, err := ioutil.ReadDir("logs")
+	files, err := ioutil.ReadDir(logPath)
 	if err != nil {
 		return nil, err
 	}
-	re := regexp.MustCompile(`\.log$`)
+	re := regexp.MustCompile(`^block\d+\.log$`)
 	last := len(files) - 1
 	for last >= 0 && (!files[last].Mode().IsRegular() || !re.MatchString(files[last].Name())) {
 		last--
@@ -146,12 +147,21 @@ func RotatingFileHandler(formatter Format) (Handler, error) {
 	var counter *countingWriter
 
 	if last >= 0 {
-		num := strings.Split(strings.Split(files[last].Name(), ".")[0], "block")[1]
-		blockNumber, err := strconv.ParseUint(num, 10, 64)
+		f, err := os.OpenFile(filepath.Join(logPath, files[last].Name()), os.O_RDWR|os.O_APPEND, 0600)
 		if err != nil {
 			return nil, err
 		}
-		counter.blockNumber = blockNumber
+		num := strings.Split(strings.Split(files[last].Name(), ".")[0], "block")[1]
+		blockNumber, err1 := strconv.ParseUint(num, 10, 64)
+		if err1 != nil {
+			return nil, err
+		}
+		lastCounter := &countingWriter{
+			f,
+			blockNumber,
+			false,
+		}
+		counter = lastCounter
 	}
 	if counter == nil {
 		counter = new(countingWriter)
@@ -159,14 +169,18 @@ func RotatingFileHandler(formatter Format) (Handler, error) {
 	h := StreamHandler(counter, formatter)
 
 	return FuncHandler(func(r *Record) error {
-		if r.BlockNumber > counter.blockNumber && !counter.closed {
-			counter.Close()
-			counter.closed = true
-			counter.w = nil
+		if !counter.closed {
+			if r.BlockNumber > counter.blockNumber || (r.BlockNumber < counter.blockNumber && r.BlockNumber == 0) {
+				counter.Close()
+				counter.closed = true
+				counter.w = nil
+			}
+
 		}
+
 		if counter.w == nil {
 			f, err1 := os.OpenFile(
-				filepath.Join(LOGPATH, fmt.Sprintf("block%d.log", r.BlockNumber)),
+				filepath.Join(logPath, fmt.Sprintf("block%d.log", r.BlockNumber+1)),
 				os.O_CREATE|os.O_APPEND|os.O_WRONLY,
 				0600,
 			)
