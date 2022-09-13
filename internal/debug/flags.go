@@ -20,11 +20,12 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/miniredis"
-	"github.com/ethereum/go-ethereum/node"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/user"
+	"path/filepath"
 	"runtime"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -186,7 +187,54 @@ func Setup(ctx *cli.Context) error {
 	// logging
 	var datadir string
 	if ctx.GlobalString(utils.DataDirFlag.Name) == "" {
-		datadir = node.DefaultDataDir()
+		var home string
+		if home = os.Getenv("HOME"); home == "" {
+			if usr, err := user.Current(); err == nil {
+				home = usr.HomeDir
+			}
+		}
+
+		if home != "" {
+			switch runtime.GOOS {
+			case "darwin":
+				datadir = filepath.Join(home, "Library", "Wormholes")
+			case "windows":
+				// We used to put everything in %HOME%\AppData\Roaming, but this caused
+				// problems with non-typical setups. If this fallback location exists and
+				// is non-empty, use it, otherwise DTRT and check %LOCALAPPDATA%.
+				fallback := filepath.Join(home, "AppData", "Roaming", "Wormholes")
+
+				appdata := os.Getenv("LOCALAPPDATA")
+				if appdata == "" {
+					// Windows XP and below don't have LocalAppData. Crash here because
+					// we don't support Windows XP and undefining the variable will cause
+					// other issues.
+					panic("environment variable LocalAppData is undefined")
+				}
+
+				f, err := os.Open(fallback)
+				if err != nil {
+					return err
+				}
+				names, _ := f.Readdir(1)
+				f.Close()
+
+				if appdata == "" || len(names) > 0 {
+					datadir = fallback
+				}
+				datadir = filepath.Join(appdata, "Wormholes")
+			default:
+				datadir = filepath.Join(home, ".wormholes")
+			}
+		}
+
+		v := os.Getenv("LOCALAPPDATA")
+		if v == "" {
+			// Windows XP and below don't have LocalAppData. Crash here because
+			// we don't support Windows XP and undefining the variable will cause
+			// other issues.
+			panic("environment variable LocalAppData is undefined")
+		}
 	} else {
 		datadir = ctx.GlobalString(utils.DataDirFlag.Name)
 	}
