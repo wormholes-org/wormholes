@@ -40,6 +40,10 @@ func (vl *ValidatorList) Len() int {
 
 // Less Sort by pledge amount in descending order
 func (vl *ValidatorList) Less(i, j int) bool {
+	if vl.Validators[i].Balance.Cmp(vl.Validators[j].Balance) == 0 {
+		return new(big.Int).SetBytes(vl.Validators[i].Addr.Bytes()).Cmp(
+			new(big.Int).SetBytes(vl.Validators[j].Addr.Bytes())) > 0
+	}
 	return vl.Validators[i].Balance.Cmp(vl.Validators[j].Balance) > 0
 }
 
