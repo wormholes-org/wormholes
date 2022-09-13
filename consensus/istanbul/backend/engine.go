@@ -587,6 +587,7 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 	}
 
 	valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
+	log.Info("SealOnlineProofBlk", "valset", valSet)
 	if _, v := valSet.GetByAddress(sb.address); v == nil {
 		log.Error("SealOnlineProofBlk  : ErrUnauthorized", "err", istanbulcommon.ErrUnauthorized)
 		return istanbulcommon.ErrUnauthorized

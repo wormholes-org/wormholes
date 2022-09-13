@@ -42,17 +42,19 @@ var (
 // New creates an Istanbul consensus core
 func New(backend istanbul.Backend, config *istanbul.Config) *core {
 	c := &core{
-		config:             config,
-		address:            backend.Address(),
-		state:              ibfttypes.StateAcceptRequest,
-		handlerWg:          new(sync.WaitGroup),
-		logger:             log.New("address", backend.Address()),
-		backend:            backend,
-		backlogs:           make(map[common.Address]*prque.Prque),
-		backlogsMu:         new(sync.Mutex),
-		pendingRequests:    prque.New(),
-		pendingRequestsMu:  new(sync.Mutex),
-		consensusTimestamp: time.Time{},
+		config:                          config,
+		address:                         backend.Address(),
+		state:                           ibfttypes.StateAcceptOnlineProofRequest,
+		handlerWg:                       new(sync.WaitGroup),
+		logger:                          log.New("address", backend.Address()),
+		backend:                         backend,
+		backlogs:                        make(map[common.Address]*prque.Prque),
+		backlogsMu:                      new(sync.Mutex),
+		pendingOnlineProofRequests:      prque.New(),
+		pendingRequests:                 prque.New(),
+		pendingRequestsMu:               new(sync.Mutex),
+		consensusTimestamp:              time.Time{},
+		pendindingOnlineProofRequestsMu: new(sync.Mutex),
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -282,21 +284,45 @@ func (c *core) startNewRound(round *big.Int) {
 	}
 
 	c.waitingForRoundChange = false
-	// 在这个阶段如果本地已经发出一个request事件，顺便把这个事件发出去，让其他节点处理，自己就进入到preprepare阶段
-	c.setState(ibfttypes.StateAcceptRequest)
-	if roundChange && c.IsProposer() && c.current != nil {
-		// If it is locked, propose the old proposal
-		// If we have pending request, propose pending request
-		if c.current.IsHashLocked() {
-			log.Info("caver|c.current.IsHashLocked()", "currentProposal", c.current.Proposal().Number().Uint64())
-			r := &istanbul.Request{
-				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
+
+	if c.currentView().Sequence.Uint64() == 1 {
+		c.setState(ibfttypes.StateAcceptRequest)
+		if roundChange && c.IsProposer() && c.current != nil {
+			// If it is locked, propose the old proposal
+			// If we have pending request, propose pending request
+			if c.current.IsHashLocked() {
+				log.Info("caver|c.current.IsHashLocked()", "currentProposal", c.current.Proposal().Number().Uint64())
+				r := &istanbul.Request{
+					Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
+				}
+				c.sendPreprepare(r)
+			} else if c.current.pendingRequest != nil {
+				log.Info("caver|c.current.pendingRequest != nil", "currentPendingRequest", c.current.pendingRequest.Proposal.Number().Uint64())
+				c.sendPreprepare(c.current.pendingRequest)
 			}
-			c.sendPreprepare(r)
-		} else if c.current.pendingRequest != nil {
-			log.Info("caver|c.current.pendingRequest != nil", "currentPendingRequest", c.current.pendingRequest.Proposal.Number().Uint64())
-			c.sendPreprepare(c.current.pendingRequest)
 		}
+	} else {
+		c.setState(ibfttypes.StateAcceptOnlineProofRequest)
+		c.sendOnlineProof(c.current.pendingOnlineProofRequest)
+		// if c.state == ibfttypes.StateAcceptOnlineProofRequest {
+		// 	c.sendOnlineProof(c.current.pendingOnlineProofRequest)
+		// } else {
+		// 	c.setState(ibfttypes.StateAcceptRequest)
+		// 	if roundChange && c.IsProposer() && c.current != nil {
+		// 		// If it is locked, propose the old proposal
+		// 		// If we have pending request, propose pending request
+		// 		if c.current.IsHashLocked() {
+		// 			log.Info("caver|c.current.IsHashLocked()", "currentProposal", c.current.Proposal().Number().Uint64())
+		// 			r := &istanbul.Request{
+		// 				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
+		// 			}
+		// 			c.sendPreprepare(r)
+		// 		} else if c.current.pendingRequest != nil {
+		// 			log.Info("caver|c.current.pendingRequest != nil", "currentPendingRequest", c.current.pendingRequest.Proposal.Number().Uint64())
+		// 			c.sendPreprepare(c.current.pendingRequest)
+		// 		}
+		// 	}
+		// }
 	}
 	c.newRoundChangeTimer()
 
@@ -344,6 +370,9 @@ func (c *core) setState(state ibfttypes.State) {
 	}
 	if state == ibfttypes.StateAcceptRequest {
 		c.processPendingRequests()
+	}
+	if state == ibfttypes.StateAcceptOnlineProofRequest {
+		c.processPendingOnlineProofRequests()
 	}
 	c.processBacklog()
 }

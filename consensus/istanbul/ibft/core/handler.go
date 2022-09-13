@@ -58,6 +58,9 @@ func (c *core) subscribeEvents() {
 		istanbul.MessageEvent{},
 		// internal events
 		backlogEvent{},
+
+		// onlineProof events
+		istanbul.OnlineProofEvent{},
 	)
 	c.timeoutSub = c.backend.EventMux().Subscribe(
 		timeoutEvent{},

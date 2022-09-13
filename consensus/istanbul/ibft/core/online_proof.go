@@ -10,7 +10,10 @@ import (
 )
 
 func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
-	logger := c.logger.New("state", c.state)
+	if request == nil {
+		return
+	}
+	log.Info("sendOnlineProof", "height", request.Proposal.Number())
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
 		curView := c.currentView()
 		onlineProof, err := ibfttypes.Encode(&istanbul.OnlineProof{
@@ -19,7 +22,7 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 			RandomHash: request.RandomHash,
 		})
 		if err != nil {
-			logger.Error("Failed to encode", "view", curView)
+			log.Error("Failed to encode", "view", curView)
 			return
 		}
 
@@ -83,6 +86,9 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 
 		// Notify miners to submit blocks
 		c.backend.NotifyWorkerToCommit(onlineValidators)
+
+		// Set state to StateAcceptRequest
+		c.setState(ibfttypes.StateAcceptRequest)
 	}
 
 	return nil

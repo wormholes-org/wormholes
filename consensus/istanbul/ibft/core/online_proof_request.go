@@ -8,6 +8,7 @@ import (
 )
 
 func (c *core) handleOnlineProofRequest(request *istanbul.OnlineProofRequest) error {
+	log.Info("handleOnlineProofRequest", "seq", c.current.sequence, "height", request.Proposal.Number(), "state", c.state)
 	logger := c.logger.New("state", c.state, "seq", c.current.sequence)
 	if err := c.checkOnlineProofRequestMsg(request); err != nil {
 		if err == istanbulcommon.ErrInvalidMessage {
@@ -53,6 +54,7 @@ func (c *core) storeOnlineProofRequestMsg(request *istanbul.OnlineProofRequest) 
 }
 
 func (c *core) processPendingOnlineProofRequests() {
+	log.Info("processPendingOnlineProofRequests", "seq", c.current.sequence)
 	c.pendindingOnlineProofRequestsMu.Lock()
 	defer c.pendindingOnlineProofRequestsMu.Unlock()
 
