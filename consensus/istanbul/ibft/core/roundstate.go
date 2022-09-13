@@ -34,6 +34,7 @@ func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, lock
 		round:          view.Round,
 		sequence:       view.Sequence,
 		Preprepare:     preprepare,
+		OnlineProofs:   newMessageSet(validatorSet),
 		Prepares:       newMessageSet(validatorSet),
 		Commits:        newMessageSet(validatorSet),
 		lockedHash:     lockedHash,

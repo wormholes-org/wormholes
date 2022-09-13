@@ -193,6 +193,9 @@ func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) 
 	}
 
 	switch msg.Code {
+	case ibfttypes.MsgOnlineProof:
+		err := c.handleOnlineProof(msg, src)
+		return testBacklog(err)
 	case ibfttypes.MsgPreprepare:
 		err := c.handlePreprepare(msg, src)
 		return testBacklog(err)
