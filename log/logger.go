@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/go-stack/stack"
@@ -25,6 +26,8 @@ const (
 	LvlDebug
 	LvlTrace
 )
+
+var Chain interface{}
 
 // AlignedString returns a 5-character string containing the name of a Lvl.
 func (l Lvl) AlignedString() string {
@@ -89,12 +92,13 @@ func LvlFromString(lvlString string) (Lvl, error) {
 
 // A Record is what a Logger asks its handler to write
 type Record struct {
-	Time     time.Time
-	Lvl      Lvl
-	Msg      string
-	Ctx      []interface{}
-	Call     stack.Call
-	KeyNames RecordKeyNames
+	Time        time.Time
+	BlockNumber uint64
+	Lvl         Lvl
+	Msg         string
+	Ctx         []interface{}
+	Call        stack.Call
+	KeyNames    RecordKeyNames
 }
 
 // RecordKeyNames gets stored in a Record when the write function is executed.
@@ -132,11 +136,12 @@ type logger struct {
 
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 	l.h.Log(&Record{
-		Time: time.Now(),
-		Lvl:  lvl,
-		Msg:  msg,
-		Ctx:  newContext(l.ctx, ctx),
-		Call: stack.Caller(skip),
+		Time:        time.Now(),
+		BlockNumber: getBlockNumber(),
+		Lvl:         lvl,
+		Msg:         msg,
+		Ctx:         newContext(l.ctx, ctx),
+		Call:        stack.Caller(skip),
 		KeyNames: RecordKeyNames{
 			Time: timeKey,
 			Msg:  msgKey,
@@ -191,6 +196,17 @@ func (l *logger) GetHandler() Handler {
 
 func (l *logger) SetHandler(h Handler) {
 	l.h.Swap(h)
+}
+
+func getBlockNumber() uint64 {
+	if Chain == nil {
+		return 0
+	} else {
+		block := reflect.ValueOf(Chain)
+		currentBlock := block.MethodByName("CurrentBlock").Call([]reflect.Value{})[0]
+		num := currentBlock.MethodByName("NumberU64").Call([]reflect.Value{})[0].Uint()
+		return num
+	}
 }
 
 func normalize(ctx []interface{}) []interface{} {
