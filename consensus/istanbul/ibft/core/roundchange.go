@@ -17,9 +17,10 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -78,7 +79,7 @@ func (c *core) handleRoundChange(msg *ibfttypes.Message, src istanbul.Validator)
 		return istanbulcommon.ErrInvalidMessage
 	}
 
-	log.Info("carver|handleRoundChange|baseinfo",  "no", rc.View.Sequence,
+	log.Info("carver|handleRoundChange|baseinfo", "no", rc.View.Sequence,
 		"round", rc.View.Round,
 		"from", src.Address().Hex(),
 		"hash", rc.Digest.String())
@@ -97,7 +98,6 @@ func (c *core) handleRoundChange(msg *ibfttypes.Message, src istanbul.Validator)
 		logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)
 		return err
 	}
-
 
 	// Once we received f+1 ROUND CHANGE messages, those messages form a weak certificate.
 	// If our round number is smaller than the certificate's round number, we would
