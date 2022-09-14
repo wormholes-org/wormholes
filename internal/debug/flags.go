@@ -18,14 +18,11 @@ package debug
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/miniredis"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/user"
-	"path/filepath"
 	"runtime"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -48,6 +45,10 @@ var (
 	mergeLogeFlag = cli.BoolFlag{
 		Name:  "log.merge",
 		Usage: "merge the log",
+	}
+	logePathFlag = cli.StringFlag{
+		Name:  "log.path",
+		Usage: "where store the log",
 	}
 	vmoduleFlag = cli.StringFlag{
 		Name:  "vmodule",
@@ -141,6 +142,7 @@ var (
 var Flags = []cli.Flag{
 	verbosityFlag,
 	mergeLogeFlag,
+	logePathFlag,
 	vmoduleFlag,
 	logjsonFlag,
 	backtraceAtFlag,
@@ -185,66 +187,23 @@ func init() {
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) error {
 	// logging
-	var datadir string
-	if ctx.GlobalString(utils.DataDirFlag.Name) == "" {
-		var home string
-		if home = os.Getenv("HOME"); home == "" {
-			if usr, err := user.Current(); err == nil {
-				home = usr.HomeDir
-			}
-		}
-
-		if home != "" {
-			switch runtime.GOOS {
-			case "darwin":
-				datadir = filepath.Join(home, "Library", "Wormholes")
-			case "windows":
-				// We used to put everything in %HOME%\AppData\Roaming, but this caused
-				// problems with non-typical setups. If this fallback location exists and
-				// is non-empty, use it, otherwise DTRT and check %LOCALAPPDATA%.
-				fallback := filepath.Join(home, "AppData", "Roaming", "Wormholes")
-
-				appdata := os.Getenv("LOCALAPPDATA")
-				if appdata == "" {
-					// Windows XP and below don't have LocalAppData. Crash here because
-					// we don't support Windows XP and undefining the variable will cause
-					// other issues.
-					panic("environment variable LocalAppData is undefined")
-				}
-
-				f, err := os.Open(fallback)
-				if err != nil {
-					return err
-				}
-				names, _ := f.Readdir(1)
-				f.Close()
-
-				if appdata == "" || len(names) > 0 {
-					datadir = fallback
-				}
-				datadir = filepath.Join(appdata, "Wormholes")
-			default:
-				datadir = filepath.Join(home, ".wormholes")
-			}
-		}
-
-		v := os.Getenv("LOCALAPPDATA")
-		if v == "" {
-			// Windows XP and below don't have LocalAppData. Crash here because
-			// we don't support Windows XP and undefining the variable will cause
-			// other issues.
-			panic("environment variable LocalAppData is undefined")
-		}
-	} else {
-		datadir = ctx.GlobalString(utils.DataDirFlag.Name)
-	}
+	logPath := ctx.GlobalString(logePathFlag.Name)
 	logMerge := ctx.GlobalBool(mergeLogeFlag.Name)
 	if logMerge {
-		rotatingFile, err := log.RotatingFileHandler(datadir, log.TerminalFormat(false))
+		rotatingFile, err := log.RotatingFileHandler(logPath, log.TerminalFormat(false))
 		if err != nil {
 			return err
 		}
 		glogger.SetHandler(log.MultiHandler(ostream, rotatingFile))
+	} else {
+		if logPath != "" {
+			f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+			if err != nil {
+				return err
+			}
+			ostream = log.StreamHandler(f, log.TerminalFormat(false))
+			glogger.SetHandler(ostream)
+		}
 	}
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)
 	glogger.Verbosity(log.Lvl(verbosity))

@@ -5,14 +5,11 @@ if exist %nodePath% (
 	rd /s/q %nodePath%
 )
 
-echo %1
-
 if "%1" == "" (
-	goto a
-) else (
-    md %nodePath%\geth
-    echo %1 > %nodePath%\geth\nodekey
-)
-
-:a
-wormholes.exe --devnet --datadir %nodePath% --mine --syncmode=full
+     echo "Please pass in the private key of the account to be pledged."
+	 exit -1
+ ) else (
+     md %nodePath%\geth
+     echo %1 > %nodePath%\geth\nodekey
+     .\wormholes.exe --devnet --mine --syncmode=full
+ )

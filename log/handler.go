@@ -170,7 +170,7 @@ func RotatingFileHandler(datadir string, formatter Format) (Handler, error) {
 
 	return FuncHandler(func(r *Record) error {
 		if !counter.closed {
-			if r.BlockNumber > counter.blockNumber || (r.BlockNumber < counter.blockNumber && r.BlockNumber == 0) {
+			if r.BlockNumber != counter.blockNumber {
 				counter.Close()
 				counter.closed = true
 				counter.w = nil
@@ -180,7 +180,7 @@ func RotatingFileHandler(datadir string, formatter Format) (Handler, error) {
 
 		if counter.w == nil {
 			f, err1 := os.OpenFile(
-				filepath.Join(logPath, fmt.Sprintf("block%d.log", r.BlockNumber+1)),
+				filepath.Join(logPath, fmt.Sprintf("block%d.log", r.BlockNumber)),
 				os.O_CREATE|os.O_APPEND|os.O_WRONLY,
 				0600,
 			)
