@@ -63,6 +63,7 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 	c.acceptOnlineProof(msg, src)
 
 	if c.current.OnlineProofs.Size() >= c.QuorumSize() && c.state == ibfttypes.StateAcceptOnlineProofRequest {
+		log.Info("handleOnlineProof : QuorumSize", "height", onlineProof.Proposal.Number().Uint64(), "size", c.current.OnlineProofs.Size())
 		// Submit the collected online attestation data to the worker module
 		var (
 			addrs       []common.Address
@@ -84,6 +85,7 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 			Hashs:  hashs,
 		}
 
+		log.Info("handleOnlineProof : prepare to notify worker to commit")
 		// Notify miners to submit blocks
 		c.backend.NotifyWorkerToCommit(onlineValidators)
 

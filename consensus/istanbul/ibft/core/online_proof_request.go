@@ -9,16 +9,14 @@ import (
 
 func (c *core) handleOnlineProofRequest(request *istanbul.OnlineProofRequest) error {
 	log.Info("handleOnlineProofRequest", "seq", c.current.sequence, "height", request.Proposal.Number(), "state", c.state)
-	logger := c.logger.New("state", c.state, "seq", c.current.sequence)
 	if err := c.checkOnlineProofRequestMsg(request); err != nil {
 		if err == istanbulcommon.ErrInvalidMessage {
-			logger.Warn("invalid online proof request")
+			log.Warn("invalid online proof request")
 			return err
 		}
-		logger.Warn("unexpected online proof request", "err", err, "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
+		log.Warn("unexpected online proof request", "err", err, "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 		return err
 	}
-	logger.Trace("handleOnlineProofRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 
 	c.current.pendingOnlineProofRequest = request
 	if c.state == ibfttypes.StateAcceptOnlineProofRequest {

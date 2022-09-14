@@ -602,21 +602,25 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 	// generate a local random number
 	localTime := time.Now().Nanosecond()
 	common.BigToHash(big.NewInt(int64(localTime)))
-
 	log.Info("SealOnlineProofBlk : post OnlineProofEvent")
 	go sb.EventMux().Post(istanbul.OnlineProofEvent{
 		Proposal:   block,
 		RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
 	})
-
-	for {
-		select {
-		case onlineValidators := <-sb.notifyBlockCh:
-			if onlineValidators != nil {
-				notifyBlockCh <- onlineValidators
+	go func() {
+		for {
+			select {
+			case onlineValidators := <-sb.notifyBlockCh:
+				log.Info("SealOnlineProofBlk : onlineValidators", "info", onlineValidators)
+				if onlineValidators != nil {
+					notifyBlockCh <- onlineValidators
+					return
+				}
+			case <-stop:
+				log.Info("SealOnlineProofBlk : stop")
+				return
 			}
-		case <-stop:
-			return nil
 		}
-	}
+	}()
+	return nil
 }

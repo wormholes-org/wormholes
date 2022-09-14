@@ -423,6 +423,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			w.CommitOnlineProofBlock()
 
 		case onlineValidators := <-w.notifyBlockCh:
+			log.Info("w.notifyBlockCh", "height", onlineValidators.Height)
 			w.onlineValidators = onlineValidators
 			clearPending(onlineValidators.Height.Uint64())
 			timestamp = time.Now().Unix()
