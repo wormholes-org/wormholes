@@ -289,6 +289,10 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	}
 	sb.commitCh = make(chan *types.Block, 1)
 
+	if sb.notifyBlockCh != nil {
+		close(sb.notifyBlockCh)
+	}
+	sb.notifyBlockCh = make(chan *types.OnlineValidatorInfo, 1)
 	sb.chain = chain
 	sb.currentBlock = currentBlock
 	sb.hasBadBlock = hasBadBlock
@@ -580,15 +584,28 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 	}
 
 	//Get the validatorset for this round
-	istanbulExtra, err := types.ExtractIstanbulExtra(header)
-	if err != nil {
-		log.Error("SealOnlineProofBlk  : istanbulExtra", "err", err.Error())
-		return err
-	}
+	// istanbulExtra, err := types.ExtractIstanbulExtra(header)
+	// if err != nil {
+	// 	log.Error("SealOnlineProofBlk  : istanbulExtra", "err", err.Error())
+	// 	return err
+	// }
 
-	valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
-	log.Info("SealOnlineProofBlk", "valset", valSet)
-	if _, v := valSet.GetByAddress(sb.address); v == nil {
+	// valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
+	var valset istanbul.ValidatorSet
+	if c, ok := chain.(*core.BlockChain); ok {
+		log.Info("SealOnlineProofBlk : calculate valset")
+		cHeader := c.CurrentBlock().Header()
+		if cHeader == nil {
+			return errors.New("SealOnlineProofBlk err: current header is nil")
+		}
+		validatorList, err := c.Random11ValidatorFromPool(cHeader)
+		log.Info("SealOnlineProofBlk : len", "len", len(validatorList.Validators))
+		if err != nil {
+			return err
+		}
+		valset = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+	}
+	if _, v := valset.GetByAddress(sb.address); v == nil {
 		log.Error("SealOnlineProofBlk  : ErrUnauthorized", "err", istanbulcommon.ErrUnauthorized)
 		return istanbulcommon.ErrUnauthorized
 	}
@@ -603,11 +620,12 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 	localTime := time.Now().Nanosecond()
 	common.BigToHash(big.NewInt(int64(localTime)))
 	log.Info("SealOnlineProofBlk : post OnlineProofEvent")
-	go sb.EventMux().Post(istanbul.OnlineProofEvent{
-		Proposal:   block,
-		RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
-	})
+
 	go func() {
+		sb.EventMux().Post(istanbul.OnlineProofEvent{
+			Proposal:   block,
+			RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
+		})
 		for {
 			select {
 			case onlineValidators := <-sb.notifyBlockCh:

@@ -2678,7 +2678,7 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	// Obtain random landing points according to the surrounding chain algorithm
 	randomHash := GetRandomDrop(validatorList, header)
 	validators := validatorList.RandomValidatorV2(11, randomHash)
-	//log.Info("random11 validators", "len", len(validators), "validators", validators)
+	log.Info("random11 validators", "len", len(validators), "validators", validators)
 	elevenValidator := new(types.ValidatorList)
 	for _, addr := range validators {
 		//todo proxy 全部空值

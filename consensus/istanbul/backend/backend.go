@@ -66,6 +66,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		coreStarted:      false,
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
+		notifyBlockCh:    make(chan *types.OnlineValidatorInfo, 1),
 	}
 
 	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)

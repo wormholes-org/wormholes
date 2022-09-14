@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type Validator struct {
@@ -180,6 +181,7 @@ func (vl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, ra
 
 func (vl *ValidatorList) RandomValidatorV2(k int, randomHash common.Hash) []common.Address {
 	err, validators := vl.CollectValidators(randomHash, k)
+	log.Info("ccccc", "vl.validators.len", len(vl.Validators), "colleted validators.len", len(validators))
 	if err != nil {
 		return []common.Address{}
 	}
