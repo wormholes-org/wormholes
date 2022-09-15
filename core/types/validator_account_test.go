@@ -335,3 +335,523 @@ func TestRlpToHash(t *testing.T) {
 	hash := common.BytesToHash(encValidator)
 	t.Log("===hash===", hash.Hex())
 }
+
+func AddrList() []common.Address {
+	addrs1 := []string{
+		// self
+		"0x091DBBa95B26793515cc9aCB9bEb5124c479f27F",
+		"0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD",
+		"0x612DFa56DcA1F581Ed34b9c60Da86f1268Ab6349",
+		"0x84d84e6073A06B6e784241a9B13aA824AB455326",
+		"0x9e4d5C72569465270232ed7Af71981Ee82d08dBF",
+		"0xa270bBDFf450EbbC2d0413026De5545864a1b6d6",
+		"0x4110E56ED25e21267FBeEf79244f47ada4e2E963",
+		"0xdb33217fE3F74bD41c550B06B624E23ab7f55d05",
+		"0xE2FA892CC5CC268a0cC1d924EC907C796351C645",
+		"0x52EAE6D396E82358D703BEDeC2ab11E723127230",
+		"0x31534d5C7b1eabb73425c2361661b878F4322f9D",
+		"0xbbaE84E9879F908700c6ef5D15e928Abfb556a21",
+		"0x20cb28AE861c322A9A86b4F9e36Ad6977930fA05",
+		"0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e",
+		"0xc067825f4B7a53Bb9f2Daf72fF22C8EE39736afF",
+		"0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09",
+
+		// other
+		"0xa9D7C42f60879c8Bf5002857D3f943D492A3a4eE",
+		"0xf484c55531e0DE69a0dD14AcEE55A18363c0bB18",
+		"0x7243552A90505D1e67D84106Ab13eB72DB8337E2",
+		"0x412f52Ba4350139b7bf0469781Ac2AB0b5Aa8034",
+		"0xEE34dEa224839aCd7d16AB0F160203a2c8DB6e9B",
+		"0x37fF4076b8cA98f5ce00EcDB5841033A7D231142",
+		"0xde31fb555169028FcD34CBf99927875E10b552f1",
+		"0x785067Bf5Da2d72d0feE45b51e04f82F81527174",
+		"0xF93A2E5c94a315272AAD31c6fB02052E121121e1",
+		"0xF6a45b30DF36105048A22f550b63f84AB52fd6AA",
+		"0x79B9E94d490151fdc797fCD7B174dc0561ec5740",
+		"0x2f21d7D75ECD9ac488B44E6d4295A9d7BFCB44Ad",
+		"0x1f63bDC4dF28799689119829334B5b584Cae3Fd6",
+		"0xD50230828117B4801013065B890B597c8F563428",
+		"0xEAa83d8bd0c0362430F7A09774512FE2D37e1Afb",
+		"0xE56f92DE3789B53fc5198153f9b53fdc2Ee0a778",
+		"0xdD1F8D80d758766A7D959D1c3348d808ff7C2102",
+		"0xb249F79f1A752Caf3f5378a93671D2996A7fBFF7",
+		"0x83BDd29e1Bddacd37295BC2033160BEc66F47c23",
+		"0xb0584C9b370497788261dE542aCb33d4aAe6952f",
+		"0x4448C92dfB560c6F4D2Df371CF12A4fF441a2fe4",
+		"0xB53df3E6d295ADCC61C40820E9CaEf5653d4D044",
+		"0x27009F63C4d01Bb5deEFecdf70B6D08bC8edA720",
+		"0x41D7FDaF014A850D1AE8D14b76bF6A91445647b7",
+		"0xd4989D676F893e0c9E585b288dc12c527a3F0f99",
+		"0xfa0db344597DE0bDa9a3dfb65eD93C89ff2fb883",
+		"0xa2d0E0fc679A8b86B9214bBb3F25FCd541f6a3BE",
+		"0x97AC70B023Eb8D921E8F2CE58cdB321F857Cf8aF",
+		"0xB476A63842f0479A68C2c276B32BA741f0AB4347",
+		"0x887DB52dfB96C742Ca475EF8eA33969DAE5ea7Be",
+		"0xC2BAc3E82f5f47156e0bb4b53cd5667EC5eD3488",
+		"0x9329f2370b56DC82cBDe5f927e15Fe29a6b4CFa1",
+		"0x8563c57aF7d7B38b8D1859030e23cf2eF7e8134A",
+		"0x5A9e4B0D5Ed9358017f5789314FbBb47Cf74d6C6",
+		"0xA002Fb8E7eBD8633124CE0ffcd63b2D435FF4429",
+		"0xd0735120EE48Ef2c86C1200A48F9096d57A48f97",
+		"0x1662b48A65c4883F2a6C1a758041929a81B5528a",
+		"0xC3e2a3aB58fF8aF53761Ef99EE1fb69244dcC018",
+	}
+
+	var addrs2 []common.Address
+	for _, addr := range addrs1 {
+		addrs2 = append(addrs2, common.HexToAddress(addr))
+	}
+	return addrs2
+}
+
+func GetOtherMinerAddr() []common.Address {
+	addr1 := []string{
+		// other
+		"0xa9D7C42f60879c8Bf5002857D3f943D492A3a4eE",
+		"0xf484c55531e0DE69a0dD14AcEE55A18363c0bB18",
+		"0x7243552A90505D1e67D84106Ab13eB72DB8337E2",
+		"0x412f52Ba4350139b7bf0469781Ac2AB0b5Aa8034",
+		"0xEE34dEa224839aCd7d16AB0F160203a2c8DB6e9B",
+		"0x37fF4076b8cA98f5ce00EcDB5841033A7D231142",
+		"0xde31fb555169028FcD34CBf99927875E10b552f1",
+		"0x785067Bf5Da2d72d0feE45b51e04f82F81527174",
+		"0xF93A2E5c94a315272AAD31c6fB02052E121121e1",
+		"0xF6a45b30DF36105048A22f550b63f84AB52fd6AA",
+		"0x79B9E94d490151fdc797fCD7B174dc0561ec5740",
+		"0x2f21d7D75ECD9ac488B44E6d4295A9d7BFCB44Ad",
+		"0x1f63bDC4dF28799689119829334B5b584Cae3Fd6",
+		"0xD50230828117B4801013065B890B597c8F563428",
+		"0xEAa83d8bd0c0362430F7A09774512FE2D37e1Afb",
+		"0xE56f92DE3789B53fc5198153f9b53fdc2Ee0a778",
+		"0xdD1F8D80d758766A7D959D1c3348d808ff7C2102",
+		"0xb249F79f1A752Caf3f5378a93671D2996A7fBFF7",
+		"0x83BDd29e1Bddacd37295BC2033160BEc66F47c23",
+		"0xb0584C9b370497788261dE542aCb33d4aAe6952f",
+		"0x4448C92dfB560c6F4D2Df371CF12A4fF441a2fe4",
+		"0xB53df3E6d295ADCC61C40820E9CaEf5653d4D044",
+		"0x27009F63C4d01Bb5deEFecdf70B6D08bC8edA720",
+		"0x41D7FDaF014A850D1AE8D14b76bF6A91445647b7",
+		"0xd4989D676F893e0c9E585b288dc12c527a3F0f99",
+		"0xfa0db344597DE0bDa9a3dfb65eD93C89ff2fb883",
+		"0xa2d0E0fc679A8b86B9214bBb3F25FCd541f6a3BE",
+		"0x97AC70B023Eb8D921E8F2CE58cdB321F857Cf8aF",
+		"0xB476A63842f0479A68C2c276B32BA741f0AB4347",
+		"0x887DB52dfB96C742Ca475EF8eA33969DAE5ea7Be",
+		"0xC2BAc3E82f5f47156e0bb4b53cd5667EC5eD3488",
+		"0x9329f2370b56DC82cBDe5f927e15Fe29a6b4CFa1",
+		"0x8563c57aF7d7B38b8D1859030e23cf2eF7e8134A",
+		"0x5A9e4B0D5Ed9358017f5789314FbBb47Cf74d6C6",
+		"0xA002Fb8E7eBD8633124CE0ffcd63b2D435FF4429",
+		"0xd0735120EE48Ef2c86C1200A48F9096d57A48f97",
+		"0x1662b48A65c4883F2a6C1a758041929a81B5528a",
+		"0xC3e2a3aB58fF8aF53761Ef99EE1fb69244dcC018",
+	}
+	var addrs2 []common.Address
+	for _, addr := range addr1 {
+		addrs2 = append(addrs2, common.HexToAddress(addr))
+	}
+	return addrs2
+}
+
+func GetSelfAddr() []common.Address {
+	addrs1 := []string{
+		// self
+		"0x091DBBa95B26793515cc9aCB9bEb5124c479f27F",
+		"0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD",
+		"0x612DFa56DcA1F581Ed34b9c60Da86f1268Ab6349",
+		"0x84d84e6073A06B6e784241a9B13aA824AB455326",
+		"0x9e4d5C72569465270232ed7Af71981Ee82d08dBF",
+		"0xa270bBDFf450EbbC2d0413026De5545864a1b6d6",
+		"0x4110E56ED25e21267FBeEf79244f47ada4e2E963",
+		"0xdb33217fE3F74bD41c550B06B624E23ab7f55d05",
+		"0xE2FA892CC5CC268a0cC1d924EC907C796351C645",
+		"0x52EAE6D396E82358D703BEDeC2ab11E723127230",
+		"0x31534d5C7b1eabb73425c2361661b878F4322f9D",
+		"0xbbaE84E9879F908700c6ef5D15e928Abfb556a21",
+		"0x20cb28AE861c322A9A86b4F9e36Ad6977930fA05",
+		"0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e",
+		"0xc067825f4B7a53Bb9f2Daf72fF22C8EE39736afF",
+		"0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09",
+	}
+
+	var addrs2 []common.Address
+	for _, addr := range addrs1 {
+		addrs2 = append(addrs2, common.HexToAddress(addr))
+	}
+	return addrs2
+}
+
+func TestValidatorAccordToDistance(t *testing.T) {
+	addrs := AddrList()
+
+	c := 140000
+	c2 := 70000
+	stakeAmt := []*big.Int{
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+
+	otherMiners := GetOtherMinerAddr()
+	var count int
+	for i := 0; i < 1000; i++ {
+		randomHash := randomHash()
+		consensusValidator := validatorList.RandomValidatorV2(11, randomHash)
+		rewardAddr := validatorList.ValidatorByDistance(ConvertToBigInt(consensusValidator), 6, randomHash)
+		flg := false
+		for i := 0; i < len(otherMiners); i++ {
+			for _, v := range rewardAddr {
+				if v.Hex() == otherMiners[i].Hex() {
+					flg = true
+					fmt.Println("===vvvvv===", v.Hex())
+					break
+				} else {
+					flg = false
+					continue
+				}
+			}
+			if flg {
+				count++
+				break
+			}
+		}
+	}
+	fmt.Println("===reward  other addr count===", count, "time", time.Now().Unix())
+}
+
+func TestValidatorByDistance(t *testing.T) {
+	randomHash := randomHash()
+
+	addrs := AddrList()
+
+	stakeAmt := []*big.Int{
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+		big.NewInt(80000),
+
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+		big.NewInt(72000),
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	rewardAddr := validatorList.ValidatorByDistance(ConvertToBigInt(addrs), 6, randomHash)
+
+	for _, v := range rewardAddr {
+		fmt.Println("====rewardAddr====", v)
+	}
+}
+
+func ConvertToBigInt(addrs []common.Address) (bigIntSlice []*big.Int) {
+	for _, m := range addrs {
+		bigIntSlice = append(bigIntSlice, m.Hash().Big())
+	}
+	return
+}
+
+func TestExsistSevenValidatorProbability(t *testing.T) {
+	addrs := AddrList()
+
+	c := 400000
+	c2 := 70000
+	stakeAmt := []*big.Int{
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+
+	selfAddrs := GetSelfAddr()
+	var count int
+	for i := 0; i < 20000; i++ {
+		randomHash := randomHash()
+		consensusValidator := validatorList.RandomValidatorV2(11, randomHash)
+
+		var occurCount int
+
+		for j := 0; j < len(selfAddrs); j++ {
+			for _, v := range consensusValidator {
+				if v.Hex() == selfAddrs[j].Hex() {
+					fmt.Println("===vvvvv===", v.Hex(), "======i", i)
+					occurCount++
+					break
+				}
+			}
+		}
+		if occurCount >= 7 {
+			count++
+		}
+	}
+	fmt.Println("===Probability of occurrence===", count, "time", time.Now().Unix())
+}
+
+func TestOtherValidatorProbability(t *testing.T) {
+	addrs := AddrList()
+
+	c := 400000
+	c2 := 70000
+	stakeAmt := []*big.Int{
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+		big.NewInt(int64(c)),
+
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+		big.NewInt(int64(c2)),
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+
+	otherAddrs := GetOtherMinerAddr()
+	var count int
+	for i := 0; i < 20000; i++ {
+		randomHash := randomHash()
+		consensusValidator := validatorList.RandomValidatorV2(11, randomHash)
+
+		var occurCount int
+
+		for j := 0; j < len(otherAddrs); j++ {
+			for _, v := range consensusValidator {
+				if v.Hex() == otherAddrs[j].Hex() {
+					fmt.Println("===vvvvv===", v.Hex(), "======i", i)
+					occurCount++
+					break
+				}
+			}
+		}
+		count += occurCount
+	}
+	fmt.Println("===Probability of occurrence===", float32(count)/20000, "time", time.Now().Unix())
+}

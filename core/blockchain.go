@@ -2694,10 +2694,9 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 }
 
 func (bc *BlockChain) RandomNValidatorFromEleven(amount int, elevenValidator *types.ValidatorList, parentHash common.Hash) []common.Address {
-	//validators := elevenValidator.ValidatorByDistanceAndWeight(elevenValidator.ConvertToBigInt(elevenValidator.Validators), amount, parentHash)
-	//return validators
-
-	return elevenValidator.RandomValidatorV2(amount, parentHash)
+	validators := elevenValidator.ValidatorByDistance(elevenValidator.ConvertToBigInt(elevenValidator.Validators), amount, parentHash)
+	return validators
+	//return elevenValidator.RandomValidatorV2(amount, parentHash)
 }
 
 // WriteMintDeep writes mintdeep to chaindb

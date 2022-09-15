@@ -182,6 +182,43 @@ func (vl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, ra
 	return res
 }
 
+//
+func (vl *ValidatorList) ValidatorByDistance(addr []*big.Int, k int, randomHash common.Hash) []common.Address {
+	// The maximum value of address to big Int
+	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
+
+	// Hash to 160-bit address
+	r1 := randomHash[12:]
+	x := common.BytesToAddress(r1).Hash().Big()
+
+	distanceAddrMap := make(map[*big.Int]*big.Int, 0)
+	for _, v := range addr {
+		sub1 := big.NewInt(0)
+		sub2 := big.NewInt(0)
+
+		sub1 = sub1.Sub(v, x)
+		sub1 = sub1.Abs(sub1)
+		sub2 = sub2.Sub(maxValue, sub1)
+		if sub1.Cmp(sub2) < 0 {
+			distanceAddrMap[v] = sub1
+		} else {
+			distanceAddrMap[v] = sub2
+		}
+	}
+
+	sortMap := rankByWordCount(distanceAddrMap)
+	res := make([]common.Address, 0)
+
+	for i := 0; i < sortMap.Len(); i++ {
+		if i < k {
+			res = append(res, common.BigToAddress(sortMap[i].Key))
+		} else {
+			break
+		}
+	}
+	return res
+}
+
 func (vl *ValidatorList) RandomValidatorV2(k int, randomHash common.Hash) []common.Address {
 	err, validators := vl.CollectValidators(randomHash, k)
 	if err != nil {
