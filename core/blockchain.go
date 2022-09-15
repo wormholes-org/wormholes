@@ -2678,7 +2678,15 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	// Obtain random landing points according to the surrounding chain algorithm
 	randomHash := GetRandomDrop(validatorList, header)
 	validators := validatorList.RandomValidatorV2(11, randomHash)
-	log.Info("random11 validators", "len", len(validators), "validators", validators)
+	//log.Info("random11 validators", "len", len(validators), "validators", validators)
+	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
+		log.Warn("Random11ValidatorFromPool", "len(validatorList.Validators)", len(validatorList.Validators),
+			"len(validators)", len(validators))
+	}
+	for _, validator := range validators {
+		log.Info("Random11ValidatorFromPool", "RandomValidatorV2 11 address", validator.String(),
+			"blocknumber", header.Number.Uint64())
+	}
 	elevenValidator := new(types.ValidatorList)
 	for _, addr := range validators {
 		//todo proxy 全部空值
@@ -2690,14 +2698,17 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 			elevenValidator.AddValidator(addr, validatorList.StakeBalance(addr), common.Address{})
 		}
 	}
+	for _, validator := range elevenValidator.Validators {
+		log.Info("Random11ValidatorFromPool, elevenValidator", "address", validator.Addr.String(),
+			"amount", validator.Balance, "proxy", validator.Proxy.String(), "blocknumber", header.Number.Uint64())
+	}
 	return elevenValidator, nil
 }
 
 func (bc *BlockChain) RandomNValidatorFromEleven(amount int, elevenValidator *types.ValidatorList, parentHash common.Hash) []common.Address {
-	//validators := elevenValidator.ValidatorByDistanceAndWeight(elevenValidator.ConvertToBigInt(elevenValidator.Validators), amount, parentHash)
-	//return validators
-
-	return elevenValidator.RandomValidatorV2(amount, parentHash)
+	validators := elevenValidator.ValidatorByDistance(elevenValidator.ConvertToBigInt(elevenValidator.Validators), amount, parentHash)
+	return validators
+	//return elevenValidator.RandomValidatorV2(amount, parentHash)
 }
 
 // WriteMintDeep writes mintdeep to chaindb
