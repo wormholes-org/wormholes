@@ -294,8 +294,9 @@ func (vl *ValidatorList) ExistProxy(addr common.Address) bool {
 }
 
 func (vl *ValidatorList) GetProxy(delegate common.Address) (common.Address, bool) {
+	emptyAddress := common.Address{}
 	for _, v := range vl.Validators {
-		if v.Addr == delegate {
+		if v.Addr == delegate && v.Proxy != emptyAddress {
 			return v.Proxy, true
 		}
 	}
