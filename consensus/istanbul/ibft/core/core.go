@@ -251,6 +251,9 @@ func (c *core) startNewRound(round *big.Int) {
 			log.Error("startNewRound err : c.valSet == nil")
 			return
 		}
+		msgSet := newMessageSet(c.valSet)
+		c.onlineProofs = make(map[uint64]*messageSet)
+		c.onlineProofs[newView.Sequence.Uint64()] = msgSet
 	}
 
 	// If new round is 0, then check if qbftConsensus needs to be enabled
@@ -308,8 +311,9 @@ func (c *core) startNewRound(round *big.Int) {
 	} else {
 		c.setState(ibfttypes.StateAcceptOnlineProofRequest)
 		if roundChange && c.current != nil {
-			log.Info("start new round OnlineProofs size", "height", c.currentView().Sequence, "size", c.onlineProofs[c.currentView().Sequence.Uint64()].Size())
-			if c.onlineProofs[c.current.sequence.Uint64()].Size() >= c.QuorumSize() {
+			onlineProofMsgSet := c.onlineProofs[c.currentView().Sequence.Uint64()]
+			log.Info("start new round OnlineProofs size", "height", c.currentView().Sequence, "size", c.onlineProofs[c.currentView().Sequence.Uint64()].Size(), "msg", onlineProofMsgSet.messages)
+			if onlineProofMsgSet != nil && onlineProofMsgSet.Size() >= c.QuorumSize() {
 				log.Info("online proof roundchange", "height", c.currentView().Sequence, "request  len", c.pendingRequests.Size())
 
 				// Set state to StateAcceptRequest
