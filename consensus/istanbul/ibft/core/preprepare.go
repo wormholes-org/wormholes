@@ -69,7 +69,8 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 		"no", preprepare.Proposal.Number().Uint64(),
 		"round", preprepare.View.Round.String(),
 		"from", src.Address().Hex(),
-		"hash|", preprepare.Proposal.Hash().Hex())
+		"hash|", preprepare.Proposal.Hash().Hex(),
+		"state", c.state)
 	// Ensure we have the same view with the PRE-PREPARE message
 	// If it is old message, see if we need to broadcast COMMIT
 	if err := c.checkMessage(ibfttypes.MsgPreprepare, preprepare.View); err != nil {

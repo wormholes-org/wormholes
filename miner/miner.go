@@ -20,9 +20,10 @@ package miner
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -41,7 +42,7 @@ type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
 	AccountManager() *accounts.Manager
-	GetNodeKey() (*ecdsa.PrivateKey)
+	GetNodeKey() *ecdsa.PrivateKey
 }
 
 // Config is the configuration parameters of mining.

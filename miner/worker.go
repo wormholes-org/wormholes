@@ -376,9 +376,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		timestamp   int64      // timestamp for each round of mining.
 	)
 
-	// timer := time.NewTimer(0)
-	// defer timer.Stop()
-	// <-timer.C // discard the initial tick
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+	<-timer.C // discard the initial tick
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(noempty bool, s int32) {
@@ -391,7 +391,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-w.exitCh:
 			return
 		}
-		//timer.Reset(recommit)
+		timer.Reset(recommit)
 		atomic.StoreInt32(&w.newTxs, 0)
 	}
 	// clearPending cleans the stale pending tasks.
@@ -429,19 +429,13 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			clearPending(onlineValidators.Height.Uint64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)
-		// case <-timer.C:
-		// 	// If mining is running resubmit a new work cycle periodically to pull in
-		// 	// higher priced transactions. Disable this overhead for pending blocks.
-		// 	if w.isRunning() && (w.chainConfig.Clique == nil || w.chainConfig.Clique.Period > 0) {
-		// 		// Short circuit if no new transaction arrives.
-		// 		if atomic.LoadInt32(&w.newTxs) == 0 {
-		// 			log.Info("caver|newWorkLoop|timer.Reset")
-		// 			timer.Reset(recommit)
-		// 			continue
-		// 		}
-		// 		log.Info("caver|timer.C|Resubmit", "w.currentNo", w.current.header.Number.Uint64())
-		// 		commit(true, commitInterruptResubmit)
-		// 	}
+		case <-timer.C:
+			// If mining is running resubmit a new work cycle periodically to pull in
+			// higher priced transactions. Disable this overhead for pending blocks.
+			if w.isRunning() {
+				log.Info("timer.C : commit request")
+				commit(false, commitInterruptNewHead)
+			}
 
 		case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.

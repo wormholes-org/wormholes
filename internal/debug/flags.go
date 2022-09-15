@@ -18,12 +18,13 @@ package debug
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/miniredis"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
+
+	"github.com/ethereum/go-ethereum/miniredis"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -175,7 +176,7 @@ var (
 
 func init() {
 	usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
-	output := io.Writer(os.Stderr)
+	output := io.Writer(os.Stdout)
 	if usecolor {
 		output = colorable.NewColorableStderr()
 	}

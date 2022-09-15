@@ -52,7 +52,7 @@ func (c *core) storeOnlineProofRequestMsg(request *istanbul.OnlineProofRequest) 
 }
 
 func (c *core) processPendingOnlineProofRequests() {
-	log.Info("processPendingOnlineProofRequests", "seq", c.current.sequence)
+	log.Info("processPendingOnlineProofRequests start", "seq", c.current.sequence)
 	c.pendindingOnlineProofRequestsMu.Lock()
 	defer c.pendindingOnlineProofRequestsMu.Unlock()
 
@@ -81,4 +81,5 @@ func (c *core) processPendingOnlineProofRequests() {
 			RandomHash: r.RandomHash,
 		})
 	}
+	log.Info("processPendingOnlineProofRequests end", "seq", c.current.sequence)
 }

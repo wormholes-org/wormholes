@@ -63,7 +63,13 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 	c.acceptOnlineProof(msg, src)
 
 	if c.current.OnlineProofs.Size() >= c.QuorumSize() && c.state == ibfttypes.StateAcceptOnlineProofRequest {
-		log.Info("handleOnlineProof : QuorumSize", "height", onlineProof.Proposal.Number().Uint64(), "size", c.current.OnlineProofs.Size())
+		// Stored in the temporary state of the engine, no data will be lost with the
+		tempMessageSet := newMessageSet(c.valSet)
+		for _, v := range c.current.OnlineProofs.Values() {
+			tempMessageSet.Add(v)
+		}
+		c.onlineProofs[c.current.sequence.Uint64()] = tempMessageSet
+		log.Info("handleOnlineProof : QuorumSize", "height", onlineProof.Proposal.Number().Uint64(), "size", c.current.OnlineProofs.Size(), "onlineproofs len", c.onlineProofs[c.current.sequence.Uint64()].Size())
 		// Submit the collected online attestation data to the worker module
 		var (
 			addrs       []common.Address

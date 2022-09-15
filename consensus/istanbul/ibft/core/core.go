@@ -58,6 +58,7 @@ func New(backend istanbul.Backend, config *istanbul.Config) *core {
 	}
 
 	c.validateFn = c.checkValidatorSignature
+	c.onlineProofs = make(map[uint64]*messageSet)
 	return c
 }
 
@@ -94,6 +95,9 @@ type core struct {
 	//
 	pendingOnlineProofRequests      *prque.Prque
 	pendindingOnlineProofRequestsMu *sync.Mutex
+
+	// Temporary storage of online data collected at each altitude
+	onlineProofs map[uint64]*messageSet
 
 	consensusTimestamp time.Time
 }
@@ -303,26 +307,17 @@ func (c *core) startNewRound(round *big.Int) {
 		}
 	} else {
 		c.setState(ibfttypes.StateAcceptOnlineProofRequest)
-		c.sendOnlineProof(c.current.pendingOnlineProofRequest)
-		// if c.state == ibfttypes.StateAcceptOnlineProofRequest {
-		// 	c.sendOnlineProof(c.current.pendingOnlineProofRequest)
-		// } else {
-		// 	c.setState(ibfttypes.StateAcceptRequest)
-		// 	if roundChange && c.IsProposer() && c.current != nil {
-		// 		// If it is locked, propose the old proposal
-		// 		// If we have pending request, propose pending request
-		// 		if c.current.IsHashLocked() {
-		// 			log.Info("caver|c.current.IsHashLocked()", "currentProposal", c.current.Proposal().Number().Uint64())
-		// 			r := &istanbul.Request{
-		// 				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
-		// 			}
-		// 			c.sendPreprepare(r)
-		// 		} else if c.current.pendingRequest != nil {
-		// 			log.Info("caver|c.current.pendingRequest != nil", "currentPendingRequest", c.current.pendingRequest.Proposal.Number().Uint64())
-		// 			c.sendPreprepare(c.current.pendingRequest)
-		// 		}
-		// 	}
-		// }
+		if roundChange && c.current != nil {
+			log.Info("start new round OnlineProofs size", "height", c.currentView().Sequence, "size", c.onlineProofs[c.currentView().Sequence.Uint64()].Size())
+			if c.onlineProofs[c.current.sequence.Uint64()].Size() >= c.QuorumSize() {
+				log.Info("online proof roundchange", "height", c.currentView().Sequence, "request  len", c.pendingRequests.Size())
+
+				// Set state to StateAcceptRequest
+				c.setState(ibfttypes.StateAcceptRequest)
+			}
+		} else {
+			c.sendOnlineProof(c.current.pendingOnlineProofRequest)
+		}
 	}
 	c.newRoundChangeTimer()
 

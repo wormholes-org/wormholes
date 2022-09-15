@@ -18,13 +18,14 @@
 package ethconfig
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -95,7 +96,7 @@ var Defaults = Config{
 	RPCTxFeeCap: 1, // 1 ether
 
 	// Quorum
-	Istanbul:                     *istanbul.DefaultConfig,
+	Istanbul: *istanbul.DefaultConfig,
 }
 
 func init() {
