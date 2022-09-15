@@ -46,6 +46,10 @@ var (
 		Name:  "log.merge",
 		Usage: "merge the log",
 	}
+	logePathFlag = cli.StringFlag{
+		Name:  "log.path",
+		Usage: "where store the log",
+	}
 	vmoduleFlag = cli.StringFlag{
 		Name:  "vmodule",
 		Usage: "Per-module verbosity: comma-separated list of <pattern>=<level> (e.g. eth/*=5,p2p=4)",
@@ -138,6 +142,7 @@ var (
 var Flags = []cli.Flag{
 	verbosityFlag,
 	mergeLogeFlag,
+	logePathFlag,
 	vmoduleFlag,
 	logjsonFlag,
 	backtraceAtFlag,
@@ -182,13 +187,23 @@ func init() {
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) error {
 	// logging
+	logPath := ctx.GlobalString(logePathFlag.Name)
 	logMerge := ctx.GlobalBool(mergeLogeFlag.Name)
 	if logMerge {
-		rotatingFile, err := log.RotatingFileHandler(log.TerminalFormat(false))
+		rotatingFile, err := log.RotatingFileHandler(logPath, log.TerminalFormat(false))
 		if err != nil {
 			return err
 		}
 		glogger.SetHandler(log.MultiHandler(ostream, rotatingFile))
+	} else {
+		if logPath != "" {
+			f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+			if err != nil {
+				return err
+			}
+			ostream = log.StreamHandler(f, log.TerminalFormat(false))
+			glogger.SetHandler(ostream)
+		}
 	}
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)
 	glogger.Verbosity(log.Lvl(verbosity))
