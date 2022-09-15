@@ -2677,6 +2677,7 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	validatorList := bc.ReadValidatorPool(header)
 	// Obtain random landing points according to the surrounding chain algorithm
 	randomHash := GetRandomDrop(validatorList, header)
+	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash)
 	validators := validatorList.RandomValidatorV2(11, randomHash)
 	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {

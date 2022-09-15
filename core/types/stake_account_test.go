@@ -2,12 +2,13 @@ package types
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestBeValidatorProbaBilitity(t *testing.T) {
@@ -97,7 +98,7 @@ func TestValidatorByWeightAndDistance(t *testing.T) {
 }
 
 func randomHash() common.Hash {
-	rand.Seed(time.Now().Unix())
+	rand.Seed(time.Now().Local().UnixMicro())
 	var hash common.Hash
 	if n, err := rand.Read(hash[:]); n != common.HashLength || err != nil {
 		panic(err)
