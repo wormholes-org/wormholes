@@ -113,16 +113,7 @@ type countingWriter struct {
 // Write increments the byte counter by the number of bytes written.
 // Implements the WriteCloser interface.
 func (w *countingWriter) Write(p []byte) (n int, err error) {
-	stdr, _ := os.OpenFile(filepath.Join(LOGPATH, "unknown.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
-	if w.closed {
-		return stdr.Write(p)
-	}
-	n, err = w.w.Write(p)
-	if err != nil {
-		return stdr.Write(p)
-	} else {
-		return n, err
-	}
+	return w.w.Write(p)
 }
 
 // Close implements the WriteCloser interface.
@@ -169,10 +160,12 @@ func RotatingFileHandler(datadir string, formatter Format) (Handler, error) {
 	h := StreamHandler(counter, formatter)
 
 	return FuncHandler(func(r *Record) error {
-		if !counter.closed && r.BlockNumber != counter.blockNumber {
-			counter.Close()
-			counter.closed = true
-			counter.w = nil
+		if counter.w != nil {
+			if !counter.closed && r.BlockNumber != counter.blockNumber {
+				counter.Close()
+				counter.closed = true
+				counter.w = nil
+			}
 		}
 
 		if counter.w == nil {
