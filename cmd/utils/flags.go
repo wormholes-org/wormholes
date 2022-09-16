@@ -1737,6 +1737,10 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 
 	log.Chain = backend.BlockChain()
 
+	backend.BlockChain().Engine()
+
+	backend.Engine()
+
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}
