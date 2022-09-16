@@ -250,8 +250,8 @@ func (vl *ValidatorList) CollectValidators(randomHash common.Hash, k int) (error
 
 	// r1 := randomHash[12:]
 	// point := common.BytesToAddress(r1).Hash().Big()
-	r1 := randomHash.Hex()
-	pri, err := crypto.HexToECDSA(r1)
+	rr := randomHash.Hex()
+	pri, err := crypto.HexToECDSA(rr[2:])
 	if err != nil {
 		return err, []common.Address{}
 	}
