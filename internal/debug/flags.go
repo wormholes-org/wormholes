@@ -175,10 +175,14 @@ var (
 )
 
 func init() {
+<<<<<<< HEAD
 	usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
+=======
+	usecolor := (isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())) && os.Getenv("TERM") != "dumb"
+>>>>>>> develop
 	output := io.Writer(os.Stdout)
 	if usecolor {
-		output = colorable.NewColorableStderr()
+		output = colorable.NewColorableStdout()
 	}
 	ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
 	glogger = log.NewGlogHandler(ostream)

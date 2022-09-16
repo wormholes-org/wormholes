@@ -1,10 +1,12 @@
 package types
 
 import (
+	//"crypto"
 	"math/big"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -41,6 +43,10 @@ func (vl *ValidatorList) Len() int {
 
 // Less Sort by pledge amount in descending order
 func (vl *ValidatorList) Less(i, j int) bool {
+	if vl.Validators[i].Balance.Cmp(vl.Validators[j].Balance) == 0 {
+		return new(big.Int).SetBytes(vl.Validators[i].Addr.Bytes()).Cmp(
+			new(big.Int).SetBytes(vl.Validators[j].Addr.Bytes())) > 0
+	}
 	return vl.Validators[i].Balance.Cmp(vl.Validators[j].Balance) > 0
 }
 
@@ -179,6 +185,43 @@ func (vl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, ra
 	return res
 }
 
+//
+func (vl *ValidatorList) ValidatorByDistance(addr []*big.Int, k int, randomHash common.Hash) []common.Address {
+	// The maximum value of address to big Int
+	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
+
+	// Hash to 160-bit address
+	r1 := randomHash[12:]
+	x := common.BytesToAddress(r1).Hash().Big()
+
+	distanceAddrMap := make(map[*big.Int]*big.Int, 0)
+	for _, v := range addr {
+		sub1 := big.NewInt(0)
+		sub2 := big.NewInt(0)
+
+		sub1 = sub1.Sub(v, x)
+		sub1 = sub1.Abs(sub1)
+		sub2 = sub2.Sub(maxValue, sub1)
+		if sub1.Cmp(sub2) < 0 {
+			distanceAddrMap[v] = sub1
+		} else {
+			distanceAddrMap[v] = sub2
+		}
+	}
+
+	sortMap := rankByWordCount(distanceAddrMap)
+	res := make([]common.Address, 0)
+
+	for i := 0; i < sortMap.Len(); i++ {
+		if i < k {
+			res = append(res, common.BigToAddress(sortMap[i].Key))
+		} else {
+			break
+		}
+	}
+	return res
+}
+
 func (vl *ValidatorList) RandomValidatorV2(k int, randomHash common.Hash) []common.Address {
 	err, validators := vl.CollectValidators(randomHash, k)
 	log.Info("ccccc", "vl.validators.len", len(vl.Validators), "colleted validators.len", len(validators))
@@ -206,8 +249,16 @@ func (vl *ValidatorList) RandomValidatorV2(k int, randomHash common.Hash) []comm
 
 // CollectValidators Collect the k validators closest to the drop point
 func (vl *ValidatorList) CollectValidators(randomHash common.Hash, k int) (error, []common.Address) {
-	r1 := randomHash[12:]
-	point := common.BytesToAddress(r1).Hash().Big()
+
+	// r1 := randomHash[12:]
+	// point := common.BytesToAddress(r1).Hash().Big()
+	rr := randomHash.Hex()
+	pri, err := crypto.HexToECDSA(rr[2:])
+	if err != nil {
+		return err, []common.Address{}
+	}
+	addr := crypto.PubkeyToAddress(pri.PublicKey)
+	point := addr.Hash().Big()
 
 	var validators []common.Address
 	var count int
@@ -292,8 +343,9 @@ func (vl *ValidatorList) ExistProxy(addr common.Address) bool {
 }
 
 func (vl *ValidatorList) GetProxy(delegate common.Address) (common.Address, bool) {
+	emptyAddress := common.Address{}
 	for _, v := range vl.Validators {
-		if v.Addr == delegate {
+		if v.Addr == delegate && v.Proxy != emptyAddress {
 			return v.Proxy, true
 		}
 	}

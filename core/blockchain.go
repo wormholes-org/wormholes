@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -2677,8 +2678,17 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	validatorList := bc.ReadValidatorPool(header)
 	// Obtain random landing points according to the surrounding chain algorithm
 	randomHash := GetRandomDrop(validatorList, header)
+	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
 	validators := validatorList.RandomValidatorV2(11, randomHash)
-	log.Info("random11 validators", "len", len(validators), "validators", validators)
+	//log.Info("random11 validators", "len", len(validators), "validators", validators)
+	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
+		log.Warn("Random11ValidatorFromPool", "len(validatorList.Validators)", len(validatorList.Validators),
+			"len(validators)", len(validators))
+	}
+	for _, validator := range validators {
+		log.Info("Random11ValidatorFromPool", "RandomValidatorV2 11 address", validator.String(),
+			"blocknumber", header.Number.Uint64())
+	}
 	elevenValidator := new(types.ValidatorList)
 	for _, addr := range validators {
 		//todo proxy 全部空值
@@ -2690,14 +2700,17 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 			elevenValidator.AddValidator(addr, validatorList.StakeBalance(addr), common.Address{})
 		}
 	}
+	for _, validator := range elevenValidator.Validators {
+		log.Info("Random11ValidatorFromPool, elevenValidator", "address", validator.Addr.String(),
+			"amount", validator.Balance, "proxy", validator.Proxy.String(), "blocknumber", header.Number.Uint64())
+	}
 	return elevenValidator, nil
 }
 
 func (bc *BlockChain) RandomNValidatorFromEleven(amount int, elevenValidator *types.ValidatorList, parentHash common.Hash) []common.Address {
-	//validators := elevenValidator.ValidatorByDistanceAndWeight(elevenValidator.ConvertToBigInt(elevenValidator.Validators), amount, parentHash)
-	//return validators
-
-	return elevenValidator.RandomValidatorV2(amount, parentHash)
+	validators := elevenValidator.ValidatorByDistance(elevenValidator.ConvertToBigInt(elevenValidator.Validators), amount, parentHash)
+	return validators
+	//return elevenValidator.RandomValidatorV2(amount, parentHash)
 }
 
 // WriteMintDeep writes mintdeep to chaindb
@@ -2778,6 +2791,8 @@ func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common
 	np := validators.Len()/4 + 1
 	vals := getSurroundingChainNo(i, 4, np)
 
+	log.Info("GetRandomDrop : index", "index", vals, "height", header.Number, "i", i, "vals", vals)
+
 	var buffer bytes.Buffer
 	// The index calculated according to the multilateral chain may be greater than the total number of validators
 	for _, v := range vals {
@@ -2794,7 +2809,8 @@ func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common
 		}
 	}
 	buffer.WriteString(header.Hash().Hex())
-	return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))
+	return crypto.Keccak256Hash(buffer.Bytes())
+	//return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))
 }
 
 func getSurroundingChainNo(i, Nr, Np int) []int {
