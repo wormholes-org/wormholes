@@ -2685,9 +2685,10 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 		log.Warn("Random11ValidatorFromPool", "len(validatorList.Validators)", len(validatorList.Validators),
 			"len(validators)", len(validators))
 	}
-	for _, validator := range validators {
+	log.Info("random 11 addr", "len", len(validators))
+	for i, validator := range validators {
 		log.Info("Random11ValidatorFromPool", "RandomValidatorV2 11 address", validator.String(),
-			"blocknumber", header.Number.Uint64())
+			"blocknumber", header.Number.Uint64(), "i", i)
 	}
 	elevenValidator := new(types.ValidatorList)
 	for _, addr := range validators {
@@ -2700,9 +2701,9 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 			elevenValidator.AddValidator(addr, validatorList.StakeBalance(addr), common.Address{})
 		}
 	}
-	for _, validator := range elevenValidator.Validators {
+	for i, validator := range elevenValidator.Validators {
 		log.Info("Random11ValidatorFromPool, elevenValidator", "address", validator.Addr.String(),
-			"amount", validator.Balance, "proxy", validator.Proxy.String(), "blocknumber", header.Number.Uint64())
+			"amount", validator.Balance, "proxy", validator.Proxy.String(), "blocknumber", header.Number.Uint64(), "i", i)
 	}
 	return elevenValidator, nil
 }
