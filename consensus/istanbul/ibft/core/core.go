@@ -320,7 +320,7 @@ func (c *core) startNewRound(round *big.Int) {
 				// not validator
 				c.setState(ibfttypes.StateAcceptRequest)
 			}
-		} else {
+		} else if c.current.pendingOnlineProofRequest != nil {
 			c.sendOnlineProof(c.current.pendingOnlineProofRequest)
 		}
 	}

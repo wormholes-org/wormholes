@@ -410,11 +410,11 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-w.startCh:
 			clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
-			log.Info("caver|w.startCh", "currentBlockNo", w.chain.CurrentBlock().NumberU64())
+			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
-			log.Info("w.chainHeadCh", "height", head.Block.Number())
+			log.Info("w.chainHeadCh", "no", head.Block.Number().Uint64()+1)
 			if h, ok := w.engine.(consensus.Handler); ok {
 				h.NewChainHead()
 			}
@@ -424,7 +424,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			w.CommitOnlineProofBlock()
 
 		case onlineValidators := <-w.notifyBlockCh:
-			log.Info("w.notifyBlockCh", "height", onlineValidators.Height)
+			log.Info("w.notifyBlockCh", "no", onlineValidators.Height)
 			w.onlineValidators = onlineValidators
 			clearPending(onlineValidators.Height.Uint64())
 			timestamp = time.Now().Unix()
@@ -433,7 +433,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
 			if w.isRunning() {
-				log.Info("timer.C : commit request")
+				log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
 				commit(false, commitInterruptNewHead)
 			}
 
@@ -978,7 +978,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {
-	log.Info("caver|commitNewWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
+	log.Info("commitNewWork : enter", "no", w.chain.CurrentHeader().Number.Uint64()+1)
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
