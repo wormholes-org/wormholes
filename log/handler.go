@@ -169,13 +169,10 @@ func RotatingFileHandler(datadir string, formatter Format) (Handler, error) {
 	h := StreamHandler(counter, formatter)
 
 	return FuncHandler(func(r *Record) error {
-		if !counter.closed {
-			if r.BlockNumber != counter.blockNumber {
-				counter.Close()
-				counter.closed = true
-				counter.w = nil
-			}
-
+		if !counter.closed && r.BlockNumber != counter.blockNumber {
+			counter.Close()
+			counter.closed = true
+			counter.w = nil
 		}
 
 		if counter.w == nil {
