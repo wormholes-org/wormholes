@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -957,4 +958,31 @@ func TestConsensus(t *testing.T) {
 		}
 	}
 	fmt.Print("=====v====", count1, count2, count3, count4, count5, count6)
+}
+
+func randomHash2() common.Hash {
+	rand.Seed(time.Now().Local().UnixMicro())
+	var hash common.Hash
+	if n, err := rand.Read(hash[:]); n != common.HashLength || err != nil {
+		panic(err)
+	}
+	return hash
+}
+func TestMD5(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		hash := randomHash()
+		// random   addr
+		addr1 := RandomAddr()
+		addr2 := RandomAddr()
+		addr3 := RandomAddr()
+
+		var buffer bytes.Buffer
+
+		buffer.WriteString(hash.Hex())
+		buffer.WriteString(addr1.Hex())
+		buffer.WriteString(addr2.Hex())
+		buffer.WriteString(addr3.Hex())
+		res := crypto.Keccak256Hash(buffer.Bytes())
+		fmt.Println("====v====", res)
+	}
 }

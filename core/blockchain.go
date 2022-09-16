@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -2677,7 +2678,7 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	validatorList := bc.ReadValidatorPool(header)
 	// Obtain random landing points according to the surrounding chain algorithm
 	randomHash := GetRandomDrop(validatorList, header)
-	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash)
+	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
 	validators := validatorList.RandomValidatorV2(11, randomHash)
 	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
@@ -2790,6 +2791,8 @@ func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common
 	np := validators.Len()/4 + 1
 	vals := getSurroundingChainNo(i, 4, np)
 
+	log.Info("GetRandomDrop : index", "index", vals, "height", header.Number, "i", i, "vals", vals)
+
 	var buffer bytes.Buffer
 	// The index calculated according to the multilateral chain may be greater than the total number of validators
 	for _, v := range vals {
@@ -2806,7 +2809,8 @@ func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common
 		}
 	}
 	buffer.WriteString(header.Hash().Hex())
-	return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))
+	return crypto.Keccak256Hash(buffer.Bytes())
+	//return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))
 }
 
 func getSurroundingChainNo(i, Nr, Np int) []int {

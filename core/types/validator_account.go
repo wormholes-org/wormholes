@@ -1,10 +1,12 @@
 package types
 
 import (
+	//"crypto"
 	"math/big"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type Validator struct {
@@ -245,8 +247,16 @@ func (vl *ValidatorList) RandomValidatorV2(k int, randomHash common.Hash) []comm
 
 // CollectValidators Collect the k validators closest to the drop point
 func (vl *ValidatorList) CollectValidators(randomHash common.Hash, k int) (error, []common.Address) {
-	r1 := randomHash[12:]
-	point := common.BytesToAddress(r1).Hash().Big()
+
+	// r1 := randomHash[12:]
+	// point := common.BytesToAddress(r1).Hash().Big()
+	r1 := randomHash.Hex()
+	pri, err := crypto.HexToECDSA(r1)
+	if err != nil {
+		return err, []common.Address{}
+	}
+	addr := crypto.PubkeyToAddress(pri.PublicKey)
+	point := addr.Hash().Big()
 
 	var validators []common.Address
 	var count int
