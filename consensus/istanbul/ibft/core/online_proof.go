@@ -13,7 +13,10 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 	if request == nil {
 		return
 	}
-	log.Info("sendOnlineProof", "height", request.Proposal.Number())
+	log.Info("sendOnlineProof", "height", request.Proposal.Number(),
+		"sequence", c.current.Sequence(),
+		"request no", request.Proposal.Number())
+
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
 		curView := c.currentView()
 		onlineProof, err := ibfttypes.Encode(&istanbul.OnlineProof{

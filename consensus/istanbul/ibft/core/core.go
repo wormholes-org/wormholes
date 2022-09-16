@@ -220,6 +220,7 @@ func (c *core) startNewRound(round *big.Int) {
 		logger.Trace("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
 	} else if lastProposal.Number().Cmp(big.NewInt(c.current.Sequence().Int64()-1)) == 0 {
 		if round.Cmp(common.Big0) == 0 {
+			log.Info("same seq and round, don't need to start new round", "no", c.currentView().Sequence)
 			// same seq and round, don't need to start new round
 			return
 		} else if round.Cmp(c.current.Round()) < 0 {
@@ -234,13 +235,13 @@ func (c *core) startNewRound(round *big.Int) {
 
 	var newView *istanbul.View
 	if roundChange {
-		log.Info("caver|startNewRound|roundChange=true", "currentNo", lastProposal.Number().Uint64(), "round", round)
+		log.Info("startNewRound : roundChange", "no", lastProposal.Number().Uint64(), "round", round)
 		newView = &istanbul.View{
 			Sequence: new(big.Int).Set(c.current.Sequence()),
 			Round:    new(big.Int).Set(round),
 		}
 	} else {
-		log.Info("caver|startNewRound|roundChange=false", "currentNo", lastProposal.Number().Uint64(), "round", round)
+		log.Info("startNewRound : false", "no", lastProposal.Number().Uint64(), "round", round)
 		newView = &istanbul.View{
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
@@ -275,19 +276,15 @@ func (c *core) startNewRound(round *big.Int) {
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 
-	log.Info("startNewRound|proposer", "c.valSet.List()", len(c.valSet.List()))
 	for _, v := range c.valSet.List() {
-		log.Info("startNewRound|proposer", "valSet", v.String())
-	}
-
-	log.Info("caver|startNewRound|proposer", "proposer ", c.valSet.GetProposer())
-	log.Info("caver|startNewRound|proposer", "no", newView.Sequence.String(),
-		"round", newView.Round.String(), "proposer", c.valSet.GetProposer().Address().String())
-
-	// temp print validator
-	for i, v := range c.valSet.List() {
-		log.Info("caver|startNewRound|validator", "no", newView.Sequence.String(),
-			"round", newView.Round.String(), "i", i, "addr", v.Address().String())
+		log.Info("startNewRound : validator info",
+			"no", newView.Sequence.String(),
+			"round", newView.Round.String(),
+			"proposer", c.valSet.GetProposer().Address().Hex(),
+			"validator", v.Address().Hex(),
+			"self", c.address.Hex(),
+			"isproposer", c.address.Hex() == c.valSet.GetProposer().Address().Hex(),
+		)
 	}
 
 	c.waitingForRoundChange = false
@@ -298,13 +295,13 @@ func (c *core) startNewRound(round *big.Int) {
 			// If it is locked, propose the old proposal
 			// If we have pending request, propose pending request
 			if c.current.IsHashLocked() {
-				log.Info("caver|c.current.IsHashLocked()", "currentProposal", c.current.Proposal().Number().Uint64())
+				log.Info("startNewRound : c.current.IsHashLocked()", "currentProposal", c.current.Proposal().Number().Uint64())
 				r := &istanbul.Request{
 					Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
 				}
 				c.sendPreprepare(r)
 			} else if c.current.pendingRequest != nil {
-				log.Info("caver|c.current.pendingRequest != nil", "currentPendingRequest", c.current.pendingRequest.Proposal.Number().Uint64())
+				log.Info("startNewRound : c.current.pendingRequest != nil", "no", c.current.pendingRequest.Proposal.Number())
 				c.sendPreprepare(c.current.pendingRequest)
 			}
 		}
@@ -312,11 +309,15 @@ func (c *core) startNewRound(round *big.Int) {
 		c.setState(ibfttypes.StateAcceptOnlineProofRequest)
 		if roundChange && c.current != nil {
 			onlineProofMsgSet := c.onlineProofs[c.currentView().Sequence.Uint64()]
-			log.Info("start new round OnlineProofs size", "height", c.currentView().Sequence, "size", c.onlineProofs[c.currentView().Sequence.Uint64()].Size(), "msg", onlineProofMsgSet.messages)
-			if onlineProofMsgSet != nil && onlineProofMsgSet.Size() >= c.QuorumSize() {
+			log.Info("start new round OnlineProofs roundChange", "height", c.currentView().Sequence, "size", c.onlineProofs[c.currentView().Sequence.Uint64()].Size(), "msg", onlineProofMsgSet.messages)
+			if onlineProofMsgSet != nil && c.IsProposer() && onlineProofMsgSet.Size() >= c.QuorumSize()-1 {
 				log.Info("online proof roundchange", "height", c.currentView().Sequence, "request  len", c.pendingRequests.Size())
 
+				// proposer
 				// Set state to StateAcceptRequest
+				c.setState(ibfttypes.StateAcceptRequest)
+			} else if !c.IsProposer() && onlineProofMsgSet != nil {
+				// not validator
 				c.setState(ibfttypes.StateAcceptRequest)
 			}
 		} else {

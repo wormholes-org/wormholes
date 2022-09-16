@@ -1199,6 +1199,7 @@ func GetBFTSize(len int) int {
 }
 
 func (w *worker) CommitOnlineProofBlock() error {
+	log.Info("CommitOnlineProofBlock : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 

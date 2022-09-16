@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"github.com/go-stack/stack"
 	"io"
 	"io/ioutil"
 	"net"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/go-stack/stack"
 )
 
 // Handler defines where and how log records are written.
@@ -113,7 +114,18 @@ type countingWriter struct {
 // Write increments the byte counter by the number of bytes written.
 // Implements the WriteCloser interface.
 func (w *countingWriter) Write(p []byte) (n int, err error) {
-	return w.w.Write(p)
+	// return w.w.Write(p)
+	stdr, _ := os.OpenFile(filepath.Join(LOGPATH, "unknown.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+	if w.closed {
+		return stdr.Write(p)
+	}
+	n, err = w.w.Write(p)
+	if err != nil {
+		return stdr.Write(p)
+	} else {
+		return n, err
+	}
+
 }
 
 // Close implements the WriteCloser interface.

@@ -200,15 +200,14 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	header := block.Header()
 
 	if sb.core == nil {
-		return errors.New("seal|ibft engine not active")
+		return errors.New("seal : ibft engine not active")
 	}
 
-	log.Info("caver|seal|enter", "sealNo", block.Number().String(), "is proposer", sb.core.IsProposer())
+	log.Info("seal : enter", "no", block.Number().String(), "is proposer", sb.core.IsProposer())
 
 	//Get the validatorset for this round
 	istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
 	if err1 != nil {
-		log.Info("caver|seal|ExtractIstanbulExtra", "no", header.Number, "err", err1.Error())
 		return err1
 	}
 
@@ -216,7 +215,6 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 
 	block, err := sb.EngineForBlockNumber(header.Number).Seal(chain, block, valSet)
 	if err != nil {
-		log.Info("caver|seal|err", "sealNo", header.Number.String(), "err", err.Error())
 		return err
 	}
 
@@ -240,7 +238,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 			sb.sealMu.Unlock()
 		}()
 
-		log.Info("caver|Seal|post block into Istanbul engine", "sealNo", block.NumberU64(),
+		log.Info("seal : post block into Istanbul engine", "no", block.NumberU64(),
 			"hash", block.Hash(), "is proposer", sb.core.IsProposer())
 		// post block into Istanbul engine
 		go sb.EventMux().Post(istanbul.RequestEvent{
