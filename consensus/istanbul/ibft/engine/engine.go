@@ -300,7 +300,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			decodeErr = err
 			log.Info("decode err", "err", err.Error())
 		} else {
-			log.Info("onlineValidators", "height", onlineValidators.Height, "addr", onlineValidators.Addrs, "hashs", onlineValidators.Hashs)
+			log.Info("prepare : onlineValidators", "height", onlineValidators.Height, "addr", onlineValidators.Addrs, "hashs", onlineValidators.Hashs)
 		}
 	}
 	// use the same difficulty for all blocks
@@ -321,7 +321,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 
 		// reward to validators
 		if decodeErr == nil && len(onlineValidators.Addrs) >= 6 {
-			validatorAddr = append(validatorAddr, onlineValidators.Addrs[:7]...)
+			validatorAddr = append(validatorAddr, onlineValidators.Addrs[:6]...)
 		} else {
 			validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
 			if err != nil {
@@ -330,12 +330,6 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			benifitedValidators := c.RandomNValidatorFromEleven(6, validatorList, c.CurrentBlock().Header().Hash())
 			validatorAddr = append(validatorAddr, benifitedValidators...)
 		}
-		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
-		if err != nil {
-			return err
-		}
-		benifitedValidators := c.RandomNValidatorFromEleven(6, validatorList, c.CurrentBlock().Header().Hash())
-		validatorAddr = append(validatorAddr, benifitedValidators...)
 
 		// reward to miner
 		validatorAddr = append(validatorAddr, header.Coinbase)
