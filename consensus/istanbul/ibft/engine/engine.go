@@ -321,7 +321,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 
 		// reward to validators
 		if decodeErr == nil && len(onlineValidators.Addrs) >= 6 {
-			validatorAddr = append(validatorAddr, onlineValidators.Addrs[:7]...)
+			validatorAddr = append(validatorAddr, onlineValidators.Addrs[:6]...)
 		} else {
 			validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
 			if err != nil {
