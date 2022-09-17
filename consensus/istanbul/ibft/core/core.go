@@ -233,12 +233,6 @@ func (c *core) startNewRound(round *big.Int) {
 		return
 	}
 
-	// if timeout, notify worker to generate empty block
-	if c.currentView().Round.Uint64() >= 10 {
-		c.backend.NotifyWorkerToCommit(nil)
-		return
-	}
-
 	var newView *istanbul.View
 	if roundChange {
 		log.Info("startNewRound : roundChange", "no", lastProposal.Number().Uint64(), "round", round)
@@ -281,6 +275,12 @@ func (c *core) startNewRound(round *big.Int) {
 	c.updateRoundState(newView, c.valSet, roundChange)
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
+
+	// if timeout, notify worker to generate empty block
+	if c.currentView().Round.Uint64() >= 10 {
+		c.backend.NotifyWorkerToCommit(nil)
+		return
+	}
 
 	for _, v := range c.valSet.List() {
 		log.Info("startNewRound : validator info",
