@@ -421,7 +421,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			// Start submitting online proof blocks
-			w.CommitOnlineProofBlock()
+			w.CommitOnlineProofBlock(*timer)
 
 		case onlineValidators := <-w.notifyBlockCh:
 			log.Info("w.notifyBlockCh", "no", onlineValidators.Height)
@@ -432,10 +432,12 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
-			if w.isRunning() {
-				log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
-				commit(false, commitInterruptNewHead)
-			}
+			// if w.isRunning() {
+			// 	log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+			// 	commit(false, commitInterruptResubmit)
+			// }
+			log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1, "w.isRunning", w.isRunning())
+			commit(false, commitInterruptResubmit)
 
 		case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.
@@ -468,6 +470,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 
 		case <-w.exitCh:
+			log.Info("newWorkLoop : exitCh", "no", w.current.header.Number.Uint64()+1)
 			return
 		}
 	}
@@ -1198,7 +1201,7 @@ func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }
 
-func (w *worker) CommitOnlineProofBlock() error {
+func (w *worker) CommitOnlineProofBlock(timer time.Timer) error {
 	log.Info("CommitOnlineProofBlock : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -1235,6 +1238,7 @@ func (w *worker) CommitOnlineProofBlock() error {
 	}
 
 	w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, stopCh)
+	timer.Reset(2 * time.Second)
 
 	return nil
 }

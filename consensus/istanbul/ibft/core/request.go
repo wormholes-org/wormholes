@@ -36,8 +36,12 @@ func (c *core) handleRequest(request *istanbul.Request) error {
 	logger.Trace("handleRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 
 	c.current.pendingRequest = request
+	log.Info("handleRequest : sendPreprepare",
+		"no", request.Proposal.Number(),
+		"round", c.currentView().Round,
+		"hash", request.Proposal.Hash(),
+		"state", c.state)
 	if c.state == ibfttypes.StateAcceptRequest {
-		log.Info("caver|handleRequest|sendPreprepare", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 		c.sendPreprepare(request)
 	}
 	return nil

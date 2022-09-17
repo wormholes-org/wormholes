@@ -309,7 +309,11 @@ func (c *core) startNewRound(round *big.Int) {
 		c.setState(ibfttypes.StateAcceptOnlineProofRequest)
 		if roundChange && c.current != nil {
 			onlineProofMsgSet := c.onlineProofs[c.currentView().Sequence.Uint64()]
-			log.Info("start new round OnlineProofs roundChange", "height", c.currentView().Sequence, "size", c.onlineProofs[c.currentView().Sequence.Uint64()].Size(), "msg", onlineProofMsgSet.messages)
+			log.Info("start new round OnlineProofs roundChange",
+				"no", c.currentView().Sequence,
+				"round", c.current.round,
+				"online proof size", c.onlineProofs[c.currentView().Sequence.Uint64()].Size(),
+				"isproposer", c.IsProposer())
 			if onlineProofMsgSet != nil && c.IsProposer() && onlineProofMsgSet.Size() >= c.QuorumSize()-1 {
 				log.Info("online proof roundchange", "height", c.currentView().Sequence, "request  len", c.pendingRequests.Size())
 

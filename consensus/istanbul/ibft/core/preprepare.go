@@ -31,9 +31,11 @@ import (
 func (c *core) sendPreprepare(request *istanbul.Request) {
 	logger := c.logger.New("state", c.state)
 	// If I'm the proposer and I have the same sequence with the proposal
+
+	log.Info("sendPreprepare : start",
+		"no", request.Proposal.Number(), "sequence", c.current.sequence,
+		"round", c.current.round.Uint64(), "isproposer", c.IsProposer())
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
-		log.Info("c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer()",
-			"no", request.Proposal.Number(), "round", c.current.round.Uint64())
 		curView := c.currentView()
 		preprepare, err := ibfttypes.Encode(&istanbul.Preprepare{
 			View:     curView,
@@ -44,7 +46,7 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			return
 		}
 
-		log.Info("carver|sendPreprepare|broadcast", "no", request.Proposal.Number(),
+		log.Info("sendPreprepare : broadcast", "no", request.Proposal.Number(),
 			"round", curView.Round,
 			"author", c.address.Hex(),
 			"hash", request.Proposal.Hash().Hex())

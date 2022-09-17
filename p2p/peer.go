@@ -20,9 +20,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"golang.org/x/crypto/sha3"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -30,6 +27,10 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
@@ -238,12 +239,12 @@ func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {
 		protoErr: make(chan error, len(protomap)+1), // protocols + pingLoop
 		closed:   make(chan struct{}),
 		log:      log.New("id", conn.node.ID(), "conn", conn.flags),
-		Msgs: 	&MsgList {
-					MuxCh: make(chan bool, 1),
-					ExistMsg: make(chan struct{}, 1),
-					Msg17s: make([]*Msg, 0),
-					MsgNot17s: make([]*Msg, 0),
-				},
+		Msgs: &MsgList{
+			MuxCh:     make(chan bool, 1),
+			ExistMsg:  make(chan struct{}, 1),
+			Msg17s:    make([]*Msg, 0),
+			MsgNot17s: make([]*Msg, 0),
+		},
 	}
 	return p
 }
@@ -346,16 +347,15 @@ func (p *Peer) pingLoop() {
 //	}
 //}
 
-
 type MsgList struct {
-	MuxCh chan bool
-	ExistMsg chan struct{}
-	Msg17s []*Msg
+	MuxCh     chan bool
+	ExistMsg  chan struct{}
+	Msg17s    []*Msg
 	MsgNot17s []*Msg
 }
 
 func (ml *MsgList) Add(msg *Msg, code uint64, ibftCode uint64) {
-	ml.MuxCh<- true
+	ml.MuxCh <- true
 	if code == 17 && (ibftCode == 0 || ibftCode == 3) {
 		ml.Msg17s = append(ml.Msg17s, msg)
 	} else {
@@ -367,7 +367,7 @@ func (ml *MsgList) Add(msg *Msg, code uint64, ibftCode uint64) {
 func (ml *MsgList) Pop() *Msg {
 	var msg *Msg
 
-	ml.MuxCh<- true
+	ml.MuxCh <- true
 	if len(ml.Msg17s) > 0 {
 		msg = ml.Msg17s[0]
 		if len(ml.Msg17s) > 1 {
@@ -405,10 +405,8 @@ func (ml *MsgList) NoticeExistMsg() {
 			}
 
 		}
- 	}
+	}
 }
-
-
 
 func (p *Peer) ReadMsg(errc chan<- error) {
 	var code uint64
@@ -416,7 +414,7 @@ func (p *Peer) ReadMsg(errc chan<- error) {
 	for {
 		ibftCode = 9999
 		msg, err := p.rw.ReadMsg()
-		if msg.Code == 17{
+		if msg.Code == 17 {
 			log.Info("caver|readMsg|17", "msgCode", msg.Code, "err", err)
 		}
 		if err != nil {
@@ -432,8 +430,8 @@ func (p *Peer) ReadMsg(errc chan<- error) {
 			proto, err := p.getProto(msg.Code)
 			if err == nil {
 				code = msg.Code - proto.offset
-				log.Info("Peer.ReadMsg()", "msg.Code", msg.Code, "proto.offset", proto.offset,
-					"peer.id", p.ID().String())
+				// log.Info("Peer.ReadMsg()", "msg.Code", msg.Code, "proto.offset", proto.offset,
+				// 	"peer.id", p.ID().String())
 				// for test
 				tempMsg := Copy(msg).(Msg)
 				tempPayload, _ := ioutil.ReadAll(msg.Payload)
@@ -455,8 +453,8 @@ func (p *Peer) ReadMsg(errc chan<- error) {
 
 		p.Msgs.Add(&msg, code, ibftCode)
 
-		log.Info("Peer.ReadMsg()", "msg.code", code, "p.Msgs.Msg17s lens", len(p.Msgs.Msg17s),
-			"p.Msgs.MsgNot17s lens", len(p.Msgs.MsgNot17s), "peer.id", p.ID().String())
+		// log.Info("Peer.ReadMsg()", "msg.code", code, "p.Msgs.Msg17s lens", len(p.Msgs.Msg17s),
+		// 	"p.Msgs.MsgNot17s lens", len(p.Msgs.MsgNot17s), "peer.id", p.ID().String())
 	}
 }
 
@@ -632,7 +630,6 @@ func Decode17Msg(msg Msg) (*Message, common.Hash, error) {
 	return msg17, RLPHash(data), nil
 }
 
-
 func (p *Peer) HandeMsg(errc chan<- error) {
 	for {
 		select {
@@ -642,7 +639,7 @@ func (p *Peer) HandeMsg(errc chan<- error) {
 				continue
 			}
 			if err := p.handle(*msg); err != nil {
-				if msg.Code ==17 {
+				if msg.Code == 17 {
 					log.Info("caver|handleMsg|17", "msgCode", msg.Code, "err", err)
 				}
 				errc <- err
@@ -741,12 +738,12 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 		proto.wstart = writeStart
 		proto.werr = writeErr
 
-		proto.Msgs = &MsgList {
-		MuxCh: make(chan bool, 1),
-		ExistMsg: make(chan struct{}, 1),
-		Msg17s: make([]*Msg, 0),
-		MsgNot17s: make([]*Msg, 0),
-	}
+		proto.Msgs = &MsgList{
+			MuxCh:     make(chan bool, 1),
+			ExistMsg:  make(chan struct{}, 1),
+			Msg17s:    make([]*Msg, 0),
+			MsgNot17s: make([]*Msg, 0),
+		}
 
 		var rw MsgReadWriter = proto
 		if p.events != nil {

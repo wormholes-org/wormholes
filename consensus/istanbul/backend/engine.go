@@ -208,6 +208,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	//Get the validatorset for this round
 	istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
 	if err1 != nil {
+		log.Error("Seal : ExtractIstanbulExtra", "err", err1)
 		return err1
 	}
 
@@ -619,41 +620,24 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 	common.BigToHash(big.NewInt(int64(localTime)))
 	log.Info("SealOnlineProofBlk : post OnlineProofEvent")
 
-	// go func() {
-	// 	sb.EventMux().Post(istanbul.OnlineProofEvent{
-	// 		Proposal:   block,
-	// 		RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
-	// 	})
-	// 	for {
-	// 		select {
-	// 		case onlineValidators := <-sb.notifyBlockCh:
-	// 			log.Info("SealOnlineProofBlk : onlineValidators", "height", block.NumberU64(), "info", onlineValidators)
-	// 			if onlineValidators != nil {
-	// 				notifyBlockCh <- onlineValidators
-	// 				return
-	// 			}
-	// 		case <-stop:
-	// 			log.Info("SealOnlineProofBlk : stop")
-	// 			return
-	// 		}
-	// 	}
-	// }()
-
-	go sb.EventMux().Post(istanbul.OnlineProofEvent{
-		Proposal:   block,
-		RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
-	})
-	for {
-		select {
-		case onlineValidators := <-sb.notifyBlockCh:
-			log.Info("SealOnlineProofBlk : onlineValidators", "height", block.NumberU64(), "info", onlineValidators)
-			if onlineValidators != nil {
-				notifyBlockCh <- onlineValidators
-				return nil
+	go func() {
+		sb.EventMux().Post(istanbul.OnlineProofEvent{
+			Proposal:   block,
+			RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
+		})
+		for {
+			select {
+			case onlineValidators := <-sb.notifyBlockCh:
+				log.Info("SealOnlineProofBlk : onlineValidators", "height", block.NumberU64(), "info", onlineValidators)
+				if onlineValidators != nil {
+					notifyBlockCh <- onlineValidators
+					return
+				}
+			case <-stop:
+				log.Info("SealOnlineProofBlk : stop")
+				return
 			}
-		case <-stop:
-			log.Info("SealOnlineProofBlk : stop")
-			return nil
 		}
-	}
+	}()
+	return nil
 }

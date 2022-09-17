@@ -13,9 +13,11 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 	if request == nil {
 		return
 	}
-	log.Info("sendOnlineProof", "height", request.Proposal.Number(),
+	log.Info("sendOnlineProof",
+		"no", request.Proposal.Number(),
 		"sequence", c.current.Sequence(),
-		"request no", request.Proposal.Number())
+		"round", c.current.round,
+	)
 
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
 		curView := c.currentView()
@@ -53,7 +55,8 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 		"no", onlineProof.Proposal.Number().Uint64(),
 		"round", onlineProof.View.Round.String(),
 		"from", src.Address().Hex(),
-		"hash", onlineProof.Proposal.Hash().Hex())
+		"hash", onlineProof.Proposal.Hash().Hex(),
+		"isproposer", c.IsProposer())
 	// Ensure we have the same view with the ONLINE-PROOF message
 	if err := c.checkMessage(ibfttypes.MsgOnlineProof, onlineProof.View); err != nil {
 		log.Error("handleOnlineProof : checkMessage", "no", onlineProof.Proposal.Number().Uint64(), "err", err.Error(), "hash", onlineProof.Proposal.Hash().Hex())
