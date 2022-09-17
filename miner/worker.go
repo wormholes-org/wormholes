@@ -424,11 +424,16 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			w.CommitOnlineProofBlock(*timer)
 
 		case onlineValidators := <-w.notifyBlockCh:
-			log.Info("w.notifyBlockCh", "no", onlineValidators.Height)
-			w.onlineValidators = onlineValidators
-			clearPending(onlineValidators.Height.Uint64())
-			timestamp = time.Now().Unix()
-			commit(false, commitInterruptNewHead)
+			if onlineValidators != nil {
+				log.Info("w.notifyBlockCh", "no", onlineValidators.Height)
+				w.onlineValidators = onlineValidators
+				clearPending(onlineValidators.Height.Uint64())
+				timestamp = time.Now().Unix()
+				commit(false, commitInterruptNewHead)
+			} else {
+				//Todo  zbh
+			}
+
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
