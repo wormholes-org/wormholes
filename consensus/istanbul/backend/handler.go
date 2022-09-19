@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
 )
@@ -43,6 +44,12 @@ var (
 
 	// errPayloadReadFailed is returned when qbft message read fails
 	errPayloadReadFailed = errors.New("unable to read payload from message")
+
+	// errAddSelf is returned when add self peer
+	errAddSelf = errors.New("unable to add self peer")
+
+	// errNotValidator is returned when peer is not validator
+	errNotValidator = errors.New("peer is not validator")
 )
 
 // Protocol implements consensus.Engine.Protocol
@@ -63,6 +70,40 @@ func (sb *Backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 		}
 	}
 	return data, istanbul.RLPHash(data), nil
+}
+
+func (sb *Backend) handlePeer(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+	if sb.server.Self().ID() == p.ID() {
+		return errAddSelf
+	}
+	if !sb.ibftEngine.IsValidator(crypto.PubkeyToAddress(*p.Node().Pubkey())) {
+		return errNotValidator
+	}
+	if err := sb.peers.registerPeer(&peer{p, rw}); err != nil {
+		return err
+	}
+	addr := crypto.PubkeyToAddress(*p.Node().Pubkey())
+	for {
+		if err := sb.handleMsg(addr, rw); err != nil {
+			return err
+		}
+	}
+}
+
+func (sb *Backend) handleMsg(addr common.Address, rw p2p.MsgReadWriter) error {
+	// Read the next message from the remote peer (in protoRW), and ensure it's fully consumed
+	msg, err := rw.ReadMsg()
+	if err != nil {
+		return err
+	}
+	defer msg.Discard()
+
+	// See if the consensus engine protocol can handle this message, e.g. istanbul will check for message is
+	// istanbulMsg = 0x11, and NewBlockMsg = 0x07.
+	handled, err := sb.HandleMsg(addr, msg)
+	sb.logger.Debug("consensus|receiveMsg", "from", addr, "code", msg.Code, "handled", handled, "err", err)
+
+	return err
 }
 
 // HandleMsg implements consensus.Handler.HandleMsg

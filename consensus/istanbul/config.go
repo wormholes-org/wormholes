@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/naoina/toml"
 )
 
@@ -113,6 +114,7 @@ type Config struct {
 	Ceil2Nby3Block         *big.Int        `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 	AllowedFutureBlockTime uint64          `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	TestQBFTBlock          *big.Int        `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
+	P2P                    p2p.Config      `toml:",omitempty"`
 }
 
 var DefaultConfig = &Config{

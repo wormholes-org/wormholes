@@ -669,6 +669,16 @@ var (
 		Usage: "Sets DNS discovery entry points (use \"\" to disable DNS)",
 	}
 
+	// Istanbul settings
+	IstanbulListenPortFlag = cli.IntFlag{
+		Name:  "istanbul.port",
+		Usage: "Consensus network listening port",
+	}
+	IstanbulBootnodesFlag = cli.StringFlag{
+		Name:  "istanbul.bootnodes",
+		Usage: "Comma separated enode URLs for consensus P2P discovery bootstrap",
+	}
+
 	// ATM the url is left to the user and deployment to
 	JSpathFlag = DirectoryFlag{
 		Name:  "jspath",
@@ -1703,6 +1713,51 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			SetDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)
 		}
 	}
+}
+
+func SetIstanbulConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
+	istanbul := &cfg.Istanbul.P2P
+	istanbul.MaxPeers = 160
+	istanbul.DialRatio = 2
+	istanbul.PrivateKey = stack.GetNodeKey()
+	istanbul.NodeDatabase = stack.Config().ResolvePath("consensus-nodes")
+	if ctx.GlobalIsSet(IstanbulListenPortFlag.Name) {
+		istanbul.ListenAddr = fmt.Sprintf(":%d", ctx.GlobalInt(IstanbulListenPortFlag.Name))
+	} else {
+		istanbul.ListenAddr = portAddHundred(stack.Config().P2P.ListenAddr)
+	}
+	if ctx.GlobalIsSet(IstanbulBootnodesFlag.Name) {
+		urls := SplitAndTrim(ctx.GlobalString(IstanbulBootnodesFlag.Name))
+		istanbul.BootstrapNodes = make([]*enode.Node, 0, len(urls))
+		for _, url := range urls {
+			if url != "" {
+				node, err := enode.Parse(enode.ValidSchemes, url)
+				if err != nil {
+					log.Crit("Bootstrap URL invalid", "enode", url, "err", err)
+					continue
+				}
+				istanbul.BootstrapNodes = append(istanbul.BootstrapNodes, node)
+			}
+		}
+	} else {
+		istanbul.BootstrapNodes = make([]*enode.Node, len(stack.Config().P2P.BootstrapNodes))
+		for i, bootstrapNode := range stack.Config().P2P.BootstrapNodes {
+			istanbul.BootstrapNodes[i] = enode.MustParse(portAddHundred(bootstrapNode.String()))
+		}
+	}
+}
+
+// url port increased by 100
+func portAddHundred(url string) string {
+	index := strings.LastIndex(url, ":")
+	if index >= 0 {
+		port, err := strconv.Atoi(url[index+1:])
+		if err != nil {
+			log.Crit("Increase the port by 100", "err", err)
+		}
+		url = url[:index+1] + strconv.Itoa(port+100)
+	}
+	return url
 }
 
 // SetDNSDiscoveryDefaults configures DNS discovery with the given URL if

@@ -21,7 +21,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"runtime"
 	"sync"
@@ -39,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/pruner"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/filters"
@@ -158,22 +158,6 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		bloomIndexer:      core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 		p2pServer:         stack.Server(),
 		nodekey:           stack.GetNodeKey(),
-	}
-
-	// Quorum: Set protocol Name/Version
-	// keep `var protocolName = "eth"` as is, and only update the quorum consensus specific protocol
-	// This is used to enable the eth service to return multiple devp2p subprotocols.
-	// Previously, for istanbul/64 istnbul/99 and clique (v2.6) `protocolName` would be overridden and
-	// set to the consensus subprotocol name instead of "eth", meaning the node would no longer
-	// communicate over the "eth" subprotocol, e.g. "eth" or "istanbul/99" but not eth" and "istanbul/99".
-	// With this change, support is added so that the "eth" subprotocol remains and optionally a consensus subprotocol
-	// can be added allowing the node to communicate over "eth" and an optional consensus subprotocol, e.g. "eth" and "istanbul/100"
-	if chainConfig.IsQuorum {
-		quorumProtocol := eth.engine.Protocol()
-		// set the quorum specific consensus devp2p subprotocol, eth subprotocol remains set to protocolName as in upstream geth.
-		quorumConsensusProtocolName = quorumProtocol.Name
-		quorumConsensusProtocolVersions = quorumProtocol.Versions
-		quorumConsensusProtocolLengths = quorumProtocol.Lengths
 	}
 
 	// force to set the istanbul etherbase to node key address
@@ -545,14 +529,6 @@ func (s *Ethereum) Protocols() []p2p.Protocol {
 	if s.config.SnapshotCache > 0 {
 		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
 	}
-
-	//// /Quorum
-	//// add additional quorum consensus protocol if set and if not set to "eth", e.g. istanbul
-	//if quorumConsensusProtocolName != "" && quorumConsensusProtocolName != eth.ProtocolName {
-	//	quorumProtos := s.quorumConsensusProtocols()
-	//	protos = append(protos, quorumProtos...)
-	//}
-	//// /end Quorum
 
 	return protos
 }

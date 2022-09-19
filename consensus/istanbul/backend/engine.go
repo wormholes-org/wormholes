@@ -21,17 +21,18 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -282,6 +283,30 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 		return istanbul.ErrStartedEngine
 	}
 
+	sb.peers = newPeerSet()
+	sb.server = &p2p.Server{Config: sb.config.P2P}
+	sb.server.Protocols = []p2p.Protocol{
+		{
+			Name:    "istanbul",
+			Version: 100,
+			Length:  22,
+			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+				sb.logger.Debug("consensus|init handle peer start", "peer", p.Info())
+				return sb.handlePeer(p, rw)
+			},
+			NodeInfo: func() interface{} {
+				return struct{}{}
+			},
+			PeerInfo: func(id enode.ID) interface{} {
+				return struct{}{}
+			},
+		},
+	}
+	if err := sb.server.Start(); err != nil {
+		sb.logger.Debug("consensus|init start consensus p2p network", "err", err)
+		return err
+	}
+
 	// clear previous data
 	sb.proposedBlockHash = common.Hash{}
 	if sb.commitCh != nil {
@@ -322,6 +347,8 @@ func (sb *Backend) Stop() error {
 	if err := sb.stop(); err != nil {
 		return err
 	}
+	sb.peers.close()
+	sb.server.Stop()
 	sb.coreStarted = false
 
 	return nil

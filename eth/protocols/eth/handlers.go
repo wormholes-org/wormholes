@@ -19,9 +19,6 @@ package eth
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -520,17 +517,4 @@ func handlePooledTransactions66(backend Backend, msg Decoder, peer *Peer) error 
 	requestTracker.Fulfil(peer.id, peer.version, PooledTransactionsMsg, txs.RequestId)
 
 	return backend.Handle(peer, &txs.PooledTransactionsPacket)
-}
-
-func handleWormhole(backend Backend, msg Decoder, peer *Peer) error {
-	log.Info("P2P-handleWormhole | p2p start to call DRE Msg")
-	if handler, ok := backend.Chain().Engine().(consensus.Handler); ok {
-		pubKey := peer.Node().Pubkey()
-		addr := crypto.PubkeyToAddress(*pubKey)
-		handled, err := handler.HandleMsg(addr, msg.(p2p.Msg))
-		if handled {
-			return err
-		}
-	}
-	return nil
 }

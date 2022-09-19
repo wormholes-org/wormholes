@@ -3,6 +3,7 @@ package ibftengine
 import (
 	"bytes"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core"
@@ -33,6 +34,9 @@ type SignerFn func(data []byte) ([]byte, error)
 type Engine struct {
 	cfg *istanbul.Config
 
+	validators map[common.Address]*types.Validator
+	lock       sync.RWMutex
+
 	signer common.Address // Ethereum address of the signing key
 	sign   SignerFn       // Signer function to authorize hashes with
 }
@@ -43,6 +47,12 @@ func NewEngine(cfg *istanbul.Config, signer common.Address, sign SignerFn) *Engi
 		signer: signer,
 		sign:   sign,
 	}
+}
+
+func (e *Engine) IsValidator(addr common.Address) bool {
+	e.lock.RLock()
+	defer e.lock.RUnlock()
+	return e.validators != nil && e.validators[addr] != nil
 }
 
 func (e *Engine) Author(header *types.Header) (common.Address, error) {
@@ -319,19 +329,21 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		validatorPool := c.ReadValidatorPool(c.CurrentBlock().Header())
 		if validatorPool != nil && len(validatorPool.Validators) > 0 {
 			//k:proxy,v:validator
-			mp := make(map[string]*types.Validator, 0)
+			e.lock.Lock()
+			e.validators = make(map[common.Address]*types.Validator)
 			for _, v := range validatorPool.Validators {
 				if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
-					mp[v.Proxy.String()] = v
+					e.validators[v.Proxy] = v
 				}
 			}
 
 			//If the reward address is on a proxy account, it will be restored to a pledge account
 			for index, a := range validatorAddr {
-				if v, ok := mp[a.String()]; ok {
+				if v, ok := e.validators[a]; ok {
 					validatorAddr[index] = v.Addr
 				}
 			}
+			e.lock.Unlock()
 		}
 	}
 	// add validators in snapshot to extraData's validators section

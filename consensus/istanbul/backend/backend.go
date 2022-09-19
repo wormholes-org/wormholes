@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -78,6 +79,9 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 
 type Backend struct {
 	config *istanbul.Config
+
+	server *p2p.Server // Currently running P2P networking layer for consensus
+	peers  *peerSet
 
 	privateKey *ecdsa.PrivateKey
 	address    common.Address
@@ -168,17 +172,10 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
 
-	targets := make(map[common.Address]bool)
-	for _, val := range valSet.List() {
-		if val.Address() != sb.Address() {
-			targets[val.Address()] = true
-		}
-	}
-	log.Info("carver|Gossip|len(targets)", "len", len(targets), "sb.broadcaster != nil", sb.broadcaster != nil)
-	if sb.broadcaster != nil && len(targets) > 0 {
-		ps := sb.broadcaster.FindPeers(targets)
-		log.Info("carver|Gossip|len(ps)", "len", len(ps), "code", code)
-		for addr, p := range ps {
+	targets := sb.peers.peersWithinList(valSet.List())
+	if len(targets) > 0 {
+		sb.logger.Debug("consensus|sendMsg", "want", valSet.Size()-1, "actual", len(targets), "code", code)
+		for addr, p := range targets {
 			ms, ok := sb.recentMessages.Get(addr)
 			var m *lru.ARCCache
 			if ok {
@@ -199,10 +196,9 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 				if _, ok := qbfttypes.MessageCodes()[code]; ok {
 					outboundCode = code
 				}
-				go p.SendQBFTConsensus(outboundCode, payload)
+				go p2p.Send(p.rw, outboundCode, payload)
 			} else {
-				log.Info("carver|Gossip|istanbulMsg", "chain.current.no", sb.chain.CurrentHeader().Number.String(), "code", code)
-				go p.SendConsensus(istanbulMsg, payload)
+				go p2p.Send(p.rw, istanbulMsg, payload)
 			}
 		}
 	}

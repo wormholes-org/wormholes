@@ -176,6 +176,13 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 		},
 	},
 	{
+		Name: "ISTANBUL",
+		Flags: []cli.Flag{
+			utils.IstanbulListenPortFlag,
+			utils.IstanbulBootnodesFlag,
+		},
+	},
+	{
 		Name: "MINER",
 		Flags: []cli.Flag{
 			utils.MiningEnabledFlag,
