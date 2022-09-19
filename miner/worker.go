@@ -380,6 +380,10 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	defer timer.Stop()
 	<-timer.C // discard the initial tick
 
+	timeoutTimer := time.NewTimer(0)
+	defer timeoutTimer.Stop()
+	<-timeoutTimer.C // discard the initial tick
+
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(noempty bool, s int32) {
 		if interrupt != nil {
@@ -414,6 +418,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			commit(false, commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
+			timeoutTimer.Reset(30 * time.Second)
 			log.Info("w.chainHeadCh", "no", head.Block.Number().Uint64()+1)
 			if h, ok := w.engine.(consensus.Handler); ok {
 				h.NewChainHead()
@@ -425,18 +430,15 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		case onlineValidators := <-w.notifyBlockCh:
 			if onlineValidators != nil {
-				if onlineValidators.Height == nil {
-					log.Info("w.notifyBlockCh : prepare to generate  empty block")
-					//TODO zbh
-				} else {
-					log.Info("w.notifyBlockCh", "no", onlineValidators.Height)
-					w.onlineValidators = onlineValidators
-					clearPending(onlineValidators.Height.Uint64())
-					timestamp = time.Now().Unix()
-					commit(false, commitInterruptNewHead)
-				}
-
+				log.Info("w.notifyBlockCh", "no", onlineValidators.Height)
+				w.onlineValidators = onlineValidators
+				clearPending(onlineValidators.Height.Uint64())
+				timestamp = time.Now().Unix()
+				commit(false, commitInterruptNewHead)
 			}
+		case <-timeoutTimer.C:
+			log.Info("generate block time out", "height", w.current.header.Number)
+			w.stop()
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
