@@ -425,13 +425,16 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		case onlineValidators := <-w.notifyBlockCh:
 			if onlineValidators != nil {
-				log.Info("w.notifyBlockCh", "no", onlineValidators.Height)
-				w.onlineValidators = onlineValidators
-				clearPending(onlineValidators.Height.Uint64())
-				timestamp = time.Now().Unix()
-				commit(false, commitInterruptNewHead)
-			} else {
-				//Todo  zbh
+				if (&types.OnlineValidatorInfo{}) == onlineValidators {
+					//TODO zbh
+				} else {
+					log.Info("w.notifyBlockCh", "no", onlineValidators.Height)
+					w.onlineValidators = onlineValidators
+					clearPending(onlineValidators.Height.Uint64())
+					timestamp = time.Now().Unix()
+					commit(false, commitInterruptNewHead)
+				}
+
 			}
 
 		case <-timer.C:

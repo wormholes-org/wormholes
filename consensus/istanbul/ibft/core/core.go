@@ -278,7 +278,8 @@ func (c *core) startNewRound(round *big.Int) {
 
 	// if timeout, notify worker to generate empty block
 	if c.currentView().Round.Uint64() >= 10 {
-		c.backend.NotifyWorkerToCommit(nil)
+		log.Info("startNewRound : NotifyWorkerToCommit", "no", c.currentView().Sequence, "round", c.currentView().Round)
+		c.backend.NotifyWorkerToCommit(&types.OnlineValidatorInfo{})
 		return
 	}
 
