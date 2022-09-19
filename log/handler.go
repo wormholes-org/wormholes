@@ -248,26 +248,26 @@ func FailoverHandler(hs ...Handler) Handler {
 	})
 }
 
-type myFile []fs.FileInfo
+type logFile []fs.FileInfo
 
-func (f myFile) Len() int {
+func (f logFile) Len() int {
 	return len(f)
 }
 
-func (f myFile) Less(i, j int) bool {
+func (f logFile) Less(i, j int) bool {
 	ii, _ := strconv.ParseUint(strings.Split(f[i].Name(), ".")[0][5:], 10, 64)
 	ij, _ := strconv.ParseUint(strings.Split(f[j].Name(), ".")[0][5:], 10, 64)
 	return ii > ij
 }
 
-func (f myFile) Swap(i, j int) {
+func (f logFile) Swap(i, j int) {
 	f[i], f[j] = f[j], f[i]
 }
 
 func MergeLog(path string, fmtr Format) Handler {
 	logPath := filepath.Join(path, "logs")
 	files, err := ioutil.ReadDir(logPath)
-	var filess myFile
+	var filess logFile
 	if err == nil {
 		re := regexp.MustCompile(`^block\d+\.log$`)
 		for _, file := range files {
@@ -281,30 +281,53 @@ func MergeLog(path string, fmtr Format) Handler {
 	}
 	recs := make(chan *Record, 1024)
 	go func(rds chan *Record) {
+		var f *os.File
+		var current uint64
+		first := false
 		for {
 			select {
 			case record := <-rds:
 				num := record.BlockNumber
 				if num == 0 {
 					if len(filess) > 0 {
-						f, _ := os.OpenFile(filepath.Join(logPath, filess[0].Name()), os.O_APPEND|os.O_RDWR, 0600)
-						_, err = f.Write(fmtr.Format(record))
-						f.Close()
-						if err != nil {
-							os.Stderr.Write(fmtr.Format(record))
+						if !first {
+							filename := filess[0].Name()
+							current, _ = strconv.ParseUint(strings.Split(filename, ".")[0][5:], 10, 64)
+							f, _ = os.OpenFile(filepath.Join(logPath, filename), os.O_APPEND|os.O_RDWR, 0600)
+							_, err = f.Write(fmtr.Format(record))
+							if err != nil {
+								os.Stderr.Write(fmtr.Format(record))
+							}
+							first = true
+						} else {
+							_, err = f.Write(fmtr.Format(record))
+							if err != nil {
+								os.Stderr.Write(fmtr.Format(record))
+							}
 						}
 					} else {
-						f, _ := os.OpenFile(filepath.Join(logPath, "block0.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
-						_, err = f.Write(fmtr.Format(record))
-						f.Close()
-						if err != nil {
-							os.Stderr.Write(fmtr.Format(record))
+						if !first {
+							current = 0
+							f, _ = os.OpenFile(filepath.Join(logPath, "block0.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+							_, err = f.Write(fmtr.Format(record))
+							if err != nil {
+								os.Stderr.Write(fmtr.Format(record))
+							}
+						} else {
+							_, err = f.Write(fmtr.Format(record))
+							if err != nil {
+								os.Stderr.Write(fmtr.Format(record))
+							}
+							first = true
 						}
 					}
 				} else {
-					f, _ := os.OpenFile(filepath.Join(logPath, "block"+strconv.FormatUint(num, 10))+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+					if num > current {
+						f.Close()
+						f, _ = os.OpenFile(filepath.Join(logPath, "block"+strconv.FormatUint(num, 10))+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+						current = num
+					}
 					_, err = f.Write(fmtr.Format(record))
-					f.Close()
 					if err != nil {
 						os.Stderr.Write(fmtr.Format(record))
 					}
