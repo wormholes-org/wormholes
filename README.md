@@ -1,7 +1,10 @@
 # Wormholes Chain
 
 The WormholesChain solves the blockchain trilemma, which entails a necessary tradeoff between scalability, security, and decentralization, by building the
-technology to achieve the ideal balance between these three metrics, creating a highly scalable and secure blockchain system that doesn’t sacrifice decentralization.
+technology to achieve the ideal balance between these three metrics, creating a highly scalable and secure blockchain system that doesn’t sacrifice
+decentralization.
+
+[![Gitter](https://badges.gitter.im/wormholes-org/Internal-test-miner.svg)](https://gitter.im/wormholes-org/Internal-test-miner?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## The Approach
 
