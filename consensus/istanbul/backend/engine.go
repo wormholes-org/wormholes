@@ -291,8 +291,10 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 			Version: 100,
 			Length:  22,
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-				sb.logger.Debug("consensus|init handle peer start", "peer", p.Info())
-				return sb.handlePeer(p, rw)
+				sb.logger.Debug("consensus|run peer start", "peer", p.Info())
+				err := sb.handlePeer(p, rw)
+				sb.logger.Debug("consensus|run peer stop", "err", err)
+				return err
 			},
 			NodeInfo: func() interface{} {
 				return struct{}{}
@@ -302,8 +304,9 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 			},
 		},
 	}
+	sb.logger.Debug("consensus|start p2p network", "self", sb.server.NodeInfo())
 	if err := sb.server.Start(); err != nil {
-		sb.logger.Debug("consensus|init start consensus p2p network", "err", err)
+		sb.logger.Error("consensus|stop p2p network", "err", err)
 		return err
 	}
 

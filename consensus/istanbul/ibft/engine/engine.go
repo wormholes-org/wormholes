@@ -34,7 +34,7 @@ type SignerFn func(data []byte) ([]byte, error)
 type Engine struct {
 	cfg *istanbul.Config
 
-	validators map[common.Address]*types.Validator
+	validators map[common.Address]bool
 	lock       sync.RWMutex
 
 	signer common.Address // Ethereum address of the signing key
@@ -52,7 +52,7 @@ func NewEngine(cfg *istanbul.Config, signer common.Address, sign SignerFn) *Engi
 func (e *Engine) IsValidator(addr common.Address) bool {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
-	return e.validators != nil && e.validators[addr] != nil
+	return e.validators != nil && e.validators[addr]
 }
 
 func (e *Engine) Author(header *types.Header) (common.Address, error) {
@@ -330,20 +330,24 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		if validatorPool != nil && len(validatorPool.Validators) > 0 {
 			//k:proxy,v:validator
 			e.lock.Lock()
-			e.validators = make(map[common.Address]*types.Validator)
+			e.validators = make(map[common.Address]bool)
+			mp := make(map[string]*types.Validator, 0)
 			for _, v := range validatorPool.Validators {
 				if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
-					e.validators[v.Proxy] = v
-				}
-			}
-
-			//If the reward address is on a proxy account, it will be restored to a pledge account
-			for index, a := range validatorAddr {
-				if v, ok := e.validators[a]; ok {
-					validatorAddr[index] = v.Addr
+					mp[v.Proxy.String()] = v
+					e.validators[v.Proxy] = true
+				} else {
+					e.validators[v.Addr] = true
 				}
 			}
 			e.lock.Unlock()
+
+			//If the reward address is on a proxy account, it will be restored to a pledge account
+			for index, a := range validatorAddr {
+				if v, ok := mp[a.String()]; ok {
+					validatorAddr[index] = v.Addr
+				}
+			}
 		}
 	}
 	// add validators in snapshot to extraData's validators section
