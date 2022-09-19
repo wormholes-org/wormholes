@@ -425,7 +425,8 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		case onlineValidators := <-w.notifyBlockCh:
 			if onlineValidators != nil {
-				if (&types.OnlineValidatorInfo{}) == onlineValidators {
+				if onlineValidators.Height == nil {
+					log.Info("w.notifyBlockCh : prepare to generate  empty block")
 					//TODO zbh
 				} else {
 					log.Info("w.notifyBlockCh", "no", onlineValidators.Height)

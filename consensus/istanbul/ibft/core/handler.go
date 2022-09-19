@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -141,7 +142,7 @@ func (c *core) handleEvents() {
 			if !ok {
 				return
 			}
-			c.logger.Info("caver|handleTimeoutMsg|c.timeoutSub.Chan()")
+			c.logger.Info("handleTimeoutMsg|c.timeoutSub.Chan()")
 			c.handleTimeoutMsg()
 		case event, ok := <-c.finalCommittedSub.Chan():
 			if !ok {
@@ -216,6 +217,14 @@ func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) 
 }
 
 func (c *core) handleTimeoutMsg() {
+
+	// If it times out and the current round has exceeded 4 rounds, notify worker to generate empty block
+	if c.current.round.Uint64() >= 4 {
+		log.Info("handleTimeoutMsg : NotifyWorkerToCommit", "no", c.currentView().Sequence, "round", c.currentView().Round)
+		c.backend.NotifyWorkerToCommit(&types.OnlineValidatorInfo{})
+		return
+	}
+
 	// If we're not waiting for round change yet, we can try to catch up
 	// the max round with F+1 round change message. We only need to catch up
 	// if the max round is larger than current round.

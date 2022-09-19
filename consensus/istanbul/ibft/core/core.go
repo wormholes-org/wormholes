@@ -276,13 +276,6 @@ func (c *core) startNewRound(round *big.Int) {
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 
-	// if timeout, notify worker to generate empty block
-	if c.currentView().Round.Uint64() >= 10 {
-		log.Info("startNewRound : NotifyWorkerToCommit", "no", c.currentView().Sequence, "round", c.currentView().Round)
-		c.backend.NotifyWorkerToCommit(&types.OnlineValidatorInfo{})
-		return
-	}
-
 	for _, v := range c.valSet.List() {
 		log.Info("startNewRound : validator info",
 			"no", newView.Sequence.String(),
