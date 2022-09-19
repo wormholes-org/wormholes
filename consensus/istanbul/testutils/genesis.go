@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-func Genesis(validators []common.Address, isQBFT bool) *core.Genesis {
+func Genesis(validators []common.Address) *core.Genesis {
 	// generate genesis block
 	genesis := core.DefaultGenesisBlock()
 	genesis.Config = params.TestChainConfig
@@ -24,16 +24,11 @@ func Genesis(validators []common.Address, isQBFT bool) *core.Genesis {
 	genesis.Nonce = istanbulcommon.EmptyBlockNonce.Uint64()
 	genesis.Mixhash = types.IstanbulDigest
 
-	if isQBFT {
-		appendValidators(genesis, validators)
-	} else {
-		appendValidatorsIstanbulExtra(genesis, validators)
-	}
-
+	appendValidatorsIstanbulExtra(genesis, validators)
 	return genesis
 }
 
-func GenesisAndKeys(n int, isQBFT bool) (*core.Genesis, []*ecdsa.PrivateKey) {
+func GenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) {
 	// Setup validators
 	var nodeKeys = make([]*ecdsa.PrivateKey, n)
 	var addrs = make([]common.Address, n)
@@ -43,7 +38,7 @@ func GenesisAndKeys(n int, isQBFT bool) (*core.Genesis, []*ecdsa.PrivateKey) {
 	}
 
 	// generate genesis block
-	genesis := Genesis(addrs, isQBFT)
+	genesis := Genesis(addrs)
 
 	return genesis, nodeKeys
 }
@@ -65,21 +60,4 @@ func appendValidatorsIstanbulExtra(genesis *core.Genesis, addrs []common.Address
 		panic("failed to encode istanbul extra")
 	}
 	genesis.ExtraData = append(genesis.ExtraData, istPayload...)
-}
-
-func appendValidators(genesis *core.Genesis, addrs []common.Address) {
-	vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(genesis.ExtraData))...)
-	ist := &types.QBFTExtra{
-		VanityData:    vanity,
-		Validators:    addrs,
-		Vote:          nil,
-		CommittedSeal: [][]byte{},
-		Round:         0,
-	}
-
-	istPayload, err := rlp.EncodeToBytes(&ist)
-	if err != nil {
-		panic("failed to encode istanbul extra")
-	}
-	genesis.ExtraData = istPayload
 }

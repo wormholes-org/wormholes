@@ -85,13 +85,8 @@ var (
 	// ErrFailedDecodeCommit is returned when the COMMIT message is malformed.
 	ErrFailedDecodeCommit = errors.New("failed to decode COMMIT message")
 
-	// ErrFailedDecodeRoundChange is returned when the COMMIT message is malformed.
-	ErrFailedDecodeRoundChange = errors.New("failed to decode ROUND-CHANGE message")
-
 	// ErrFailedDecodeMessageSet is returned when the message set is malformed.
 	// ErrFailedDecodeMessageSet = errors.New("failed to decode message set")
 	// ErrInvalidSigner is returned when the message is signed by a validator different than message sender
 	ErrInvalidSigner = errors.New("message not signed by the sender")
-
-	ErrInvalidBenifitedAddr = errors.New("invalid benifited Address ")
 )

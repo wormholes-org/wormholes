@@ -28,9 +28,6 @@ import (
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibftcore "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/core"
 	ibftengine "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/engine"
-	qbftcore "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/core"
-	qbftengine "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/engine"
-	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -69,7 +66,6 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		knownMessages:    knownMessages,
 	}
 
-	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
 	sb.ibftEngine = ibftengine.NewEngine(sb.config, sb.address, sb.Sign)
 
 	return sb
@@ -89,7 +85,6 @@ type Backend struct {
 	core istanbul.Core
 
 	ibftEngine *ibftengine.Engine
-	qbftEngine *qbftengine.Engine
 
 	istanbulEventMux *event.TypeMux
 
@@ -120,8 +115,6 @@ type Backend struct {
 
 	recentMessages *lru.ARCCache // the cache of peer's messages
 	knownMessages  *lru.ARCCache // the cache of self messages
-
-	qbftConsensusEnabled bool // qbft consensus
 }
 
 func (sb *Backend) Engine() istanbul.Engine {
@@ -129,14 +122,7 @@ func (sb *Backend) Engine() istanbul.Engine {
 }
 
 func (sb *Backend) EngineForBlockNumber(blockNumber *big.Int) istanbul.Engine {
-	switch {
-	case blockNumber != nil && sb.IsQBFTConsensusAt(blockNumber):
-		return sb.qbftEngine
-	case blockNumber == nil && sb.IsQBFTConsensus():
-		return sb.qbftEngine
-	default:
-		return sb.ibftEngine
-	}
+	return sb.ibftEngine
 }
 
 // zekun: HACK
@@ -190,16 +176,7 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
-
-			if sb.IsQBFTConsensus() {
-				var outboundCode uint64 = istanbulMsg
-				if _, ok := qbfttypes.MessageCodes()[code]; ok {
-					outboundCode = code
-				}
-				go p2p.Send(p.rw, outboundCode, payload)
-			} else {
-				go p2p.Send(p.rw, istanbulMsg, payload)
-			}
+			go p2p.Send(p.rw, istanbulMsg, payload)
 		}
 	}
 	return nil
@@ -376,46 +353,14 @@ func (sb *Backend) Close() error {
 	return nil
 }
 
-// IsQBFTConsensus returns whether qbft consensus should be used
-func (sb *Backend) IsQBFTConsensus() bool {
-	if sb.qbftConsensusEnabled {
-		return true
-	}
-	if sb.chain != nil {
-		return sb.IsQBFTConsensusAt(sb.chain.CurrentHeader().Number)
-	}
-	return false
-}
-
-// IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
-func (sb *Backend) IsQBFTConsensusAt(blockNumber *big.Int) bool {
-	return sb.config.IsQBFTConsensusAt(blockNumber)
-}
-
 func (sb *Backend) startIBFT() error {
 	sb.logger.Info("BFT: activate IBFT")
 	sb.logger.Trace("BFT: set ProposerPolicy sorter to ValidatorSortByStringFun")
 	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByString())
-	sb.qbftConsensusEnabled = false
 
 	sb.core = ibftcore.New(sb, sb.config)
 	if err := sb.core.Start(); err != nil {
 		sb.logger.Error("BFT: failed to activate IBFT", "err", err)
-		return err
-	}
-
-	return nil
-}
-
-func (sb *Backend) startQBFT() error {
-	sb.logger.Info("BFT: activate QBFT")
-	sb.logger.Trace("BFT: set ProposerPolicy sorter to ValidatorSortByByteFunc")
-	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByByte())
-	sb.qbftConsensusEnabled = true
-
-	sb.core = qbftcore.New(sb, sb.config)
-	if err := sb.core.Start(); err != nil {
-		sb.logger.Error("BFT: failed to activate QBFT", "err", err)
 		return err
 	}
 
@@ -434,17 +379,5 @@ func (sb *Backend) stop() error {
 		}
 	}
 
-	sb.qbftConsensusEnabled = false
-
 	return nil
-}
-
-// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
-func (sb *Backend) StartQBFTConsensus() error {
-	sb.logger.Info("BFT: switch from IBFT to QBFT")
-	if err := sb.stop(); err != nil {
-		return err
-	}
-
-	return sb.startQBFT()
 }

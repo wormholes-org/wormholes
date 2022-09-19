@@ -95,7 +95,7 @@ var Defaults = Config{
 	RPCTxFeeCap: 1, // 1 ether
 
 	// Quorum
-	Istanbul:                     *istanbul.DefaultConfig,
+	Istanbul: *istanbul.DefaultConfig,
 }
 
 func init() {
@@ -224,7 +224,6 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		config.Istanbul.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(chainConfig.Istanbul.ProposerPolicy))
 		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
 		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
-		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
 
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}

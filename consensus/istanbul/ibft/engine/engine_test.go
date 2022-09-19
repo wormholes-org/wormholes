@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,7 +34,7 @@ func TestPrepareExtra(t *testing.T) {
 		Extra: vanity,
 	}
 
-	payload, err := prepareExtra(h, validators, nil)
+	payload, err := prepareExtra(h, validators, nil, nil)
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want: nil", err)
 	}
@@ -45,7 +45,7 @@ func TestPrepareExtra(t *testing.T) {
 	// append useless information to extra-data
 	h.Extra = append(vanity, make([]byte, 15)...)
 
-	payload, _ = prepareExtra(h, validators, nil)
+	payload, _ = prepareExtra(h, validators, nil, nil)
 	if !reflect.DeepEqual(payload, expectedResult) {
 		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
 	}

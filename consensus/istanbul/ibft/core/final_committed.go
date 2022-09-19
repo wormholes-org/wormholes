@@ -17,8 +17,6 @@
 package core
 
 import (
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -26,13 +24,6 @@ func (c *core) handleFinalCommitted() error {
 	logger := c.logger.New("state", c.state)
 	logger.Trace("Received a final committed proposal")
 
-	// startNewRound() needs to be called asynchronously when the transition to qbft happens
-	// This is required so that the stop() on core can successfully unsubscribe from events
-	nextSeq := new(big.Int).Add(c.currentView().Sequence, big.NewInt(1))
-	if c.backend.IsQBFTConsensusAt(nextSeq) {
-		go c.startNewRound(common.Big0)
-	} else {
-		c.startNewRound(common.Big0)
-	}
+	c.startNewRound(common.Big0)
 	return nil
 }

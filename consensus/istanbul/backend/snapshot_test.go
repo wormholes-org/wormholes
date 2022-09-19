@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
-	qbftengine "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/engine"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/testutils"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -51,13 +50,6 @@ func newTesterAccountPool() *testerAccountPool {
 	return &testerAccountPool{
 		accounts: make(map[string]*ecdsa.PrivateKey),
 	}
-}
-
-func (ap *testerAccountPool) writeValidatorVote(header *types.Header, validator string, recipientAddress string, authorize bool) error {
-	return qbftengine.ApplyHeaderQBFTExtra(
-		header,
-		qbftengine.WriteVote(ap.address(recipientAddress), authorize),
-	)
 }
 
 func (ap *testerAccountPool) address(account string) common.Address {
@@ -328,10 +320,9 @@ func TestVoting(t *testing.T) {
 			}
 		}
 
-		genesis := testutils.Genesis(validators, true)
+		genesis := testutils.Genesis(validators)
 		config := new(istanbul.Config)
 		*config = *istanbul.DefaultConfig
-		config.TestQBFTBlock = big.NewInt(0)
 		if tt.epoch != 0 {
 			config.Epoch = tt.epoch
 		}
@@ -352,22 +343,12 @@ func TestVoting(t *testing.T) {
 				Difficulty: istanbulcommon.DefaultDifficulty,
 				MixDigest:  types.IstanbulDigest,
 			}
-			_ = qbftengine.ApplyHeaderQBFTExtra(
-				headers[j],
-				qbftengine.WriteValidators(validators),
-			)
 
 			if j > 0 {
 				headers[j].ParentHash = headers[j-1].Hash()
 			}
 
 			copy(headers[j].Extra, genesis.ExtraData)
-
-			if len(vote.voted) > 0 {
-				if err := accounts.writeValidatorVote(headers[j], vote.validator, vote.voted, vote.auth); err != nil {
-					t.Errorf("Error writeValidatorVote test: %d, validator: %s, voteType: %v (err=%v)", j, vote.voted, vote.auth, err)
-				}
-			}
 		}
 
 		// Pass all the headers through clique and ensure tallying succeeds

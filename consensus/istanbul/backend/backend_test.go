@@ -20,20 +20,17 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/rlp"
-	"math/big"
-	"sort"
-	"strings"
-	"testing"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
+	"sort"
+	"strings"
+	"testing"
 )
 
 func TestSign(t *testing.T) {
@@ -118,69 +115,8 @@ func TestCheckValidatorSignature(t *testing.T) {
 	}
 }
 
-func TestCommit(t *testing.T) {
-	backend := newBackend()
-	defer backend.Stop()
-
-	commitCh := make(chan *types.Block)
-	// Case: it's a proposer, so the backend.commit will receive channel result from backend.Commit function
-	testCases := []struct {
-		expectedErr       error
-		expectedSignature [][]byte
-		expectedBlock     func() *types.Block
-	}{
-		{
-			// normal case
-			nil,
-			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
-			func() *types.Block {
-				chain, engine := newBlockChain(1, big.NewInt(0))
-				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-				return updateQBFTBlock(block, engine.Address())
-			},
-		},
-		{
-			// invalid signature
-			istanbulcommon.ErrInvalidCommittedSeals,
-			nil,
-			func() *types.Block {
-				chain, engine := newBlockChain(1, big.NewInt(0))
-				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-				return updateQBFTBlock(block, engine.Address())
-			},
-		},
-	}
-
-	for _, test := range testCases {
-		expBlock := test.expectedBlock()
-		go func() {
-			result := <-backend.commitCh
-			commitCh <- result
-		}()
-
-		backend.proposedBlockHash = expBlock.Hash()
-		if err := backend.Commit(expBlock, test.expectedSignature, big.NewInt(0)); err != nil {
-			if err != test.expectedErr {
-				t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
-			}
-		}
-
-		if test.expectedErr == nil {
-			// to avoid race condition is occurred by goroutine
-			select {
-			case result := <-commitCh:
-				if result.Hash() != expBlock.Hash() {
-					t.Errorf("hash mismatch: have %v, want %v", result.Hash(), expBlock.Hash())
-				}
-			case <-time.After(10 * time.Second):
-				t.Fatal("timeout")
-			}
-		}
-	}
-}
-
 func TestGetProposer(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 	block := makeBlock(chain, engine, chain.Genesis())
 	chain.InsertChain(types.Blocks{block})
@@ -188,69 +124,6 @@ func TestGetProposer(t *testing.T) {
 	actual := engine.Address()
 	if actual != expected {
 		t.Errorf("proposer mismatch: have %v, want %v", actual.Hex(), expected.Hex())
-	}
-}
-
-// TestQBFTTransitionDeadlock test whether a deadlock occurs when testQBFTBlock is set to 1
-// This was fixed as part of commit 2a8310663ecafc0233758ca7883676bf568e926e
-func TestQBFTTransitionDeadlock(t *testing.T) {
-	timeout := time.After(1 * time.Minute)
-	done := make(chan bool)
-	go func() {
-		chain, engine := newBlockChain(1, big.NewInt(1))
-		defer engine.Stop()
-		// Create an insert a new block into the chain.
-		block := makeBlock(chain, engine, chain.Genesis())
-		_, err := chain.InsertChain(types.Blocks{block})
-		if err != nil {
-			t.Errorf("Error inserting block: %v", err)
-		}
-
-		if err = engine.NewChainHead(); err != nil {
-			t.Errorf("Error posting NewChainHead Event: %v", err)
-		}
-
-		if !engine.IsQBFTConsensus() {
-			t.Errorf("IsQBFTConsensus() should return true after block insertion")
-		}
-		done <- true
-	}()
-
-	select {
-	case <-timeout:
-		t.Fatal("Deadlock occurred during IBFT to QBFT transition")
-	case <-done:
-	}
-}
-
-func TestIsQBFTConsensus(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(2))
-	defer engine.Stop()
-	qbftConsensus := engine.IsQBFTConsensus()
-	if qbftConsensus {
-		t.Errorf("IsQBFTConsensus() should return false")
-	}
-
-	// Create an insert a new block into the chain.
-	block := makeBlock(chain, engine, chain.Genesis())
-	_, err := chain.InsertChain(types.Blocks{block})
-	if err != nil {
-		t.Errorf("Error inserting block: %v", err)
-	}
-
-	if err = engine.NewChainHead(); err != nil {
-		t.Errorf("Error posting NewChainHead Event: %v", err)
-	}
-
-	secondBlock := makeBlock(chain, engine, block)
-	_, err = chain.InsertChain(types.Blocks{secondBlock})
-	if err != nil {
-		t.Errorf("Error inserting block: %v", err)
-	}
-
-	qbftConsensus = engine.IsQBFTConsensus()
-	if !qbftConsensus {
-		t.Errorf("IsQBFTConsensus() should return true after block insertion")
 	}
 }
 
@@ -302,13 +175,13 @@ func (slice Keys) Swap(i, j int) {
 }
 
 func newBackend() (b *Backend) {
-	_, b = newBlockChain(1, big.NewInt(0))
+	_, b = newBlockChain(1)
 	key, _ := generatePrivateKey()
 	b.privateKey = key
 	return
 }
 
-func TestGetExtraData(t *testing.T){
+func TestGetExtraData(t *testing.T) {
 	address := []string{
 		"0x4991Dd8c3307b00cB3d022496591B03BC4a606f4",
 		"0xb54E590418aba304590880aB2190fB49Ed6e09fb",
@@ -353,7 +226,6 @@ func istExtraEncode(vanity string, validators []common.Address) (string, error) 
 		Validators:    validators,
 		Seal:          make([]byte, types.IstanbulExtraSeal),
 		CommittedSeal: [][]byte{},
-		BeneficiaryAddr: []common.Address{},
 	}
 
 	payload, err := rlp.EncodeToBytes(&ist)

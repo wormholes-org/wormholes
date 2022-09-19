@@ -169,14 +169,6 @@ func (sb *testSystemBackend) Close() error {
 	return nil
 }
 
-func (sb *testSystemBackend) IsQBFTConsensusAt(*big.Int) bool {
-	return false
-}
-
-func (sb *testSystemBackend) StartQBFTConsensus() error {
-	return nil
-}
-
 // ==============================================
 //
 // define the struct that need to be provided for integration tests.
