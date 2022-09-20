@@ -138,7 +138,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
-		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
+		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock())
 		for _, v := range validatorList.Validators {
 			log.Info("Backend|VerifySeal", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
 		}
@@ -156,17 +156,20 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
-		log.Info("Prepare", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number.String())
-		cHeader := c.CurrentBlock().Header()
-		if cHeader == nil {
-			return errors.New("prepare err: current header is nil")
+		cBlk := c.CurrentBlock()
+		if cBlk == nil {
+			return errors.New("err prepare : current block is nil")
 		}
-		validatorList, err := c.Random11ValidatorFromPool(cHeader)
-		for _, v := range validatorList.Validators {
-			log.Info("Backend|Prepare", "height", cHeader.Number.Uint64(), "v", v)
-		}
+
+		log.Info("Prepare : info", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number)
+
+		validatorList, err := c.Random11ValidatorFromPool(cBlk)
 		if err != nil {
 			return err
+		}
+
+		for _, v := range validatorList.Validators {
+			log.Info("Backend|Prepare", "height", cBlk.Number, "v", v)
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
@@ -175,6 +178,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -593,11 +597,9 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 	var valset istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
 		log.Info("SealOnlineProofBlk : calculate valset")
-		cHeader := c.CurrentBlock().Header()
-		if cHeader == nil {
-			return errors.New("SealOnlineProofBlk err: current header is nil")
-		}
-		validatorList, err := c.Random11ValidatorFromPool(cHeader)
+
+		cBlk := c.CurrentBlock()
+		validatorList, err := c.Random11ValidatorFromPool(cBlk)
 		log.Info("SealOnlineProofBlk : len", "len", len(validatorList.Validators))
 		if err != nil {
 			return err

@@ -2674,11 +2674,34 @@ func (bc *BlockChain) ReadValidatorPool(header *types.Header) *types.ValidatorLi
 	return validators
 }
 
-func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
+func (bc *BlockChain) Random11ValidatorFromPool(blk *types.Block) (*types.ValidatorList, error) {
+	header := blk.Header()
 	validatorList := bc.ReadValidatorPool(header)
 	// Obtain random landing points according to the surrounding chain algorithm
 	randomHash := GetRandomDrop(validatorList, header)
 	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
+
+	// Parse the random number issued by the online prover
+	uncles := blk.Uncles()
+	if len(uncles) == 1 {
+		uncleExtra := uncles[0].Extra
+		if uncleExtra == nil {
+			log.Warn("Random11ValidatorFromPool : uncleExtra == nil", "height", header.Number.Uint64()+1)
+		} else {
+			log.Info("Random11ValidatorFromPool : extra", "height", header.Number.Uint64()+1, "extra", uncleExtra)
+			var onlineValidators *types.OnlineValidatorInfo
+			err := rlp.DecodeBytes(uncleExtra, &onlineValidators)
+			if err != nil {
+				log.Info("Random11ValidatorFromPool : uncle extra err", "height", header.Number.Uint64()+1, "err", err)
+			} else {
+				randomHashs := onlineValidators.Hashs
+				for _, v := range randomHashs {
+					log.Info("uncle random hashs", "height", header.Number, "hash", v.Hex())
+				}
+			}
+		}
+	}
+
 	validators := validatorList.RandomValidatorV2(11, randomHash)
 	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {

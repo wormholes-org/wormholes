@@ -2,9 +2,10 @@ package qbftengine
 
 import (
 	"bytes"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -86,10 +87,10 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 		return 0, istanbulcommon.ErrMismatchTxhashes
 	}
 
-	uncleHash := types.CalcUncleHash(block.Uncles())
-	if uncleHash != nilUncleHash {
-		return 0, istanbulcommon.ErrInvalidUncleHash
-	}
+	// uncleHash := types.CalcUncleHash(block.Uncles())
+	// if uncleHash != nilUncleHash {
+	// 	return 0, istanbulcommon.ErrInvalidUncleHash
+	// }
 
 	// verify the header of proposed block
 	err := e.VerifyHeader(chain, block.Header(), nil, validators)
@@ -131,10 +132,10 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 		return istanbulcommon.ErrInvalidMixDigest
 	}
 
-	// Ensure that the block doesn't contain any uncles which are meaningless in Istanbul
-	if header.UncleHash != nilUncleHash {
-		return istanbulcommon.ErrInvalidUncleHash
-	}
+	// // Ensure that the block doesn't contain any uncles which are meaningless in Istanbul
+	// if header.UncleHash != nilUncleHash {
+	// 	return istanbulcommon.ErrInvalidUncleHash
+	// }
 
 	// Ensure that the block's difficulty is meaningful (may not be correct at this point)
 	if header.Difficulty == nil || header.Difficulty.Cmp(istanbulcommon.DefaultDifficulty) != 0 {
@@ -278,9 +279,9 @@ func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of a given engine.
 func (e *Engine) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	if len(block.Uncles()) > 0 {
-		return istanbulcommon.ErrInvalidUncleHash
-	}
+	// if len(block.Uncles()) > 0 {
+	// 	return istanbulcommon.ErrInvalidUncleHash
+	// }
 	return nil
 }
 

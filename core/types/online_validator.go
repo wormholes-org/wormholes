@@ -20,3 +20,7 @@ func (o *OnlineValidatorInfo) Encode() ([]byte, error) {
 func (o *OnlineValidatorInfo) Decode(data []byte) error {
 	return rlp.DecodeBytes(data, o)
 }
+
+func (o *OnlineValidatorInfo) Len() int {
+	return len(o.Addrs)
+}

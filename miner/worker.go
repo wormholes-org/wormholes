@@ -426,6 +426,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			// Start submitting online proof blocks
+			w.onlineValidators = nil
 			w.CommitOnlineProofBlock(*timer)
 
 		case onlineValidators := <-w.notifyBlockCh:
@@ -499,6 +500,7 @@ func (w *worker) mainLoop() {
 			w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
 
 		case ev := <-w.chainSideCh:
+			log.Info("w.chainSideCh", "height", ev.Block.NumberU64())
 			// Short circuit for duplicate side blocks
 			if _, exist := w.localUncles[ev.Block.Hash()]; exist {
 				continue
@@ -812,9 +814,9 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 	if env.header.ParentHash == uncle.ParentHash {
 		return errors.New("uncle is sibling")
 	}
-	if !env.ancestors.Contains(uncle.ParentHash) {
-		return errors.New("uncle's parent unknown")
-	}
+	// if !env.ancestors.Contains(uncle.ParentHash) {
+	// 	return errors.New("uncle's parent unknown")
+	// }
 	if env.family.Contains(hash) {
 		return errors.New("uncle already included")
 	}
@@ -1073,29 +1075,26 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		misc.ApplyDAOHardFork(env.state)
 	}
 	// Accumulate the uncles for the current block
-	uncles := make([]*types.Header, 0, 2)
-	commitUncles := func(blocks map[common.Hash]*types.Block) {
-		// Clean up stale uncle blocks first
-		for hash, uncle := range blocks {
-			if uncle.NumberU64()+staleThreshold <= header.Number.Uint64() {
-				delete(blocks, hash)
-			}
-		}
-		for hash, uncle := range blocks {
-			if len(uncles) == 2 {
-				break
-			}
-			if err := w.commitUncle(env, uncle.Header()); err != nil {
-				log.Trace("Possible uncle rejected", "hash", hash, "reason", err)
+	uncles := make([]*types.Header, 0, 1)
+	commitUncles := func() {
+		if w.onlineValidators != nil && w.onlineValidators.Len() > 0 {
+			payload, _ := w.onlineValidators.Encode()
+			uncle := &types.Header{}
+
+			//uncle.Extra = append(uncle.Extra, bytes.Repeat([]byte{0x00}, 32-len(uncle.Extra))...)
+			uncle.Extra = append(uncle.Extra, payload...)
+			log.Info("commitUncle : extra", "height", header.Number, "extra", uncle.Extra)
+
+			if err := w.commitUncle(env, uncle); err != nil {
+				log.Info("commitUncle err", "height", w.chain.CurrentHeader().Number.Uint64()+1, "err", err)
 			} else {
-				log.Debug("Committing new uncle to block", "hash", hash)
-				uncles = append(uncles, uncle.Header())
+				log.Info("commitUncle success", "height", w.chain.CurrentHeader().Number.Uint64()+1)
+				uncles = append(uncles, uncle)
 			}
 		}
 	}
-	// Prefer to locally generated uncle
-	commitUncles(w.localUncles)
-	commitUncles(w.remoteUncles)
+	//
+	commitUncles()
 
 	// Create an empty block based on temporary copied state for
 	// sealing in advance without waiting block execution finished.
