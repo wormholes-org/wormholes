@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -163,8 +164,37 @@ func (sb *Backend) Broadcast(valSet istanbul.ValidatorSet, code uint64, payload 
 	return nil
 }
 
+type Message struct {
+	Code          uint64
+	Msg           []byte
+	Address       common.Address
+	Signature     []byte
+	CommittedSeal []byte
+}
+
+func (m *Message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
+	// Decode message
+	err := rlp.DecodeBytes(b, &m)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Message) Decode(val interface{}) error {
+	return rlp.DecodeBytes(m.Msg, val)
+}
+
 // Gossip implements istanbul.Backend.Gossip
 func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
+	msg := new(Message)
+	msg.FromPayload(payload, nil)
+	if msg.Code == 3 {
+		var rc *istanbul.Subject
+		if err := msg.Decode(&rc); err == nil {
+			log.Info("Gossip : recover", "msg.code", msg.Code, "sequence", rc.View.Sequence, "round", rc.View.Round, "self roundInfo", sb.core.RoundInfo())
+		}
+	}
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
 
