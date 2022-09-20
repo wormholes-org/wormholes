@@ -76,13 +76,14 @@ func (sb *Backend) handlePeer(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 	if sb.server.Self().ID() == p.ID() {
 		return errAddSelf
 	}
-	if !sb.ibftEngine.IsValidator(crypto.PubkeyToAddress(*p.Node().Pubkey())) {
+	addr := crypto.PubkeyToAddress(*p.Node().Pubkey())
+	if !sb.ibftEngine.IsValidator(addr) {
 		return errNotValidator
 	}
 	if err := sb.peers.registerPeer(&peer{p, rw}); err != nil {
 		return err
 	}
-	addr := crypto.PubkeyToAddress(*p.Node().Pubkey())
+	defer sb.peers.unregisterPeer(addr)
 	for {
 		if err := sb.handleMsg(addr, rw); err != nil {
 			return err
