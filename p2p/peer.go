@@ -466,12 +466,19 @@ func (rw *protoRW) WriteMsg(msg Msg) (err error) {
 
 	select {
 	case <-rw.wstart:
-		err = rw.w.WriteMsg(msg)
+		log.Info("protoRW.WriteMsg(), wstart 0")
+err = rw.w.WriteMsg(msg)
+log.Info("protoRW.WriteMsg(), wstart 1")
+// Report write status back to Peer.run. It will initiate
+// shutdown if the error is non-nil and unblock the next write
+// otherwise. The calling protocol code should exit for errors
+// as well but we don't want to rely on that.
+rw.werr <- err
+log.Info("protoRW.WriteMsg(), wstart 2")
 		// Report write status back to Peer.run. It will initiate
 		// shutdown if the error is non-nil and unblock the next write
 		// otherwise. The calling protocol code should exit for errors
 		// as well but we don't want to rely on that.
-		rw.werr <- err
 	case <-rw.closed:
 		err = ErrShuttingDown
 	}

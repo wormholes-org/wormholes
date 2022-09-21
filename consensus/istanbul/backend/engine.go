@@ -38,7 +38,7 @@ import (
 const (
 	checkpointInterval = 1024 // Number of blocks after which to save the vote snapshot to the database
 	inmemorySnapshots  = 128  // Number of recent vote snapshots to keep in memory
-	inmemoryPeers      = 1600
+	inmemoryPeers      = 40
 	inmemoryMessages   = 1024
 )
 

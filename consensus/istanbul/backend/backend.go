@@ -21,7 +21,7 @@ import (
 	"math/big"
 	"sync"
 	"time"
-
+	"runtime/debug"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -67,6 +67,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		coreStarted:      false,
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
+		roundChangeStartTime: time.Now().Unix(),
 	}
 
 	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
@@ -119,6 +120,14 @@ type Backend struct {
 	knownMessages  *lru.ARCCache // the cache of self messages
 
 	qbftConsensusEnabled bool // qbft consensus
+
+		// 函数结构
+	roundChangeCount int
+
+	//
+	roundChangeStartTime int64
+
+	roundCountLock sync.Mutex
 }
 
 func (sb *Backend) Engine() istanbul.Engine {
@@ -185,15 +194,26 @@ func (m *Message) Decode(val interface{}) error {
 	return rlp.DecodeBytes(m.Msg, val)
 }
 
-// Gossip implements istanbul.Backend.Gossip
+
 func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
-	msg := new(Message)
-	msg.FromPayload(payload, nil)
-	if msg.Code == 3 {
-		var rc *istanbul.Subject
-		if err := msg.Decode(&rc); err == nil {
-			log.Info("Gossip : recover", "msg.code", msg.Code, "sequence", rc.View.Sequence, "round", rc.View.Round, "self roundInfo", sb.core.RoundInfo())
-		}
+msg := new(Message)
+ msg.FromPayload(payload, nil)
+ if msg.Code == 3 {
+  var rc *istanbul.Subject
+  if err := msg.Decode(&rc); err == nil {
+   log.Info("Gossip : roundchangecount", "msg.code", msg.Code, "sequence", rc.View.Sequence, "round", rc.View.Round, "self roundInfo", sb.core.RoundInfo(), "rcc",sb.roundChangeCount)
+  }
+ }
+
+
+
+ 	//sb.roundCountLock.Lock()
+	localTime := time.Now().Unix()
+	sb.roundChangeCount = sb.roundChangeCount - (int(localTime)-int(sb.roundChangeStartTime))*100
+	//sb.roundCountLock.Unlock()
+	sb.roundChangeStartTime = localTime
+	if sb.roundChangeCount < 0 {
+		sb.roundChangeCount = 0
 	}
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
@@ -232,6 +252,13 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 				go p.SendQBFTConsensus(outboundCode, payload)
 			} else {
 				log.Info("carver|Gossip|istanbulMsg", "chain.current.no", sb.chain.CurrentHeader().Number.String(), "code", code)
+				if msg.Code == 3 {
+					//if sb.roundChangeCount > 1000 {
+					//	continue
+					//}
+					sb.roundChangeCount++
+				log.Info("carver|Gossip|roundchangecount", "chain.current.no", sb.chain.CurrentHeader().Number.String(), "code", msg.Code, "addr",msg.Address,"statck",string(debug.Stack()))
+				}
 				go p.SendConsensus(istanbulMsg, payload)
 			}
 		}

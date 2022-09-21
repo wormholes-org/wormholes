@@ -283,5 +283,5 @@ func PrepareCommittedSeal(header *types.Header, round uint32) []byte {
 }
 
 func (c *core) RoundInfo() []string {
-	return nil
+ return nil
 }
