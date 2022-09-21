@@ -997,6 +997,11 @@ func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc
 	return InjectedList
 }
 
+func (s *PublicBlockChainAPI) Version(ctx context.Context) string {
+	version := "wormholes v0.8.3"
+	return version
+}
+
 // Result structs for GetProof
 type AccountResult struct {
 	Address      common.Address  `json:"address"`
