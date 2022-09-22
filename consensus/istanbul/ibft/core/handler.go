@@ -114,17 +114,9 @@ func (c *core) handleEvents() {
 				}
 
 			case istanbul.MessageEvent:
-				// If it is a normal node or not the validator of this round, gossip message directly
-				if c.valSet != nil {
-					_, self := c.valSet.GetByAddress(c.address)
-					if self == nil {
-						log.Info("not validator", "code", ev.Code)
-						c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
-					} else {
-						if err := c.handleMsg(ev.Payload); err == nil {
-							c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
-						}
-					}
+				//If it is a normal node or not the validator of this round, gossip message directly
+				if err := c.handleMsg(ev.Payload); err == nil {
+					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
 				}
 			case backlogEvent:
 				// No need to check signature for internal messages
@@ -181,6 +173,10 @@ func (c *core) handleMsg(payload []byte) error {
 }
 
 func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) error {
+	_, self := c.valSet.GetByAddress(c.address)
+	if self == nil {
+		return nil
+	}
 	logger := c.logger.New("address", c.address, "from", src)
 
 	// Store the message if it's a future message

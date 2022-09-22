@@ -1025,6 +1025,9 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 
 	// Collect data related to online certification validator
 	if w.onlineValidators != nil && len(w.onlineValidators.Validators) > 0 && w.onlineValidators.Height.Cmp(header.Number) == 0 {
+		for _, v := range w.onlineValidators.Validators {
+			log.Info("commitNewWork : onlineValidator", "height", header.Number.Uint64(), "addr", v.Address.Hex())
+		}
 		onlineValidatorsEnc, err := w.onlineValidators.Encode()
 		if err != nil {
 			log.Error("encode  online validators err", "err", err)
