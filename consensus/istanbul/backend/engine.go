@@ -295,7 +295,7 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	if sb.notifyBlockCh != nil {
 		close(sb.notifyBlockCh)
 	}
-	sb.notifyBlockCh = make(chan *types.OnlineValidatorInfo, 1)
+	sb.notifyBlockCh = make(chan *types.OnlineValidatorList, 1)
 	sb.chain = chain
 	sb.currentBlock = currentBlock
 	sb.hasBadBlock = hasBadBlock
@@ -576,7 +576,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	return nil
 }
 
-func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorInfo, stop <-chan struct{}) error {
+func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorList, stop <-chan struct{}) error {
 	log.Info("SealOnlineProofBlk : info", "height", block.Number())
 	// Only this round of validators can send online proofs
 	header := block.Header()
@@ -642,4 +642,8 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 		}
 	}()
 	return nil
+}
+
+func (sb *Backend) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+	return sb.EngineForBlockNumber(header.Number).FinalizeOnlineProofBlk(chain, header, state, txs, uncles, receipts)
 }

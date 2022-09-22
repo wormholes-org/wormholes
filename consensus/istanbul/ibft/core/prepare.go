@@ -17,11 +17,12 @@
 package core
 
 import (
+	"reflect"
+
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/log"
-	"reflect"
 )
 
 func (c *core) sendPrepare() {
@@ -53,7 +54,7 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 		return istanbulcommon.ErrFailedDecodePrepare
 	}
 
-	log.Info("carver|handlePrepare|baseinfo",  "no", prepare.View.Sequence,
+	log.Info("carver|handlePrepare|baseinfo", "no", prepare.View.Sequence,
 		"round", prepare.View.Round,
 		"from", src.Address().Hex(),
 		"hash", prepare.Digest.Hex())

@@ -18,6 +18,7 @@ package miner
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"math"
 	"math/big"
@@ -155,7 +156,7 @@ type worker struct {
 	exitCh             chan struct{}
 	resubmitIntervalCh chan time.Duration
 	resubmitAdjustCh   chan *intervalAdjust
-	notifyBlockCh      chan *types.OnlineValidatorInfo
+	notifyBlockCh      chan *types.OnlineValidatorList
 
 	current      *environment                 // An environment for current running cycle.
 	localUncles  map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
@@ -195,7 +196,7 @@ type worker struct {
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
 
 	// onlineValidators
-	onlineValidators *types.OnlineValidatorInfo
+	onlineValidators *types.OnlineValidatorList
 }
 
 func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
@@ -221,7 +222,7 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		startCh:            make(chan struct{}, 1),
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
-		notifyBlockCh:      make(chan *types.OnlineValidatorInfo, 1),
+		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -416,7 +417,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			timestamp = time.Now().Unix()
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
-
+			w.CommitOnlineProofBlock(*time.NewTimer(1 * time.Second))
 		case head := <-w.chainHeadCh:
 			timeoutTimer.Reset(30 * time.Second)
 			log.Info("w.chainHeadCh", "no", head.Block.Number().Uint64()+1)
@@ -431,9 +432,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		case onlineValidators := <-w.notifyBlockCh:
 			if onlineValidators != nil {
-				log.Info("w.notifyBlockCh", "no", onlineValidators.Height)
+				log.Info("w.notifyBlockCh", "height", w.chain.CurrentHeader().Number.Uint64()+1)
 				w.onlineValidators = onlineValidators
-				clearPending(onlineValidators.Height.Uint64())
+				clearPending(w.chain.CurrentHeader().Number.Uint64() + 1)
 				timestamp = time.Now().Unix()
 				commit(false, commitInterruptNewHead)
 			}
@@ -1023,17 +1024,20 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	}
 
 	// Collect data related to online certification validator
-
-	if w.onlineValidators != nil && w.onlineValidators.Height.Cmp(header.Number) == 0 {
-		log.Info("commitNewWork : onlineValidators", "len", len(w.onlineValidators.Addrs), "no", w.onlineValidators.Height, "vals", w.onlineValidators.Addrs)
-		payload, _ := w.onlineValidators.Encode()
+	if w.onlineValidators != nil && len(w.onlineValidators.Validators) > 0 && w.onlineValidators.Height.Cmp(header.Number) == 0 {
+		onlineValidatorsEnc, err := w.onlineValidators.Encode()
+		if err != nil {
+			log.Error("encode  online validators err", "err", err)
+		}
+		lengthToBytes := IntToBytes(len(onlineValidatorsEnc))
 		if len(w.extra) > 32 {
 			w.extra = w.extra[:32]
-			w.extra = append(w.extra, payload...)
 		} else {
 			w.extra = append(w.extra, bytes.Repeat([]byte{0x00}, 32-len(w.extra))...)
-			w.extra = append(w.extra, payload...)
 		}
+		// represent  onlineValidator length
+		w.extra = append(w.extra, lengthToBytes...)
+		w.extra = append(w.extra, onlineValidatorsEnc...)
 	}
 
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
@@ -1076,25 +1080,6 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	}
 	// Accumulate the uncles for the current block
 	uncles := make([]*types.Header, 0, 1)
-	commitUncles := func() {
-		if w.onlineValidators != nil && w.onlineValidators.Len() > 0 {
-			payload, _ := w.onlineValidators.Encode()
-			uncle := &types.Header{}
-
-			//uncle.Extra = append(uncle.Extra, bytes.Repeat([]byte{0x00}, 32-len(uncle.Extra))...)
-			uncle.Extra = append(uncle.Extra, payload...)
-			log.Info("commitUncle : extra", "height", header.Number, "extra", uncle.Extra)
-
-			if err := w.commitUncle(env, uncle); err != nil {
-				log.Info("commitUncle err", "height", w.chain.CurrentHeader().Number.Uint64()+1, "err", err)
-			} else {
-				log.Info("commitUncle success", "height", w.chain.CurrentHeader().Number.Uint64()+1)
-				uncles = append(uncles, uncle)
-			}
-		}
-	}
-	//
-	commitUncles()
 
 	// Create an empty block based on temporary copied state for
 	// sealing in advance without waiting block execution finished.
@@ -1230,7 +1215,7 @@ func (w *worker) CommitOnlineProofBlock(timer time.Timer) error {
 		Time:       10000,
 	}
 
-	header.Coinbase = w.coinbase
+	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
 
 	if err := w.engine.Prepare(w.chain, header); err != nil {
 		return errors.New("CommitOnlineProofBlock : Failed to prepare header for mining")
@@ -1243,7 +1228,7 @@ func (w *worker) CommitOnlineProofBlock(timer time.Timer) error {
 
 	receipts := copyReceipts(w.current.receipts)
 	s := w.current.state.Copy()
-	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, nil, receipts)
+	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.current.header, s, w.current.txs, nil, receipts)
 	if err != nil {
 		return err
 	}
@@ -1252,4 +1237,11 @@ func (w *worker) CommitOnlineProofBlock(timer time.Timer) error {
 	timer.Reset(2 * time.Second)
 
 	return nil
+}
+
+func IntToBytes(n int) []byte {
+	data := int32(n)
+	bytebuf := bytes.NewBuffer([]byte{})
+	binary.Write(bytebuf, binary.BigEndian, data)
+	return bytebuf.Bytes()
 }

@@ -532,7 +532,7 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 }
 
 func TestOnlineValidatorsDecode(t *testing.T) {
-	onlineValidators := &types.OnlineValidatorInfo{Height: big.NewInt(888)}
+	onlineValidators := &types.OnlineValidatorList{Height: big.NewInt(888)}
 	payload, _ := onlineValidators.Encode()
 	uncle := &types.Header{}
 
@@ -540,11 +540,16 @@ func TestOnlineValidatorsDecode(t *testing.T) {
 	uncle.Extra = append(uncle.Extra, payload...)
 	fmt.Println("commitUncle : extra======", uncle.Extra)
 
-	var v2 *types.OnlineValidatorInfo
+	var v2 *types.OnlineValidatorList
 	err := rlp.DecodeBytes(uncle.Extra, &v2)
 	if err != nil {
 		fmt.Println("err :", err)
 	} else {
 		fmt.Println("v2: ", v2.Height)
 	}
+}
+
+func TestIntTobytes(t *testing.T) {
+	bytes := IntToBytes(1200000)
+	fmt.Println("bytes====", bytes)
 }

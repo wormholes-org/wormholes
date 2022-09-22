@@ -84,5 +84,5 @@ type Backend interface {
 	StartQBFTConsensus() error
 
 	// Notify miners to submit blocks
-	NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorInfo)
+	NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList)
 }

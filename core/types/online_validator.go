@@ -7,20 +7,33 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-type OnlineValidatorInfo struct {
-	Height *big.Int
-	Addrs  []common.Address
-	Hashs  []common.Hash
+type OnlineValidator struct {
+	Height    *big.Int
+	Address   common.Address
+	Hash      common.Hash
+	Signature []byte
 }
 
-func (o *OnlineValidatorInfo) Encode() ([]byte, error) {
-	return rlp.EncodeToBytes(o)
+func NewOnlineValidator(height *big.Int, addr common.Address, hash common.Hash, sig []byte) *OnlineValidator {
+	return &OnlineValidator{Height: height, Address: addr, Hash: hash, Signature: sig}
 }
 
-func (o *OnlineValidatorInfo) Decode(data []byte) error {
-	return rlp.DecodeBytes(data, o)
+type OnlineValidatorList struct {
+	Height     *big.Int
+	Validators []*OnlineValidator
 }
 
-func (o *OnlineValidatorInfo) Len() int {
-	return len(o.Addrs)
+func (ol *OnlineValidatorList) Encode() ([]byte, error) {
+	return rlp.EncodeToBytes(ol)
+}
+
+func (ol *OnlineValidatorList) Decode(data []byte) error {
+	return rlp.DecodeBytes(data, ol)
+}
+
+func (ol *OnlineValidatorList) Size() int {
+	if ol.Validators != nil {
+		return len(ol.Validators)
+	}
+	return 0
 }

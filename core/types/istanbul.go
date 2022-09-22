@@ -21,6 +21,8 @@ import (
 	"io"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -37,6 +39,8 @@ var (
 
 	// ErrInvalidIstanbulHeaderExtra is returned if the length of extra-data is less than 32 bytes
 	ErrInvalidIstanbulHeaderExtra = errors.New("invalid istanbul header extra-data")
+
+	OnlineValidatorVanity = 632
 )
 
 // IstanbulExtra represents the legacy IBFT header extradata
@@ -86,12 +90,41 @@ func ExtractIstanbulExtra(h *Header) (*IstanbulExtra, error) {
 		return nil, ErrInvalidIstanbulHeaderExtra
 	}
 
+	if h.Number.Uint64() == 0 || h.Number.Uint64() == 1 {
+		var istanbulExtra *IstanbulExtra
+		err := rlp.DecodeBytes(h.Extra[IstanbulExtraVanity:], &istanbulExtra)
+		if err != nil {
+			return nil, err
+		}
+		return istanbulExtra, nil
+	}
+	lengthBytes := h.Extra[32:36]
+	length := math.BytesToInt(lengthBytes)
 	var istanbulExtra *IstanbulExtra
-	err := rlp.DecodeBytes(h.Extra[IstanbulExtraVanity:], &istanbulExtra)
+	err := rlp.DecodeBytes(h.Extra[36+length:], &istanbulExtra)
 	if err != nil {
 		return nil, err
 	}
 	return istanbulExtra, nil
+}
+
+func ExtractOnlineValidatorList(h *Header) (*OnlineValidatorList, error) {
+	if len(h.Extra) < IstanbulExtraVanity {
+		return nil, ErrInvalidIstanbulHeaderExtra
+	}
+
+	if h.Number.Uint64() == 0 || h.Number.Uint64() == 1 {
+		return &OnlineValidatorList{}, nil
+	}
+	lengthBytes := h.Extra[32:36]
+	length := math.BytesToInt(lengthBytes)
+	var onlineValidators *OnlineValidatorList
+	err := rlp.DecodeBytes(h.Extra[36:36+length], &onlineValidators)
+	if err != nil {
+		log.Info("ExtractOnlineValidatorList : err", "err", err)
+		return nil, err
+	}
+	return onlineValidators, nil
 }
 
 // FilteredHeader returns a filtered header which some information (like seal, committed seals)
@@ -127,7 +160,13 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 		return nil
 	}
 
-	newHeader.Extra = append(newHeader.Extra[:IstanbulExtraVanity], payload...)
+	if h.Number.Uint64() == 1 {
+		newHeader.Extra = append(newHeader.Extra[:IstanbulExtraVanity], payload...)
+	} else {
+		lengthBytes := h.Extra[32:36]
+		length := math.BytesToInt(lengthBytes)
+		newHeader.Extra = append(newHeader.Extra[:36+length], payload...)
+	}
 
 	return newHeader
 }

@@ -66,7 +66,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		coreStarted:      false,
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
-		notifyBlockCh:    make(chan *types.OnlineValidatorInfo, 1),
+		notifyBlockCh:    make(chan *types.OnlineValidatorList, 1),
 	}
 
 	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
@@ -120,7 +120,7 @@ type Backend struct {
 
 	qbftConsensusEnabled bool // qbft consensus
 
-	notifyBlockCh chan *types.OnlineValidatorInfo // Notify worker modules to produce blocks
+	notifyBlockCh chan *types.OnlineValidatorList // Notify worker modules to produce blocks
 }
 
 func (sb *Backend) Engine() istanbul.Engine {
@@ -456,6 +456,6 @@ func (sb *Backend) StartQBFTConsensus() error {
 	return sb.startQBFT()
 }
 
-func (sb *Backend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorInfo) {
+func (sb *Backend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
 	sb.notifyBlockCh <- onlineValidators
 }

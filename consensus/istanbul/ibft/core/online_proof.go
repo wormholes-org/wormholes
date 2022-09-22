@@ -1,12 +1,12 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"go.uber.org/zap/buffer"
 )
 
 func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
@@ -21,11 +21,28 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
 		curView := c.currentView()
-		onlineProof, err := ibfttypes.Encode(&istanbul.OnlineProof{
+		onlineProof := &istanbul.OnlineProof{
 			View:       curView,
 			Proposal:   request.Proposal,
 			RandomHash: request.RandomHash,
-		})
+		}
+
+		// sign data total byte: 8 + 32
+		buffer := new(buffer.Buffer)
+		buffer.AppendUint((curView.Sequence.Uint64()))
+		for _, B := range request.RandomHash.Bytes() {
+			buffer.AppendByte(B)
+		}
+
+		signature, err := c.backend.Sign((buffer.Bytes()))
+		if err != nil {
+			return
+		}
+
+		onlineProof.Signature = signature
+
+		onlineProofEnc, err := ibfttypes.Encode(&onlineProof)
+
 		if err != nil {
 			log.Error("Failed to encode", "view", curView)
 			return
@@ -39,7 +56,7 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 
 		c.broadcast(&ibfttypes.Message{
 			Code: ibfttypes.MsgOnlineProof,
-			Msg:  onlineProof,
+			Msg:  onlineProofEnc,
 		})
 	}
 }
@@ -69,29 +86,24 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 	c.acceptOnlineProof(msg, src)
 
 	if c.current.OnlineProofs.Size() >= c.QuorumSize() && c.state == ibfttypes.StateAcceptOnlineProofRequest { // Submit the collected online attestation data to the worker module
-		var (
-			addrs       []common.Address
-			hashs       []common.Hash
-			onlineProof *istanbul.OnlineProof
-		)
+		onlineValidatorList := new(types.OnlineValidatorList)
 		for _, v := range c.current.OnlineProofs.messages {
 			err := v.Decode(&onlineProof)
 			if err != nil {
 				continue
 			}
-			addrs = append(addrs, v.Address)
-			hashs = append(hashs, onlineProof.RandomHash)
+			validator := types.NewOnlineValidator(
+				onlineProof.View.Sequence,
+				v.Address,
+				onlineProof.RandomHash,
+				onlineProof.Signature)
+			onlineValidatorList.Validators = append(onlineValidatorList.Validators, validator)
 		}
-
-		onlineValidators := &types.OnlineValidatorInfo{
-			Height: c.current.sequence,
-			Addrs:  addrs,
-			Hashs:  hashs,
-		}
-
+		onlineValidatorList.Validators = append(onlineValidatorList.Validators)
+		onlineValidatorList.Height = onlineProof.Proposal.Number()
 		log.Info("handleOnlineProof : prepare to notify worker to commit")
 		// Notify miners to submit blocks
-		c.backend.NotifyWorkerToCommit(onlineValidators)
+		c.backend.NotifyWorkerToCommit(onlineValidatorList)
 
 		// Set state to StateAcceptRequest
 		c.setState(ibfttypes.StateAcceptRequest)

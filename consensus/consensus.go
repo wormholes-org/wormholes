@@ -124,7 +124,10 @@ type Engine interface {
 	Close() error
 
 	//
-	SealOnlineProofBlk(chain ChainHeaderReader, block *types.Block, results chan *types.OnlineValidatorInfo, stop <-chan struct{}) error
+	SealOnlineProofBlk(chain ChainHeaderReader, block *types.Block, results chan *types.OnlineValidatorList, stop <-chan struct{}) error
+
+	FinalizeOnlineProofBlk(chain ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+		uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error)
 }
 
 // Handler should be implemented is the consensus needs to handle and send peer's message
