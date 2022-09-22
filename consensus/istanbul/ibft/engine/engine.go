@@ -410,7 +410,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 	// prepare validator address
 	onlinevalidatorList, err := types.ExtractOnlineValidatorList(header)
 	if err != nil {
-		log.Error("Finalize : ExtractOnlineValidatorList err", "err", err)
+		log.Error("Finalize : ExtractOnlineValidatorList err", "err", err, "height", header.Number)
 		return
 	}
 
@@ -443,7 +443,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	// prepare validator address
 	onlinevalidatorList, err := types.ExtractOnlineValidatorList(header)
 	if err != nil {
-		log.Error("FinalizeAndAssemble : ExtractOnlineValidatorList err", "coinbase", header.Coinbase.Hex(), "err", err)
+		log.Error("FinalizeAndAssemble : ExtractOnlineValidatorList err", "coinbase", header.Coinbase.Hex(), "err", err, "height", header.Number.Uint64())
 		return nil, err
 	}
 

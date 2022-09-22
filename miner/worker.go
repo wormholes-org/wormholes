@@ -1030,7 +1030,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		}
 		onlineValidatorsEnc, err := w.onlineValidators.Encode()
 		if err != nil {
-			log.Error("encode  online validators err", "err", err)
+			log.Error("encode  online validators err", "err", err, "height", header.Number.Uint64())
 		}
 		lengthToBytes := IntToBytes(len(onlineValidatorsEnc))
 		if len(w.extra) > 32 {

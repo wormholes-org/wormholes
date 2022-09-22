@@ -121,7 +121,7 @@ func ExtractOnlineValidatorList(h *Header) (*OnlineValidatorList, error) {
 	var onlineValidators *OnlineValidatorList
 	err := rlp.DecodeBytes(h.Extra[36:36+length], &onlineValidators)
 	if err != nil {
-		log.Info("ExtractOnlineValidatorList : err", "err", err)
+		log.Info("ExtractOnlineValidatorList : err", "err", err, "height", h.Number)
 		return nil, err
 	}
 	return onlineValidators, nil
