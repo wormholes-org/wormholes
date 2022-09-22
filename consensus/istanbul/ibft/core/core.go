@@ -398,6 +398,7 @@ func (c *core) stopTimer() {
 	}
 }
 
+/*
 func (c *core) newRoundChangeTimer() {
 	c.stopTimer()
 
@@ -406,10 +407,22 @@ func (c *core) newRoundChangeTimer() {
 	round := c.current.Round().Uint64()
 	if round > 0 {
 		timeout += time.Duration(math.Pow(2, float64(round))) * time.Second
-		if timeout > 60*time.Second {
-			timeout = 60 * time.Second
-			log.Info("newRoundChangeTimer : timeout", "no", c.current.sequence, "round", c.current.round, "timeout", timeout.String())
-		}
+		log.Info("newRoundChangeTimer : timeout", "no", c.current.sequence, "round", c.current.round, "timeout", timeout.String())
+	}
+	c.roundChangeTimer = time.AfterFunc(timeout, func() {
+		c.sendEvent(timeoutEvent{})
+	})
+}
+*/
+func (c *core) newRoundChangeTimer() {
+	c.stopTimer()
+
+	// set timeout based on the round number
+	timeout := time.Duration(c.config.RequestTimeout) * time.Millisecond
+	round := c.current.Round().Uint64()
+	if round > 0 {
+		timeout += time.Duration(math.Pow(2, float64(round))) * time.Second
+		log.Info("newRoundChangeTimer : timeout", "no", c.current.sequence, "round", c.current.round, "timeout", timeout.String())
 	}
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
@@ -430,4 +443,11 @@ func PrepareCommittedSeal(hash common.Hash) []byte {
 	buf.Write(hash.Bytes())
 	buf.Write([]byte{byte(ibfttypes.MsgCommit)})
 	return buf.Bytes()
+}
+
+func (c *core) RoundInfo() (roundInfo []string) {
+	rs := c.current
+	roundInfo = append(roundInfo, rs.round.String())
+	roundInfo = append(roundInfo, rs.sequence.String())
+	return
 }

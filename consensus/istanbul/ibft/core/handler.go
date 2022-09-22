@@ -165,8 +165,11 @@ func (c *core) handleMsg(payload []byte) error {
 	// Only accept message if the address is valid
 	_, src := c.valSet.GetByAddress(msg.Address)
 	if src == nil {
-		logger.Error("Invalid address in message", "msg", msg)
-		return istanbul.ErrUnauthorizedAddress
+		if msg.Code == 3 {
+
+			logger.Error("Invalid address in message", "msg", msg)
+			return istanbul.ErrUnauthorizedAddress
+		}
 	}
 
 	return c.handleCheckedMsg(msg, src)
