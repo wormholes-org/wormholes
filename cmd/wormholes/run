@@ -1,7 +1,0 @@
-#!/bin/bash
-
-rm aa.tgz
-rm wormholes
-go build
-tar czvf aa.tgz wormholes
-./scp_osaka.sh aa.tgz
