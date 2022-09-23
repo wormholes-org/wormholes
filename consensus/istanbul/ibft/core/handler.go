@@ -135,11 +135,15 @@ func (c *core) handleEvents() {
 			c.handleTimeoutMsg()
 		case event, ok := <-c.finalCommittedSub.Chan():
 			if !ok {
+				log.Info("handleEvents: c.finalCommittedSub.Chan() : !ok")
 				return
 			}
 			switch event.Data.(type) {
 			case istanbul.FinalCommittedEvent:
+				log.Info("handleEvents:  FinalCommittedEvent")
 				c.handleFinalCommitted()
+			default:
+				log.Info("handleEvents: default handleEvents")
 			}
 		}
 	}
