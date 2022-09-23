@@ -215,21 +215,13 @@ func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) 
 }
 
 func (c *core) handleTimeoutMsg() {
-
-	// If it times out and the current round has exceeded 4 rounds, notify worker to generate empty block
-	// if c.current.round.Uint64() >= 3 {
-	// 	log.Info("handleTimeoutMsg : NotifyWorkerToCommit", "no", c.currentView().Sequence, "round", c.currentView().Round)
-	// 	c.backend.NotifyWorkerToCommit(&types.OnlineValidatorInfo{Height: big.NewInt(999999)})
-	// 	return
-	// }
-
 	// If we're not waiting for round change yet, we can try to catch up
 	// the max round with F+1 round change message. We only need to catch up
 	// if the max round is larger than current round.
 	if !c.waitingForRoundChange {
 		maxRound := c.roundChangeSet.MaxRound(c.valSet.F() + 1)
 		if maxRound != nil && maxRound.Cmp(c.current.Round()) > 0 {
-			log.Info("caver|handleTimeoutMsg|c.sendRoundChange(maxRound)", "sequence", c.current.Sequence().String(), "round", c.current.Round())
+			log.Info("ibftConsensus: handleTimeoutMsg|c.sendRoundChange(maxRound)", "no", c.current.Sequence().String(), "round", c.current.Round())
 			c.sendRoundChange(maxRound)
 			return
 		}

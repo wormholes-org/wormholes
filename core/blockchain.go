@@ -2681,7 +2681,6 @@ func (bc *BlockChain) Random11ValidatorFromPool(blk *types.Block) (*types.Valida
 	// Obtain random landing points according to the surrounding chain algorithm
 
 	randomHash := GetRandomDrop(validatorList, header)
-
 	// Parse randomHash in extra
 	if blk.Header().Number.Uint64() > 1 && len(blk.Header().Extra) > 32 {
 		lengthBytes := blk.Header().Extra[32:36]
@@ -2697,10 +2696,13 @@ func (bc *BlockChain) Random11ValidatorFromPool(blk *types.Block) (*types.Valida
 			for _, v := range onlineValidators.Validators {
 				log.Info("Random11ValidatorFromPool  : onlineValidators.hash", "height", v.Height, "hash", v.Hash.Hex())
 				buffer.Write(v.Hash[:])
+				// Parse the random number issued by the online prover
+
 			}
 			randomHash = crypto.Keccak256Hash(buffer.Bytes())
 		}
 	}
+	log.Info("Random11ValidatorFromPool : randomDropHash", "height", header.Number, "hash", randomDrop.Hex())
 
 	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
 
