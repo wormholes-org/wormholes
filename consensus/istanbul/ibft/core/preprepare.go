@@ -32,9 +32,9 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 	logger := c.logger.New("state", c.state)
 	// If I'm the proposer and I have the same sequence with the proposal
 
-	log.Info("sendPreprepare : start",
-		"no", request.Proposal.Number(), "sequence", c.current.sequence,
-		"round", c.current.round.Uint64(), "isproposer", c.IsProposer())
+	log.Info("ibftConsensus: sendPreprepare",
+		"no", request.Proposal.Number(), "no", c.current.sequence,
+		"round", c.current.round.Uint64(), "isproposer", c.IsProposer(), "slef", c.address.Hex())
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
 		preprepare, err := ibfttypes.Encode(&istanbul.Preprepare{
@@ -46,10 +46,11 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			return
 		}
 
-		log.Info("sendPreprepare : broadcast", "no", request.Proposal.Number(),
+		log.Info("ibftConsensus: broadcast", "no", request.Proposal.Number(),
 			"round", curView.Round,
 			"author", c.address.Hex(),
-			"hash", request.Proposal.Hash().Hex())
+			"hash", request.Proposal.Hash().Hex(),
+			"self", c.address.Hex())
 		c.broadcast(&ibfttypes.Message{
 			Code: ibfttypes.MsgPreprepare,
 			Msg:  preprepare,
@@ -67,16 +68,22 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 		return istanbulcommon.ErrFailedDecodePreprepare
 	}
 
-	log.Info("carver|handlePreprepare|baseinfo",
+	log.Info("ibftConsensus: handlePreprepare",
 		"no", preprepare.Proposal.Number().Uint64(),
 		"round", preprepare.View.Round.String(),
 		"from", src.Address().Hex(),
-		"hash|", preprepare.Proposal.Hash().Hex(),
+		"self", c.address.Hex(),
+		"hash", preprepare.Proposal.Hash().Hex(),
 		"state", c.state)
 	// Ensure we have the same view with the PRE-PREPARE message
 	// If it is old message, see if we need to broadcast COMMIT
 	if err := c.checkMessage(ibfttypes.MsgPreprepare, preprepare.View); err != nil {
-		log.Error("carver|handlePreprepare|checkMessage", "no", preprepare.Proposal.Number().Uint64(), "err", err.Error(), "hash", preprepare.Proposal.Hash().Hex())
+		log.Error("ibftConsensus: handlePreprepare checkMessage",
+			"no", preprepare.Proposal.Number().Uint64(),
+			"round", preprepare.View.Round.String(),
+			"err", err.Error(),
+			"hash", preprepare.Proposal.Hash().Hex(),
+			"self", c.address.Hex())
 		if err == istanbulcommon.ErrOldMessage {
 			// Get validator set for the given proposal
 			valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
@@ -86,7 +93,11 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 			// 1. The proposer needs to be a proposer matches the given (Sequence + Round)
 			// 2. The given block must exist
 			if valSet.IsProposer(src.Address()) && c.backend.HasPropsal(preprepare.Proposal.Hash(), preprepare.Proposal.Number()) {
-				log.Info("caver|handlePreprepare|sendCommitForOldBlock", "no", preprepare.Proposal.Number().String(), "hash", preprepare.Proposal.Hash().Hex())
+				log.Info("ibftConsensus: handlePreprepare sendCommitForOldBlock",
+					"no", preprepare.Proposal.Number().String(),
+					"round", preprepare.View.Round.String(),
+					"hash", preprepare.Proposal.Hash().Hex(),
+					"self", c.address.Hex())
 				c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal.Hash())
 				return nil
 			}
@@ -115,7 +126,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 			})
 		} else {
 			logger.Warn("Failed to verify proposal", "err", err, "duration", duration)
-			log.Info("caver|handlePreprepare|sendNextRoundChange1", "no", preprepare.Proposal.Number().String(),
+			log.Info("ibftConsensus: handlePreprepare sendNextRoundChange1", "no", preprepare.Proposal.Number().String(),
 				"round", preprepare.View.Round.String(), "is proposer", strconv.FormatBool(c.IsProposer()))
 			c.sendNextRoundChange()
 		}
@@ -127,13 +138,16 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 		// Send ROUND CHANGE if the locked proposal and the received proposal are different
 		if c.current.IsHashLocked() {
 			if preprepare.Proposal.Hash() == c.current.GetLockedHash() {
-				log.Info("preprepare.Proposal.Hash() == c.current.GetLockedHash()", "no", preprepare.Proposal.Number().String())
+				log.Info("ibftConsensus: preprepare.Proposal.Hash() == c.current.GetLockedHash()",
+					"no", preprepare.Proposal.Number(),
+					"round", c.currentView().Round,
+					"self", c.address.Hex())
 				// Broadcast COMMIT and enters Prepared state directly
 				c.acceptPreprepare(preprepare)
 				c.setState(ibfttypes.StatePrepared)
 				c.sendCommit()
 			} else {
-				log.Info("caver|handlePreprepare|sendNextRoundChange2", "no", preprepare.Proposal.Number().String(),
+				log.Info("ibftConsensus: handlePreprepare sendNextRoundChange2", "no", preprepare.Proposal.Number().String(),
 					"round", preprepare.View.Round.String(), "isProposer", strconv.FormatBool(c.IsProposer()))
 				// Send round change
 				c.sendNextRoundChange()
@@ -144,7 +158,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 			//   2. we have no locked proposal
 			c.acceptPreprepare(preprepare)
 			c.setState(ibfttypes.StatePreprepared)
-			log.Info("caver|handlePreprepare|sendPrepare",
+			log.Info("ibftConsensus: handlePreprepare sendPrepare",
 				"no", preprepare.View.Sequence,
 				"round", preprepare.View.Round,
 				"self", c.address.Hex(),

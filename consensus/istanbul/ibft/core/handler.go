@@ -103,7 +103,6 @@ func (c *core) handleEvents() {
 					c.storeRequestMsg(r)
 				}
 			case istanbul.OnlineProofEvent:
-				log.Info("OnlineProofEvent", "height", ev.Proposal.Number())
 				o := &istanbul.OnlineProofRequest{
 					Proposal:   ev.Proposal,
 					RandomHash: ev.RandomHash,
@@ -133,7 +132,6 @@ func (c *core) handleEvents() {
 			if !ok {
 				return
 			}
-			c.logger.Info("handleTimeoutMsg|c.timeoutSub.Chan()")
 			c.handleTimeoutMsg()
 		case event, ok := <-c.finalCommittedSub.Chan():
 			if !ok {
@@ -208,21 +206,13 @@ func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) 
 }
 
 func (c *core) handleTimeoutMsg() {
-
-	// If it times out and the current round has exceeded 4 rounds, notify worker to generate empty block
-	// if c.current.round.Uint64() >= 3 {
-	// 	log.Info("handleTimeoutMsg : NotifyWorkerToCommit", "no", c.currentView().Sequence, "round", c.currentView().Round)
-	// 	c.backend.NotifyWorkerToCommit(&types.OnlineValidatorInfo{Height: big.NewInt(999999)})
-	// 	return
-	// }
-
 	// If we're not waiting for round change yet, we can try to catch up
 	// the max round with F+1 round change message. We only need to catch up
 	// if the max round is larger than current round.
 	if !c.waitingForRoundChange {
 		maxRound := c.roundChangeSet.MaxRound(c.valSet.F() + 1)
 		if maxRound != nil && maxRound.Cmp(c.current.Round()) > 0 {
-			log.Info("caver|handleTimeoutMsg|c.sendRoundChange(maxRound)", "sequence", c.current.Sequence().String(), "round", c.current.Round())
+			log.Info("ibftConsensus: handleTimeoutMsg  c.sendRoundChange(maxRound)", "no", c.current.Sequence().String(), "round", c.current.Round(), "self", c.address.Hex())
 			c.sendRoundChange(maxRound)
 			return
 		}
@@ -231,11 +221,11 @@ func (c *core) handleTimeoutMsg() {
 	lastProposal, _ := c.backend.LastProposal()
 	if lastProposal != nil && lastProposal.Number().Cmp(c.current.Sequence()) >= 0 {
 		c.logger.Trace("round change timeout, catch up latest sequence", "number", lastProposal.Number().Uint64())
-		log.Info("caver|handleTimeoutMsg|c.startNewRound(common.Big0)", "number", lastProposal.Number().Uint64(), "round", c.currentView().Round)
+		log.Info("ibftConsensus: handleTimeoutMsg c.startNewRound(common.Big0)", "no", lastProposal.Number().Uint64(), "round", c.currentView().Round, "self", c.address.Hex())
 		c.startNewRound(common.Big0)
 	} else {
-		log.Info("caver|handleTimeoutMsg|sendNextRoundChange", "lastProposal.Number()", lastProposal.Number().Uint64(),
-			"c.current.Sequence", c.current.Sequence().Uint64(), "round", c.currentView().Round.String())
+		log.Info("ibftConsensus: handleTimeoutMsg sendNextRoundChange",
+			"no", c.currentView().Sequence, "round", c.currentView().Round.String(), "self", c.address.Hex())
 		c.sendNextRoundChange()
 	}
 }
