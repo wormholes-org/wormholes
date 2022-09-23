@@ -148,7 +148,8 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 		"round", c.currentView().Round,
 		"size", c.current.OnlineProofs.Size(),
 		"onlineproofs len", c.onlineProofs[c.current.sequence.Uint64()].Size(),
-		"self", c.address.Hex())
+		"self", c.address.Hex(),
+		"state", c.state)
 
 	return nil
 }

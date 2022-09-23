@@ -1016,10 +1016,11 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	defer w.mu.RUnlock()
 
 	if err := w.CommitOnlineProofBlock(); err != nil {
-		log.Error("commitNewWork: exit", "err", err)
+		log.Error("commitNewWork: err exit", "err", err, "no", w.chain.CurrentHeader().Number.Uint64()+1)
 		return
+	} else {
+		log.Info("commitNewWork: ready exit", "no", w.chain.CurrentHeader().Number.Uint64()+1)
 	}
-	log.Info("xxxxxx")
 
 	tstart := time.Now()
 	parent := w.chain.CurrentBlock()
@@ -1222,6 +1223,13 @@ func GetBFTSize(len int) int {
 }
 
 func (w *worker) CommitOnlineProofBlock() error {
+	if w.onlineValidators != nil && w.onlineValidators.Height != nil &&
+		w.onlineValidators.Height.Uint64() == w.chain.CurrentHeader().Number.Uint64()+1 &&
+		len(w.onlineValidators.Validators) > 6 {
+		log.Info("CommitOnlineProofBlock: ready exit", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+		return nil
+	}
+
 	log.Info("CommitOnlineProofBlock : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
 	var stopCh <-chan struct{}
 
