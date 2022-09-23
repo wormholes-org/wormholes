@@ -385,6 +385,10 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	defer timeoutTimer.Stop()
 	<-timeoutTimer.C // discard the initial tick
 
+	proofTimer := time.NewTimer(0)
+	defer proofTimer.Stop()
+	<-proofTimer.C // discard the initial tick
+
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(noempty bool, s int32) {
 		if interrupt != nil {
@@ -413,11 +417,11 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	for {
 		select {
 		case <-w.startCh:
+			proofTimer.Reset(5 * time.Second)
 			clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
-			w.CommitOnlineProofBlock(*time.NewTimer(1 * time.Second))
 		case head := <-w.chainHeadCh:
 			timeoutTimer.Reset(30 * time.Second)
 			log.Info("w.chainHeadCh", "no", head.Block.Number().Uint64()+1)
@@ -440,7 +444,10 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 		case <-timeoutTimer.C:
 			log.Info("generate block time out", "height", w.current.header.Number)
-			w.stop()
+			//w.stop()
+		case <-proofTimer.C:
+			log.Info("onlineproof Timer.C", "height", w.current.header.Number)
+			w.CommitOnlineProofBlock(*proofTimer)
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in

@@ -1,6 +1,8 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
@@ -80,10 +82,33 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 		return err
 	}
 
-	//TODO  verify online proof
+	//TODOverify online proof
+	currentProofs := c.onlineProofs[c.current.sequence.Uint64()]
+	exist := false
+	for _, msg := range currentProofs.messages {
+		if msg.Address == src.Address() && onlineProof.Proposal.Number().Uint64() <= c.current.sequence.Uint64() {
+			exist = true
+			log.Warn("handleOnlineProof : This altitude has been certified online", "no", c.current.sequence.Uint64(), "src", src.Address())
+			break
+		}
+	}
+	if !exist {
+		// Here is about to accept the ONLINE-PROOF msg
+		c.acceptOnlineProof(msg, src)
+	}
 
-	// Here is about to accept the ONLINE-PROOF msg
-	c.acceptOnlineProof(msg, src)
+	// clear onlineProof memory
+	for k, _ := range c.onlineProofs {
+		if k < c.currentView().Sequence.Uint64() {
+			log.Info("handleOnlineProof: clear onlineProof", "height", k, "currentView.no", c.currentView().Sequence)
+			delete(c.onlineProofs, k)
+		}
+	}
+
+	if len(c.onlineProofs) == 0 {
+		log.Error("handleOnlineProof: len(onlineProof)==0", "height", c.currentView().Sequence, "round", c.currentView().Round)
+		return errors.New("handleOnlineProof: len(onlineProof)==0")
+	}
 
 	if c.current.OnlineProofs.Size() >= c.QuorumSize() && c.state == ibfttypes.StateAcceptOnlineProofRequest { // Submit the collected online attestation data to the worker module
 		onlineValidatorList := new(types.OnlineValidatorList)
