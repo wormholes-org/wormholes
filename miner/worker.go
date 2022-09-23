@@ -1015,7 +1015,10 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	w.CommitOnlineProofBlock()
+	if err := w.CommitOnlineProofBlock(); err != nil {
+		log.Error("commitNewWork: exit", "err", err)
+		return
+	}
 	log.Info("xxxxxx")
 
 	tstart := time.Now()
@@ -1251,7 +1254,10 @@ func (w *worker) CommitOnlineProofBlock() error {
 		return err
 	}
 
-	w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, stopCh)
+	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, stopCh)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
