@@ -2702,8 +2702,6 @@ func (bc *BlockChain) Random11ValidatorFromPool(blk *types.Block) (*types.Valida
 			randomHash = crypto.Keccak256Hash(buffer.Bytes())
 		}
 	}
-	log.Info("Random11ValidatorFromPool : randomDropHash", "height", header.Number, "hash", randomDrop.Hex())
-
 	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
 
 	// TODO Parse the random number issued by the online prover from extra

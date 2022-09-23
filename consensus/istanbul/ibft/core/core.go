@@ -182,10 +182,11 @@ func (c *core) commit() {
 			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
 			copy(committedSeals[i][:], v.CommittedSeal[:])
 		}
-		log.Info("carver|commit|backend", "no", proposal.Number().Uint64())
+		log.Info("ibftConsensus: commit baseInfo", "no", c.currentView().Sequence, "round", c.currentView().Round)
 		if err := c.backend.Commit(proposal, committedSeals, big.NewInt(-1)); err != nil {
 			c.current.UnlockHash() //Unlock block when insertion fails
-			log.Error("carver|commit|sendNextRoundChange", "no", proposal.Number().Uint64(),
+			log.Error("ibftConsensus: commit sendNextRoundChange", "no", c.currentView().Sequence, "round", c.currentView().Round,
+				"self", c.address.Hex(),
 				"hash", proposal.Hash().Hex(), "err", err.Error())
 			c.sendNextRoundChange()
 			return
@@ -339,7 +340,6 @@ func (c *core) startNewRound(round *big.Int) {
 }
 
 func (c *core) catchUpRound(view *istanbul.View) {
-
 	log.Info("ibftConsensus: catchUpRound", "sequence", view.Sequence.Uint64(), "round", view.Round.Uint64())
 	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer())
 
@@ -403,22 +403,6 @@ func (c *core) stopTimer() {
 	}
 }
 
-/*
-func (c *core) newRoundChangeTimer() {
-	c.stopTimer()
-
-	// set timeout based on the round number
-	timeout := time.Duration(c.config.RequestTimeout) * time.Millisecond
-	round := c.current.Round().Uint64()
-	if round > 0 {
-		timeout += time.Duration(math.Pow(2, float64(round))) * time.Second
-		log.Info("newRoundChangeTimer : timeout", "no", c.current.sequence, "round", c.current.round, "timeout", timeout.String())
-	}
-	c.roundChangeTimer = time.AfterFunc(timeout, func() {
-		c.sendEvent(timeoutEvent{})
-	})
-}
-*/
 func (c *core) newRoundChangeTimer() {
 	c.stopTimer()
 

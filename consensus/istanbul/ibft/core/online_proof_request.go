@@ -8,19 +8,19 @@ import (
 )
 
 func (c *core) handleOnlineProofRequest(request *istanbul.OnlineProofRequest) error {
-	log.Info("handleOnlineProofRequest", "seq", c.current.sequence, "height", request.Proposal.Number(), "state", c.state)
+	log.Info("ibftConsensus: handleOnlineProofRequest", "no", c.currentView().Sequence, "round", c.currentView().Round, "state", c.state, "self", c.address.Hex())
 	if err := c.checkOnlineProofRequestMsg(request); err != nil {
 		if err == istanbulcommon.ErrInvalidMessage {
-			log.Warn("invalid online proof request")
+			log.Error("ibftConsensus: invalid online proof request", "no", c.currentView().Sequence, "round", c.currentView().Round, "state", c.state, "self", c.address.Hex())
 			return err
 		}
-		log.Warn("unexpected online proof request", "err", err, "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
+		log.Warn("ibftConsensus: unexpected online proof request", "err", err, "no", request.Proposal.Number(), "round", c.currentView().Round, "hash", request.Proposal.Hash(), "self", c.address.Hex())
 		return err
 	}
 
 	c.current.pendingOnlineProofRequest = request
 	if c.state == ibfttypes.StateAcceptOnlineProofRequest {
-		log.Info("handleOnlineProofRequest : sendOnlineProof", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
+		log.Info("ibftConsensus: handleOnlineProofRequest sendOnlineProof", "no", request.Proposal.Number(), "round", c.currentView().Round, "hash", request.Proposal.Hash(), "self", c.address.Hex())
 		c.sendOnlineProof(request)
 	}
 	return nil
@@ -52,7 +52,7 @@ func (c *core) storeOnlineProofRequestMsg(request *istanbul.OnlineProofRequest) 
 }
 
 func (c *core) processPendingOnlineProofRequests() {
-	log.Info("processPendingOnlineProofRequests start", "seq", c.current.sequence)
+	log.Info("ibftConsensus: processPendingOnlineProofRequests start", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.address.Hex())
 	c.pendindingOnlineProofRequestsMu.Lock()
 	defer c.pendindingOnlineProofRequestsMu.Unlock()
 
@@ -81,5 +81,5 @@ func (c *core) processPendingOnlineProofRequests() {
 			RandomHash: r.RandomHash,
 		})
 	}
-	log.Info("processPendingOnlineProofRequests end", "seq", c.current.sequence)
+	log.Info("ibftConsensus: processPendingOnlineProofRequests end", "no", c.currentView().Sequence)
 }

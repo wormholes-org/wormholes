@@ -13,10 +13,11 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 	if request == nil {
 		return
 	}
-	log.Info("sendOnlineProof",
+	log.Info("ibftConsensus: sendOnlineProof",
 		"no", request.Proposal.Number(),
 		"sequence", c.current.Sequence(),
 		"round", c.current.round,
+		"self", c.address.Hex(),
 	)
 
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
@@ -48,10 +49,10 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 			return
 		}
 
-		log.Info("sendOnlineProof : broadcast",
+		log.Info("ibftConsensus: sendOnlineProof broadcast",
 			"no", request.Proposal.Number(),
 			"round", curView.Round,
-			"author", c.address.Hex(),
+			"self", c.address.Hex(),
 			"hash", request.Proposal.Hash().Hex())
 
 		c.broadcast(&ibfttypes.Message{
@@ -68,15 +69,16 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 		return istanbulcommon.ErrFailedDecodeOnlineProof
 	}
 
-	log.Info("handleOnlineProof",
+	log.Info("ibftConsensus: handleOnlineProof",
 		"no", onlineProof.Proposal.Number().Uint64(),
 		"round", onlineProof.View.Round.String(),
 		"from", src.Address().Hex(),
 		"hash", onlineProof.Proposal.Hash().Hex(),
-		"isproposer", c.IsProposer())
+		"isproposer", c.IsProposer(),
+		"self", c.address.Hex())
 	// Ensure we have the same view with the ONLINE-PROOF message
 	if err := c.checkMessage(ibfttypes.MsgOnlineProof, onlineProof.View); err != nil {
-		log.Error("handleOnlineProof : checkMessage", "no", onlineProof.Proposal.Number().Uint64(), "err", err.Error(), "hash", onlineProof.Proposal.Hash().Hex())
+		log.Error("ibftConsensus: handleOnlineProof checkMessage", "no", onlineProof.Proposal.Number().Uint64(), "round", c.currentView().Round, "self", c.address.Hex(), "err", err.Error())
 		return err
 	}
 
@@ -85,6 +87,9 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 	// Here is about to accept the ONLINE-PROOF msg
 	c.acceptOnlineProof(msg, src)
 
+	log.Info("ibftConsensus: prepare to notify worker to commit", "no", c.currentView().Sequence,
+		"round", c.currentView().Round, "len(OnlineProofs)", c.current.OnlineProofs.Size(),
+		"self", c.address.Hex(), "state", c.state)
 	if c.current.OnlineProofs.Size() >= c.QuorumSize() && c.state == ibfttypes.StateAcceptOnlineProofRequest { // Submit the collected online attestation data to the worker module
 		onlineValidatorList := new(types.OnlineValidatorList)
 		for _, v := range c.current.OnlineProofs.messages {
@@ -101,7 +106,6 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 		}
 		onlineValidatorList.Validators = append(onlineValidatorList.Validators)
 		onlineValidatorList.Height = onlineProof.Proposal.Number()
-		log.Info("handleOnlineProof : prepare to notify worker to commit")
 		// Notify miners to submit blocks
 		c.backend.NotifyWorkerToCommit(onlineValidatorList)
 
@@ -114,7 +118,12 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 		tempMessageSet.Add(v)
 	}
 	c.onlineProofs[c.current.sequence.Uint64()] = tempMessageSet
-	log.Info("handleOnlineProof : QuorumSize", "height", onlineProof.Proposal.Number().Uint64(), "size", c.current.OnlineProofs.Size(), "onlineproofs len", c.onlineProofs[c.current.sequence.Uint64()].Size())
+	log.Info("ibftConsensus: onlineProofs",
+		"no", c.currentView().Sequence,
+		"round", c.currentView().Round,
+		"size", c.current.OnlineProofs.Size(),
+		"onlineproofs len", c.onlineProofs[c.current.sequence.Uint64()].Size(),
+		"self", c.address.Hex())
 
 	return nil
 }
@@ -124,7 +133,9 @@ func (c *core) acceptOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 
 	// Add the ONLINE-PROOF  message to current round state
 	if err := c.current.OnlineProofs.Add(msg); err != nil {
-		logger.Error("Failed to add ONLINE-PROOF message to round state", "msg", msg, "err", err)
+		logger.Error("Failed to add ONLINE-PROOF message to round state",
+			"no", c.currentView().Sequence,
+			"round", c.currentView().Round, "msg", msg, "err", err)
 		return err
 	}
 
