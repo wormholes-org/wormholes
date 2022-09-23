@@ -582,7 +582,7 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 	header := block.Header()
 
 	if sb.core == nil {
-		log.Error("SealOnlineProofBlk : sb.core", "err", errors.New("SealOnlineProofBlk : ibft engine not active !"))
+		log.Error("SealOnlineProofBlk : sb.core", "err", errors.New("SealOnlineProofBlk : ibft engine not active !"), "no", header.Number.Uint64())
 		return errors.New("SealOnlineProofBlk : ibft engine not active !")
 	}
 
@@ -600,27 +600,28 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 
 		cBlk := c.CurrentBlock()
 		validatorList, err := c.Random11ValidatorFromPool(cBlk)
-		log.Info("SealOnlineProofBlk : len", "len", len(validatorList.Validators))
+		log.Info("SealOnlineProofBlk : len", "len", len(validatorList.Validators), "no", header.Number.Uint64())
 		if err != nil {
+			log.Error("SealOnlineProofBlk : err", "err", err.Error(), "no", header.Number.Uint64())
 			return err
 		}
 		valset = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 	if _, v := valset.GetByAddress(sb.address); v == nil {
-		log.Error("SealOnlineProofBlk  : ErrUnauthorized", "err", istanbulcommon.ErrUnauthorized)
+		log.Error("SealOnlineProofBlk  : ErrUnauthorized", "err", istanbulcommon.ErrUnauthorized, "no", header.Number.Uint64())
 		return istanbulcommon.ErrUnauthorized
 	}
 
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
-		log.Error("SealOnlineProofBlk  : ErrUnknownAncestor", "err", consensus.ErrUnknownAncestor)
+		log.Error("SealOnlineProofBlk  : ErrUnknownAncestor", "err", consensus.ErrUnknownAncestor, "no", header.Number.Uint64())
 		return consensus.ErrUnknownAncestor
 	}
 
 	// generate a local random number
 	localTime := time.Now().Nanosecond()
 	common.BigToHash(big.NewInt(int64(localTime)))
-	log.Info("SealOnlineProofBlk : post OnlineProofEvent")
+	log.Info("SealOnlineProofBlk : post OnlineProofEvent", "no", header.Number.Uint64())
 
 	go func() {
 		sb.EventMux().Post(istanbul.OnlineProofEvent{
