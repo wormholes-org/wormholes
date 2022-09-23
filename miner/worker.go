@@ -414,10 +414,20 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		w.pendingMu.Unlock()
 	}
 
+	go func() {
+		proofTimer.Reset(5 * time.Second)
+		for {
+			select {
+			case <-proofTimer.C:
+				log.Info("onlineproof Timer.C", "height", w.current.header.Number)
+				w.GossipOnlineProof(*proofTimer)
+			}
+		}
+	}()
+
 	for {
 		select {
 		case <-w.startCh:
-			proofTimer.Reset(5 * time.Second)
 			clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
@@ -432,22 +442,20 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			timestamp = time.Now().Unix()
 			// Start submitting online proof blocks
 			w.onlineValidators = nil
-			w.CommitOnlineProofBlock(*timer)
+			//w.CommitOnlineProofBlock(*proofTimer)
+			commit(false, commitInterruptNewHead)
 
 		case onlineValidators := <-w.notifyBlockCh:
 			if onlineValidators != nil {
 				log.Info("w.notifyBlockCh", "height", w.chain.CurrentHeader().Number.Uint64()+1)
 				w.onlineValidators = onlineValidators
-				clearPending(w.chain.CurrentHeader().Number.Uint64() + 1)
-				timestamp = time.Now().Unix()
-				commit(false, commitInterruptNewHead)
+				// clearPending(w.chain.CurrentHeader().Number.Uint64() + 1)
+				// timestamp = time.Now().Unix()
+				// commit(false, commitInterruptNewHead)
 			}
 		case <-timeoutTimer.C:
 			log.Info("generate block time out", "height", w.current.header.Number)
 			//w.stop()
-		case <-proofTimer.C:
-			log.Info("onlineproof Timer.C", "height", w.current.header.Number)
-			w.CommitOnlineProofBlock(*proofTimer)
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
@@ -1007,6 +1015,9 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
+	w.CommitOnlineProofBlock()
+	log.Info("xxxxxx")
+
 	tstart := time.Now()
 	parent := w.chain.CurrentBlock()
 
@@ -1207,11 +1218,8 @@ func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }
 
-func (w *worker) CommitOnlineProofBlock(timer time.Timer) error {
+func (w *worker) CommitOnlineProofBlock() error {
 	log.Info("CommitOnlineProofBlock : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
 	var stopCh <-chan struct{}
 
 	parent := w.chain.CurrentBlock()
@@ -1244,7 +1252,44 @@ func (w *worker) CommitOnlineProofBlock(timer time.Timer) error {
 	}
 
 	w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, stopCh)
+
+	return nil
+}
+
+func (w *worker) GossipOnlineProof(timer time.Timer) error {
 	timer.Reset(2 * time.Second)
+	log.Info("GossipOnlineProof : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
+
+	parent := w.chain.CurrentBlock()
+
+	num := parent.Number()
+	header := &types.Header{
+		ParentHash: parent.Hash(),
+		Number:     num.Add(num, common.Big1),
+		GasLimit:   21000,
+		Extra:      w.extra,
+		Time:       10000,
+	}
+
+	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
+
+	if err := w.engine.Prepare(w.chain, header); err != nil {
+		return errors.New("GossipOnlineProof : Failed to prepare header for mining")
+	}
+
+	err := w.makeCurrent(parent, header)
+	if err != nil {
+		return errors.New("GossipOnlineProof : Failed to create mining context")
+	}
+
+	receipts := copyReceipts(w.current.receipts)
+	s := w.current.state.Copy()
+	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.current.header, s, w.current.txs, nil, receipts)
+	if err != nil {
+		return err
+	}
+
+	w.engine.GossipOnlineProof(w.chain, block)
 
 	return nil
 }

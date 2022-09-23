@@ -454,6 +454,9 @@ func (s *remoteSealer) submitWork(nonce types.BlockNonce, mixDigest common.Hash,
 func (ethash *Ethash) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorList, stop <-chan struct{}) error {
 	return nil
 }
+func (ethash *Ethash) GossipOnlineProof(chain consensus.ChainHeaderReader, block *types.Block) error {
+	return nil
+}
 
 func (ethash *Ethash) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {

@@ -766,3 +766,7 @@ func (c *Clique) Protocol() consensus.Protocol {
 func (c *Clique) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorList, stop <-chan struct{}) error {
 	return nil
 }
+
+func (ethash *Clique) GossipOnlineProof(chain consensus.ChainHeaderReader, block *types.Block) error {
+	return nil
+}
