@@ -165,21 +165,14 @@ func (c *core) handleMsg(payload []byte) error {
 	// Only accept message if the address is valid
 	_, src := c.valSet.GetByAddress(msg.Address)
 	if src == nil {
-		if msg.Code == 3 {
-
-			logger.Error("Invalid address in message", "msg", msg)
-			return istanbul.ErrUnauthorizedAddress
-		}
+		logger.Error("Invalid address in message", "msg", msg)
+		return istanbul.ErrUnauthorizedAddress
 	}
 
 	return c.handleCheckedMsg(msg, src)
 }
 
 func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) error {
-	_, self := c.valSet.GetByAddress(c.address)
-	if self == nil {
-		return nil
-	}
 	logger := c.logger.New("address", c.address, "from", src)
 
 	// Store the message if it's a future message
