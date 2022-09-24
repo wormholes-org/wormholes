@@ -1046,7 +1046,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	}
 
 	// Collect data related to online certification validator
-	if w.onlineValidators != nil && len(w.onlineValidators.Validators) > 0 && w.onlineValidators.Height.Cmp(header.Number) == 0 {
+	if w.onlineValidators != nil && len(w.onlineValidators.Validators) > 6 && w.onlineValidators.Height.Cmp(header.Number) == 0 {
 		for _, v := range w.onlineValidators.Validators {
 			log.Info("commitNewWork : onlineValidator", "height", header.Number.Uint64(), "addr", v.Address.Hex())
 		}
@@ -1063,6 +1063,10 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		// represent  onlineValidator length
 		w.extra = append(w.extra, lengthToBytes...)
 		w.extra = append(w.extra, onlineValidatorsEnc...)
+	} else {
+		log.Error("commitNewWork : err onlineValidator info", "w.onlineValidators != nil", w.onlineValidators != nil,
+			"len", len(w.onlineValidators.Validators), "onlineValidators.Height", w.onlineValidators.Height, "no", header.Number)
+		return
 	}
 
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
