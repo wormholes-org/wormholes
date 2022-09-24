@@ -33,10 +33,10 @@ func (c *core) handleRequest(request *istanbul.Request) error {
 		logger.Warn("unexpected request", "err", err, "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 		return err
 	}
-	logger.Trace("handleRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
+	log.Info("ibftConsensus: handleRequest", "no", "round", c.currentView().Round, request.Proposal.Number(), "hash", request.Proposal.Hash(), "self", c.address.Hex())
 
 	c.current.pendingRequest = request
-	log.Info("handleRequest : sendPreprepare",
+	log.Info("ibftConsensus: handleRequest sendPreprepare",
 		"no", request.Proposal.Number(),
 		"round", c.currentView().Round,
 		"hash", request.Proposal.Hash(),

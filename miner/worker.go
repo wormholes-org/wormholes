@@ -1266,7 +1266,6 @@ func (w *worker) CommitOnlineProofBlock() error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 

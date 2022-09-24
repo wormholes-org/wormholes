@@ -577,6 +577,8 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 }
 
 func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorList, stop <-chan struct{}) error {
+	timeout := time.NewTimer(60 * time.Second)
+	defer timeout.Stop()
 	log.Info("SealOnlineProofBlk : info", "height", block.Number())
 	// Only this round of validators can send online proofs
 	header := block.Header()
@@ -631,13 +633,16 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 		for {
 			select {
 			case onlineValidators := <-sb.notifyBlockCh:
-				log.Info("SealOnlineProofBlk : onlineValidators", "height", block.NumberU64(), "info", onlineValidators)
+				log.Info("SealOnlineProofBlk : onlineValidators", "no", block.NumberU64(), "info", onlineValidators)
 				if onlineValidators != nil {
 					notifyBlockCh <- onlineValidators
 					return
 				}
 			case <-stop:
 				log.Info("SealOnlineProofBlk : stop")
+				return
+			case <-timeout.C:
+				log.Warn("SealOnlineProofBlk: Collect online proof timed out", "no", block.NumberU64())
 				return
 			}
 		}

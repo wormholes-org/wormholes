@@ -134,6 +134,12 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 		// Notify miners to submit blocks
 		c.backend.NotifyWorkerToCommit(onlineValidatorList)
 
+		log.Info("ibftConsensus: collected online proof",
+			"no", c.currentView().Sequence,
+			"round", c.currentView().Round,
+			"size", c.current.OnlineProofs.Size(),
+			"onlineproofs len", c.onlineProofs[c.current.sequence.Uint64()].Size(),
+			"self", c.address.Hex())
 		// Set state to StateAcceptRequest
 		c.setState(ibfttypes.StateAcceptRequest)
 	}
