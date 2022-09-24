@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -48,6 +49,10 @@ type LesApiBackend struct {
 
 func (b *LesApiBackend) QueryMinerProxy(ctx context.Context, number int64, addr *common.Address) (*types.ValidatorList, error) {
 	//TODO implement me
+	panic("implement me")
+}
+
+func (b *LesApiBackend) CheckValidator(ctx context.Context, number int64) reflect.Value {
 	panic("implement me")
 }
 

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 	"time"
 
@@ -105,6 +106,10 @@ func (s *PublicEthereumAPI) QueryMinerProxy(ctx context.Context, number rpc.Bloc
 		MinerProxyList = append(MinerProxyList, &m)
 	}
 	return MinerProxyList, nil
+}
+
+func (s *PublicEthereumAPI) CheckValidator(ctx context.Context, number int64) reflect.Value {
+	return s.b.CheckValidator(ctx, number)
 }
 
 type feeHistoryResult struct {

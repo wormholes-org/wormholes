@@ -22,9 +22,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"io"
 	"math/big"
 	mrand "math/rand"
+	"reflect"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -2812,6 +2814,14 @@ func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common
 	buffer.WriteString(header.Hash().Hex())
 	return crypto.Keccak256Hash(buffer.Bytes())
 	//return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))
+}
+
+func (bc *BlockChain) CheckValidator(ctx context.Context, number int64) reflect.Value {
+	back := bc.Engine().(*backend.Backend)
+	core := reflect.ValueOf(back).FieldByName("core")
+	valSet := core.FieldByName("valSet")
+	//vs := istanbul.ValidatorSet(valSet)
+	return valSet
 }
 
 func getSurroundingChainNo(i, Nr, Np int) []int {

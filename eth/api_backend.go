@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -356,4 +357,8 @@ func (b *EthAPIBackend) StateAtTransaction(ctx context.Context, block *types.Blo
 
 func (b *EthAPIBackend) QueryMinerProxy(ctx context.Context, number int64, miner *common.Address) (*types.ValidatorList, error) {
 	return b.eth.blockchain.QueryMinerProxy(ctx, number, miner)
+}
+
+func (b *EthAPIBackend) CheckValidator(ctx context.Context, number int64) reflect.Value {
+	return b.eth.blockchain.CheckValidator(ctx, number)
 }

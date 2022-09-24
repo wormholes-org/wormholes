@@ -19,8 +19,6 @@ package ethapi
 
 import (
 	"context"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -34,6 +32,8 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
+	"reflect"
 )
 
 // Backend interface provides the common API services (that are provided by
@@ -69,6 +69,7 @@ type Backend interface {
 	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
 	SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
 	QueryMinerProxy(ctx context.Context, number int64, addr *common.Address) (*types.ValidatorList, error)
+	CheckValidator(ctx context.Context, number int64) reflect.Value
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error
