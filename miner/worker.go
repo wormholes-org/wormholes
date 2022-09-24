@@ -453,7 +453,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
-			timeoutTimer.Reset(30 * time.Second)
+			timeoutTimer.Reset(0 * time.Second)
 			log.Info("w.chainHeadCh", "no", head.Block.Number().Uint64()+1)
 			if h, ok := w.engine.(consensus.Handler); ok {
 				h.NewChainHead()
