@@ -84,6 +84,10 @@ type Engine interface {
 	// rules of a particular engine. The changes are executed inline.
 	Prepare(chain ChainHeaderReader, header *types.Header) error
 
+	// PrepareForEmptyBlock initializes the consensus fields of a block header according to the
+	// rules of a particular engine. The changes are executed inline.
+	PrepareForEmptyBlock(chain ChainHeaderReader, header *types.Header) error
+
 	// Finalize runs any post-transaction state modifications (e.g. block rewards)
 	// but does not assemble the block.
 	//

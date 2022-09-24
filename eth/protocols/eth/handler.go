@@ -93,6 +93,8 @@ type Backend interface {
 	// the remote peer. Only packets not consumed by the protocol handler will
 	// be forwarded to the backend.
 	Handle(peer *Peer, packet Packet) error
+
+	HandleWorkerMsg(msg Decoder, peer *Peer) error
 }
 
 // TxPool defines the methods needed by the protocol handler to serve transactions.
@@ -206,6 +208,7 @@ var eth66 = map[uint64]msgHandler{
 	GetPooledTransactionsMsg: handleGetPooledTransactions66,
 	PooledTransactionsMsg:    handlePooledTransactions66,
 	WormholeEngineMsg:        handleWormhole,
+	WorkerMsg:                handleWorker66,
 }
 
 // handleMessage is invoked whenever an inbound message is received from a remote

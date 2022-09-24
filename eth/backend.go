@@ -603,3 +603,20 @@ func (s *Ethereum) Stop() error {
 func (s *Ethereum) GetNodeKey() *ecdsa.PrivateKey {
 	return s.nodekey
 }
+
+func (s *Ethereum) FindPeers() map[common.Address]miner.Peer {
+	// var peers map[common.Address]*miner.Peer
+	// log.Info("PeerStore len", "len", len(s.handler.peers.peers))
+	// for _, p := range s.handler.peers.peers {
+	// 	peers = append(peers, p.Peer)
+	// }
+	// return peers
+
+	m := make(map[common.Address]miner.Peer)
+	for _, p := range s.handler.peers.peers {
+		pubKey := p.Node().Pubkey()
+		addr := crypto.PubkeyToAddress(*pubKey)
+		m[addr] = p
+	}
+	return m
+}

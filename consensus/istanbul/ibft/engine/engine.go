@@ -53,12 +53,16 @@ func (e *Engine) Author(header *types.Header) (common.Address, error) {
 		return common.Address{}, err
 	}
 
-	addr, err := istanbul.GetSignatureAddress(sigHash(header).Bytes(), extra.Seal)
-	if err != nil {
-		return addr, err
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		return common.HexToAddress("0x0000000000000000000000000000000000000000"), nil
+	} else {
+		addr, err := istanbul.GetSignatureAddress(sigHash(header).Bytes(), extra.Seal)
+		if err != nil {
+			return addr, err
+		}
+		return addr, nil
 	}
 
-	return addr, nil
 }
 
 func (e *Engine) CommitHeader(header *types.Header, seals [][]byte, round *big.Int) error {
@@ -78,16 +82,20 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 	// 	return 0, istanbulcommon.ErrInvalidUncleHash
 	// }
 
-	// verify the header of proposed block
-	err := e.VerifyHeader(chain, block.Header(), nil, validators)
-	if err == nil || err == istanbulcommon.ErrEmptyCommittedSeals {
-		// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
-		return 0, nil
-	} else if err == consensus.ErrFutureBlock {
-		return time.Until(time.Unix(int64(block.Header().Time), 0)), consensus.ErrFutureBlock
+	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.Number().Cmp(common.Big0) > 0 {
+		return 0, istanbulcommon.ErrEmptyBlock
+	} else {
+		// verify the header of proposed block
+		err := e.VerifyHeader(chain, block.Header(), nil, validators)
+		if err == nil || err == istanbulcommon.ErrEmptyCommittedSeals {
+			// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
+			return 0, nil
+		} else if err == consensus.ErrFutureBlock {
+			return time.Until(time.Unix(int64(block.Header().Time), 0)), consensus.ErrFutureBlock
+		}
+		return 0, err
 	}
 
-	return 0, err
 }
 
 func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
@@ -130,6 +138,10 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	// Ensure that the block's difficulty is meaningful (may not be correct at this point)
 	if header.Difficulty == nil || header.Difficulty.Cmp(istanbulcommon.DefaultDifficulty) != 0 {
 		return istanbulcommon.ErrInvalidDifficulty
+	}
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		//return istanbulcommon.ErrEmptyBlock
+		return e.verifyCascadingFields(chain, header, validators, parents)
 	}
 
 	return e.verifyCascadingFields(chain, header, validators, parents)
@@ -186,14 +198,19 @@ func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.H
 		return err
 	}
 
-	// Signer should be in the validator set of previous block's extraData.
-	if _, v := validators.GetByAddress(signer); v == nil {
-		log.Error("cavar|verifySigner-signer", "no", header.Number.Text(10), "header", header.Hash().Hex(), "sign", signer.Hex())
-		for _, addr := range validators.List() {
-			log.Error("cavar|verifySigner-val", "no", header.Number.Text(10), "header", header.Hash().Hex(), "val-addr", addr.Address().Hex())
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		return nil
+	} else {
+		// Signer should be in the validator set of previous block's extraData.
+		if _, v := validators.GetByAddress(signer); v == nil {
+			log.Error("cavar|verifySigner-signer", "no", header.Number.Text(10), "header", header.Hash().Hex(), "sign", signer.Hex())
+			for _, addr := range validators.List() {
+				log.Error("cavar|verifySigner-val", "no", header.Number.Text(10), "header", header.Hash().Hex(), "val-addr", addr.Address().Hex())
+			}
+			return istanbulcommon.ErrUnauthorized
 		}
-		return istanbulcommon.ErrUnauthorized
 	}
+
 
 	return nil
 }
@@ -218,9 +235,13 @@ func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header 
 	}
 	committedSeal := extra.CommittedSeal
 
-	// The length of Committed seals should be larger than 0
-	if len(committedSeal) == 0 {
-		return istanbulcommon.ErrEmptyCommittedSeals
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		return nil
+	} else {
+		// The length of Committed seals should be larger than 0
+		if len(committedSeal) == 0 {
+			return istanbulcommon.ErrEmptyCommittedSeals
+		}
 	}
 
 	validatorsCpy := validators.Copy()
@@ -485,17 +506,27 @@ func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, val
 	header := block.Header()
 	number := header.Number.Uint64()
 
-	if _, v := validators.GetByAddress(e.signer); v == nil {
-		log.Info("caver|seal|unauthorized", "no", number, "e.signer", e.signer.Hex())
-		return block, istanbulcommon.ErrUnauthorized
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		log.Info("caver|empty|Seal")
+		parent := chain.GetHeader(header.ParentHash, number-1)
+		if parent == nil {
+			return block, consensus.ErrUnknownAncestor
+		}
+
+		return e.updateBlock(parent, block)
+	} else {
+		if _, v := validators.GetByAddress(e.signer); v == nil {
+			log.Info("caver|seal|unauthorized", "no", number, "e.signer", e.signer.Hex())
+			return block, istanbulcommon.ErrUnauthorized
+		}
+		parent := chain.GetHeader(header.ParentHash, number-1)
+		if parent == nil {
+			return block, consensus.ErrUnknownAncestor
+		}
+
+		return e.updateBlock(parent, block)
 	}
 
-	parent := chain.GetHeader(header.ParentHash, number-1)
-	if parent == nil {
-		return block, consensus.ErrUnknownAncestor
-	}
-
-	return e.updateBlock(parent, block)
 }
 
 // update timestamp and signature of the block based on its number of transactions

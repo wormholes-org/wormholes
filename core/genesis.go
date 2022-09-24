@@ -355,12 +355,18 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	rawdb.WriteChainConfig(db, block.Hash(), config)
 
 	var (
-		stakerList    types.StakerList
+		//stakerList    types.StakerList
+		stakerList    types.DBStakerList
 		validatorList types.ValidatorList
 	)
 
 	for addr, account := range g.Stake {
-		stakerList.AddStaker(addr, account.Balance)
+		var dbStaker types.DBStaker
+		dbStaker.Addr = addr
+		dbStaker.Balance = account.Balance
+		dbStaker.DeleteFlag = false
+		stakerList.DBStakers = append(stakerList.DBStakers, &dbStaker)
+		//stakerList.AddStaker(addr, account.Balance)
 	}
 
 	for addr, account := range g.Validator {
@@ -375,7 +381,8 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	for _, v := range validatorList.Validators {
 		log.Info("genesis|validator|weight", "addr", v.Addr, "balance", v.Balance, "weight", v.Weight)
 	}
-	rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
+	//rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
+	rawdb.WriteDBStakerPool(db, block.Hash(), block.NumberU64(), &stakerList)
 	rawdb.WriteValidatorPool(db, block.Hash(), block.NumberU64(), &validatorList)
 
 	officialNFT := types.InjectedOfficialNFT{

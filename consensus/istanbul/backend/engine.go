@@ -100,6 +100,16 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 	go func() {
 		errored := false
 		for i, header := range headers {
+			if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+				var err error
+				err = nil
+				select {
+				case <-abort:
+					return
+				case results <- err:
+				}
+				continue
+			}
 			var err error
 			if errored {
 				err = consensus.ErrUnknownAncestor
@@ -151,6 +161,29 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	return sb.EngineForBlockNumber(header.Number).VerifySeal(chain, header, valSet)
 }
 
+
+// PrepareForEmptyBlock initializes the consensus fields of a block header according to the
+// rules of a particular engine. The changes are executed inline.
+func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
+	var valSet istanbul.ValidatorSet
+	if c, ok := chain.(*core.BlockChain); ok {
+		log.Info("Prepare", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number.String())
+		cHeader := c.CurrentBlock().Header()
+		if cHeader == nil {
+			return errors.New("prepare err: current header is nil")
+		}
+		validatorList := c.ReadValidatorPool(cHeader)
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+	}
+
+	err := sb.EngineForBlockNumber(header.Number).Prepare(chain, header, valSet)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
@@ -195,6 +228,34 @@ func (sb *Backend) Finalize(chain consensus.ChainHeaderReader, header *types.Hea
 // nor block rewards given, and returns the final block.
 func (sb *Backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	return sb.EngineForBlockNumber(header.Number).FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
+// SealforEmptyBlock generates a new block for the given input block with the local miner's
+// seal place on top.
+func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error) {
+	// update the block header timestamp and signature and propose the block to core engine
+	var emptyBlock *types.Block
+	header := block.Header()
+
+	if sb.core == nil {
+		return emptyBlock, errors.New("seal|ibft engine not active")
+	}
+
+	log.Info("caver|SealforEmptyBlock|enter", "sealNo", block.Number().String(), "is proposer", sb.core.IsProposer())
+
+	//Get the validatorset for this round
+	//istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
+	//if err1 != nil {
+	//	log.Info("caver|seal|ExtractIstanbulExtra|Empty", "no", header.Number, "err", err1.Error())
+	//	return emptyBlock, err1
+	//}
+	//valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
+	valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
+
+	emptyBlock, err := sb.EngineForBlockNumber(header.Number).Seal(chain, block, valSet)
+	if err != nil {
+		log.Info("caver|SealforEmptyBlock|err", "sealNo", header.Number.String(), "err", err.Error())
+		return emptyBlock, err
+	}
+	return emptyBlock, err
 }
 
 // Seal generates a new block for the given input block with the local miner's

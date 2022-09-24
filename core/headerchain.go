@@ -303,6 +303,9 @@ func (hc *HeaderChain) writeHeaders(headers []*types.Header) (result *headerWrit
 func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int) (int, error) {
 	// Do a sanity check that the provided chain is actually ordered and linked
 	for i := 1; i < len(chain); i++ {
+		if chain[i].Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && chain[i].Number.Cmp(common.Big0) > 0 {
+			return 0, nil
+		}
 		if chain[i].Number.Uint64() != chain[i-1].Number.Uint64()+1 {
 			hash := chain[i].Hash()
 			parentHash := chain[i-1].Hash()

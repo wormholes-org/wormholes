@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"math/big"
 	"time"
-
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/accounts"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -43,6 +43,7 @@ type Backend interface {
 	TxPool() *core.TxPool
 	AccountManager() *accounts.Manager
 	GetNodeKey() *ecdsa.PrivateKey
+	FindPeers() map[common.Address]Peer
 }
 
 // Config is the configuration parameters of mining.
@@ -61,14 +62,24 @@ type Config struct {
 
 // Miner creates blocks and searches for proof-of-work values.
 type Miner struct {
-	mux      *event.TypeMux
-	worker   *worker
-	coinbase common.Address
-	eth      Backend
-	engine   consensus.Engine
-	exitCh   chan struct{}
-	startCh  chan common.Address
-	stopCh   chan struct{}
+	mux         *event.TypeMux
+	worker      *worker
+	coinbase    common.Address
+	eth         Backend
+	engine      consensus.Engine
+	exitCh      chan struct{}
+	startCh     chan common.Address
+	stopCh      chan struct{}
+	broadcaster Broadcaster
+}
+
+func (miner *Miner) SetBroadcaster(broadcaster Broadcaster) {
+	miner.broadcaster = broadcaster
+}
+
+func (miner *Miner) HandleMsg(address common.Address, data p2p.Msg) (bool, error) {
+	flg, err := miner.worker.cerytify.HandleMsg(address, data)
+	return flg, err
 }
 
 func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(block *types.Block) bool) *Miner {
@@ -241,4 +252,8 @@ func (miner *Miner) DisablePreseal() {
 // to the given channel.
 func (miner *Miner) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscription {
 	return miner.worker.pendingLogsFeed.Subscribe(ch)
+}
+
+func (miner *Miner) GetCertify() *Certify {
+	return miner.worker.cerytify
 }
