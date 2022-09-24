@@ -19,9 +19,6 @@ package eth
 import (
 	"context"
 	"errors"
-	"math/big"
-	"reflect"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -38,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
 )
 
 // EthAPIBackend implements ethapi.Backend for full nodes
@@ -359,6 +357,6 @@ func (b *EthAPIBackend) QueryMinerProxy(ctx context.Context, number int64, miner
 	return b.eth.blockchain.QueryMinerProxy(ctx, number, miner)
 }
 
-func (b *EthAPIBackend) CheckValidator(ctx context.Context, number int64) reflect.Value {
+func (b *EthAPIBackend) CheckValidator(ctx context.Context, number int64) string {
 	return b.eth.blockchain.CheckValidator(ctx, number)
 }

@@ -19,9 +19,6 @@ package les
 import (
 	"context"
 	"errors"
-	"math/big"
-	"reflect"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -38,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
 )
 
 type LesApiBackend struct {
@@ -52,7 +50,7 @@ func (b *LesApiBackend) QueryMinerProxy(ctx context.Context, number int64, addr 
 	panic("implement me")
 }
 
-func (b *LesApiBackend) CheckValidator(ctx context.Context, number int64) reflect.Value {
+func (b *LesApiBackend) CheckValidator(ctx context.Context, number int64) string {
 	panic("implement me")
 }
 
