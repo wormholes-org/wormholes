@@ -39,6 +39,7 @@ type Certify struct {
 
 func (c *Certify) Start() {
 	c.subscribeEvents()
+	go c.handleEvents()
 }
 func (c *Certify) subscribeEvents() {
 	c.events = c.eventMux.Subscribe(

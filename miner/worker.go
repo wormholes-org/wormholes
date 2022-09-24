@@ -156,6 +156,7 @@ type worker struct {
 	taskCh             chan *task
 	resultCh           chan *types.Block
 	startCh            chan struct{}
+	emptyCh            chan struct{}
 	exitCh             chan struct{}
 	resubmitIntervalCh chan time.Duration
 	resubmitAdjustCh   chan *intervalAdjust
@@ -225,6 +226,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		resultCh:     make(chan *types.Block, resultQueueSize),
 		exitCh:       make(chan struct{}),
 		startCh:      make(chan struct{}, 1),
+		emptyCh:      make(chan struct{}, 1),
 
 		isEmpty:            true,
 		resubmitIntervalCh: make(chan time.Duration),
@@ -437,7 +439,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		for {
 			select {
 			case <-proofTimer.C:
-				log.Info("onlineproof Timer.C", "height", w.current.header.Number)
+				//log.Info("onlineproof Timer.C", "height", w.current.header.Number)
 				w.GossipOnlineProof(*proofTimer)
 			}
 		}
@@ -473,20 +475,37 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 		case <-timeoutTimer.C:
 			log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
-			w.cacheHeight = w.current.header.Number
-			w.isEmpty = true
-			sendMsgTimer.Reset(2 * time.Second)
-		case <-sendMsgTimer.C:
 			stakers := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 			w.cerytify.stakers = stakers
 			w.cacheHeight = w.current.header.Number
-			log.Info("sendMsgTimer", "height", w.current.header.Number, "cacheHeight:", w.cacheHeight, "time:", time.Now(), "cmp:", w.current.header.Number.Cmp(w.cacheHeight))
-			if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
-				w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
-				w.cacheHeight = w.current.header.Number
-			}
+			w.isEmpty = true
+			w.emptyCh <- struct{}{}
 			w.stop()
-			go w.cerytify.handleEvents()
+
+			go func() {
+				for {
+					sendMsgTimer.Reset(3 * time.Second)
+					select {
+					case <-sendMsgTimer.C:
+						log.Info("sendMsgTimer", "height", w.current.header.Number, "cacheHeight:", w.cacheHeight, "time:", time.Now(), "cmp:", w.current.header.Number.Cmp(w.cacheHeight))
+						if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
+							w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
+							w.cacheHeight = w.current.header.Number
+						}
+					}
+				}
+			}()
+		//case <-sendMsgTimer.C:
+		//	stakers := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+		//	w.cerytify.stakers = stakers
+		//	w.cacheHeight = w.current.header.Number
+		//	log.Info("sendMsgTimer", "height", w.current.header.Number, "cacheHeight:", w.cacheHeight, "time:", time.Now(), "cmp:", w.current.header.Number.Cmp(w.cacheHeight))
+		//	if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
+		//		w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
+		//		w.cacheHeight = w.current.header.Number
+		//	}
+		//	w.stop()
+		//	go w.cerytify.handleEvents()
 		case rs := <-w.cerytify.signatureResultCh:
 			log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
 			if rs.Cmp(w.targetSize()) > 0 {
@@ -706,7 +725,6 @@ func (w *worker) resultLoop() {
 		case block := <-w.resultCh:
 			// Short circuit when receiving empty result.
 			if block == nil {
-				log.Info("caver|resultLoop|block==nil", "block", block)
 				continue
 			}
 			// Short circuit when receiving duplicate result caused by resubmitting.
@@ -1373,7 +1391,6 @@ func (w *worker) CommitOnlineProofBlock() error {
 	}
 
 	log.Info("CommitOnlineProofBlock : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
-	var stopCh <-chan struct{}
 
 	parent := w.chain.CurrentBlock()
 
@@ -1404,7 +1421,7 @@ func (w *worker) CommitOnlineProofBlock() error {
 		return err
 	}
 
-	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, stopCh)
+	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, w.emptyCh)
 	if err != nil {
 		return err
 	}
