@@ -126,6 +126,11 @@ type Engine interface {
 
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error
+	// SealforEmptyBlock generates a new sealing request for the given input block
+	//
+	// Note, the method returns immediately and will send the result async. More
+	// than one result may also be returned depending on the consensus algorithm.
+	SealforEmptyBlock(chain ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error)
 
 	//
 	SealOnlineProofBlk(chain ChainHeaderReader, block *types.Block, results chan *types.OnlineValidatorList, stop <-chan struct{}) error

@@ -340,7 +340,8 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	)
 	if c, ok := chain.(*core.BlockChain); ok {
 		// reward to openExchangers
-		stakeList := c.ReadStakePool(c.CurrentBlock().Header())
+		//stakeList := c.ReadStakePool(c.CurrentBlock().Header())
+		stakeList := c.GetStakerPool()
 		for _, staker := range stakeList.Stakers {
 			addrBigInt = append(addrBigInt, staker.Addr.Hash().Big())
 		}

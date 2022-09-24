@@ -113,6 +113,10 @@ func (b *LesApiBackend) BlockByHash(ctx context.Context, hash common.Hash) (*typ
 	return b.eth.blockchain.GetBlockByHash(ctx, hash)
 }
 
+func (b *LesApiBackend) GetAllStakers(ctx context.Context) *types.StakerList {
+	return b.eth.blockchain.GetStakerPool()
+}
+
 func (b *LesApiBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return b.BlockByNumber(ctx, blockNr)

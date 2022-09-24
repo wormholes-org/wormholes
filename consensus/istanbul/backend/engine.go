@@ -161,7 +161,6 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	return sb.EngineForBlockNumber(header.Number).VerifySeal(chain, header, valSet)
 }
 
-
 // PrepareForEmptyBlock initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
@@ -182,7 +181,6 @@ func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, heade
 	}
 	return nil
 }
-
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
@@ -228,6 +226,9 @@ func (sb *Backend) Finalize(chain consensus.ChainHeaderReader, header *types.Hea
 // nor block rewards given, and returns the final block.
 func (sb *Backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	return sb.EngineForBlockNumber(header.Number).FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
+
+}
+
 // SealforEmptyBlock generates a new block for the given input block with the local miner's
 // seal place on top.
 func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error) {
