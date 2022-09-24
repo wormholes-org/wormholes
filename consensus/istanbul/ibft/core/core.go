@@ -440,3 +440,11 @@ func (c *core) RoundInfo() (roundInfo []string) {
 	roundInfo = append(roundInfo, rs.sequence.String())
 	return
 }
+
+func (c *core) OnlineProofSize(height *big.Int) int {
+	onlineProofs := c.onlineProofs[height.Uint64()]
+	if onlineProofs.messages == nil {
+		return 0
+	}
+	return len(onlineProofs.messages)
+}
