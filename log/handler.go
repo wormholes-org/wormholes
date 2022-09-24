@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"github.com/go-stack/stack"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -15,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/go-stack/stack"
 )
 
 // Handler defines where and how log records are written.
@@ -282,52 +283,22 @@ func MergeLog(path string, fmtr Format) Handler {
 	recs := make(chan *Record, 1024)
 	go func(rds chan *Record) {
 		var f *os.File
-		var current uint64
-		first := false
 		for {
 			select {
 			case record := <-rds:
 				num := record.BlockNumber
-				if num == 0 {
-					if len(filess) > 0 {
-						if !first {
-							filename := filess[0].Name()
-							current, _ = strconv.ParseUint(strings.Split(filename, ".")[0][5:], 10, 64)
-							f, _ = os.OpenFile(filepath.Join(logPath, filename), os.O_APPEND|os.O_RDWR, 0600)
-							_, err = f.Write(fmtr.Format(record))
-							if err != nil {
-								os.Stderr.Write(fmtr.Format(record))
-							}
-							first = true
-						} else {
-							_, err = f.Write(fmtr.Format(record))
-							if err != nil {
-								os.Stderr.Write(fmtr.Format(record))
-							}
-						}
-					} else {
-						if !first {
-							current = 0
-							f, _ = os.OpenFile(filepath.Join(logPath, "block0.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
-							_, err = f.Write(fmtr.Format(record))
-							if err != nil {
-								os.Stderr.Write(fmtr.Format(record))
-							}
-						} else {
-							_, err = f.Write(fmtr.Format(record))
-							if err != nil {
-								os.Stderr.Write(fmtr.Format(record))
-							}
-							first = true
-						}
+				if num == 0 && len(filess) > 0 {
+					filename := filess[0].Name()
+					f, _ = os.OpenFile(filepath.Join(logPath, filename), os.O_APPEND|os.O_RDWR, 0600)
+					_, err = f.Write(fmtr.Format(record))
+					f.Close()
+					if err != nil {
+						os.Stderr.Write(fmtr.Format(record))
 					}
 				} else {
-					if num > current {
-						f.Close()
-						f, _ = os.OpenFile(filepath.Join(logPath, "block"+strconv.FormatUint(num, 10))+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
-						current = num
-					}
+					f, _ = os.OpenFile(filepath.Join(logPath, "block"+strconv.FormatUint(num, 10))+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
 					_, err = f.Write(fmtr.Format(record))
+					f.Close()
 					if err != nil {
 						os.Stderr.Write(fmtr.Format(record))
 					}
