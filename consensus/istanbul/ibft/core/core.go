@@ -308,30 +308,27 @@ func (c *core) startNewRound(round *big.Int) {
 			}
 		}
 	} else {
-		c.setState(ibfttypes.StateAcceptOnlineProofRequest)
-		if roundChange && c.current != nil {
-			onlineProofMsgSet := c.onlineProofs[c.currentView().Sequence.Uint64()]
-			log.Info("ibftConsensus: start new round OnlineProofs roundChange",
-				"no", c.currentView().Sequence,
-				"round", c.current.round,
-				"online proof size", c.onlineProofs[c.currentView().Sequence.Uint64()].Size(),
-				"isproposer", c.IsProposer(),
-				"self", c.address.Hex(),
-			)
-			if onlineProofMsgSet != nil && c.IsProposer() && onlineProofMsgSet.Size() >= c.QuorumSize() {
-				log.Info("ibftConsensus: proposer set state", "no", c.currentView().Sequence, "request  len", c.pendingRequests.Size(), "self", c.address.Hex())
-
-				// proposer
-				// Set state to StateAcceptRequest
-				c.setState(ibfttypes.StateAcceptRequest)
-			} else if !c.IsProposer() && onlineProofMsgSet != nil {
-				log.Info("ibftConsensus: validator set state", "no", c.currentView().Sequence, "request  len", c.pendingRequests.Size(), "self", c.address.Hex())
-				// not validator
-				c.setState(ibfttypes.StateAcceptRequest)
+		onlineProofMsgSet := c.onlineProofs[c.currentView().Sequence.Uint64()]
+		if onlineProofMsgSet != nil && onlineProofMsgSet.Size() >= 7 {
+			c.setState(ibfttypes.StateAcceptRequest)
+			if roundChange && c.IsProposer() && c.current != nil {
+				// If it is locked, propose the old proposal
+				// If we have pending request, propose pending request
+				if c.current.IsHashLocked() {
+					log.Info("ibftConsensus: startNewRound  c.current.IsHashLocked()", "no", c.current.Proposal().Number().Uint64(), "self", c.address.Hex())
+					r := &istanbul.Request{
+						Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
+					}
+					c.sendPreprepare(r)
+				} else if c.current.pendingRequest != nil {
+					log.Info("ibftConsensus: startNewRound c.current.pendingRequest != nil", "no", c.current.pendingRequest.Proposal.Number(), "self", c.address.Hex())
+					c.sendPreprepare(c.current.pendingRequest)
+				}
 			}
-		} else if c.current.pendingOnlineProofRequest != nil {
-			log.Info("ibftConsensus: startNewRound sendOnlineProof", "no", c.currentView().Sequence, "request  len", c.pendingRequests.Size(), "self", c.address.Hex())
-			c.sendOnlineProof(c.current.pendingOnlineProofRequest)
+		} else {
+			if roundChange && c.current != nil {
+				c.setState(ibfttypes.StateAcceptOnlineProofRequest)
+			}
 		}
 	}
 	c.newRoundChangeTimer()
