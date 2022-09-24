@@ -3,7 +3,9 @@ package log
 import (
 	"fmt"
 	"os"
+	"path"
 	"reflect"
+	"runtime"
 	"time"
 
 	"github.com/go-stack/stack"
@@ -166,26 +168,32 @@ func newContext(prefix []interface{}, suffix []interface{}) []interface{} {
 }
 
 func (l *logger) Trace(msg string, ctx ...interface{}) {
+	msg = getCallerInfo() + msg
 	l.write(msg, LvlTrace, ctx, skipLevel)
 }
 
 func (l *logger) Debug(msg string, ctx ...interface{}) {
+	msg = getCallerInfo() + msg
 	l.write(msg, LvlDebug, ctx, skipLevel)
 }
 
 func (l *logger) Info(msg string, ctx ...interface{}) {
+	msg = getCallerInfo() + msg
 	l.write(msg, LvlInfo, ctx, skipLevel)
 }
 
 func (l *logger) Warn(msg string, ctx ...interface{}) {
+	msg = getCallerInfo() + msg
 	l.write(msg, LvlWarn, ctx, skipLevel)
 }
 
 func (l *logger) Error(msg string, ctx ...interface{}) {
+	msg = getCallerInfo() + msg
 	l.write(msg, LvlError, ctx, skipLevel)
 }
 
 func (l *logger) Crit(msg string, ctx ...interface{}) {
+	msg = getCallerInfo() + msg
 	l.write(msg, LvlCrit, ctx, skipLevel)
 	os.Exit(1)
 }
@@ -258,4 +266,14 @@ func (c Ctx) toArray() []interface{} {
 	}
 
 	return arr
+}
+
+func getCallerInfo() string {
+	pc, file, _, ok := runtime.Caller(2)
+	if !ok {
+		return "runtime.Caller() failed"
+	}
+	funcName := path.Base(runtime.FuncForPC(pc).Name())
+	fileName := path.Base(file) // Base函数返回路径的最后一个元素
+	return fmt.Sprintf("%s %s ", fileName, funcName)
 }

@@ -2,19 +2,19 @@ package log
 
 import (
 	"fmt"
+	"github.com/go-stack/stack"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
-
-	"github.com/go-stack/stack"
 )
 
 // Handler defines where and how log records are written.
@@ -97,104 +97,6 @@ type closingHandler struct {
 
 func (h *closingHandler) Close() error {
 	return h.WriteCloser.Close()
-}
-
-const (
-	LOGPATH   = "logs"
-	DEFERTIME = time.Second * 20
-)
-
-// countingWriter wraps a WriteCloser object in order to count the written bytes.
-type countingWriter struct {
-	w           io.WriteCloser // the wrapped object
-	blockNumber uint64         // number of bytes written
-	closed      bool
-}
-
-// Write increments the byte counter by the number of bytes written.
-// Implements the WriteCloser interface.
-func (w *countingWriter) Write(p []byte) (n int, err error) {
-	// return w.w.Write(p)
-	stdr, _ := os.OpenFile(filepath.Join(LOGPATH, "unknown.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
-	if w.closed {
-		return stdr.Write(p)
-	}
-	n, err = w.w.Write(p)
-	if err != nil {
-		return stdr.Write(p)
-	} else {
-		return n, err
-	}
-
-}
-
-// Close implements the WriteCloser interface.
-func (w *countingWriter) Close() error {
-	return w.w.Close()
-}
-
-func RotatingFileHandler(datadir string, formatter Format) (Handler, error) {
-	logPath := filepath.Join(datadir, LOGPATH)
-	if err := os.MkdirAll(logPath, 0700); err != nil {
-		return nil, err
-	}
-	files, err := ioutil.ReadDir(logPath)
-	if err != nil {
-		return nil, err
-	}
-	re := regexp.MustCompile(`^block\d+\.log$`)
-	last := len(files) - 1
-	for last >= 0 && (!files[last].Mode().IsRegular() || !re.MatchString(files[last].Name())) {
-		last--
-	}
-	var counter *countingWriter
-
-	if last >= 0 {
-		f, err := os.OpenFile(filepath.Join(logPath, files[last].Name()), os.O_RDWR|os.O_APPEND, 0600)
-		if err != nil {
-			return nil, err
-		}
-		num := strings.Split(strings.Split(files[last].Name(), ".")[0], "block")[1]
-		blockNumber, err1 := strconv.ParseUint(num, 10, 64)
-		if err1 != nil {
-			return nil, err
-		}
-		lastCounter := &countingWriter{
-			f,
-			blockNumber,
-			false,
-		}
-		counter = lastCounter
-	}
-	if counter == nil {
-		counter = new(countingWriter)
-	}
-	h := StreamHandler(counter, formatter)
-
-	return FuncHandler(func(r *Record) error {
-		if counter.w != nil {
-			if !counter.closed && r.BlockNumber != counter.blockNumber {
-				counter.Close()
-				counter.closed = true
-				counter.w = nil
-			}
-		}
-
-		if counter.w == nil {
-			f, err1 := os.OpenFile(
-				filepath.Join(logPath, fmt.Sprintf("block%d.log", r.BlockNumber)),
-				os.O_CREATE|os.O_APPEND|os.O_WRONLY,
-				0600,
-			)
-			if err1 != nil {
-				return err
-			}
-			counter.w = f
-			counter.closed = false
-			counter.blockNumber = r.BlockNumber
-		}
-		return h.Log(r)
-	}), nil
 }
 
 // CallerFileHandler returns a Handler that adds the line number and file of
@@ -344,6 +246,96 @@ func FailoverHandler(hs ...Handler) Handler {
 
 		return err
 	})
+}
+
+type logFile []fs.FileInfo
+
+func (f logFile) Len() int {
+	return len(f)
+}
+
+func (f logFile) Less(i, j int) bool {
+	ii, _ := strconv.ParseUint(strings.Split(f[i].Name(), ".")[0][5:], 10, 64)
+	ij, _ := strconv.ParseUint(strings.Split(f[j].Name(), ".")[0][5:], 10, 64)
+	return ii > ij
+}
+
+func (f logFile) Swap(i, j int) {
+	f[i], f[j] = f[j], f[i]
+}
+
+func MergeLog(path string, fmtr Format) Handler {
+	logPath := filepath.Join(path, "logs")
+	files, err := ioutil.ReadDir(logPath)
+	var filess logFile
+	if err == nil {
+		re := regexp.MustCompile(`^block\d+\.log$`)
+		for _, file := range files {
+			if re.MatchString(file.Name()) {
+				filess = append(filess, file)
+			}
+		}
+		sort.Sort(filess)
+	} else {
+		os.MkdirAll(logPath, 0700)
+	}
+	recs := make(chan *Record, 1024)
+	go func(rds chan *Record) {
+		var f *os.File
+		var current uint64
+		first := false
+		for {
+			select {
+			case record := <-rds:
+				num := record.BlockNumber
+				if num == 0 {
+					if len(filess) > 0 {
+						if !first {
+							filename := filess[0].Name()
+							current, _ = strconv.ParseUint(strings.Split(filename, ".")[0][5:], 10, 64)
+							f, _ = os.OpenFile(filepath.Join(logPath, filename), os.O_APPEND|os.O_RDWR, 0600)
+							_, err = f.Write(fmtr.Format(record))
+							if err != nil {
+								os.Stderr.Write(fmtr.Format(record))
+							}
+							first = true
+						} else {
+							_, err = f.Write(fmtr.Format(record))
+							if err != nil {
+								os.Stderr.Write(fmtr.Format(record))
+							}
+						}
+					} else {
+						if !first {
+							current = 0
+							f, _ = os.OpenFile(filepath.Join(logPath, "block0.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+							_, err = f.Write(fmtr.Format(record))
+							if err != nil {
+								os.Stderr.Write(fmtr.Format(record))
+							}
+						} else {
+							_, err = f.Write(fmtr.Format(record))
+							if err != nil {
+								os.Stderr.Write(fmtr.Format(record))
+							}
+							first = true
+						}
+					}
+				} else {
+					if num > current {
+						f.Close()
+						f, _ = os.OpenFile(filepath.Join(logPath, "block"+strconv.FormatUint(num, 10))+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+						current = num
+					}
+					_, err = f.Write(fmtr.Format(record))
+					if err != nil {
+						os.Stderr.Write(fmtr.Format(record))
+					}
+				}
+			}
+		}
+	}(recs)
+	return ChannelHandler(recs)
 }
 
 // ChannelHandler writes all records to the given channel.
