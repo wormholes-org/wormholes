@@ -291,7 +291,8 @@ func (c *core) startNewRound(round *big.Int) {
 
 	c.waitingForRoundChange = false
 
-	if c.currentView().Sequence.Uint64() == 1 {
+	onlineProofMsgSet := c.onlineProofs[c.currentView().Sequence.Uint64()]
+	if onlineProofMsgSet != nil && onlineProofMsgSet.Size() >= 7 {
 		c.setState(ibfttypes.StateAcceptRequest)
 		if roundChange && c.IsProposer() && c.current != nil {
 			// If it is locked, propose the old proposal
@@ -308,27 +309,8 @@ func (c *core) startNewRound(round *big.Int) {
 			}
 		}
 	} else {
-		onlineProofMsgSet := c.onlineProofs[c.currentView().Sequence.Uint64()]
-		if onlineProofMsgSet != nil && onlineProofMsgSet.Size() >= 7 {
-			c.setState(ibfttypes.StateAcceptRequest)
-			if roundChange && c.IsProposer() && c.current != nil {
-				// If it is locked, propose the old proposal
-				// If we have pending request, propose pending request
-				if c.current.IsHashLocked() {
-					log.Info("ibftConsensus: startNewRound  c.current.IsHashLocked()", "no", c.current.Proposal().Number().Uint64(), "self", c.address.Hex())
-					r := &istanbul.Request{
-						Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
-					}
-					c.sendPreprepare(r)
-				} else if c.current.pendingRequest != nil {
-					log.Info("ibftConsensus: startNewRound c.current.pendingRequest != nil", "no", c.current.pendingRequest.Proposal.Number(), "self", c.address.Hex())
-					c.sendPreprepare(c.current.pendingRequest)
-				}
-			}
-		} else {
-			if roundChange && c.current != nil {
-				c.setState(ibfttypes.StateAcceptOnlineProofRequest)
-			}
+		if roundChange && c.current != nil {
+			c.setState(ibfttypes.StateAcceptOnlineProofRequest)
 		}
 	}
 	c.newRoundChangeTimer()

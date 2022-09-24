@@ -1063,11 +1063,13 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		// represent  onlineValidator length
 		w.extra = append(w.extra, lengthToBytes...)
 		w.extra = append(w.extra, onlineValidatorsEnc...)
-	} else {
-		log.Error("commitNewWork : err onlineValidator info", "w.onlineValidators != nil", w.onlineValidators != nil,
-			"len", len(w.onlineValidators.Validators), "onlineValidators.Height", w.onlineValidators.Height, "no", header.Number)
-		return
 	}
+
+	// else {
+	// 	log.Error("commitNewWork : err onlineValidator info", "w.onlineValidators != nil", w.onlineValidators != nil,
+	// 		"len", len(w.onlineValidators.Validators), "onlineValidators.Height", w.onlineValidators.Height, "no", header.Number)
+	// 	return
+	// }
 
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
 	if w.isRunning() {
