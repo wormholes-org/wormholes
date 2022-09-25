@@ -690,18 +690,11 @@ func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Addr
 	elevenAddrs, err := chain.Random11ValidatorFromPool(header)
 	online7 := make(map[common.Address]bool)
 	coinbase := chain.Coinbase()
+
 	var reward7 []common.Address
-	chain.Engine()
+
 	if err != nil {
 		return nil, err
-	}
-	for _, v := range totalValidators.Validators {
-		if v.Addr == coinbase {
-			if v.Proxy.Hex() != "0x0000000000000000000000000000000000000000" {
-				coinbase = v.Proxy
-			}
-			break
-		}
 	}
 	for _, v := range elevenAddrs.Validators {
 		validator11[v.Addr] = true
@@ -710,9 +703,6 @@ func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Addr
 		if _, ok := validator11[v]; ok {
 			online7[v] = true
 		}
-		if len(online7) >= 7 {
-			break
-		}
 	}
 
 	for _, v := range onlineValidators {
@@ -720,18 +710,29 @@ func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Addr
 			delete(online7, v)
 		}
 	}
-	if _, ok := validator11[coinbase]; ok {
-		if _, ok1 := online7[coinbase]; !ok1 {
-			online7[coinbase] = true
+	final7 := make(map[common.Address]bool)
+	if len(online7) >= 7 {
+		for k, _ := range online7 {
+			final7[k] = true
+			if len(final7) >= 6 {
+				if _, ok := validator11[coinbase]; ok {
+					if _, ok1 := final7[coinbase]; !ok1 {
+						final7[coinbase] = true
+					}
+				}
+			}
+			if len(final7) >= 7 {
+				break
+			}
 		}
 	}
 
-	if len(online7) == 7 {
-		for k, _ := range online7 {
+	if len(final7) == 7 {
+		for k, _ := range final7 {
 			reward7 = append(reward7, k)
 		}
 		return reward7, nil
-	} else if len(online7) > 7 {
+	} else if len(final7) > 7 {
 		log.Error("reward7s > 7", "len", len(reward7))
 	} else {
 		log.Info("reward7s < 7", "len", len(reward7))
