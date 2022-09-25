@@ -334,16 +334,6 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 
 		// // reward to miner
 		// validatorAddr = append(validatorAddr, header.Coinbase)
-		isexsit := false
-		for _, v := range onlineValidators {
-			if v.Hex() == header.Coinbase.Hex() {
-				isexsit = true
-				break
-			}
-		}
-		if !isexsit {
-			onlineValidators = append(onlineValidators, header.Coinbase)
-		}
 
 		rewardToValidators, err := PickRewardValidators(c, onlineValidators)
 		if err != nil {
@@ -694,6 +684,20 @@ func BytesToInt(bys []byte) int {
 }
 
 func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Address) ([]common.Address, error) {
+	// total validators
+	totalValidators := chain.ReadValidatorPool(chain.CurrentHeader())
+	header := chain.CurrentHeader()
+	isExsit := false
+	for _, v := range onlineValidators {
+		proxy, _ := totalValidators.GetProxy(v)
+		if header.Coinbase.Hex() == v.Hex() || header.Coinbase.Hex() == proxy.Hex() {
+			isExsit = true
+			break
+		}
+	}
+	if !isExsit {
+		onlineValidators = append(onlineValidators, header.Coinbase)
+	}
 	var rewardAddrs []common.Address
 	elevenAddrs := make(map[common.Address]struct{})
 
@@ -707,30 +711,50 @@ func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Addr
 		elevenAddrs[v.Addr] = struct{}{}
 	}
 
-	// reward to onlineValidators
+	// Remove online listings that are not among 11 people
+	var invalidAddr []common.Address
+	for _, v := range validatorList.Validators {
+		for _, o := range onlineValidators {
+			if o != v.Addr && o != v.Proxy {
+				invalidAddr = append(invalidAddr, o)
+			}
+		}
+	}
+
+	log.Info("invalid addr ", "no", header.Number.Uint64(), invalidAddr)
+
 	for _, v := range onlineValidators {
 		rewardAddrs = append(rewardAddrs, v)
 		delete(elevenAddrs, v)
+
+		// If it is a proxy address delete
+		if proxy, isExsist := totalValidators.GetProxy(v); isExsist {
+			delete(elevenAddrs, proxy)
+		}
 		if len(rewardAddrs) >= 7 {
 			return rewardAddrs, nil
 		}
 	}
 
-	// total validators
-	totalValidators := chain.ReadValidatorPool(chain.CurrentHeader())
-
 	for _, v := range totalValidators.Validators {
 		if len(rewardAddrs) >= 7 {
 			break
 		}
+
 		if _, ok := elevenAddrs[v.Addr]; ok {
 			rewardAddrs = append(rewardAddrs, v.Addr)
+			delete(elevenAddrs, v.Addr)
 		}
+		if _, ok := elevenAddrs[v.Proxy]; ok {
+			rewardAddrs = append(rewardAddrs, v.Proxy)
+			delete(elevenAddrs, v.Proxy)
+		}
+
 	}
 	if len(elevenAddrs) != 4 {
-		log.Error("PickRewardValidators : err", "len", len(elevenAddrs))
+		log.Error("PickRewardValidators : err", "len", len(elevenAddrs), "no", header.Number.Uint64()+1)
 	}
 
-	log.Info("PickRewardValidators", "no", chain.CurrentHeader().Number.Uint64()+1, "validators", rewardAddrs)
+	log.Info("PickRewardValidators", "no", header.Number.Uint64()+1, "validators", rewardAddrs, "len", len(rewardAddrs))
 	return rewardAddrs, nil
 }
