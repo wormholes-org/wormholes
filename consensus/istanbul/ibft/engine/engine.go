@@ -34,15 +34,17 @@ type SignerFn func(data []byte) ([]byte, error)
 type Engine struct {
 	cfg *istanbul.Config
 
-	signer common.Address // Ethereum address of the signing key
-	sign   SignerFn       // Signer function to authorize hashes with
+	signer  common.Address // Ethereum address of the signing key
+	sign    SignerFn       // Signer function to authorize hashes with
+	backend istanbul.Backend
 }
 
-func NewEngine(cfg *istanbul.Config, signer common.Address, sign SignerFn) *Engine {
+func NewEngine(cfg *istanbul.Config, signer common.Address, sign SignerFn, backend istanbul.Backend) *Engine {
 	return &Engine{
-		cfg:    cfg,
-		signer: signer,
-		sign:   sign,
+		cfg:     cfg,
+		signer:  signer,
+		sign:    sign,
+		backend: backend,
 	}
 }
 
@@ -284,6 +286,18 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+	var onlineValidators []common.Address
+	ibftCore := e.backend.GetCore()
+	if ibftCore != nil {
+		vals := ibftCore.GetOnlineValidators()
+		if _, ok := vals[header.Number.Uint64()]; ok {
+			for _, v := range vals[header.Number.Uint64()].Validators {
+				log.Info("Prepare: onlineValidators", "no", header.Number, "onlineValidators", v.Address.Hex())
+				onlineValidators = append(onlineValidators, v.Address)
+			}
+		}
+	}
+
 	header.Nonce = istanbulcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
 
@@ -292,22 +306,6 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	parent := chain.GetHeader(header.ParentHash, number-1)
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
-	}
-
-	onlineValidatorList := new(types.OnlineValidatorList)
-	// TODO  parse extraData
-	if len(header.Extra) > 32 && header.Number.Uint64() > 1 {
-		// get length of  onlineValidator
-		lengthBytes := header.Extra[32:36]
-		len := BytesToInt(lengthBytes)
-		data := header.Extra[36 : 36+len]
-
-		if err := onlineValidatorList.Decode(data); err != nil {
-			return err
-		}
-		for _, v := range onlineValidatorList.Validators {
-			log.Info("Prepare : online validator", "addr", v.Address.Hex(), "hash", v.Hash.Hex(), "height", v.Height)
-		}
 	}
 
 	// use the same difficulty for all blocks
@@ -326,24 +324,32 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		benifitedStakers := stakeList.ValidatorByDistanceAndWeight(addrBigInt, 4, c.CurrentBlock().Header().Hash())
 		exchangerAddr = append(exchangerAddr, benifitedStakers...)
 
-		if header.Number.Uint64() == 1 {
-			//reward to validators
-			validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock())
-			if err != nil {
-				return err
-			}
-			benifitedValidators := c.RandomNValidatorFromEleven(6, validatorList, c.CurrentBlock().Header().Hash())
-			validatorAddr = append(validatorAddr, benifitedValidators...)
+		// reward to validators
+		// validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
+		// if err != nil {
+		// 	return err
+		// }
+		// benifitedValidators := c.RandomNValidatorFromEleven(6, validatorList, c.CurrentBlock().Header().Hash())
+		// validatorAddr = append(validatorAddr, benifitedValidators...)
 
-			// reward to miner
-			validatorAddr = append(validatorAddr, header.Coinbase)
-		} else {
-			// reward to validators
-			for _, v := range onlineValidatorList.Validators {
-				log.Info("Prepare : reward to online validators", "height", header.Number.Uint64(), "addr", v.Address.Hex(), "hash", v.Hash.Hex())
-				validatorAddr = append(validatorAddr, v.Address)
+		// // reward to miner
+		// validatorAddr = append(validatorAddr, header.Coinbase)
+		isexsit := false
+		for _, v := range onlineValidators {
+			if v.Hex() == header.Coinbase.Hex() {
+				isexsit = true
+				break
 			}
 		}
+		if !isexsit {
+			onlineValidators = append(onlineValidators, header.Coinbase)
+		}
+
+		rewardToValidators, err := PickRewardValidators(c, onlineValidators)
+		if err != nil {
+			return err
+		}
+		validatorAddr = append(validatorAddr, rewardToValidators...)
 
 		//new&update  at 20220523
 		validatorPool := c.ReadValidatorPool(c.CurrentBlock().Header())
@@ -364,22 +370,8 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			}
 		}
 	}
-
-	//TODO write random hash number to extra
-	// var randomHash common.Hash
-	// var writeBuffer bytes.Buffer
-	// if decodeErr == nil && len(onlineValidators.Hashs) > 0 {
-	// 	for _, h := range onlineValidators.Hashs {
-	// 		writeBuffer.WriteString(h.Hex())
-	// 	}
-	// 	randomHash = common.HexToHash(common.Bytes2Hex(writeBuffer.Bytes()))
-	// } else {
-	// 	randomHash = common.Hash{}
-	// }
-	randomHash := common.Hash{}
-
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtraExt(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, randomHash)
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr)
 	if err != nil {
 		return err
 	}
@@ -394,76 +386,77 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	return nil
 }
 
+func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address) ([]byte, error) {
+	var buf bytes.Buffer
+
+	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
+	if len(header.Extra) < types.IstanbulExtraVanity {
+		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
+	}
+	buf.Write(header.Extra[:types.IstanbulExtraVanity])
+
+	ist := &types.IstanbulExtra{
+		Validators:    vals,
+		Seal:          []byte{},
+		CommittedSeal: [][]byte{},
+		ExchangerAddr: exchangerAddr,
+		ValidatorAddr: validatorAddr,
+	}
+
+	payload, err := rlp.EncodeToBytes(&ist)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(buf.Bytes(), payload...), nil
+}
+
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
 // and assembles the final block.
 //
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	// Prepare staker address
+	// Prepare reward address
 	istanbulExtra, err := types.ExtractIstanbulExtra(header)
 	if err != nil {
-		log.Error("Finalize : ExtractIstanbulExtra err", "err", err)
 		return
 	}
 
-	// prepare validator address
-	onlinevalidatorList, err := types.ExtractOnlineValidatorList(header)
-	if err != nil {
-		log.Error("Finalize : ExtractOnlineValidatorList err", "err", err, "height", header.Number)
-		return
-	}
-
-	var validators []common.Address
-	for _, v := range onlinevalidatorList.Validators {
-		validators = append(validators, v.Address)
-	}
-
-	if len(validators) != 0 {
-		state.CreateNFTByOfficial16(validators, istanbulExtra.ExchangerAddr, header.Number)
-	} else {
-		state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
-	}
+	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-	//header.UncleHash = nilUncleHash
+	header.UncleHash = nilUncleHash
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	// Prepare staker address
+	// ibftCore := e.backend.GetCore()
+	// if ibftCore != nil {
+	// 	onlineValidators := ibftCore.GetOnlineValidators()
+	// 	if _, ok := onlineValidators[header.Number.Uint64()]; ok {
+	// 		for _, v := range onlineValidators[header.Number.Uint64()].Validators {
+	// 			log.Info("FinalizeAndAssemble: onlineValidators", "no", header.Number, "onlineValidators", v.Address.Hex())
+	// 		}
+	// 	}
+	// }
+
+	// Prepare reward address
 	istanbulExtra, err := types.ExtractIstanbulExtra(header)
 	if err != nil {
-		log.Error("FinalizeAndAssemble : ExtractIstanbulExtra err", "err", err)
 		return nil, err
 	}
 
-	// prepare validator address
-	onlinevalidatorList, err := types.ExtractOnlineValidatorList(header)
-	if err != nil {
-		log.Error("FinalizeAndAssemble : ExtractOnlineValidatorList err", "coinbase", header.Coinbase.Hex(), "err", err, "height", header.Number.Uint64())
-		return nil, err
-	}
-
-	var validators []common.Address
-	for _, v := range onlinevalidatorList.Validators {
-		validators = append(validators, v.Address)
-	}
-
-	if len(validators) != 0 {
-		state.CreateNFTByOfficial16(validators, istanbulExtra.ExchangerAddr, header.Number)
-	} else {
-		state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
-	}
+	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-	//header.UncleHash = nilUncleHash
+	header.UncleHash = nilUncleHash
 
 	// Assemble and return the final block for sealing
-	return types.NewBlock(header, txs, uncles, receipts, new(trie.Trie)), nil
+	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
 }
 
 func (e *Engine) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
@@ -533,15 +526,7 @@ func writeSeal(h *types.Header, seal []byte) error {
 		return err
 	}
 
-	if h.Number.Uint64() == 1 {
-		h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
-	} else {
-		lengthBytes := h.Extra[32:36]
-		length := BytesToInt(lengthBytes)
-
-		h.Extra = append(h.Extra[:36+length], payload...)
-	}
-
+	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
 	return nil
 }
 
@@ -627,81 +612,6 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	return hash
 }
 
-// prepareExtra returns a extra-data of the given header and validators
-// func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address, randomHash common.Hash) ([]byte, error) {
-// 	var buf bytes.Buffer
-
-// 	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
-// 	if len(header.Extra) < types.IstanbulExtraVanity {
-// 		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
-// 	}
-// 	buf.Write(header.Extra[:types.IstanbulExtraVanity])
-
-// 	ist := &types.IstanbulExtra{
-// 		Validators:    vals,
-// 		Seal:          []byte{},
-// 		CommittedSeal: [][]byte{},
-// 		ExchangerAddr: exchangerAddr,
-// 		ValidatorAddr: validatorAddr,
-// 		RandomHash:    randomHash,
-// 	}
-
-// 	payload, err := rlp.EncodeToBytes(&ist)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return append(buf.Bytes(), payload...), nil
-// }
-
-func prepareExtraExt(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address, randomHash common.Hash) ([]byte, error) {
-	var buf bytes.Buffer
-	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
-	if len(header.Extra) < types.IstanbulExtraVanity {
-		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
-	}
-
-	if header.Number.Uint64() == 1 {
-		buf.Write(header.Extra[:types.IstanbulExtraVanity])
-
-		ist := &types.IstanbulExtra{
-			Validators:    vals,
-			Seal:          []byte{},
-			CommittedSeal: [][]byte{},
-			ExchangerAddr: exchangerAddr,
-			ValidatorAddr: validatorAddr,
-			RandomHash:    randomHash,
-		}
-
-		payload, err := rlp.EncodeToBytes(&ist)
-		if err != nil {
-			return nil, err
-		}
-
-		return append(buf.Bytes(), payload...), nil
-	}
-
-	lengthBytes := header.Extra[32:36]
-	length := BytesToInt(lengthBytes)
-	buf.Write(header.Extra[:36+length])
-
-	ist := &types.IstanbulExtra{
-		Validators:    vals,
-		Seal:          []byte{},
-		CommittedSeal: [][]byte{},
-		ExchangerAddr: exchangerAddr,
-		ValidatorAddr: validatorAddr,
-		RandomHash:    randomHash,
-	}
-
-	payload, err := rlp.EncodeToBytes(&ist)
-	if err != nil {
-		return nil, err
-	}
-
-	return append(buf.Bytes(), payload...), nil
-}
-
 func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 	if len(committedSeals) == 0 {
 		return istanbulcommon.ErrInvalidCommittedSeals
@@ -725,15 +635,8 @@ func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 	if err != nil {
 		return err
 	}
-	if h.Number.Uint64() == 1 {
-		h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
-	} else {
-		lengthBytes := h.Extra[32:36]
-		length := BytesToInt(lengthBytes)
 
-		h.Extra = append(h.Extra[:36+length], payload...)
-	}
-
+	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
 	return nil
 }
 
@@ -788,4 +691,46 @@ func BytesToInt(bys []byte) int {
 	var data int32
 	binary.Read(bytebuff, binary.BigEndian, &data)
 	return int(data)
+}
+
+func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Address) ([]common.Address, error) {
+	var rewardAddrs []common.Address
+	elevenAddrs := make(map[common.Address]struct{})
+
+	// pick 11 validators
+	validatorList, err := chain.Random11ValidatorFromPool(chain.CurrentBlock().Header())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range validatorList.Validators {
+		elevenAddrs[v.Addr] = struct{}{}
+	}
+
+	// reward to onlineValidators
+	for _, v := range onlineValidators {
+		rewardAddrs = append(rewardAddrs, v)
+		delete(elevenAddrs, v)
+		if len(rewardAddrs) >= 7 {
+			return rewardAddrs, nil
+		}
+	}
+
+	// total validators
+	totalValidators := chain.ReadValidatorPool(chain.CurrentHeader())
+
+	for _, v := range totalValidators.Validators {
+		if len(rewardAddrs) >= 7 {
+			break
+		}
+		if _, ok := elevenAddrs[v.Addr]; ok {
+			rewardAddrs = append(rewardAddrs, v.Addr)
+		}
+	}
+	if len(elevenAddrs) != 4 {
+		log.Error("PickRewardValidators : err", "len", len(elevenAddrs))
+	}
+
+	log.Info("PickRewardValidators", "no", chain.CurrentHeader().Number.Uint64()+1, "validators", rewardAddrs)
+	return rewardAddrs, nil
 }

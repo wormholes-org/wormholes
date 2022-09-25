@@ -70,7 +70,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 	}
 
 	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
-	sb.ibftEngine = ibftengine.NewEngine(sb.config, sb.address, sb.Sign)
+	sb.ibftEngine = ibftengine.NewEngine(sb.config, sb.address, sb.Sign, sb)
 
 	return sb
 }
@@ -278,7 +278,7 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	header := block.Header()
 	var valSet istanbul.ValidatorSet
 	if c, ok := sb.chain.(*core.BlockChain); ok {
-		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock())
+		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
 		for _, v := range validatorList.Validators {
 			log.Info("Backend|Verify", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
 		}
@@ -341,7 +341,7 @@ func (sb *Backend) ParentValidators(proposal istanbul.Proposal) istanbul.Validat
 func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
 	var valSet istanbul.ValidatorSet
 	if c, ok := sb.chain.(*core.BlockChain); ok {
-		validatorList, err := c.Random11ValidatorFromPool(c.GetBlockByHash(hash))
+		validatorList, err := c.Random11ValidatorFromPool(c.GetHeaderByHash(hash))
 		for _, v := range validatorList.Validators {
 			log.Info("Backend: getValidators", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v.Addr.Hex())
 		}
@@ -457,4 +457,8 @@ func (sb *Backend) StartQBFTConsensus() error {
 
 func (sb *Backend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
 	sb.notifyBlockCh <- onlineValidators
+}
+
+func (sb *Backend) GetCore() istanbul.Core {
+	return sb.core
 }

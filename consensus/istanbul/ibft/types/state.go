@@ -3,17 +3,14 @@ package ibfttypes
 type State uint64
 
 const (
-	StateAcceptOnlineProofRequest State = iota
-	StateAcceptRequest
+	StateAcceptRequest State = iota
 	StatePreprepared
 	StatePrepared
 	StateCommitted
 )
 
 func (s State) String() string {
-	if s == StateAcceptOnlineProofRequest {
-		return "Accept online proof request"
-	} else if s == StateAcceptRequest {
+	if s == StateAcceptRequest {
 		return "Accept request"
 	} else if s == StatePreprepared {
 		return "Preprepared"

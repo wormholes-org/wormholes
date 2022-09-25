@@ -77,14 +77,6 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 		return nil
 	}
 
-	if c.state == ibfttypes.StateAcceptOnlineProofRequest {
-		if msgCode > ibfttypes.MsgOnlineProof {
-			log.Error("checkMessage : MsgOnlineProof")
-			return istanbulcommon.ErrFutureMessage
-		}
-		return nil
-	}
-
 	// For states(StatePreprepared, StatePrepared, StateCommitted),
 	// can accept all message types if processing with same view
 	return nil

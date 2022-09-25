@@ -138,7 +138,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
-		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock())
+		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
 		for _, v := range validatorList.Validators {
 			log.Info("Backend|VerifySeal", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
 		}
@@ -163,7 +163,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 
 		log.Info("Prepare : info", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number)
 
-		validatorList, err := c.Random11ValidatorFromPool(cBlk)
+		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
 		if err != nil {
 			return err
 		}
@@ -601,7 +601,7 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 		log.Info("SealOnlineProofBlk : calculate valset")
 
 		cBlk := c.CurrentBlock()
-		validatorList, err := c.Random11ValidatorFromPool(cBlk)
+		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
 		log.Info("SealOnlineProofBlk : len", "len", len(validatorList.Validators), "no", header.Number.Uint64())
 		if err != nil {
 			log.Error("SealOnlineProofBlk : err", "err", err.Error(), "no", header.Number.Uint64())
@@ -660,20 +660,12 @@ func (sb *Backend) GossipOnlineProof(chain consensus.ChainHeaderReader, block *t
 		return errors.New("GossipOnlineProof : ibft engine not active !")
 	}
 
-	//Get the validatorset for this round
-	// istanbulExtra, err := types.ExtractIstanbulExtra(header)
-	// if err != nil {
-	// 	log.Error("SealOnlineProofBlk  : istanbulExtra", "err", err.Error())
-	// 	return err
-	// }
-
-	// valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
 	var valset istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
 		log.Info("GossipOnlineProof : calculate valset")
 
 		cBlk := c.CurrentBlock()
-		validatorList, err := c.Random11ValidatorFromPool(cBlk)
+		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
 		log.Info("GossipOnlineProof : len", "len", len(validatorList.Validators), "no", header.Number.Uint64())
 		if err != nil {
 			log.Error("GossipOnlineProof : err", "err", err.Error(), "no", header.Number.Uint64())

@@ -85,4 +85,6 @@ type Backend interface {
 
 	// Notify miners to submit blocks
 	NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList)
+
+	GetCore() Core
 }

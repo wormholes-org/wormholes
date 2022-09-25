@@ -22,46 +22,44 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 		"self", c.address.Hex(),
 	)
 
-	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
-		curView := c.currentView()
-		onlineProof := &istanbul.OnlineProof{
-			View:       curView,
-			Proposal:   request.Proposal,
-			RandomHash: request.RandomHash,
-		}
-
-		// sign data total byte: 8 + 32
-		buffer := new(buffer.Buffer)
-		buffer.AppendUint((curView.Sequence.Uint64()))
-		for _, B := range request.RandomHash.Bytes() {
-			buffer.AppendByte(B)
-		}
-
-		signature, err := c.backend.Sign((buffer.Bytes()))
-		if err != nil {
-			return
-		}
-
-		onlineProof.Signature = signature
-
-		onlineProofEnc, err := ibfttypes.Encode(&onlineProof)
-
-		if err != nil {
-			log.Error("Failed to encode", "view", curView)
-			return
-		}
-
-		log.Info("ibftConsensus: sendOnlineProof broadcast",
-			"no", request.Proposal.Number(),
-			"round", curView.Round,
-			"self", c.address.Hex(),
-			"hash", request.Proposal.Hash().Hex())
-
-		c.broadcast(&ibfttypes.Message{
-			Code: ibfttypes.MsgOnlineProof,
-			Msg:  onlineProofEnc,
-		})
+	curView := c.currentView()
+	onlineProof := &istanbul.OnlineProof{
+		View:       curView,
+		Proposal:   request.Proposal,
+		RandomHash: request.RandomHash,
 	}
+
+	// sign data total byte: 8 + 32
+	buffer := new(buffer.Buffer)
+	buffer.AppendUint((curView.Sequence.Uint64()))
+	for _, B := range request.RandomHash.Bytes() {
+		buffer.AppendByte(B)
+	}
+
+	signature, err := c.backend.Sign((buffer.Bytes()))
+	if err != nil {
+		return
+	}
+
+	onlineProof.Signature = signature
+
+	onlineProofEnc, err := ibfttypes.Encode(&onlineProof)
+
+	if err != nil {
+		log.Error("Failed to encode", "view", curView)
+		return
+	}
+
+	log.Info("ibftConsensus: sendOnlineProof broadcast",
+		"no", request.Proposal.Number(),
+		"round", curView.Round,
+		"self", c.address.Hex(),
+		"hash", request.Proposal.Hash().Hex())
+
+	c.broadcast(&ibfttypes.Message{
+		Code: ibfttypes.MsgOnlineProof,
+		Msg:  onlineProofEnc,
+	})
 }
 
 func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator) error {
@@ -71,88 +69,17 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 		return istanbulcommon.ErrFailedDecodeOnlineProof
 	}
 
-	log.Info("ibftConsensus: handleOnlineProof",
-		"no", onlineProof.Proposal.Number().Uint64(),
-		"round", onlineProof.View.Round.String(),
-		"from", src.Address().Hex(),
-		"hash", onlineProof.Proposal.Hash().Hex(),
-		"isproposer", c.IsProposer(),
-		"self", c.address.Hex())
-	// Ensure we have the same view with the ONLINE-PROOF message
-	if err := c.checkMessage(ibfttypes.MsgOnlineProof, onlineProof.View); err != nil {
-		log.Error("ibftConsensus: handleOnlineProof checkMessage", "no", onlineProof.Proposal.Number().Uint64(), "round", c.currentView().Round, "self", c.address.Hex(), "err", err.Error())
-		return err
-	}
+	c.acceptOnlineProof(msg, src)
 
-	//TODO verify online proof
-	currentProofs := c.onlineProofs[c.current.sequence.Uint64()]
-	exist := false
-	for _, m := range currentProofs.messages {
-		if m.Address == src.Address() && onlineProof.Proposal.Number().Uint64() <= c.current.sequence.Uint64() {
-			exist = true
-			log.Warn("ibftConsensus:  This altitude has been certified online", "no", c.current.sequence.Uint64(), "src", src.Address())
-			break
-		}
-	}
-	if !exist {
-		// Here is about to accept the ONLINE-PROOF msg
-		log.Info("ibftConsensus : ok msg")
-		c.acceptOnlineProof(msg, src)
+	onlineValidators := c.onlineProofs[c.current.sequence.Uint64()]
+	if !onlineValidators.ExistAddress(src.Address()) {
+		validator := types.NewOnlineValidator(c.current.sequence, src.Address(), onlineProof.RandomHash, onlineProof.Signature)
+		onlineValidators.Validators = append(onlineValidators.Validators, validator)
 	} else {
-		log.Error("ibftConsensus : err exist msg")
-		return errors.New("ibftConsensus : err exist msg")
+		return errors.New("This address is already online")
 	}
 
-	//TODO  clear onlineProof memory
-	// for k, _ := range c.onlineProofs {
-	// 	if k < c.currentView().Sequence.Uint64() {
-	// 		log.Info("handleOnlineProof: clear onlineProof", "height", k, "currentView.no", c.currentView().Sequence)
-	// 		delete(c.onlineProofs, k)
-	// 	}
-	// }
-
-	if len(c.onlineProofs) == 0 {
-		log.Error("handleOnlineProof: len(onlineProof)==0", "height", c.currentView().Sequence, "round", c.currentView().Round)
-		return errors.New("handleOnlineProof: len(onlineProof)==0")
-	}
-
-	log.Info("ibftConsensus: prepare to notify worker to commit", "no", c.currentView().Sequence,
-		"round", c.currentView().Round, "len(OnlineProofs)", c.current.OnlineProofs.Size(),
-		"self", c.address.Hex(), "state", c.state)
-	if c.current.OnlineProofs.Size() >= c.QuorumSize() && c.state == ibfttypes.StateAcceptOnlineProofRequest { // Submit the collected online attestation data to the worker module
-		onlineValidatorList := new(types.OnlineValidatorList)
-		for _, v := range c.current.OnlineProofs.messages {
-			err := v.Decode(&onlineProof)
-			if err != nil {
-				continue
-			}
-			validator := types.NewOnlineValidator(
-				onlineProof.View.Sequence,
-				v.Address,
-				onlineProof.RandomHash,
-				onlineProof.Signature)
-			onlineValidatorList.Validators = append(onlineValidatorList.Validators, validator)
-		}
-		onlineValidatorList.Validators = append(onlineValidatorList.Validators)
-		onlineValidatorList.Height = onlineProof.Proposal.Number()
-		// Notify miners to submit blocks
-		c.backend.NotifyWorkerToCommit(onlineValidatorList)
-
-		log.Info("ibftConsensus: collected online proof",
-			"no", c.currentView().Sequence,
-			"round", c.currentView().Round,
-			"size", c.current.OnlineProofs.Size(),
-			"onlineproofs len", c.onlineProofs[c.current.sequence.Uint64()].Size(),
-			"self", c.address.Hex())
-		// Set state to StateAcceptRequest
-		c.setState(ibfttypes.StateAcceptRequest)
-	}
-	// Stored in the temporary state of the engine, no data will be lost with the
-	tempMessageSet := newMessageSet(c.valSet)
-	for _, v := range c.current.OnlineProofs.Values() {
-		tempMessageSet.Add(v)
-	}
-	c.onlineProofs[c.current.sequence.Uint64()] = tempMessageSet
+	//c.onlineProofs[c.current.sequence.Uint64()] = tempMessageSet
 	log.Info("ibftConsensus: onlineProofs",
 		"no", c.currentView().Sequence,
 		"round", c.currentView().Round,

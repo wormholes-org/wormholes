@@ -37,3 +37,12 @@ func (ol *OnlineValidatorList) Size() int {
 	}
 	return 0
 }
+
+func (ol *OnlineValidatorList) ExistAddress(addr common.Address) bool {
+	for _, v := range ol.Validators {
+		if v.Address == addr {
+			return true
+		}
+	}
+	return false
+}

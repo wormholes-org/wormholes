@@ -414,17 +414,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		w.pendingMu.Unlock()
 	}
 
-	go func() {
-		proofTimer.Reset(5 * time.Second)
-		for {
-			select {
-			case <-proofTimer.C:
-				log.Info("onlineproof Timer.C", "height", w.current.header.Number)
-				w.GossipOnlineProof(*proofTimer)
-			}
-		}
-	}()
-
 	for {
 		select {
 		case <-w.startCh:
@@ -433,7 +422,10 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
-			timeoutTimer.Reset(30 * time.Second)
+			if w.isRunning() {
+				w.GossipOnlineProof()
+			}
+
 			log.Info("w.chainHeadCh", "no", head.Block.Number().Uint64()+1)
 			if h, ok := w.engine.(consensus.Handler); ok {
 				h.NewChainHead()
@@ -1010,17 +1002,10 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {
-	log.Info("commitNewWork : enter", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+	log.Info("caver|commitNewWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-
-	if err := w.CommitOnlineProofBlock(); err != nil {
-		log.Error("commitNewWork: err exit", "err", err, "no", w.chain.CurrentHeader().Number.Uint64()+1)
-		return
-	} else {
-		log.Info("commitNewWork: ready exit", "no", w.chain.CurrentHeader().Number.Uint64()+1)
-	}
 
 	tstart := time.Now()
 	parent := w.chain.CurrentBlock()
@@ -1044,33 +1029,6 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 			header.GasLimit = core.CalcGasLimit(parentGasLimit, w.config.GasCeil)
 		}
 	}
-
-	// Collect data related to online certification validator
-	if w.onlineValidators != nil && len(w.onlineValidators.Validators) > 6 && w.onlineValidators.Height.Cmp(header.Number) == 0 {
-		for _, v := range w.onlineValidators.Validators {
-			log.Info("commitNewWork : onlineValidator", "height", header.Number.Uint64(), "addr", v.Address.Hex())
-		}
-		onlineValidatorsEnc, err := w.onlineValidators.Encode()
-		if err != nil {
-			log.Error("encode  online validators err", "err", err, "height", header.Number.Uint64())
-		}
-		lengthToBytes := IntToBytes(len(onlineValidatorsEnc))
-		if len(w.extra) > 32 {
-			w.extra = w.extra[:32]
-		} else {
-			w.extra = append(w.extra, bytes.Repeat([]byte{0x00}, 32-len(w.extra))...)
-		}
-		// represent  onlineValidator length
-		w.extra = append(w.extra, lengthToBytes...)
-		w.extra = append(w.extra, onlineValidatorsEnc...)
-	}
-
-	// else {
-	// 	log.Error("commitNewWork : err onlineValidator info", "w.onlineValidators != nil", w.onlineValidators != nil,
-	// 		"len", len(w.onlineValidators.Validators), "onlineValidators.Height", w.onlineValidators.Height, "no", header.Number)
-	// 	return
-	// }
-
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
 	if w.isRunning() {
 		if w.coinbase == (common.Address{}) {
@@ -1110,7 +1068,29 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		misc.ApplyDAOHardFork(env.state)
 	}
 	// Accumulate the uncles for the current block
-	uncles := make([]*types.Header, 0, 1)
+	uncles := make([]*types.Header, 0, 2)
+	commitUncles := func(blocks map[common.Hash]*types.Block) {
+		// Clean up stale uncle blocks first
+		for hash, uncle := range blocks {
+			if uncle.NumberU64()+staleThreshold <= header.Number.Uint64() {
+				delete(blocks, hash)
+			}
+		}
+		for hash, uncle := range blocks {
+			if len(uncles) == 2 {
+				break
+			}
+			if err := w.commitUncle(env, uncle.Header()); err != nil {
+				log.Trace("Possible uncle rejected", "hash", hash, "reason", err)
+			} else {
+				log.Debug("Committing new uncle to block", "hash", hash)
+				uncles = append(uncles, uncle.Header())
+			}
+		}
+	}
+	// Prefer to locally generated uncle
+	commitUncles(w.localUncles)
+	commitUncles(w.remoteUncles)
 
 	// Create an empty block based on temporary copied state for
 	// sealing in advance without waiting block execution finished.
@@ -1228,55 +1208,7 @@ func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }
 
-func (w *worker) CommitOnlineProofBlock() error {
-	if w.onlineValidators != nil && w.onlineValidators.Height != nil &&
-		w.onlineValidators.Height.Uint64() == w.chain.CurrentHeader().Number.Uint64()+1 &&
-		len(w.onlineValidators.Validators) > 6 {
-		log.Info("CommitOnlineProofBlock: ready exit", "no", w.chain.CurrentHeader().Number.Uint64()+1)
-		return nil
-	}
-
-	log.Info("CommitOnlineProofBlock : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
-	var stopCh <-chan struct{}
-
-	parent := w.chain.CurrentBlock()
-
-	num := parent.Number()
-	header := &types.Header{
-		ParentHash: parent.Hash(),
-		Number:     num.Add(num, common.Big1),
-		GasLimit:   21000,
-		Extra:      w.extra,
-		Time:       10000,
-	}
-
-	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
-
-	if err := w.engine.Prepare(w.chain, header); err != nil {
-		return errors.New("CommitOnlineProofBlock : Failed to prepare header for mining")
-	}
-
-	err := w.makeCurrent(parent, header)
-	if err != nil {
-		return errors.New("CommitOnlineProofBlock : Failed to create mining context")
-	}
-
-	receipts := copyReceipts(w.current.receipts)
-	s := w.current.state.Copy()
-	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.current.header, s, w.current.txs, nil, receipts)
-	if err != nil {
-		return err
-	}
-
-	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, stopCh)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (w *worker) GossipOnlineProof(timer time.Timer) error {
-	timer.Reset(2 * time.Second)
+func (w *worker) GossipOnlineProof() error {
 	log.Info("GossipOnlineProof : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
 
 	parent := w.chain.CurrentBlock()
@@ -1292,18 +1224,18 @@ func (w *worker) GossipOnlineProof(timer time.Timer) error {
 
 	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
 
-	if err := w.engine.Prepare(w.chain, header); err != nil {
-		return errors.New("GossipOnlineProof : Failed to prepare header for mining")
-	}
+	// if err := w.engine.Prepare(w.chain, header); err != nil {
+	// 	return errors.New("GossipOnlineProof : Failed to prepare header for mining")
+	// }
 
-	err := w.makeCurrent(parent, header)
-	if err != nil {
-		return errors.New("GossipOnlineProof : Failed to create mining context")
-	}
+	//err := w.makeCurrent(parent, header)
+	// if err != nil {
+	// 	return errors.New("GossipOnlineProof : Failed to create mining context")
+	// }
 
-	receipts := copyReceipts(w.current.receipts)
+	// receipts := copyReceipts(w.current.receipts)
 	s := w.current.state.Copy()
-	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.current.header, s, w.current.txs, nil, receipts)
+	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.current.header, s, w.current.txs, nil, nil)
 	if err != nil {
 		return err
 	}

@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -232,4 +233,8 @@ func (c *core) handleTimeoutMsg() {
 			"no", c.currentView().Sequence, "round", c.currentView().Round.String(), "self", c.address.Hex())
 		c.sendNextRoundChange()
 	}
+}
+
+func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
+	return c.onlineProofs
 }

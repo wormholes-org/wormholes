@@ -44,7 +44,7 @@ func New(backend istanbul.Backend, config *istanbul.Config) *core {
 	c := &core{
 		config:                          config,
 		address:                         backend.Address(),
-		state:                           ibfttypes.StateAcceptOnlineProofRequest,
+		state:                           ibfttypes.StateAcceptRequest,
 		handlerWg:                       new(sync.WaitGroup),
 		logger:                          log.New("address", backend.Address()),
 		backend:                         backend,
@@ -58,7 +58,7 @@ func New(backend istanbul.Backend, config *istanbul.Config) *core {
 	}
 
 	c.validateFn = c.checkValidatorSignature
-	c.onlineProofs = make(map[uint64]*messageSet)
+	c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
 	return c
 }
 
@@ -97,7 +97,7 @@ type core struct {
 	pendindingOnlineProofRequestsMu *sync.Mutex
 
 	// Temporary storage of online data collected at each altitude
-	onlineProofs map[uint64]*messageSet
+	onlineProofs map[uint64]*types.OnlineValidatorList
 
 	consensusTimestamp time.Time
 }
@@ -254,9 +254,9 @@ func (c *core) startNewRound(round *big.Int) {
 			log.Error("ibftConsensus: c.valSet == nil", "no", newView.Sequence, "round", newView.Sequence, "self", c.address.Hex())
 			return
 		}
-		msgSet := newMessageSet(c.valSet)
-		c.onlineProofs = make(map[uint64]*messageSet)
-		c.onlineProofs[newView.Sequence.Uint64()] = msgSet
+		onlineValidators := new(types.OnlineValidatorList)
+		c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
+		c.onlineProofs[newView.Sequence.Uint64()] = onlineValidators
 	}
 
 	// If new round is 0, then check if qbftConsensus needs to be enabled
@@ -291,28 +291,22 @@ func (c *core) startNewRound(round *big.Int) {
 
 	c.waitingForRoundChange = false
 
-	onlineProofMsgSet := c.onlineProofs[c.currentView().Sequence.Uint64()]
-	if onlineProofMsgSet != nil && onlineProofMsgSet.Size() >= 7 {
-		c.setState(ibfttypes.StateAcceptRequest)
-		if roundChange && c.IsProposer() && c.current != nil {
-			// If it is locked, propose the old proposal
-			// If we have pending request, propose pending request
-			if c.current.IsHashLocked() {
-				log.Info("ibftConsensus: startNewRound  c.current.IsHashLocked()", "no", c.current.Proposal().Number().Uint64(), "self", c.address.Hex())
-				r := &istanbul.Request{
-					Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
-				}
-				c.sendPreprepare(r)
-			} else if c.current.pendingRequest != nil {
-				log.Info("ibftConsensus: startNewRound c.current.pendingRequest != nil", "no", c.current.pendingRequest.Proposal.Number(), "self", c.address.Hex())
-				c.sendPreprepare(c.current.pendingRequest)
+	c.setState(ibfttypes.StateAcceptRequest)
+	if roundChange && c.IsProposer() && c.current != nil {
+		// If it is locked, propose the old proposal
+		// If we have pending request, propose pending request
+		if c.current.IsHashLocked() {
+			log.Info("ibftConsensus: startNewRound  c.current.IsHashLocked()", "no", c.current.Proposal().Number().Uint64(), "self", c.address.Hex())
+			r := &istanbul.Request{
+				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
 			}
-		}
-	} else {
-		if roundChange && c.current != nil {
-			c.setState(ibfttypes.StateAcceptOnlineProofRequest)
+			c.sendPreprepare(r)
+		} else if c.current.pendingRequest != nil {
+			log.Info("ibftConsensus: startNewRound c.current.pendingRequest != nil", "no", c.current.pendingRequest.Proposal.Number(), "self", c.address.Hex())
+			c.sendPreprepare(c.current.pendingRequest)
 		}
 	}
+
 	c.newRoundChangeTimer()
 
 	log.Info("ibftConsensus: New round", "new_round", newView.Round, "no", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "IsProposer", c.IsProposer())
@@ -358,9 +352,6 @@ func (c *core) setState(state ibfttypes.State) {
 	}
 	if state == ibfttypes.StateAcceptRequest {
 		c.processPendingRequests()
-	}
-	if state == ibfttypes.StateAcceptOnlineProofRequest {
-		c.processPendingOnlineProofRequests()
 	}
 	c.processBacklog()
 }
@@ -422,8 +413,5 @@ func (c *core) RoundInfo() (roundInfo []string) {
 
 func (c *core) OnlineProofSize(height *big.Int) int {
 	onlineProofs := c.onlineProofs[height.Uint64()]
-	if onlineProofs.messages == nil {
-		return 0
-	}
-	return len(onlineProofs.messages)
+	return len(onlineProofs.Validators)
 }

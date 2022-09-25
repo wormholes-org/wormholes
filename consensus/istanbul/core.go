@@ -1,6 +1,9 @@
 package istanbul
 
-import "github.com/ethereum/go-ethereum/common"
+import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+)
 
 type Core interface {
 	Start() error
@@ -16,4 +19,6 @@ type Core interface {
 	IsCurrentProposal(blockHash common.Hash) bool
 
 	RoundInfo() []string
+
+	GetOnlineValidators() map[uint64]*types.OnlineValidatorList
 }

@@ -697,12 +697,6 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		return nil, err
 	}
 
-	var validators []common.Address
-	onlineValidators, err := types.ExtractOnlineValidatorList(header)
-	for _, onlineValidator := range onlineValidators.Validators {
-		validators = append(validators, onlineValidator.Address)
-	}
-
 	var deep *types.MintDeep
 	//var snftExchangePool *types.SNFTExchangeList
 	if parentHeader.Number.Uint64() > 0 {
@@ -734,7 +728,7 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		//}
 	}
 
-	//validators := istanbulExtra.ValidatorAddr
+	validators := istanbulExtra.ValidatorAddr
 	exchangers := istanbulExtra.ExchangerAddr
 	//for _, addr := range validators {
 	//	log.Info("GetBlockBeneficiaryAddressByNumber", "validators=", addr)

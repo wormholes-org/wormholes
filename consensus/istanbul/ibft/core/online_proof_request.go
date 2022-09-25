@@ -3,7 +3,6 @@ package core
 import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
-	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -19,10 +18,9 @@ func (c *core) handleOnlineProofRequest(request *istanbul.OnlineProofRequest) er
 	}
 
 	c.current.pendingOnlineProofRequest = request
-	if c.state == ibfttypes.StateAcceptOnlineProofRequest {
-		log.Info("ibftConsensus: handleOnlineProofRequest sendOnlineProof", "no", request.Proposal.Number(), "round", c.currentView().Round, "hash", request.Proposal.Hash(), "self", c.address.Hex())
-		c.sendOnlineProof(request)
-	}
+	log.Info("ibftConsensus: handleOnlineProofRequest sendOnlineProof", "no", request.Proposal.Number(), "round", c.currentView().Round, "hash", request.Proposal.Hash(), "self", c.address.Hex())
+
+	c.sendOnlineProof(request)
 	return nil
 }
 

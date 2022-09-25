@@ -31,7 +31,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -2675,37 +2674,11 @@ func (bc *BlockChain) ReadValidatorPool(header *types.Header) *types.ValidatorLi
 	return validators
 }
 
-func (bc *BlockChain) Random11ValidatorFromPool(blk *types.Block) (*types.ValidatorList, error) {
-	header := blk.Header()
+func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
 	validatorList := bc.ReadValidatorPool(header)
 	// Obtain random landing points according to the surrounding chain algorithm
-
 	randomHash := GetRandomDrop(validatorList, header)
-	// Parse randomHash in extra
-	if blk.Header().Number.Uint64() > 1 && len(blk.Header().Extra) > 32 {
-		lengthBytes := blk.Header().Extra[32:36]
-		length := math.BytesToInt(lengthBytes)
-		var onlineValidators *types.OnlineValidatorList
-		err := rlp.DecodeBytes(blk.Header().Extra[36:36+length], &onlineValidators)
-		if err != nil {
-			log.Warn("Random11ValidatorFromPool : decode onlineValidators err")
-		} else {
-			//
-			var buffer bytes.Buffer
-			buffer.Write(randomHash[:])
-			for _, v := range onlineValidators.Validators {
-				log.Info("Random11ValidatorFromPool  : onlineValidators.hash", "height", v.Height, "hash", v.Hash.Hex())
-				buffer.Write(v.Hash[:])
-				// Parse the random number issued by the online prover
-
-			}
-			randomHash = crypto.Keccak256Hash(buffer.Bytes())
-		}
-	}
 	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
-
-	// TODO Parse the random number issued by the online prover from extra
-
 	validators := validatorList.RandomValidatorV2(11, randomHash)
 	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
