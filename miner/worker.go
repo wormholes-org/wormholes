@@ -444,7 +444,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
-			timeoutTimer.Reset(30 * time.Second)
+			timeoutTimer.Reset(60 * time.Second)
 			if w.isRunning() {
 				w.GossipOnlineProof()
 			}
@@ -471,6 +471,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-timeoutTimer.C:
 			log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 			w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+			go w.cerytify.handleEvents()
 			w.cacheHeight = w.current.header.Number
 			w.isEmpty = true
 			w.emptyCh <- struct{}{}
@@ -489,8 +490,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 					}
 				}
 			}()
-
-			go w.cerytify.handleEvents()
 
 		case rs := <-w.cerytify.signatureResultCh:
 			log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
