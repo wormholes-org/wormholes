@@ -72,6 +72,8 @@ type LightChain struct {
 	running          int32 // whether LightChain is running or stopped
 	procInterrupt    int32 // interrupts chain insert
 	disableCheckFreq int32 // disables header verification
+
+	stakerPool *types.StakerList
 }
 
 // NewLightChain returns a fully initialised light chain using information
@@ -91,6 +93,7 @@ func NewLightChain(odr OdrBackend, config *params.ChainConfig, engine consensus.
 		bodyRLPCache:  bodyRLPCache,
 		blockCache:    blockCache,
 		engine:        engine,
+		stakerPool:    new(types.StakerList),
 	}
 	var err error
 	bc.hc, err = core.NewHeaderChain(odr.Database(), config, bc.engine, bc.getProcInterrupt)
@@ -224,6 +227,11 @@ func (lc *LightChain) Genesis() *types.Block {
 
 func (lc *LightChain) StateCache() state.Database {
 	panic("not implemented")
+}
+
+// GetStakerPool return bc.stakerPool
+func (lc *LightChain) GetStakerPool() *types.StakerList {
+	return lc.stakerPool
 }
 
 // GetBody retrieves a block body (transactions and uncles) from the database

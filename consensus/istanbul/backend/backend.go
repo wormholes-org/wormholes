@@ -288,6 +288,11 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		//return 0, istanbulcommon.ErrEmptyBlock
+		return sb.EngineForBlockNumber(header.Number).VerifyBlockProposal(sb.chain, block, valSet)
+	}
+
 	return sb.EngineForBlockNumber(header.Number).VerifyBlockProposal(sb.chain, block, valSet)
 }
 
@@ -357,18 +362,25 @@ func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 func (sb *Backend) LastProposal() (istanbul.Proposal, common.Address) {
 	block := sb.currentBlock()
 
-	var proposer common.Address
-	if block.Number().Cmp(common.Big0) > 0 {
-		var err error
-		proposer, err = sb.Author(block.Header())
-		if err != nil {
-			sb.logger.Error("BFT: last block proposal invalid", "err", err)
-			return nil, common.Address{}
+	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.Number().Cmp(common.Big0) > 0 {
+		log.Info("LastProposal Empty block")
+		return block, common.Address{}
+	} else {
+		var proposer common.Address
+		if block.Number().Cmp(common.Big0) > 0 {
+			var err error
+			proposer, err = sb.Author(block.Header())
+			if err != nil {
+				sb.logger.Error("BFT: last block proposal invalid", "err", err)
+				return nil, common.Address{}
+			}
+
 		}
+
+		// Return header only block here since we don't need block body
+		return block, proposer
 	}
 
-	// Return header only block here since we don't need block body
-	return block, proposer
 }
 
 func (sb *Backend) HasBadProposal(hash common.Hash) bool {

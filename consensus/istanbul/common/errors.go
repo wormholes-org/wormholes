@@ -4,6 +4,9 @@ import "errors"
 
 var (
 	// ErrInvalidProposal is returned when a prposal is malformed.
+	ErrEmptyBlock = errors.New("error empty block")
+
+	// ErrInvalidProposal is returned when a prposal is malformed.
 	ErrInvalidProposal = errors.New("invalid proposal")
 
 	// ErrInvalidSignature is returned when given signature is not signed by given

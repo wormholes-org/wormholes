@@ -1,6 +1,7 @@
 package types
 
 import (
+	"math"
 	//"crypto"
 	"math/big"
 	"sort"
@@ -36,7 +37,23 @@ func NewValidatorList(validators []*Validator) *ValidatorList {
 	}
 	return validatorList
 }
+func (vl *ValidatorList) F() int {
+	return int(math.Ceil(float64(vl.Size())/3)) - 1
+}
+func (vl *ValidatorList) Size() int {
+	return len(vl.Validators)
+}
 
+// 51% TotalStakeBalance Calculate the total amount of the stake account
+func (vl *ValidatorList) TargetSize() *big.Int {
+	var total = big.NewInt(0)
+	for _, voter := range vl.Validators {
+		total.Add(total, voter.Balance)
+	}
+	a := new(big.Int).Mul(big.NewInt(51), total)
+	b := new(big.Int).Div(a, big.NewInt(100))
+	return b
+}
 func (vl *ValidatorList) Len() int {
 	return len(vl.Validators)
 }

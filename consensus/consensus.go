@@ -84,6 +84,10 @@ type Engine interface {
 	// rules of a particular engine. The changes are executed inline.
 	Prepare(chain ChainHeaderReader, header *types.Header) error
 
+	// PrepareForEmptyBlock initializes the consensus fields of a block header according to the
+	// rules of a particular engine. The changes are executed inline.
+	PrepareForEmptyBlock(chain ChainHeaderReader, header *types.Header) error
+
 	// Finalize runs any post-transaction state modifications (e.g. block rewards)
 	// but does not assemble the block.
 	//
@@ -122,6 +126,11 @@ type Engine interface {
 
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error
+	// SealforEmptyBlock generates a new sealing request for the given input block
+	//
+	// Note, the method returns immediately and will send the result async. More
+	// than one result may also be returned depending on the consensus algorithm.
+	SealforEmptyBlock(chain ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error)
 
 	//
 	SealOnlineProofBlk(chain ChainHeaderReader, block *types.Block, results chan *types.OnlineValidatorList, stop <-chan struct{}) error

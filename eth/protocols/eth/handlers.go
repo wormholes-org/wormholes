@@ -522,6 +522,11 @@ func handlePooledTransactions66(backend Backend, msg Decoder, peer *Peer) error 
 	return backend.Handle(peer, &txs.PooledTransactionsPacket)
 }
 
+func handleWorker66(backend Backend, msg Decoder, peer *Peer) error {
+	log.Info("start handle workerMsg")
+	return backend.HandleWorkerMsg(msg, peer)
+}
+
 func handleWormhole(backend Backend, msg Decoder, peer *Peer) error {
 	log.Info("P2P-handleWormhole | p2p start to call DRE Msg")
 	if handler, ok := backend.Chain().Engine().(consensus.Handler); ok {
