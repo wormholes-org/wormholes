@@ -444,6 +444,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
+			timeoutTimer.Reset(30 * time.Second)
 			if w.isRunning() {
 				w.GossipOnlineProof()
 			}
