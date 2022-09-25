@@ -22,7 +22,6 @@ import (
 	"errors"
 	"math"
 	"math/big"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -509,10 +508,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 					w.cerytify.receiveValidatorsSum = big.NewInt(0)
 					w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
 					w.isEmpty = false
-
-					//w.chain.Stop()
-					//os.Exit(0)
-					os.Exit(1)
 				}
 			}
 
