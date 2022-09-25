@@ -1412,8 +1412,7 @@ func (w *worker) CommitOnlineProofBlock() error {
 	return nil
 }
 
-func (w *worker) GossipOnlineProof(timer time.Timer) error {
-	timer.Reset(2 * time.Second)
+func (w *worker) GossipOnlineProof() error {
 	log.Info("GossipOnlineProof : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
 
 	parent := w.chain.CurrentBlock()
@@ -1449,7 +1448,6 @@ func (w *worker) GossipOnlineProof(timer time.Timer) error {
 
 	return nil
 }
-
 func (w *worker) targetSize() *big.Int {
 	return w.cerytify.stakers.TargetSize()
 }
