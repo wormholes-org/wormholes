@@ -20,12 +20,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
+	"github.com/ethereum/go-ethereum/trie"
 	"math"
 	"math/big"
-	"os/exec"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -41,7 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/sgiccommon"
 )
 
 const (
@@ -503,11 +503,13 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
 				w.isEmpty = false
 
-				if o, e := exec.Command("./test.sh", "1", "2").Output(); e != nil {
-					fmt.Println(e)
-				} else {
-					fmt.Println(string(o))
-				}
+				sgiccommon.Sigc <- syscall.SIGTERM
+				//getpid := syscall.Getpid()
+				//wormholesid := strconv.FormatInt(int64(getpid), 10)
+				//log.Info("**wormholesid", "wormholesid", wormholesid)
+				//cmd := exec.Command("kill INT " + wormholesid + "; sleep 1;")
+				//cmd.Process.Kill()
+
 			}
 			//}
 
