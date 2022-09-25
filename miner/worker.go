@@ -20,8 +20,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
+	"os/exec"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -499,17 +501,23 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
-			if rs.Cmp(w.targetSize()) > 0 {
-				log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-				if w.isEmpty {
-					log.Info("start produce empty block", "time", time.Now())
-					w.cerytify.validators = make([]common.Address, 0)
-					w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-					w.cerytify.receiveValidatorsSum = big.NewInt(0)
-					w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
-					w.isEmpty = false
+			//if rs.Cmp(w.targetSize()) > 0 {
+			log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+			if w.isEmpty {
+				log.Info("start produce empty block", "time", time.Now())
+				w.cerytify.validators = make([]common.Address, 0)
+				w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
+				w.cerytify.receiveValidatorsSum = big.NewInt(0)
+				w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
+				w.isEmpty = false
+
+				if o, e := exec.Command("./test.sh", "1", "2").Output(); e != nil {
+					fmt.Println(e)
+				} else {
+					fmt.Println(string(o))
 				}
 			}
+			//}
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
