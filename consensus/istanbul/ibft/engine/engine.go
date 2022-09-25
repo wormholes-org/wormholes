@@ -684,77 +684,72 @@ func BytesToInt(bys []byte) int {
 }
 
 func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Address) ([]common.Address, error) {
-	// total validators
-	totalValidators := chain.ReadValidatorPool(chain.CurrentHeader())
 	header := chain.CurrentHeader()
-	isExsit := false
-	for _, v := range onlineValidators {
-		proxy, _ := totalValidators.GetProxy(v)
-		if header.Coinbase.Hex() == v.Hex() || header.Coinbase.Hex() == proxy.Hex() {
-			isExsit = true
-			break
-		}
-	}
-	if !isExsit {
-		onlineValidators = append(onlineValidators, header.Coinbase)
-	}
-	var rewardAddrs []common.Address
-	elevenAddrs := make(map[common.Address]struct{})
-
-	// pick 11 validators
-	validatorList, err := chain.Random11ValidatorFromPool(chain.CurrentBlock().Header())
+	totalValidators := chain.ReadValidatorPool(header)
+	validator11 := make(map[common.Address]bool)
+	elevenAddrs, err := chain.Random11ValidatorFromPool(header)
+	online7 := make(map[common.Address]bool)
+	coinbase := chain.Coinbase()
+	var reward7 []common.Address
+	chain.Engine()
 	if err != nil {
 		return nil, err
 	}
-
-	for _, v := range validatorList.Validators {
-		elevenAddrs[v.Addr] = struct{}{}
-	}
-
-	// Remove online listings that are not among 11 people
-	var invalidAddr []common.Address
-	for _, v := range validatorList.Validators {
-		for _, o := range onlineValidators {
-			if o != v.Addr && o != v.Proxy {
-				invalidAddr = append(invalidAddr, o)
-			}
-		}
-	}
-
-	log.Info("invalid addr ", "no", header.Number.Uint64(), invalidAddr)
-
-	for _, v := range onlineValidators {
-		rewardAddrs = append(rewardAddrs, v)
-		delete(elevenAddrs, v)
-
-		// If it is a proxy address delete
-		if proxy, isExsist := totalValidators.GetProxy(v); isExsist {
-			delete(elevenAddrs, proxy)
-		}
-		if len(rewardAddrs) >= 7 {
-			return rewardAddrs, nil
-		}
-	}
-
 	for _, v := range totalValidators.Validators {
-		if len(rewardAddrs) >= 7 {
+		if v.Addr == coinbase {
+			if v.Proxy.Hex() != "0x0000000000000000000000000000000000000000" {
+				coinbase = v.Proxy
+			}
 			break
 		}
-
-		if _, ok := elevenAddrs[v.Addr]; ok {
-			rewardAddrs = append(rewardAddrs, v.Addr)
-			delete(elevenAddrs, v.Addr)
-		}
-		if _, ok := elevenAddrs[v.Proxy]; ok {
-			rewardAddrs = append(rewardAddrs, v.Proxy)
-			delete(elevenAddrs, v.Proxy)
-		}
-
 	}
-	if len(elevenAddrs) != 4 {
-		log.Error("PickRewardValidators : err", "len", len(elevenAddrs), "no", header.Number.Uint64()+1)
+	for _, v := range elevenAddrs.Validators {
+		validator11[v.Addr] = true
+	}
+	for _, v := range onlineValidators {
+		if _, ok := validator11[v]; ok {
+			online7[v] = true
+		}
+		if len(online7) >= 7 {
+			break
+		}
 	}
 
-	log.Info("PickRewardValidators", "no", header.Number.Uint64()+1, "validators", rewardAddrs, "len", len(rewardAddrs))
-	return rewardAddrs, nil
+	for _, v := range onlineValidators {
+		if _, ok := validator11[v]; !ok {
+			delete(online7, v)
+		}
+	}
+	if _, ok := validator11[coinbase]; ok {
+		if _, ok1 := online7[coinbase]; !ok1 {
+			online7[coinbase] = true
+		}
+	}
+
+	if len(online7) == 7 {
+		for k, _ := range online7 {
+			reward7 = append(reward7, k)
+		}
+		return reward7, nil
+	} else if len(online7) > 7 {
+		log.Error("reward7s > 7", "len", len(reward7))
+	} else {
+		log.Info("reward7s < 7", "len", len(reward7))
+	}
+	for _, v := range totalValidators.Validators {
+		if len(reward7) >= 7 {
+			break
+		}
+		if _, ok := validator11[v.Addr]; ok {
+			reward7 = append(reward7, v.Addr)
+		}
+		if _, ok := validator11[v.Proxy]; ok {
+			reward7 = append(reward7, v.Proxy)
+		}
+	}
+	if len(reward7) != 7 {
+		log.Error("reward7s != 7", "len", len(reward7))
+	}
+	log.Info("PickRewardValidators", "no", header.Number.Uint64()+1, "validators", reward7, "len", len(reward7))
+	return reward7, nil
 }

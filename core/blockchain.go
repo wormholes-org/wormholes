@@ -213,8 +213,17 @@ type BlockChain struct {
 	shouldPreserve  func(*types.Block) bool        // Function used to determine whether should preserve the given block.
 	terminateInsert func(common.Hash, uint64) bool // Testing hook used to terminate ancient receipt chain insertion.
 
+	coinbase common.Address
 	//deep for mint NFT
 	//mintDeep types.MintDeep
+}
+
+func (bc *BlockChain) Coinbase() common.Address {
+	return bc.coinbase
+}
+
+func (bc *BlockChain) SetCoinbase(pAddr common.Address) {
+	bc.coinbase = pAddr
 }
 
 // NewBlockChain returns a fully initialised block chain using information
