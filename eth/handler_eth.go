@@ -23,6 +23,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -213,6 +216,17 @@ func (h *ethHandler) handleBlockBroadcast(peer *eth.Peer, block *types.Block, td
 	if _, td := peer.Head(); trueTD.Cmp(td) > 0 {
 		peer.SetHead(trueHead, trueTD)
 		h.chainSync.handlePeerEvent(peer)
+	}
+	return nil
+}
+
+func (h *ethHandler) HandleWorkerMsg(msg eth.Decoder, peer *eth.Peer) error {
+	log.Info("start to handle Worker Msg")
+	pubKey := peer.Node().Pubkey()
+	addr := crypto.PubkeyToAddress(*pubKey)
+	handled, err := h.miner.HandleMsg(addr, msg.(p2p.Msg))
+	if handled {
+		return err
 	}
 	return nil
 }

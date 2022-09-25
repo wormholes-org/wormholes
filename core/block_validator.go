@@ -18,6 +18,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -53,6 +54,9 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	// Check whether the block's known, and if not, that it's linkable
 	if v.bc.HasBlockAndState(block.Hash(), block.NumberU64()) {
 		return ErrKnownBlock
+	}
+	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.Number().Cmp(common.Big0) > 0 {
+		return nil
 	}
 	// Header validity is known at this point, check the uncles and transactions
 	header := block.Header()

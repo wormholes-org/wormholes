@@ -28,6 +28,7 @@ import (
 // The fields below define the low level database schema prefixing.
 var (
 	stakePoolKeyPrefix     = []byte("stake-pool")
+	dbStakerPoolKeyPrefix  = []byte("db-stake-pool")
 	validatorPoolKeyPrefix = []byte("validator-pool")
 	// databaseVersionKey tracks the current database version.
 	databaseVersionKey = []byte("DatabaseVersion")
@@ -240,6 +241,10 @@ func configKey(hash common.Hash) []byte {
 
 func StakePoolKey(number uint64, hash common.Hash) []byte {
 	return append(append(stakePoolKeyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+func DBStakerPoolKey(number uint64, hash common.Hash) []byte {
+	return append(append(dbStakerPoolKeyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }
 
 func ValidatorPoolKey(number uint64, hash common.Hash) []byte {

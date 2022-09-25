@@ -48,6 +48,14 @@ var (
 	errInvalidSealResult = errors.New("invalid or stale proof-of-work solution")
 )
 
+func (ethash *Ethash) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
+	return nil
+}
+
+func (ethash *Ethash) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error) {
+	return nil, nil
+}
+
 // Seal implements consensus.Engine, attempting to find a nonce that satisfies
 // the block's difficulty requirements.
 func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {

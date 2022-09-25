@@ -24,6 +24,15 @@ type StakerList struct {
 	Stakers []*Staker
 }
 
+type DBStaker struct {
+	Staker
+	DeleteFlag bool
+}
+
+type DBStakerList struct {
+	DBStakers []*DBStaker
+}
+
 func (sl *StakerList) Len() int {
 	return len(sl.Stakers)
 }

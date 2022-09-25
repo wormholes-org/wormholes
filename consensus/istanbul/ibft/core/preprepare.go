@@ -112,25 +112,32 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 		return istanbulcommon.ErrNotFromProposer
 	}
 
-	// Verify the proposal we received
-	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
-		// if it's a future block, we will handle it again after the duration
-		if err == consensus.ErrFutureBlock {
-			logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)
-			c.stopFuturePreprepareTimer()
-			c.futurePreprepareTimer = time.AfterFunc(duration, func() {
-				c.sendEvent(backlogEvent{
-					src: src,
-					msg: msg,
+	preProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
+	log.Info("preProposer:", preProposer.String())
+	if preProposer.String() == "0x0000000000000000000000000000000000000000" {
+		log.Info("preProposer is empty block:", preProposer.String())
+	} else {
+		log.Info("preProposer is not empty block:", preProposer.String())
+		// Verify the proposal we received
+		if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
+			// if it's a future block, we will handle it again after the duration
+			if err == consensus.ErrFutureBlock {
+				logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)
+				c.stopFuturePreprepareTimer()
+				c.futurePreprepareTimer = time.AfterFunc(duration, func() {
+					c.sendEvent(backlogEvent{
+						src: src,
+						msg: msg,
+					})
 				})
-			})
-		} else {
-			logger.Warn("Failed to verify proposal", "err", err, "duration", duration)
-			log.Info("ibftConsensus: handlePreprepare sendNextRoundChange1", "no", preprepare.Proposal.Number().String(),
-				"round", preprepare.View.Round.String(), "is proposer", strconv.FormatBool(c.IsProposer()))
-			c.sendNextRoundChange()
+			} else {
+				logger.Warn("Failed to verify proposal", "err", err, "duration", duration)
+				log.Info("caver|handlePreprepare|sendNextRoundChange1", "no", preprepare.Proposal.Number().String(),
+					"round", preprepare.View.Round.String(), "is proposer", strconv.FormatBool(c.IsProposer()))
+				c.sendNextRoundChange()
+			}
+			return err
 		}
-		return err
 	}
 
 	// Here is about to accept the PRE-PREPARE

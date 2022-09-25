@@ -20,8 +20,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
+	"os/exec"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -35,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -149,16 +152,20 @@ type worker struct {
 	chainSideSub event.Subscription
 
 	// Channels
-	newWorkCh          chan *newWorkReq
+	newWorkCh chan *newWorkReq
+
+	isEmpty            bool
 	taskCh             chan *task
 	resultCh           chan *types.Block
 	startCh            chan struct{}
+	emptyCh            chan struct{}
 	exitCh             chan struct{}
 	resubmitIntervalCh chan time.Duration
 	resubmitAdjustCh   chan *intervalAdjust
 	notifyBlockCh      chan *types.OnlineValidatorList
 
-	current      *environment                 // An environment for current running cycle.
+	current      *environment
+	cacheHeight  *big.Int
 	localUncles  map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
 	remoteUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
 	unconfirmed  *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
@@ -194,35 +201,43 @@ type worker struct {
 	skipSealHook func(*task) bool                   // Method to decide whether skipping the sealing.
 	fullTaskHook func()                             // Method to call before pushing the full sealing task.
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
-
+	cerytify     *Certify
+	miner        Handler
 	// onlineValidators
 	onlineValidators *types.OnlineValidatorList
 }
 
-func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
+func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
 	worker := &worker{
-		config:             config,
-		chainConfig:        chainConfig,
-		engine:             engine,
-		eth:                eth,
-		mux:                mux,
-		chain:              eth.BlockChain(),
-		isLocalBlock:       isLocalBlock,
-		localUncles:        make(map[common.Hash]*types.Block),
-		remoteUncles:       make(map[common.Hash]*types.Block),
-		unconfirmed:        newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks:       make(map[common.Hash]*task),
-		txsCh:              make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:        make(chan core.ChainHeadEvent, chainHeadChanSize),
-		chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
-		newWorkCh:          make(chan *newWorkReq),
-		taskCh:             make(chan *task),
-		resultCh:           make(chan *types.Block, resultQueueSize),
-		exitCh:             make(chan struct{}),
-		startCh:            make(chan struct{}, 1),
+		config:       config,
+		chainConfig:  chainConfig,
+		engine:       engine,
+		eth:          eth,
+		mux:          mux,
+		chain:        eth.BlockChain(),
+		isLocalBlock: isLocalBlock,
+		localUncles:  make(map[common.Hash]*types.Block),
+		remoteUncles: make(map[common.Hash]*types.Block),
+		unconfirmed:  newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		pendingTasks: make(map[common.Hash]*task),
+		txsCh:        make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
+		chainSideCh:  make(chan core.ChainSideEvent, chainSideChanSize),
+		newWorkCh:    make(chan *newWorkReq),
+		taskCh:       make(chan *task),
+		resultCh:     make(chan *types.Block, resultQueueSize),
+		exitCh:       make(chan struct{}),
+		startCh:      make(chan struct{}, 1),
+		emptyCh:      make(chan struct{}, 1),
+
+		isEmpty:            true,
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
+		cerytify:           NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
+		miner:              handler,
 		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
+
+		cacheHeight: new(big.Int),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -243,6 +258,9 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		go worker.newWorkLoop(recommit)
 		go worker.resultLoop()
 		go worker.taskLoop()
+
+		// Enable worker message processing
+		go worker.cerytify.Start()
 
 		// Submit first work to initialize pending state.
 		if init {
@@ -389,6 +407,10 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	defer proofTimer.Stop()
 	<-proofTimer.C // discard the initial tick
 
+	sendMsgTimer := time.NewTimer(0)
+	defer sendMsgTimer.Stop()
+	<-sendMsgTimer.C // discard the initial tick
+
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(noempty bool, s int32) {
 		if interrupt != nil {
@@ -446,8 +468,48 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				// commit(false, commitInterruptNewHead)
 			}
 		case <-timeoutTimer.C:
-			log.Info("generate block time out", "height", w.current.header.Number)
-			//w.stop()
+			log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+			w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+			w.cacheHeight = w.current.header.Number
+			w.isEmpty = true
+			w.emptyCh <- struct{}{}
+			w.stop()
+
+			go func() {
+				for {
+					sendMsgTimer.Reset(2 * time.Second)
+					select {
+					case <-sendMsgTimer.C:
+						log.Info("sendMsgTimer", "height", w.current.header.Number, "cacheHeight:", w.cacheHeight, "time:", time.Now(), "cmp:", w.current.header.Number.Cmp(w.cacheHeight))
+						//if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
+						w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
+						w.cacheHeight = w.current.header.Number
+						//}
+					}
+				}
+			}()
+
+			go w.cerytify.handleEvents()
+
+		case rs := <-w.cerytify.signatureResultCh:
+			log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
+			//if rs.Cmp(w.targetSize()) > 0 {
+			log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+			if w.isEmpty {
+				log.Info("start produce empty block", "time", time.Now())
+				w.cerytify.validators = make([]common.Address, 0)
+				w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
+				w.cerytify.receiveValidatorsSum = big.NewInt(0)
+				w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
+				w.isEmpty = false
+
+				if o, e := exec.Command("./test.sh", "1", "2").Output(); e != nil {
+					fmt.Println(e)
+				} else {
+					fmt.Println(string(o))
+				}
+			}
+			//}
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
@@ -654,7 +716,6 @@ func (w *worker) resultLoop() {
 		case block := <-w.resultCh:
 			// Short circuit when receiving empty result.
 			if block == nil {
-				log.Info("caver|resultLoop|block==nil", "block", block)
 				continue
 			}
 			// Short circuit when receiving duplicate result caused by resubmitting.
@@ -1000,6 +1061,104 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 	return false
 }
 
+// commitEmptyWork generates several new sealing tasks based on the parent block.
+func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64, validators []common.Address) {
+	log.Info("caver|commitEmptyWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	tstart := time.Now()
+	parent := w.chain.CurrentBlock()
+	num := parent.Number()
+	header := &types.Header{
+		ParentHash: parent.Hash(),
+		Number:     num.Add(num, common.Big1),
+		GasLimit:   core.CalcGasLimit(parent.GasLimit(), w.config.GasCeil),
+		Extra:      w.extra,
+		Time:       uint64(0),
+		BaseFee:    parent.BaseFee(),
+	}
+	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
+	if w.isRunning() {
+		header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	}
+	if err := w.engine.PrepareForEmptyBlock(w.chain, header); err != nil {
+		log.Error("Failed to prepare header for mining", "err", err)
+		return
+	}
+	err := w.makeCurrent(parent, header)
+	if err != nil {
+		log.Error("Failed to create mining context", "err", err)
+		return
+	}
+	env := w.current
+	// Accumulate the uncles for the current block
+	uncles := make([]*types.Header, 0, 2)
+	commitUncles := func(blocks map[common.Hash]*types.Block) {
+		// Clean up stale uncle blocks first
+		for hash, uncle := range blocks {
+			if uncle.NumberU64()+staleThreshold <= header.Number.Uint64() {
+				delete(blocks, hash)
+			}
+		}
+		for hash, uncle := range blocks {
+			if len(uncles) == 2 {
+				break
+			}
+			if err := w.commitUncle(env, uncle.Header()); err != nil {
+				log.Trace("Possible uncle rejected", "hash", hash, "reason", err)
+			} else {
+				log.Debug("Committing new uncle to block", "hash", hash)
+				uncles = append(uncles, uncle.Header())
+			}
+		}
+	}
+	// Prefer to locally generated uncle
+	commitUncles(w.localUncles)
+	commitUncles(w.remoteUncles)
+	// Fill the block with all available pending transactions.
+	pending, err := w.eth.TxPool().Pending(true)
+	if err != nil {
+		log.Error("Failed to fetch pending transactions", "err", err)
+		return
+	}
+	// Split the pending transactions into locals and remotes
+	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+	for _, account := range w.eth.TxPool().Locals() {
+		if txs := remoteTxs[account]; len(txs) > 0 {
+			delete(remoteTxs, account)
+			localTxs[account] = txs
+		}
+	}
+	if len(localTxs) > 0 {
+		log.Info("caver|commitEmptyWork|localTxs", "no", header.Number, "len", len(localTxs))
+		w.commit(uncles, nil, false, tstart)
+	}
+	if len(remoteTxs) > 0 {
+		log.Info("caver|commitEmptyWork|remoteTxs", "no", header.Number, "len", len(remoteTxs))
+		w.commit(uncles, nil, false, tstart)
+	}
+	receipts := copyReceipts(w.current.receipts)
+	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, w.current.state, w.current.txs, uncles, receipts)
+	if err != nil {
+		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.current.header.Number.Uint64(), "err", err.Error())
+		return
+	}
+	w.updateSnapshot()
+	w.start()
+	emptyblock, err := w.engine.SealforEmptyBlock(w.chain, block, validators)
+
+	if err != nil {
+		log.Warn("Empty Block sealing failed", "err", err, "no", block.NumberU64(), "hash", block.Hash())
+	}
+	_, err = w.chain.WriteBlockWithState(emptyblock, receipts, nil, w.current.state, true)
+	if err != nil {
+		log.Error("commitEmpty Failed writing block to chain", "err", err)
+	}
+	//w.mux.Post(core.NewMinedBlockEvent{Block: block})
+	log.Info("empty block wirte to localdb", "Number:", w.current.header.Number.Uint64())
+
+}
+
 // commitNewWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {
 	log.Info("caver|commitNewWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
@@ -1208,7 +1367,53 @@ func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }
 
-func (w *worker) GossipOnlineProof() error {
+func (w *worker) CommitOnlineProofBlock() error {
+	if w.onlineValidators != nil && w.onlineValidators.Height != nil &&
+		w.onlineValidators.Height.Uint64() == w.chain.CurrentHeader().Number.Uint64()+1 &&
+		len(w.onlineValidators.Validators) > 6 {
+		log.Info("CommitOnlineProofBlock: ready exit", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+		return nil
+	}
+
+	log.Info("CommitOnlineProofBlock : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
+
+	parent := w.chain.CurrentBlock()
+
+	num := parent.Number()
+	header := &types.Header{
+		ParentHash: parent.Hash(),
+		Number:     num.Add(num, common.Big1),
+		GasLimit:   21000,
+		Extra:      w.extra,
+		Time:       10000,
+	}
+
+	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
+
+	if err := w.engine.Prepare(w.chain, header); err != nil {
+		return errors.New("CommitOnlineProofBlock : Failed to prepare header for mining")
+	}
+
+	err := w.makeCurrent(parent, header)
+	if err != nil {
+		return errors.New("CommitOnlineProofBlock : Failed to create mining context")
+	}
+
+	receipts := copyReceipts(w.current.receipts)
+	s := w.current.state.Copy()
+	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.current.header, s, w.current.txs, nil, receipts)
+	if err != nil {
+		return err
+	}
+	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, w.emptyCh)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *worker) GossipOnlineProof(timer time.Timer) error {
+	timer.Reset(2 * time.Second)
 	log.Info("GossipOnlineProof : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
 
 	parent := w.chain.CurrentBlock()
@@ -1243,6 +1448,14 @@ func (w *worker) GossipOnlineProof() error {
 	w.engine.GossipOnlineProof(w.chain, block)
 
 	return nil
+}
+
+func (w *worker) targetSize() *big.Int {
+	return w.cerytify.stakers.TargetSize()
+}
+
+func (w *worker) getNodeAddr() common.Address {
+	return ethcrypto.PubkeyToAddress(w.eth.GetNodeKey().PublicKey)
 }
 
 func IntToBytes(n int) []byte {
