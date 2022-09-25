@@ -22,6 +22,7 @@ import (
 	"errors"
 	"math"
 	"math/big"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -453,7 +454,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
-			timeoutTimer.Reset(0 * time.Second)
+			timeoutTimer.Reset(30 * time.Second)
 			log.Info("w.chainHeadCh", "no", head.Block.Number().Uint64()+1)
 			if h, ok := w.engine.(consensus.Handler); ok {
 				h.NewChainHead()
@@ -475,8 +476,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 		case <-timeoutTimer.C:
 			log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
-			stakers := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-			w.cerytify.stakers = stakers
+			w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 			w.cacheHeight = w.current.header.Number
 			w.isEmpty = true
 			w.emptyCh <- struct{}{}
@@ -484,28 +484,20 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 			go func() {
 				for {
-					sendMsgTimer.Reset(3 * time.Second)
+					sendMsgTimer.Reset(2 * time.Second)
 					select {
 					case <-sendMsgTimer.C:
 						log.Info("sendMsgTimer", "height", w.current.header.Number, "cacheHeight:", w.cacheHeight, "time:", time.Now(), "cmp:", w.current.header.Number.Cmp(w.cacheHeight))
-						if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
-							w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
-							w.cacheHeight = w.current.header.Number
-						}
+						//if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
+						w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
+						w.cacheHeight = w.current.header.Number
+						//}
 					}
 				}
 			}()
-		//case <-sendMsgTimer.C:
-		//	stakers := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-		//	w.cerytify.stakers = stakers
-		//	w.cacheHeight = w.current.header.Number
-		//	log.Info("sendMsgTimer", "height", w.current.header.Number, "cacheHeight:", w.cacheHeight, "time:", time.Now(), "cmp:", w.current.header.Number.Cmp(w.cacheHeight))
-		//	if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
-		//		w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
-		//		w.cacheHeight = w.current.header.Number
-		//	}
-		//	w.stop()
-		//	go w.cerytify.handleEvents()
+
+			go w.cerytify.handleEvents()
+
 		case rs := <-w.cerytify.signatureResultCh:
 			log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
 			if rs.Cmp(w.targetSize()) > 0 {
@@ -518,8 +510,12 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 					w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
 					w.isEmpty = false
 
+					//w.chain.Stop()
+					//os.Exit(0)
+					os.Exit(1)
 				}
 			}
+
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
@@ -1420,7 +1416,6 @@ func (w *worker) CommitOnlineProofBlock() error {
 	if err != nil {
 		return err
 	}
-
 	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, w.emptyCh)
 	if err != nil {
 		return err
