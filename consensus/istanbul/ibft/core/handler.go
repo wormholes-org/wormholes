@@ -164,9 +164,13 @@ func (c *core) handleMsg(payload []byte) error {
 		logger.Error("Failed to decode message from payload", "err", err)
 		return err
 	}
+	_, src := c.valSet.GetByAddress(msg.Address)
+	if msg.Code == ibfttypes.MsgOnlineProof {
+		return c.handleCheckedMsg(msg, src)
+	}
 
 	// Only accept message if the address is valid
-	_, src := c.valSet.GetByAddress(msg.Address)
+
 	if src == nil {
 		logger.Error("Invalid address in message", "msg", msg)
 		return istanbul.ErrUnauthorizedAddress

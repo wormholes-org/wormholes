@@ -71,7 +71,7 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 
 	c.acceptOnlineProof(msg, src)
 
-	onlineValidators := c.onlineProofs[c.current.sequence.Uint64()]
+	onlineValidators := c.onlineProofs[onlineProof.View.Sequence.Uint64()]
 	if !onlineValidators.ExistAddress(src.Address()) {
 		validator := types.NewOnlineValidator(c.current.sequence, src.Address(), onlineProof.RandomHash, onlineProof.Signature)
 		onlineValidators.Validators = append(onlineValidators.Validators, validator)

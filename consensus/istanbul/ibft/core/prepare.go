@@ -87,7 +87,7 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 	// Change to Prepared state if we've received enough PREPARE messages or it is locked
 	// and we are in earlier state before Prepared state.
 	if ((c.current.IsHashLocked() && prepare.Digest == c.current.GetLockedHash()) || c.current.GetPrepareOrCommitSize() >= c.QuorumSize()) &&
-		c.state.Cmp(ibfttypes.StatePrepared) < 0 {
+		c.state.Cmp(ibfttypes.StatePrepared) < 0 && c.current.Prepares.Get(c.valSet.GetProposer().Address()) != nil {
 		c.current.LockHash()
 		c.setState(ibfttypes.StatePrepared)
 		log.Info("ibftConsensus: handlePrepare sendCommit",
@@ -96,8 +96,18 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 			"prepare+commitSize", c.current.GetPrepareOrCommitSize(),
 			"hash", prepare.Digest.Hex(),
 			"self", c.address.Hex(),
+			"proposermsg", c.current.Prepares.Get(c.valSet.GetProposer().Address()),
 		)
 		c.sendCommit()
+	} else {
+		log.Info("ibftConsensus: handlePrepare sendCommit wait condition",
+			"no", prepare.View.Sequence,
+			"round", prepare.View.Round,
+			"prepare+commitSize", c.current.GetPrepareOrCommitSize(),
+			"hash", prepare.Digest.Hex(),
+			"self", c.address.Hex(),
+			"proposermsg", c.current.Prepares.Get(c.valSet.GetProposer().Address()),
+		)
 	}
 
 	return nil

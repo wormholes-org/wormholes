@@ -89,22 +89,44 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	}
 
 	c.acceptCommit(msg, src)
-	log.Info("ibftConsensus: handleCommit baseinfo", "no", commit.View.Sequence.Uint64(), "round", commit.View.Round, "from", src.Address().Hex(), "hash", commit.Digest.Hex(), "self", c.address.Hex())
+
+	//log.Info("ibftConsensus: handleCommit baseinfo", "no", commit.View.Sequence.Uint64(), "round", commit.View.Round, "from", src.Address().Hex(), "hash", commit.Digest.Hex(), "self", c.address.Hex(), "size", c.current.Commits.Size())
 	// Commit the proposal once we have enough COMMIT messages and we are not in the Committed state.
 	//
 	// If we already have a proposal, we may have chance to speed up the consensus process
 	// by committing the proposal without PREPARE messages.
 	if c.current.Commits.Size() >= c.QuorumSize() && c.state.Cmp(ibfttypes.StateCommitted) < 0 {
 		// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
-		log.Info("ibftConsensus: handleCommit commit",
+		if c.current.Commits.Get(c.valSet.GetProposer().Address()) != nil {
+			log.Info("ibftConsensus: handleCommit commit ok",
+				"no", commit.View.Sequence,
+				"round", commit.View.Round,
+				"CommitsSize", c.current.Commits.Size(),
+				"hash", commit.Digest.Hex(),
+				"self", c.address.Hex(),
+				"proposer", c.valSet.GetProposer().Address().Hex(),
+			)
+			c.current.LockHash()
+			c.commit()
+		} else {
+			log.Info("ibftConsensus: handleCommit commit wait proposer commit",
+				"no", commit.View.Sequence,
+				"round", commit.View.Round,
+				"CommitsSize", c.current.Commits.Size(),
+				"hash", commit.Digest.Hex(),
+				"self", c.address.Hex(),
+				"proposer", c.valSet.GetProposer().Address().Hex(),
+			)
+		}
+	} else {
+		log.Info("ibftConsensus: handleCommit commit wait condition",
 			"no", commit.View.Sequence,
 			"round", commit.View.Round,
 			"CommitsSize", c.current.Commits.Size(),
 			"hash", commit.Digest.Hex(),
 			"self", c.address.Hex(),
+			"proposer", c.valSet.GetProposer().Address().Hex(),
 		)
-		c.current.LockHash()
-		c.commit()
 	}
 
 	return nil
