@@ -516,12 +516,12 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
-			// if w.isRunning() {
-			// 	log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
-			// 	commit(false, commitInterruptResubmit)
-			// }
-			log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1, "w.isRunning", w.isRunning())
-			commit(false, commitInterruptResubmit)
+			if w.isRunning() {
+				log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+				commit(false, commitInterruptResubmit)
+			}
+			//log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1, "w.isRunning", w.isRunning())
+			//commit(false, commitInterruptResubmit)
 
 		case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.
