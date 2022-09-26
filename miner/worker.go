@@ -444,7 +444,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
-			timeoutTimer.Reset(60 * time.Second)
+			timeoutTimer.Reset(300 * time.Second)
 			if w.isRunning() {
 				w.GossipOnlineProof()
 			}
@@ -493,7 +493,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
-			//if rs.Cmp(w.targetSize()) > 0 {
+			if rs.Cmp(w.targetSize()) > 0 {
 			log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 			if w.isEmpty {
 				log.Info("start produce empty block", "time", time.Now())
@@ -511,7 +511,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				//cmd.Process.Kill()
 
 			}
-			//}
+			}
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
@@ -617,6 +617,9 @@ func (w *worker) mainLoop() {
 			// Note all transactions received may not be continuous with transactions
 			// already included in the current mining block. These transactions will
 			// be automatically eliminated.
+			if !w.isRunning() {
+								continue
+											}
 			if !w.isRunning() && w.current != nil {
 				// If block is already full, abort
 				if gp := w.current.gasPool; gp != nil && gp.Gas() < params.TxGas {
@@ -1066,6 +1069,11 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 // commitEmptyWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64, validators []common.Address) {
 	log.Info("caver|commitEmptyWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
+
+	if w.isRunning() {
+				return
+					}
+
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	tstart := time.Now()
@@ -1146,7 +1154,7 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		return
 	}
 	w.updateSnapshot()
-	w.start()
+	//w.start()
 	emptyblock, err := w.engine.SealforEmptyBlock(w.chain, block, validators)
 
 	if err != nil {
@@ -1164,6 +1172,10 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 // commitNewWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {
 	log.Info("caver|commitNewWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
+
+	if !w.isRunning() {
+						return
+									}
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
