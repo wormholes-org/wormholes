@@ -158,6 +158,7 @@ type worker struct {
 	taskCh             chan *task
 	resultCh           chan *types.Block
 	startCh            chan struct{}
+	onlineCh           chan struct{}
 	emptyCh            chan struct{}
 	exitCh             chan struct{}
 	resubmitIntervalCh chan time.Duration
@@ -205,6 +206,9 @@ type worker struct {
 	miner        Handler
 	// onlineValidators
 	onlineValidators *types.OnlineValidatorList
+
+	//empty block
+	emptyTimestamp int64
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
@@ -228,7 +232,8 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		resultCh:     make(chan *types.Block, resultQueueSize),
 		exitCh:       make(chan struct{}),
 		startCh:      make(chan struct{}, 1),
-		emptyCh:      make(chan struct{}, 1),
+		onlineCh:     make(chan struct{}, 1),
+		emptyCh:      make(chan struct{}),
 
 		isEmpty:            false,
 		resubmitIntervalCh: make(chan time.Duration),
@@ -237,7 +242,8 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		miner:              handler,
 		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
 
-		cacheHeight: new(big.Int),
+		cacheHeight:    new(big.Int),
+		emptyTimestamp: time.Now().Unix(),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -403,20 +409,25 @@ func (w *worker) emptyLoop() {
 		select {
 		case <-emptyTimer.C:
 			{
-				emptyTimer.Reset(300 * time.Second)
+				emptyTimer.Reset(120 * time.Second)
 				if !w.isRunning() {
+					w.emptyTimestamp = time.Now().Unix()
+				}
+				if time.Now().Unix()-w.emptyTimestamp > 120 {
 					continue
 				}
 				if w.isEmpty {
 					continue
 				}
+				w.isEmpty = true
+				w.emptyCh <- struct{}{}
 				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
-				w.stop()
+				//w.stop()
 				w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				go w.cerytify.handleEvents()
 				w.cacheHeight = w.current.header.Number
-				w.isEmpty = true
-				w.emptyCh <- struct{}{}
+				w.onlineCh <- struct{}{}
+				emptyTimer.Stop()
 			}
 		case <-gossipTimer.C:
 			{
@@ -442,8 +453,6 @@ func (w *worker) emptyLoop() {
 						w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
 						w.cerytify.receiveValidatorsSum = big.NewInt(0)
 						w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
-						w.isEmpty = false
-
 						sgiccommon.Sigc <- syscall.SIGTERM
 					}
 				}
@@ -503,6 +512,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case head := <-w.chainHeadCh:
 			if w.isRunning() {
 				w.GossipOnlineProof()
+				w.emptyTimestamp = time.Now().Unix()
 			}
 
 			log.Info("w.chainHeadCh", "no", head.Block.Number().Uint64()+1)
@@ -697,6 +707,9 @@ func (w *worker) taskLoop() {
 	for {
 		select {
 		case task := <-w.taskCh:
+			if w.isEmpty {
+				continue
+			}
 			if w.newTaskHook != nil {
 				w.newTaskHook(task)
 			}
@@ -721,6 +734,9 @@ func (w *worker) taskLoop() {
 		case <-w.exitCh:
 			interrupt()
 			return
+		case <-w.emptyCh:
+			interrupt()
+			log.Info("emptyCh interrupt")
 		}
 	}
 }
@@ -1079,11 +1095,11 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 }
 
 // commitEmptyWork generates several new sealing tasks based on the parent block.
-func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64, validators []common.Address) {
+func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64, validators []common.Address) error {
 	log.Info("caver|commitEmptyWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
 
-	if w.isRunning() {
-		return
+	if !w.isEmpty {
+		return errors.New("w.isEmpty == false")
 	}
 
 	w.mu.RLock()
@@ -1099,24 +1115,22 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		BaseFee:    parent.BaseFee(),
 	}
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
-	if w.isRunning() {
-		header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000000")
-	}
+	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	if err := w.engine.PrepareForEmptyBlock(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
-		return
+		return err
 	}
 	err := w.makeCurrent(parent, header)
 	if err != nil {
 		log.Error("Failed to create mining context", "err", err)
-		return
+		return err
 	}
 	// Split the pending transactions into locals and remotes
 	receipts := copyReceipts(w.current.receipts)
 	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, w.current.state, w.current.txs, nil, receipts)
 	if err != nil {
 		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.current.header.Number.Uint64(), "err", err.Error())
-		return
+		return err
 	}
 	w.updateSnapshot()
 	//w.start()
@@ -1124,14 +1138,16 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 
 	if err != nil {
 		log.Warn("Empty Block sealing failed", "err", err, "no", block.NumberU64(), "hash", block.Hash())
+		return err
 	}
 	_, err = w.chain.WriteBlockWithState(emptyblock, receipts, nil, w.current.state, true)
 	if err != nil {
 		log.Error("commitEmpty Failed writing block to chain", "err", err)
+		return err
 	}
 	//w.mux.Post(core.NewMinedBlockEvent{Block: block})
 	log.Info("empty block wirte to localdb", "Number:", w.current.header.Number.Uint64())
-
+	return nil
 }
 
 // commitNewWork generates several new sealing tasks based on the parent block.
@@ -1385,7 +1401,7 @@ func (w *worker) CommitOnlineProofBlock() error {
 	if err != nil {
 		return err
 	}
-	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, w.emptyCh)
+	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, w.onlineCh)
 	if err != nil {
 		return err
 	}
