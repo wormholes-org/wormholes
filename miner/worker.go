@@ -164,7 +164,6 @@ type worker struct {
 	notifyBlockCh      chan *types.OnlineValidatorList
 
 	current      *environment
-	cacheHeight  *big.Int
 	localUncles  map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
 	remoteUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
 	unconfirmed  *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
@@ -239,9 +238,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		cerytify:           NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
 		miner:              handler,
 		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
-
-		cacheHeight:    new(big.Int),
-		emptyTimestamp: time.Now().Unix(),
+		emptyTimestamp:     time.Now().Unix(),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -423,7 +420,6 @@ func (w *worker) emptyLoop() {
 				//w.stop()
 				w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				go w.cerytify.handleEvents()
-				w.cacheHeight = w.current.header.Number
 				w.onlineCh <- struct{}{}
 				emptyTimer.Stop()
 			}
@@ -433,9 +429,7 @@ func (w *worker) emptyLoop() {
 				if !w.isEmpty {
 					continue
 				}
-				//if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
 				w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
-				w.cacheHeight = w.current.header.Number
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
