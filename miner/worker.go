@@ -20,13 +20,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/ethereum/go-ethereum/sgiccommon"
 	"github.com/ethereum/go-ethereum/trie"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -452,8 +450,13 @@ func (w *worker) emptyLoop() {
 						w.cerytify.validators = make([]common.Address, 0)
 						w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
 						w.cerytify.receiveValidatorsSum = big.NewInt(0)
-						w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
-						sgiccommon.Sigc <- syscall.SIGTERM
+						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators); err != nil {
+							log.Error("commitEmptyWork error", "err", err)
+						} else {
+							w.isEmpty = false
+							w.emptyTimestamp = time.Now().Unix()
+						}
+						//sgiccommon.Sigc <- syscall.SIGTERM
 					}
 				}
 			}
