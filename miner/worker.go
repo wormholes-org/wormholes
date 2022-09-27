@@ -205,7 +205,8 @@ type worker struct {
 	onlineValidators *types.OnlineValidatorList
 
 	//empty block
-	emptyTimestamp int64
+	emptyTimestamp  int64
+	emptyHandleFlag bool
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
@@ -239,6 +240,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		miner:              handler,
 		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
 		emptyTimestamp:     time.Now().Unix(),
+		emptyHandleFlag:    false,
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -394,33 +396,49 @@ func (w *worker) emptyLoop() {
 	emptyTimer := time.NewTimer(0)
 	defer emptyTimer.Stop()
 	<-emptyTimer.C // discard the initial tick
-	emptyTimer.Reset(120 * time.Second)
+	emptyTimer.Reset(1 * time.Second)
 
 	gossipTimer := time.NewTimer(0)
 	defer gossipTimer.Stop()
 	<-gossipTimer.C // discard the initial tick
 	gossipTimer.Reset(5 * time.Second)
+
 	for {
 		select {
 		case <-emptyTimer.C:
 			{
-				emptyTimer.Reset(120 * time.Second)
+				emptyTimer.Reset(1 * time.Second)
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
+					continue
 				}
 				if w.isEmpty {
 					continue
 				}
-				if time.Now().Unix()-w.emptyTimestamp < 120 {
+				/*
+					if time.Now().Unix()-w.emptyTimestamp < 120 {
+						continue
+					}
+				*/
+				curTime := time.Now().Unix()
+				curBlock := w.chain.CurrentBlock()
+				if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
+					log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
+				} else {
+					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
 				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 				//w.stop()
 				w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-				go w.cerytify.handleEvents()
-				w.onlineCh <- struct{}{}
+				if !w.emptyHandleFlag {
+					w.emptyHandleFlag = true
+					go w.cerytify.handleEvents()
+				}
+
+				//w.onlineCh <- struct{}{}
 				emptyTimer.Stop()
 			}
 		case <-gossipTimer.C:
