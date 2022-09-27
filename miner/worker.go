@@ -230,7 +230,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		startCh:      make(chan struct{}, 1),
 		emptyCh:      make(chan struct{}, 1),
 
-		isEmpty:            true,
+		isEmpty:            false,
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
 		cerytify:           NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
