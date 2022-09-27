@@ -1148,7 +1148,7 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		log.Error("commitEmpty Failed writing block to chain", "err", err)
 		return err
 	}
-	//w.mux.Post(core.NewMinedBlockEvent{Block: block})
+	w.mux.Post(core.NewMinedBlockEvent{Block: block})
 	log.Info("empty block wirte to localdb", "Number:", w.current.header.Number.Uint64())
 	return nil
 }
