@@ -413,10 +413,10 @@ func (w *worker) emptyLoop() {
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
 				}
-				if time.Now().Unix()-w.emptyTimestamp > 120 {
+				if w.isEmpty {
 					continue
 				}
-				if w.isEmpty {
+				if time.Now().Unix()-w.emptyTimestamp < 120 {
 					continue
 				}
 				w.isEmpty = true
