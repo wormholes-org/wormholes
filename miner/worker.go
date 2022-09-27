@@ -396,7 +396,7 @@ func (w *worker) emptyLoop() {
 	emptyTimer := time.NewTimer(0)
 	defer emptyTimer.Stop()
 	<-emptyTimer.C // discard the initial tick
-	emptyTimer.Reset(1 * time.Second)
+	emptyTimer.Reset(120 * time.Second)
 
 	gossipTimer := time.NewTimer(0)
 	defer gossipTimer.Stop()
