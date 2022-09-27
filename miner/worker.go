@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"github.com/ethereum/go-ethereum/sgiccommon"
 	"github.com/ethereum/go-ethereum/trie"
 	"math"
 	"math/big"
@@ -41,7 +42,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/sgiccommon"
 )
 
 const (
@@ -254,6 +254,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 			recommit = minRecommitInterval
 		}
 
+		go worker.emptyLoop()
 		go worker.mainLoop()
 		go worker.newWorkLoop(recommit)
 		go worker.resultLoop()
@@ -387,6 +388,73 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 	return time.Duration(int64(next))
 }
 
+func (w *worker) emptyLoop() {
+
+	emptyTimer := time.NewTimer(0)
+	defer emptyTimer.Stop()
+	<-emptyTimer.C // discard the initial tick
+	emptyTimer.Reset(300 * time.Second)
+
+	gossipTimer := time.NewTimer(0)
+	defer gossipTimer.Stop()
+	<-gossipTimer.C // discard the initial tick
+	gossipTimer.Reset(10 * time.Second)
+	for {
+		select {
+		case <-emptyTimer.C:
+			{
+				emptyTimer.Reset(300 * time.Second)
+				if !w.isRunning() {
+					continue
+				}
+				if w.isEmpty {
+					continue
+				}
+				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+				w.stop()
+				w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+				go w.cerytify.handleEvents()
+				w.cacheHeight = w.current.header.Number
+				w.isEmpty = true
+				w.emptyCh <- struct{}{}
+			}
+		case <-gossipTimer.C:
+			{
+				gossipTimer.Reset(10 * time.Second)
+				if !w.isRunning() {
+					continue
+				}
+				if !w.isEmpty {
+					continue
+				}
+				//if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
+				w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
+				w.cacheHeight = w.current.header.Number
+			}
+
+		case rs := <-w.cerytify.signatureResultCh:
+			{
+				log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
+				if rs.Cmp(w.targetSize()) > 0 {
+					log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					if w.isEmpty {
+						log.Info("start produce empty block", "time", time.Now())
+						gossipTimer.Stop()
+						<-gossipTimer.C // discard the initial tick
+						w.cerytify.validators = make([]common.Address, 0)
+						w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
+						w.cerytify.receiveValidatorsSum = big.NewInt(0)
+						w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
+						w.isEmpty = false
+
+						sgiccommon.Sigc <- syscall.SIGTERM
+					}
+				}
+			}
+		}
+	}
+}
+
 // newWorkLoop is a standalone goroutine to submit new mining work upon received events.
 func (w *worker) newWorkLoop(recommit time.Duration) {
 	var (
@@ -399,17 +467,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	defer timer.Stop()
 	<-timer.C // discard the initial tick
 
-	timeoutTimer := time.NewTimer(0)
-	defer timeoutTimer.Stop()
-	<-timeoutTimer.C // discard the initial tick
-
 	proofTimer := time.NewTimer(0)
 	defer proofTimer.Stop()
 	<-proofTimer.C // discard the initial tick
-
-	sendMsgTimer := time.NewTimer(0)
-	defer sendMsgTimer.Stop()
-	<-sendMsgTimer.C // discard the initial tick
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(noempty bool, s int32) {
@@ -444,7 +504,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
-			timeoutTimer.Reset(300 * time.Second)
 			if w.isRunning() {
 				w.GossipOnlineProof()
 			}
@@ -467,50 +526,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				// clearPending(w.chain.CurrentHeader().Number.Uint64() + 1)
 				// timestamp = time.Now().Unix()
 				// commit(false, commitInterruptNewHead)
-			}
-		case <-timeoutTimer.C:
-			log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
-			w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-			go w.cerytify.handleEvents()
-			w.cacheHeight = w.current.header.Number
-			w.isEmpty = true
-			w.emptyCh <- struct{}{}
-			w.stop()
-
-			go func() {
-				for {
-					sendMsgTimer.Reset(2 * time.Second)
-					select {
-					case <-sendMsgTimer.C:
-						log.Info("sendMsgTimer", "height", w.current.header.Number, "cacheHeight:", w.cacheHeight, "time:", time.Now(), "cmp:", w.current.header.Number.Cmp(w.cacheHeight))
-						//if w.current.header.Number.Cmp(w.cacheHeight) <= 0 {
-						w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
-						w.cacheHeight = w.current.header.Number
-						//}
-					}
-				}
-			}()
-
-		case rs := <-w.cerytify.signatureResultCh:
-			log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
-			if rs.Cmp(w.targetSize()) > 0 {
-			log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-			if w.isEmpty {
-				log.Info("start produce empty block", "time", time.Now())
-				w.cerytify.validators = make([]common.Address, 0)
-				w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-				w.cerytify.receiveValidatorsSum = big.NewInt(0)
-				w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators)
-				w.isEmpty = false
-
-				sgiccommon.Sigc <- syscall.SIGTERM
-				//getpid := syscall.Getpid()
-				//wormholesid := strconv.FormatInt(int64(getpid), 10)
-				//log.Info("**wormholesid", "wormholesid", wormholesid)
-				//cmd := exec.Command("kill INT " + wormholesid + "; sleep 1;")
-				//cmd.Process.Kill()
-
-			}
 			}
 
 		case <-timer.C:
@@ -618,8 +633,8 @@ func (w *worker) mainLoop() {
 			// already included in the current mining block. These transactions will
 			// be automatically eliminated.
 			if !w.isRunning() {
-								continue
-											}
+				continue
+			}
 			if !w.isRunning() && w.current != nil {
 				// If block is already full, abort
 				if gp := w.current.gasPool; gp != nil && gp.Gas() < params.TxGas {
@@ -1071,12 +1086,11 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 	log.Info("caver|commitEmptyWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
 
 	if w.isRunning() {
-				return
-					}
+		return
+	}
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	tstart := time.Now()
 	parent := w.chain.CurrentBlock()
 	num := parent.Number()
 	header := &types.Header{
@@ -1100,55 +1114,9 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		log.Error("Failed to create mining context", "err", err)
 		return
 	}
-	env := w.current
-	// Accumulate the uncles for the current block
-	uncles := make([]*types.Header, 0, 2)
-	commitUncles := func(blocks map[common.Hash]*types.Block) {
-		// Clean up stale uncle blocks first
-		for hash, uncle := range blocks {
-			if uncle.NumberU64()+staleThreshold <= header.Number.Uint64() {
-				delete(blocks, hash)
-			}
-		}
-		for hash, uncle := range blocks {
-			if len(uncles) == 2 {
-				break
-			}
-			if err := w.commitUncle(env, uncle.Header()); err != nil {
-				log.Trace("Possible uncle rejected", "hash", hash, "reason", err)
-			} else {
-				log.Debug("Committing new uncle to block", "hash", hash)
-				uncles = append(uncles, uncle.Header())
-			}
-		}
-	}
-	// Prefer to locally generated uncle
-	commitUncles(w.localUncles)
-	commitUncles(w.remoteUncles)
-	// Fill the block with all available pending transactions.
-	pending, err := w.eth.TxPool().Pending(true)
-	if err != nil {
-		log.Error("Failed to fetch pending transactions", "err", err)
-		return
-	}
 	// Split the pending transactions into locals and remotes
-	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
-	for _, account := range w.eth.TxPool().Locals() {
-		if txs := remoteTxs[account]; len(txs) > 0 {
-			delete(remoteTxs, account)
-			localTxs[account] = txs
-		}
-	}
-	if len(localTxs) > 0 {
-		log.Info("caver|commitEmptyWork|localTxs", "no", header.Number, "len", len(localTxs))
-		w.commit(uncles, nil, false, tstart)
-	}
-	if len(remoteTxs) > 0 {
-		log.Info("caver|commitEmptyWork|remoteTxs", "no", header.Number, "len", len(remoteTxs))
-		w.commit(uncles, nil, false, tstart)
-	}
 	receipts := copyReceipts(w.current.receipts)
-	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, w.current.state, w.current.txs, uncles, receipts)
+	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, w.current.state, w.current.txs, nil, receipts)
 	if err != nil {
 		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.current.header.Number.Uint64(), "err", err.Error())
 		return
@@ -1174,8 +1142,8 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	log.Info("caver|commitNewWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
 
 	if !w.isRunning() {
-						return
-									}
+		return
+	}
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
