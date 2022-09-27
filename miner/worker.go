@@ -421,9 +421,6 @@ func (w *worker) emptyLoop() {
 		case <-gossipTimer.C:
 			{
 				gossipTimer.Reset(10 * time.Second)
-				if !w.isRunning() {
-					continue
-				}
 				if !w.isEmpty {
 					continue
 				}
