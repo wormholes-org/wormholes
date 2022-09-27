@@ -393,12 +393,12 @@ func (w *worker) emptyLoop() {
 	emptyTimer := time.NewTimer(0)
 	defer emptyTimer.Stop()
 	<-emptyTimer.C // discard the initial tick
-	emptyTimer.Reset(300 * time.Second)
+	emptyTimer.Reset(120 * time.Second)
 
 	gossipTimer := time.NewTimer(0)
 	defer gossipTimer.Stop()
 	<-gossipTimer.C // discard the initial tick
-	gossipTimer.Reset(10 * time.Second)
+	gossipTimer.Reset(5 * time.Second)
 	for {
 		select {
 		case <-emptyTimer.C:
@@ -437,7 +437,7 @@ func (w *worker) emptyLoop() {
 					if w.isEmpty {
 						log.Info("start produce empty block", "time", time.Now())
 						gossipTimer.Stop()
-						<-gossipTimer.C // discard the initial tick
+						//<-gossipTimer.C // discard the initial tick
 						w.cerytify.validators = make([]common.Address, 0)
 						w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
 						w.cerytify.receiveValidatorsSum = big.NewInt(0)
