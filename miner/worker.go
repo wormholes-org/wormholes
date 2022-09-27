@@ -445,8 +445,6 @@ func (w *worker) emptyLoop() {
 					log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty {
 						log.Info("start produce empty block", "time", time.Now())
-						gossipTimer.Stop()
-						//<-gossipTimer.C // discard the initial tick
 						w.cerytify.validators = make([]common.Address, 0)
 						w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
 						w.cerytify.receiveValidatorsSum = big.NewInt(0)
@@ -455,6 +453,7 @@ func (w *worker) emptyLoop() {
 						} else {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
+							emptyTimer.Reset(120 * time.Second)
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}
