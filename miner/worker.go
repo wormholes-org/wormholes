@@ -20,12 +20,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/ethereum/go-ethereum/trie"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
 

@@ -255,8 +255,13 @@ func (c *core) startNewRound(round *big.Int) {
 			return
 		}
 		onlineValidators := new(types.OnlineValidatorList)
-		c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
+		if c.onlineProofs == nil {
+			c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
+		}
 		c.onlineProofs[newView.Sequence.Uint64()] = onlineValidators
+		if c.onlineProofs[newView.Sequence.Uint64()-2] != nil {
+			delete(c.onlineProofs, newView.Sequence.Uint64()-2)
+		}
 	}
 
 	// If new round is 0, then check if qbftConsensus needs to be enabled
