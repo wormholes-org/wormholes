@@ -17,11 +17,10 @@
 package core
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -35,8 +34,8 @@ const (
 	PreprepareStep2
 )
 
-var csssStat = PreprepareStep1 //consensus state mark PreprepareStep1 = 0, PreprepareStep2 = 1
-var randSeeds = [][]byte{}     //rand seeds
+var csssStat = PreprepareStep1                     //consensus state mark PreprepareStep1 = 0, PreprepareStep2 = 1
+var randSeedMessages *messageSet = new(messageSet) // collected random data message
 
 func (c *core) sendPreprepare(request *istanbul.Request) {
 	if csssStat == PreprepareStep1 {
@@ -60,24 +59,34 @@ func (c *core) sendPreprepareStep1(request *istanbul.Request) {
 			"hash", request.Proposal.Hash().Hex(),
 			"self", c.address.Hex())
 		if c.IsProposer() { //start collect random seed
-			randSeeds = [][]byte{} //TODO: early clear
+			randSeedMessages = new(messageSet) //TODO: early clear
 			c.broadcast(&ibfttypes.Message{
 				Code: ibfttypes.MsgPreprepare,
 				Msg:  []byte{},
 			})
 		} else { //send random seed
-			csssStat = PreprepareStep2
-			//TODO generate & send random Seed
-			rndSeed := time.Now().UnixNano()
-			seed := sha256.Sum256([]byte(fmt.Sprintf("%d", rndSeed)))
-			bigSeed := big.NewInt(seed)
-			c.broadcast(&ibfttypes.Message{
-				Code: ibfttypes.MsgPrepare,
-				//Msg:  []byte(string(seed)),
-				Msg: []byte{},
-			})
+			//TODO: check necessary for send future random data
+			c.BroadcastLocalRandomData()
 		}
 	}
+}
+
+func (c *core) BroadcastLocalRandomData() {
+	csssStat = PreprepareStep2
+	//TODO generate & send random Seed
+	c.broadcast(&ibfttypes.Message{
+		Code: ibfttypes.MsgPrepare,
+		Msg:  c.localRandomBytes(),
+	})
+}
+
+// local random address
+func (c *core) localRandomBytes() []byte {
+	rndSeed := time.Now().UnixNano()
+	rand.Seed(rndSeed)
+	bigSeed := big.NewInt(rand.Int63())
+	//rndDat = common.BigToHash(bigSeed)
+	return bigSeed.Bytes()
 }
 
 func (c *core) sendPreprepareStep2(request *istanbul.Request) {
@@ -120,7 +129,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 }
 
 func (c *core) handlePreprepareStep1(msg *ibfttypes.Message, src istanbul.Validator) error {
-	logger := c.logger.New("from", src, "state", c.state)
+	//logger := c.logger.New("from", src, "state", c.state)
 
 	// Decode PRE-PREPARE
 	var preprepare *istanbul.Preprepare
@@ -169,70 +178,54 @@ func (c *core) handlePreprepareStep1(msg *ibfttypes.Message, src istanbul.Valida
 	if c.IsProposer() { //is proposer
 		//TODO: collect random seed
 		//TODO: check is message from validator, same round, same height
-		randSeeds = append(randSeeds, msg.Msg)
+		randSeedMessages.Add(msg)
+		if randSeedMessages.Size() >= c.QuorumSize() {
+			csssStat = PreprepareStep2
+			//TODO: Ready To PreprepareStep2
+			c.AssambleNewBlockWithRandomData()
+		}
+
+		//// If it is locked, it can only process on the locked block.
+		//// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepared state.
+		//if err := c.verifyPrepare(prepare, src); err != nil {
+		//	log.Info("ibftConsensus: handlePrepare verifyPrepare",
+		//		"no", prepare.View.Sequence,
+		//		"round", prepare.View.Round.String(),
+		//		"hash", prepare.Digest.Hex(),
+		//		"self", c.address.Hex(),
+		//		"err", err)
+		//	return err
+		//}
+		//
+		//c.acceptPrepare(msg, src)
+		//// Change to Prepared state if we've received enough PREPARE messages or it is locked
+		//// and we are in earlier state before Prepared state.
+		//if ((c.current.IsHashLocked() && prepare.Digest == c.current.GetLockedHash()) || c.current.GetPrepareOrCommitSize() >= c.QuorumSize()) &&
+		//	c.state.Cmp(ibfttypes.StatePrepared) < 0 {
+		//	c.current.LockHash()
+		//	c.setState(ibfttypes.StatePrepared)
+		//	log.Info("ibftConsensus: handlePrepare sendCommit",
+		//		"no", prepare.View.Sequence,
+		//		"round", prepare.View.Round,
+		//		"prepare+commitSize", c.current.GetPrepareOrCommitSize(),
+		//		"hash", prepare.Digest.Hex(),
+		//		"self", c.address.Hex(),
+		//	)
+		//	c.sendCommit()
+		//}
+		//
+		//return nil
 	} else {
 		if !c.valSet.IsProposer(src.Address()) {
 			//TODO: start send random seed
+			c.BroadcastLocalRandomData()
 		}
 	}
-
-	preProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
-	log.Info("preProposer:", preProposer.String())
-	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
-		// if it's a future block, we will handle it again after the duration
-		if err == consensus.ErrFutureBlock {
-			logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)
-			c.stopFuturePreprepareTimer()
-			c.futurePreprepareTimer = time.AfterFunc(duration, func() {
-				c.sendEvent(backlogEvent{
-					src: src,
-					msg: msg,
-				})
-			})
-		} else {
-			logger.Warn("Failed to verify proposal", "err", err, "duration", duration)
-			log.Info("caver|handlePreprepare|sendNextRoundChange1", "no", preprepare.Proposal.Number().String(),
-				"round", preprepare.View.Round.String(), "is proposer", strconv.FormatBool(c.IsProposer()))
-			c.sendNextRoundChange()
-		}
-		return err
-	}
-
-	// Here is about to accept the PRE-PREPARE
-	if c.state == ibfttypes.StateAcceptRequest {
-		// Send ROUND CHANGE if the locked proposal and the received proposal are different
-		if c.current.IsHashLocked() {
-			if preprepare.Proposal.Hash() == c.current.GetLockedHash() {
-				log.Info("ibftConsensus: preprepare.Proposal.Hash() == c.current.GetLockedHash()",
-					"no", preprepare.Proposal.Number(),
-					"round", c.currentView().Round,
-					"self", c.address.Hex())
-				// Broadcast COMMIT and enters Prepared state directly
-				c.acceptPreprepare(preprepare)
-				c.setState(ibfttypes.StatePrepared)
-				c.sendCommit()
-			} else {
-				log.Info("ibftConsensus: handlePreprepare sendNextRoundChange2", "no", preprepare.Proposal.Number().String(),
-					"round", preprepare.View.Round.String(), "isProposer", strconv.FormatBool(c.IsProposer()))
-				// Send round change
-				c.sendNextRoundChange()
-			}
-		} else {
-			// Either
-			//   1. the locked proposal and the received proposal match
-			//   2. we have no locked proposal
-			c.acceptPreprepare(preprepare)
-			c.setState(ibfttypes.StatePreprepared)
-			log.Info("ibftConsensus: handlePreprepare sendPrepare",
-				"no", preprepare.View.Sequence,
-				"round", preprepare.View.Round,
-				"self", c.address.Hex(),
-			)
-			c.sendPrepare()
-		}
-	}
-
 	return nil
+}
+
+func (c *core) AssambleNewBlockWithRandomData() {
+
 }
 
 func (c *core) handlePreprepareStep2(msg *ibfttypes.Message, src istanbul.Validator) error {
