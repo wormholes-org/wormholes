@@ -473,10 +473,10 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex())
 	for _, addr := range istanbulExtra.ValidatorAddr {
-		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex())
+		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
 	}
 	for _, addr := range istanbulExtra.ExchangerAddr {
-		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex())
+		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
 	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 	log.Info("CreateNFTByOfficial16 end", "Coinbase=", header.Coinbase.Hex())
@@ -507,10 +507,10 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 
 	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex())
 	for _, addr := range istanbulExtra.ValidatorAddr {
-		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex())
+		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
 	}
 	for _, addr := range istanbulExtra.ExchangerAddr {
-		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex())
+		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
 	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
