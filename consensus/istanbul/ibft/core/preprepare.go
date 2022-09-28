@@ -17,8 +17,11 @@
 package core
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 	"strconv"
 	"time"
 
@@ -33,6 +36,7 @@ const (
 )
 
 var csssStat = PreprepareStep1 //consensus state mark PreprepareStep1 = 0, PreprepareStep2 = 1
+var randSeeds = [][]byte{}     //rand seeds
 
 func (c *core) sendPreprepare(request *istanbul.Request) {
 	if csssStat == PreprepareStep1 {
@@ -56,6 +60,7 @@ func (c *core) sendPreprepareStep1(request *istanbul.Request) {
 			"hash", request.Proposal.Hash().Hex(),
 			"self", c.address.Hex())
 		if c.IsProposer() { //start collect random seed
+			randSeeds = [][]byte{} //TODO: early clear
 			c.broadcast(&ibfttypes.Message{
 				Code: ibfttypes.MsgPreprepare,
 				Msg:  []byte{},
@@ -63,8 +68,9 @@ func (c *core) sendPreprepareStep1(request *istanbul.Request) {
 		} else { //send random seed
 			csssStat = PreprepareStep2
 			//TODO generate & send random Seed
-			//rndSeed := time.Now().UnixNano()
-			//seed := sha256.Sum256([]byte(fmt.Sprintf("%d", rndSeed)))
+			rndSeed := time.Now().UnixNano()
+			seed := sha256.Sum256([]byte(fmt.Sprintf("%d", rndSeed)))
+			bigSeed := big.NewInt(seed)
 			c.broadcast(&ibfttypes.Message{
 				Code: ibfttypes.MsgPrepare,
 				//Msg:  []byte(string(seed)),
@@ -160,11 +166,14 @@ func (c *core) handlePreprepareStep1(msg *ibfttypes.Message, src istanbul.Valida
 		return err
 	}
 
-	// Check if the message comes from current proposer
-	if !c.valSet.IsProposer(src.Address()) {
-		logger.Warn("Ignore preprepare messages from non-proposer", "no", preprepare.Proposal.Number().String(),
-			"author", src.Address().Hex(), "round", preprepare.View.Round.String())
-		return istanbulcommon.ErrNotFromProposer
+	if c.IsProposer() { //is proposer
+		//TODO: collect random seed
+		//TODO: check is message from validator, same round, same height
+		randSeeds = append(randSeeds, msg.Msg)
+	} else {
+		if !c.valSet.IsProposer(src.Address()) {
+			//TODO: start send random seed
+		}
 	}
 
 	preProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
