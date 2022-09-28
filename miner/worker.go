@@ -449,6 +449,9 @@ func (w *worker) emptyLoop() {
 				if !w.isEmpty {
 					continue
 				}
+				w.cerytify.validators = make([]common.Address, 0)
+				w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
+				w.cerytify.receiveValidatorsSum = big.NewInt(0)
 				w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
 				w.cacheHeight = w.current.header.Number
 			}
@@ -460,9 +463,6 @@ func (w *worker) emptyLoop() {
 					log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight == w.cerytify.msgHeight {
 						log.Info("start produce empty block", "time", time.Now())
-						w.cerytify.validators = make([]common.Address, 0)
-						w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-						w.cerytify.receiveValidatorsSum = big.NewInt(0)
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators); err != nil {
 							log.Error("commitEmptyWork error", "err", err)
 						} else {
