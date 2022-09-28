@@ -1127,9 +1127,9 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		Extra:      w.extra,
 		Time:       uint64(0),
 		BaseFee:    parent.BaseFee(),
+		Coinbase:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
 	}
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
-	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	if err := w.engine.PrepareForEmptyBlock(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
 		return err
