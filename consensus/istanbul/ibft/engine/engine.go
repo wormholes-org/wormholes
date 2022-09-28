@@ -401,6 +401,32 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	return nil
 }
 
+func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+	header.Nonce = istanbulcommon.EmptyBlockNonce
+	header.MixDigest = types.IstanbulDigest
+
+	// copy the parent extra data as the header extra data
+	number := header.Number.Uint64()
+	parent := chain.GetHeader(header.ParentHash, number-1)
+	if parent == nil {
+		return consensus.ErrUnknownAncestor
+	}
+
+	// use the same difficulty for all blocks
+	header.Difficulty = istanbulcommon.DefaultDifficulty
+	// set header's timestamp
+
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") {
+		header.Time = parent.Time + e.cfg.BlockPeriod
+	} else {
+		if header.Time < uint64(time.Now().Unix()) {
+			header.Time = uint64(time.Now().Unix())
+		}
+	}
+
+	return nil
+}
+
 func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address) ([]byte, error) {
 	var buf bytes.Buffer
 

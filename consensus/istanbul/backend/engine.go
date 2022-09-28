@@ -175,7 +175,7 @@ func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, heade
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 
-	err := sb.EngineForBlockNumber(header.Number).Prepare(chain, header, valSet)
+	err := sb.EngineForBlockNumber(header.Number).PrepareEmpty(chain, header, valSet)
 	if err != nil {
 		return err
 	}
