@@ -208,32 +208,33 @@ type worker struct {
 	//empty block
 	emptyTimestamp  int64
 	emptyHandleFlag bool
+	cacheHeight     *big.Int
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
 	worker := &worker{
-		config:       config,
-		chainConfig:  chainConfig,
-		engine:       engine,
-		eth:          eth,
-		mux:          mux,
-		chain:        eth.BlockChain(),
-		isLocalBlock: isLocalBlock,
-		localUncles:  make(map[common.Hash]*types.Block),
-		remoteUncles: make(map[common.Hash]*types.Block),
-		unconfirmed:  newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks: make(map[common.Hash]*task),
-		txsCh:        make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
-		chainSideCh:  make(chan core.ChainSideEvent, chainSideChanSize),
-		newWorkCh:    make(chan *newWorkReq),
-		taskCh:       make(chan *task),
-		resultCh:     make(chan *types.Block, resultQueueSize),
-		exitCh:       make(chan struct{}),
-		startCh:      make(chan struct{}, 1),
-		onlineCh:     make(chan struct{}, 1),
-		emptyCh:      make(chan struct{}),
-
+		config:             config,
+		chainConfig:        chainConfig,
+		engine:             engine,
+		eth:                eth,
+		mux:                mux,
+		chain:              eth.BlockChain(),
+		isLocalBlock:       isLocalBlock,
+		localUncles:        make(map[common.Hash]*types.Block),
+		remoteUncles:       make(map[common.Hash]*types.Block),
+		unconfirmed:        newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		pendingTasks:       make(map[common.Hash]*task),
+		txsCh:              make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:        make(chan core.ChainHeadEvent, chainHeadChanSize),
+		chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
+		newWorkCh:          make(chan *newWorkReq),
+		taskCh:             make(chan *task),
+		resultCh:           make(chan *types.Block, resultQueueSize),
+		exitCh:             make(chan struct{}),
+		startCh:            make(chan struct{}, 1),
+		onlineCh:           make(chan struct{}, 1),
+		emptyCh:            make(chan struct{}),
+		cacheHeight:        new(big.Int),
 		isEmpty:            false,
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
@@ -449,6 +450,7 @@ func (w *worker) emptyLoop() {
 					continue
 				}
 				w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
+				w.cacheHeight = w.current.header.Number
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
@@ -456,7 +458,7 @@ func (w *worker) emptyLoop() {
 				log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
 				if rs.Cmp(w.targetSize()) > 0 {
 					log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-					if w.isEmpty {
+					if w.isEmpty && w.cacheHeight == w.cerytify.msgHeight {
 						log.Info("start produce empty block", "time", time.Now())
 						w.cerytify.validators = make([]common.Address, 0)
 						w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
