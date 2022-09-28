@@ -265,6 +265,11 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Uint64() > 0 {
+		log.Error("Seal : coinbase error", "err", "coinbase is 0")
+		return errors.New("coinbase is 0")
+	}
+
 	if sb.core == nil {
 		return errors.New("seal : ibft engine not active")
 	}
