@@ -2751,8 +2751,8 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	}
 	log.Info("random 11 addr", "len", len(validators))
 	for i, validator := range validators {
-		log.Info("Random11ValidatorFromPool", "RandomValidatorV2 11 address", validator.String(),
-			"blocknumber", header.Number.Uint64(), "i", i)
+		log.Info("Random11ValidatorFromPool", "blocknumber", header.Number.Uint64(), "RandomValidatorV2 11 address", validator.String(),
+			"i", i)
 	}
 	elevenValidator := new(types.ValidatorList)
 	for _, addr := range validators {
