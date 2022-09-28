@@ -164,6 +164,7 @@ type worker struct {
 	notifyBlockCh      chan *types.OnlineValidatorList
 
 	current      *environment
+	emptycurrent *environment
 	localUncles  map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
 	remoteUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
 	unconfirmed  *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
@@ -497,10 +498,12 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			atomic.StoreInt32(interrupt, s)
 		}
 		interrupt = new(int32)
-		select {
-		case w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty, timestamp: timestamp}:
-		case <-w.exitCh:
-			return
+		if !w.isEmpty {
+			select {
+			case w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty, timestamp: timestamp}:
+			case <-w.exitCh:
+				return
+			}
 		}
 		timer.Reset(recommit)
 		atomic.StoreInt32(&w.newTxs, 0)
@@ -721,9 +724,6 @@ func (w *worker) taskLoop() {
 	for {
 		select {
 		case task := <-w.taskCh:
-			if w.isEmpty {
-				continue
-			}
 			if w.newTaskHook != nil {
 				w.newTaskHook(task)
 			}
@@ -819,6 +819,106 @@ func (w *worker) resultLoop() {
 			return
 		}
 	}
+}
+
+// makeEmptyCurrent creates a new environment for the current cycle.
+func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) error {
+	// Retrieve the parent state to execute on top and start a prefetcher for
+	// the miner to speed block sealing up a bit
+	state, err := w.chain.StateAt(parent.Root())
+	if err != nil {
+		return err
+	}
+	state.StartPrefetcher("miner")
+
+	var mintDeep *types.MintDeep
+	//var exchangeList *types.SNFTExchangeList
+	if parent.NumberU64() > 0 {
+		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
+		if err != nil {
+			log.Error("Failed get mintdeep ", "err", err)
+			return err
+		}
+		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
+		//if exchangeList == nil {
+		//	exchangeList = &types.SNFTExchangeList{
+		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//	}
+		//}
+	} else {
+		mintDeep = new(types.MintDeep)
+		//mintDeep.OfficialMint = big.NewInt(1)
+		//
+		//mintDeep.UserMint = big.NewInt(0)
+		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
+		mintDeep.UserMint = big.NewInt(1)
+
+		mintDeep.OfficialMint = big.NewInt(0)
+		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
+
+		//exchangeList = &types.SNFTExchangeList{
+		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//}
+	}
+	state.MintDeep = mintDeep
+	//state.SNFTExchangePool = exchangeList
+
+	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
+	state.OfficialNFTPool = officialNFTList
+	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
+		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
+	}
+
+	var nominatedOfficialNFT *types.NominatedOfficialNFT
+	if parent.NumberU64() > 0 {
+		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
+		if err != nil {
+			state.NominatedOfficialNFT = nil
+		} else {
+			state.NominatedOfficialNFT = nominatedOfficialNFT
+		}
+	} else {
+		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
+		nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
+		nominatedOfficialNFT.Number = 4096
+		nominatedOfficialNFT.Royalty = 100
+		nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		nominatedOfficialNFT.Address = common.Address{}
+		state.NominatedOfficialNFT = nominatedOfficialNFT
+	}
+
+	vallist := w.chain.ReadValidatorPool(parent.Header())
+	state.ValidatorPool = vallist.Validators
+
+	env := &environment{
+		signer:    types.MakeSigner(w.chainConfig, header.Number),
+		state:     state,
+		ancestors: mapset.NewSet(),
+		family:    mapset.NewSet(),
+		uncles:    mapset.NewSet(),
+		header:    header,
+	}
+	// when 08 is processed ancestors contain 07 (quick block)
+	for _, ancestor := range w.chain.GetBlocksFromHash(parent.Hash(), 7) {
+		for _, uncle := range ancestor.Uncles() {
+			env.family.Add(uncle.Hash())
+		}
+		env.family.Add(ancestor.Hash())
+		env.ancestors.Add(ancestor.Hash())
+	}
+	// Keep track of transactions which return errors so they can be removed
+	env.tcount = 0
+
+	// Swap out the old work with the new one, terminating any leftover prefetcher
+	// processes in the mean time and starting a new one.
+	if w.current != nil && w.current.state != nil {
+		w.current.state.StopPrefetcher()
+	}
+	w.emptycurrent = env
+	return nil
 }
 
 // makeCurrent creates a new environment for the current cycle.
@@ -1134,16 +1234,16 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		log.Error("Failed to prepare header for mining", "err", err)
 		return err
 	}
-	err := w.makeCurrent(parent, header)
+	err := w.makeEmptyCurrent(parent, header)
 	if err != nil {
 		log.Error("Failed to create mining context", "err", err)
 		return err
 	}
 	// Split the pending transactions into locals and remotes
-	receipts := copyReceipts(w.current.receipts)
-	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, w.current.state, w.current.txs, nil, receipts)
+	receipts := copyReceipts(w.emptycurrent.receipts)
+	block, err := w.engine.FinalizeAndAssemble(w.chain, w.emptycurrent.header, w.emptycurrent.state, w.emptycurrent.txs, nil, receipts)
 	if err != nil {
-		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.current.header.Number.Uint64(), "err", err.Error())
+		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.emptycurrent.header.Number.Uint64(), "err", err.Error())
 		return err
 	}
 	w.updateSnapshot()
@@ -1154,7 +1254,7 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		log.Warn("Empty Block sealing failed", "err", err, "no", block.NumberU64(), "hash", block.Hash())
 		return err
 	}
-	_, err = w.chain.WriteBlockWithState(emptyblock, receipts, nil, w.current.state, true)
+	_, err = w.chain.WriteBlockWithState(emptyblock, receipts, nil, w.emptycurrent.state, true)
 	if err != nil {
 		log.Error("commitEmpty Failed writing block to chain", "err", err)
 		return err
