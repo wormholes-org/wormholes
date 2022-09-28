@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	remotePeers = 22  // Number of messages kept in consensus workers per round (11 * 2)
-	storeMsgs   = 250 // Number of messages stored by yourself
+	remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
+	storeMsgs   = 2500 // Number of messages stored by yourself
 )
 
 type Certify struct {
