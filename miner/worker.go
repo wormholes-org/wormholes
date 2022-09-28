@@ -454,8 +454,8 @@ func (w *worker) emptyLoop() {
 				w.cerytify.validators = make([]common.Address, 0)
 				w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
 				w.cerytify.receiveValidatorsSum = big.NewInt(0)
-				w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
-				w.cacheHeight = w.current.header.Number
+				w.cerytify.SendSignToOtherPeer(w.coinbase, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
