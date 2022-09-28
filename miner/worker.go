@@ -209,6 +209,7 @@ type worker struct {
 	emptyTimestamp  int64
 	emptyHandleFlag bool
 	cacheHeight     *big.Int
+	emptyTimer      *time.Timer
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
@@ -395,10 +396,10 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 
 func (w *worker) emptyLoop() {
 
-	emptyTimer := time.NewTimer(0)
-	defer emptyTimer.Stop()
-	<-emptyTimer.C // discard the initial tick
-	emptyTimer.Reset(120 * time.Second)
+	w.emptyTimer = time.NewTimer(0)
+	defer w.emptyTimer.Stop()
+	<-w.emptyTimer.C // discard the initial tick
+	w.emptyTimer.Reset(120 * time.Second)
 
 	gossipTimer := time.NewTimer(0)
 	defer gossipTimer.Stop()
@@ -407,9 +408,9 @@ func (w *worker) emptyLoop() {
 
 	for {
 		select {
-		case <-emptyTimer.C:
+		case <-w.emptyTimer.C:
 			{
-				emptyTimer.Reset(1 * time.Second)
+				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
 					continue
@@ -441,7 +442,7 @@ func (w *worker) emptyLoop() {
 				}
 
 				//w.onlineCh <- struct{}{}
-				emptyTimer.Stop()
+				w.emptyTimer.Stop()
 			}
 		case <-gossipTimer.C:
 			{
@@ -468,7 +469,7 @@ func (w *worker) emptyLoop() {
 						} else {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
-							emptyTimer.Reset(120 * time.Second)
+							w.emptyTimer.Reset(120 * time.Second)
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}
@@ -527,6 +528,12 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
+			if w.isEmpty && w.cacheHeight == head.Block.Number() {
+				w.isEmpty = false
+				w.emptyTimestamp = time.Now().Unix()
+				w.emptyTimer.Reset(120 * time.Second)
+			}
+
 			if w.isRunning() {
 				w.GossipOnlineProof()
 				w.emptyTimestamp = time.Now().Unix()
