@@ -211,6 +211,12 @@ func (c *Certify) handleEvents() {
 				var signature *SignatureData
 				msg.Decode(&signature)
 
+				encQues, err := Encode(signature)
+				if err != nil {
+					log.Error("Failed to encode", "subject", err)
+					return
+				}
+
 				c.msgHeight = signature.Height
 				log.Info("signature", "Height", signature.Height)
 				//if len(c.stakers.Validators) > 0 && c.stakers != nil {
@@ -222,7 +228,7 @@ func (c *Certify) handleEvents() {
 				//}
 				if msg.Code == SendSignMsg {
 					log.Info("SendSignMsg", "SendSignMsg", c.stakers)
-					c.GatherOtherPeerSignature(msg.Address, signature.Height)
+					c.GatherOtherPeerSignature(msg.Address, signature.Height, encQues)
 				}
 			}
 		}
