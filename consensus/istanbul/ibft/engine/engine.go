@@ -390,7 +390,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 
 	// set header's timestamp
 
-	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") {
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
 		header.Time = parent.Time + e.cfg.BlockPeriod
 	} else {
 		if header.Time < uint64(time.Now().Unix()) {
@@ -416,7 +416,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	header.Difficulty = istanbulcommon.DefaultDifficulty
 	// set header's timestamp
 
-	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") {
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
 		header.Time = parent.Time + e.cfg.BlockPeriod
 	} else {
 		if header.Time < uint64(time.Now().Unix()) {
