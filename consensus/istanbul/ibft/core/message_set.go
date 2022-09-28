@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"strings"
@@ -113,4 +114,20 @@ func (ms *messageSet) String() string {
 		addresses = append(addresses, v.Address.String())
 	}
 	return fmt.Sprintf("[%v]", strings.Join(addresses, ", "))
+}
+
+func (ms *messageSet) Encode() []byte {
+	ms.messagesMu.Lock()
+	defer ms.messagesMu.Unlock()
+	//TODO:combine message string
+	var buf = bytes.Buffer{}
+	for _, v := range ms.messages {
+		var res, err = ibfttypes.Encode(v)
+		if err != nil {
+			//TODO: checkout err
+		}
+		buf.Write(res)
+	}
+	//check message has same size
+	return buf.Bytes()
 }

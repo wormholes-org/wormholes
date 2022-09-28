@@ -39,6 +39,8 @@ type Proposal interface {
 	DecodeRLP(s *rlp.Stream) error
 
 	String() string
+
+	SetExtra(data []byte) error
 }
 
 type Request struct {

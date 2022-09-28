@@ -41,7 +41,8 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 	if csssStat == PreprepareStep1 {
 		c.sendPreprepareStep1(request)
 		return
-	} else {
+	}
+	if csssStat == PreprepareStep2 {
 		c.sendPreprepareStep2(request)
 		return
 	}
@@ -225,7 +226,14 @@ func (c *core) handlePreprepareStep1(msg *ibfttypes.Message, src istanbul.Valida
 }
 
 func (c *core) AssambleNewBlockWithRandomData() {
-
+	//TODO: Add Random Data to Block Extra
+	var blk = c.current.Preprepare.Proposal
+	var randSeedData = randSeedMessages.Encode()
+	blk.SetExtra(randSeedData)
+	log.Info(string(randSeedData))
+	//打印随机数
+	//分配奖励
+	//TODO: Start preprepare round
 }
 
 func (c *core) handlePreprepareStep2(msg *ibfttypes.Message, src istanbul.Validator) error {
@@ -337,7 +345,6 @@ func (c *core) handlePreprepareStep2(msg *ibfttypes.Message, src istanbul.Valida
 			c.sendPrepare()
 		}
 	}
-
 	return nil
 }
 
