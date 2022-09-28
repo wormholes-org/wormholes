@@ -2237,7 +2237,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 		//	royalty = info.Royalty
 		//	creator = info.Creator
 		//}
-		log.Info("CreateNFTByOfficial16()", "--nftAddr=", nftAddr.String())
+		log.Info("CreateNFTByOfficial16()", "--nftAddr=", nftAddr.String(), "blocknumber=", blocknumber.Uint64())
 
 		s.CreateAccount(nftAddr)
 		stateObject := s.GetOrNewStateObject(nftAddr)
