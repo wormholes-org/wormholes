@@ -7,7 +7,7 @@ import (
 )
 
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
-	log.Info("start SendSignToOtherPeer", "Address", addr)
+	log.Info("start SendSignToOtherPeer", "Address", addr.Hex())
 	ques := &SignatureData{Address: addr, Height: height}
 	encQues, err := Encode(ques)
 	if err != nil {
@@ -19,9 +19,13 @@ func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 		Msg:  encQues,
 	})
 }
-func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int) {
+func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	c.broadcast(c.Address(), &Msg{
+		Code: SendSignMsg,
+		Msg:  encQues,
+	})
 	for k, p := range c.proofStatePool.proofs {
 		if k.Cmp(height) == 0 {
 			// Proof data exists for this height

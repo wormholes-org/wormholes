@@ -35,6 +35,7 @@ type Certify struct {
 	validators           []common.Address
 	validatorsHeight     []string
 	proofStatePool       *ProofStatePool // Currently highly collected validators that have sent online proofs
+	msgHeight            *big.Int
 }
 
 func (c *Certify) Start() {
@@ -61,6 +62,7 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		validators:           make([]common.Address, 0),
 		validatorsHeight:     make([]string, 0),
 		proofStatePool:       NewProofStatePool(),
+		msgHeight:            new(big.Int),
 	}
 	return certify
 }
@@ -209,6 +211,13 @@ func (c *Certify) handleEvents() {
 				var signature *SignatureData
 				msg.Decode(&signature)
 
+				encQues, err := Encode(signature)
+				if err != nil {
+					log.Error("Failed to encode", "subject", err)
+					return
+				}
+
+				c.msgHeight = signature.Height
 				log.Info("signature", "Height", signature.Height)
 				//if len(c.stakers.Validators) > 0 && c.stakers != nil {
 				//	flag := c.stakers.GetByAddress(msg.Address)
@@ -219,7 +228,7 @@ func (c *Certify) handleEvents() {
 				//}
 				if msg.Code == SendSignMsg {
 					log.Info("SendSignMsg", "SendSignMsg", c.stakers)
-					c.GatherOtherPeerSignature(msg.Address, signature.Height)
+					c.GatherOtherPeerSignature(msg.Address, signature.Height, encQues)
 				}
 			}
 		}
