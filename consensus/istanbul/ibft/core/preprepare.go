@@ -18,48 +18,59 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/log"
 	"strconv"
 	"time"
-
-	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
+const (
+	PreprepareStep1 uint64 = iota
+	PreprepareStep2
+)
+
+var csssStat = PreprepareStep1 //consensus state mark PreprepareStep1 = 0, PreprepareStep2 = 1
+
 func (c *core) sendPreprepare(request *istanbul.Request) {
-	c.sendPreprepareStep1(request)
-	c.sendPreprepareStep2(request)
+	if csssStat == PreprepareStep1 {
+		c.sendPreprepareStep1(request)
+		return
+	} else {
+		c.sendPreprepareStep2(request)
+		return
+	}
 }
 
 func (c *core) sendPreprepareStep1(request *istanbul.Request) {
-	logger := c.logger.New("state", c.state)
-	// If I'm the proposer and I have the same sequence with the proposal
-
-	log.Info("ibftConsensus: sendPreprepare",
+	log.Info("ibftConsensus: sendPreprepareStep1 [csss]",
 		"no", request.Proposal.Number(), "no", c.current.sequence,
 		"round", c.current.round.Uint64(), "isproposer", c.IsProposer(), "slef", c.address.Hex())
-	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
+	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
 		curView := c.currentView()
-		preprepare, err := ibfttypes.Encode(&istanbul.Preprepare{
-			View:     curView,
-			Proposal: request.Proposal,
-		})
-		if err != nil {
-			logger.Error("Failed to encode", "view", curView)
-			return
-		}
-
-		log.Info("ibftConsensus: broadcast", "no", request.Proposal.Number(),
+		log.Info("start collect random seed [csss]", "no", request.Proposal.Number(),
 			"round", curView.Round,
 			"author", c.address.Hex(),
 			"hash", request.Proposal.Hash().Hex(),
 			"self", c.address.Hex())
-		c.broadcast(&ibfttypes.Message{
-			Code: ibfttypes.MsgPreprepare,
-			Msg:  preprepare,
-		})
+		if c.IsProposer() { //start collect random seed
+			c.broadcast(&ibfttypes.Message{
+				Code: ibfttypes.MsgPreprepare,
+				Msg:  []byte{},
+			})
+		} else { //send random seed
+			csssStat = PreprepareStep2
+			//TODO generate & send random Seed
+			//rndSeed := time.Now().UnixNano()
+			//seed := sha256.Sum256([]byte(fmt.Sprintf("%d", rndSeed)))
+			c.broadcast(&ibfttypes.Message{
+				Code: ibfttypes.MsgPrepare,
+				//Msg:  []byte(string(seed)),
+				Msg: []byte{},
+			})
+		}
 	}
 }
 
@@ -67,7 +78,7 @@ func (c *core) sendPreprepareStep2(request *istanbul.Request) {
 	logger := c.logger.New("state", c.state)
 	// If I'm the proposer and I have the same sequence with the proposal
 
-	log.Info("ibftConsensus: sendPreprepare",
+	log.Info("ibftConsensus: sendPreprepareStep2",
 		"no", request.Proposal.Number(), "no", c.current.sequence,
 		"round", c.current.round.Uint64(), "isproposer", c.IsProposer(), "slef", c.address.Hex())
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
@@ -94,8 +105,12 @@ func (c *core) sendPreprepareStep2(request *istanbul.Request) {
 }
 
 func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) error {
-	return c.handlePreprepareStep1(msg, src)
-	return c.handlePreprepareStep2(msg, src)
+	if csssStat == 0 {
+		return c.handlePreprepareStep1(msg, src)
+	} else {
+		return c.handlePreprepareStep2(msg, src)
+	}
+	return nil
 }
 
 func (c *core) handlePreprepareStep1(msg *ibfttypes.Message, src istanbul.Validator) error {
