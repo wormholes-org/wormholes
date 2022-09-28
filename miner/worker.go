@@ -725,9 +725,6 @@ func (w *worker) taskLoop() {
 			if w.isEmpty {
 				continue
 			}
-			if task.block.Header().Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") {
-				continue
-			}
 			if w.newTaskHook != nil {
 				w.newTaskHook(task)
 			}

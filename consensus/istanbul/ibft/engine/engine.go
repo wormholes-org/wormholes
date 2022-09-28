@@ -391,8 +391,9 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	// set header's timestamp
 
 	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + e.cfg.BlockPeriod
+		header.Time = parent.Time + 120
 	} else {
+		header.Time = parent.Time + e.cfg.BlockPeriod
 		if header.Time < uint64(time.Now().Unix()) {
 			header.Time = uint64(time.Now().Unix())
 		}
