@@ -411,9 +411,15 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-
 	// use the same difficulty for all blocks
 	header.Difficulty = istanbulcommon.DefaultDifficulty
+	// add validators in snapshot to extraData's validators section
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil)
+	if err != nil {
+		return err
+	}
+	header.Extra = extra
+
 	// set header's timestamp
 
 	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
