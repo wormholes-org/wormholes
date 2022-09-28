@@ -157,6 +157,10 @@ func (c *core) AssambleNewBlockWithRandomData() {
 	log.Info("random data msg: " + string(randSeedData) + "[csss]")
 	//打印随机数
 	//分配奖励
+	var bonusSeed = randSeedMessages.CalcRandSeed()
+	c.RandomSelectBonus(bonusSeed)
+	//FinalizeAndAssemble
+	csssStat = PreprepareStep2
 	//TODO: Start preprepare round
 }
 

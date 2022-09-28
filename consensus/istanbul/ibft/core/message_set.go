@@ -76,6 +76,16 @@ func (ms *messageSet) Values() (result []*ibfttypes.Message) {
 	return result
 }
 
+func (ms *messageSet) CalcRandSeed() int64 {
+	var tmp int64
+	for _, v := range ms.messages {
+		var val = big.Int{}
+		val.SetBytes(v.Msg)
+		tmp = tmp ^ val.Int64()
+	}
+	return big.NewInt(tmp).Int64()
+}
+
 func (ms *messageSet) Size() int {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
