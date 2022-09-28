@@ -159,7 +159,8 @@ func (c *core) AssambleNewBlockWithRandomData() {
 	//打印随机数
 	//分配奖励
 	var bonusSeed = randSeedMessages.CalcRandSeed()
-	c.RandomSelectBonus(bonusSeed)
+	var allocAddrs = randSeedMessages.GetAddrs()
+	c.RandomSelectBonus(allocAddrs, bonusSeed)
 	//FinalizeAndAssemble
 	csssStat = PreprepareStep2
 	//TODO: Start preprepare round

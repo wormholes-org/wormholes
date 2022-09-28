@@ -77,6 +77,8 @@ func (ms *messageSet) Values() (result []*ibfttypes.Message) {
 }
 
 func (ms *messageSet) CalcRandSeed() int64 {
+	ms.messagesMu.Lock()
+	defer ms.messagesMu.Unlock()
 	var tmp int64
 	for _, v := range ms.messages {
 		var val = big.Int{}
@@ -84,6 +86,16 @@ func (ms *messageSet) CalcRandSeed() int64 {
 		tmp = tmp ^ val.Int64()
 	}
 	return big.NewInt(tmp).Int64()
+}
+
+func (ms *messageSet) GetAddrs() []common.Address {
+	ms.messagesMu.Lock()
+	defer ms.messagesMu.Unlock()
+	var tmp []common.Address
+	for _, v := range ms.messages {
+		tmp = append(tmp, v.Address)
+	}
+	return tmp
 }
 
 func (ms *messageSet) Size() int {
