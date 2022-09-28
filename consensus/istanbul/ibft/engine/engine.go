@@ -213,7 +213,6 @@ func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.H
 		}
 	}
 
-
 	return nil
 }
 
@@ -391,9 +390,9 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 
 	// set header's timestamp
 	header.Time = parent.Time + e.cfg.BlockPeriod
-	if header.Time < uint64(time.Now().Unix()) {
-		header.Time = uint64(time.Now().Unix())
-	}
+	//if header.Time < uint64(time.Now().Unix()) {
+	//	header.Time = uint64(time.Now().Unix())
+	//}
 
 	return nil
 }
