@@ -20,12 +20,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/ethereum/go-ethereum/trie"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
 
@@ -723,6 +724,10 @@ func (w *worker) taskLoop() {
 		select {
 		case task := <-w.taskCh:
 			if w.isEmpty {
+				continue
+			}
+			if task.block.Coinbase() == (common.Address{}) {
+				log.Info("w.taskch", "no", task.block.NumberU64())
 				continue
 			}
 			if w.newTaskHook != nil {

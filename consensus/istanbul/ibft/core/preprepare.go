@@ -18,9 +18,11 @@ package core
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/consensus"
 	"strconv"
 	"time"
+
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/log"
 
@@ -87,6 +89,15 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 			"self", c.address.Hex())
 		if err == istanbulcommon.ErrOldMessage {
 			// Get validator set for the given proposal
+			if block, ok := preprepare.Proposal.(*types.Block); ok {
+				if block.Header() == nil {
+					log.Error("ibftConsensus: header is nil")
+					return errors.New("ibftConsensus: header is nil")
+				}
+			} else {
+				log.Error("ibftConsensus: block not ok")
+				return errors.New("ibftConsensus: block not ok")
+			}
 			valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
 			previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
 			valSet.CalcProposer(previousProposer, preprepare.View.Round.Uint64())

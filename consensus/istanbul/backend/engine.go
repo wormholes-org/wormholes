@@ -311,7 +311,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		}()
 
 		log.Info("seal : post block into Istanbul engine", "no", block.NumberU64(),
-			"hash", block.Hash(), "is proposer", sb.core.IsProposer())
+			"hash", block.Hash())
 		// post block into Istanbul engine
 		go sb.EventMux().Post(istanbul.RequestEvent{
 			Proposal: block,
