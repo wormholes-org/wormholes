@@ -331,6 +331,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	)
 }
 
+func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+	return nil
+}
+
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {
 	return func(qbftExtra *types.QBFTExtra) error {
 		qbftExtra.Validators = validators

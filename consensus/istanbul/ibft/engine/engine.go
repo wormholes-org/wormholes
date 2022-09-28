@@ -389,10 +389,47 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Extra = extra
 
 	// set header's timestamp
-	header.Time = parent.Time + e.cfg.BlockPeriod
-	//if header.Time < uint64(time.Now().Unix()) {
-	//	header.Time = uint64(time.Now().Unix())
-	//}
+
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		header.Time = parent.Time + 120
+	} else {
+		header.Time = parent.Time + e.cfg.BlockPeriod
+		if header.Time < uint64(time.Now().Unix()) {
+			header.Time = uint64(time.Now().Unix())
+		}
+	}
+
+	return nil
+}
+
+func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+	header.Nonce = istanbulcommon.EmptyBlockNonce
+	header.MixDigest = types.IstanbulDigest
+
+	// copy the parent extra data as the header extra data
+	number := header.Number.Uint64()
+	parent := chain.GetHeader(header.ParentHash, number-1)
+	if parent == nil {
+		return consensus.ErrUnknownAncestor
+	}
+	// use the same difficulty for all blocks
+	header.Difficulty = istanbulcommon.DefaultDifficulty
+	// add validators in snapshot to extraData's validators section
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil)
+	if err != nil {
+		return err
+	}
+	header.Extra = extra
+
+	// set header's timestamp
+
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		header.Time = parent.Time + e.cfg.BlockPeriod
+	} else {
+		if header.Time < uint64(time.Now().Unix()) {
+			header.Time = uint64(time.Now().Unix())
+		}
+	}
 
 	return nil
 }
@@ -434,7 +471,15 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		return
 	}
 
+	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex())
+	for _, addr := range istanbulExtra.ValidatorAddr {
+		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
+	}
+	for _, addr := range istanbulExtra.ExchangerAddr {
+		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
+	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+	log.Info("CreateNFTByOfficial16 end", "Coinbase=", header.Coinbase.Hex())
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -460,7 +505,16 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		return nil, err
 	}
 
+	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex())
+	for _, addr := range istanbulExtra.ValidatorAddr {
+		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
+	}
+	for _, addr := range istanbulExtra.ExchangerAddr {
+		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
+	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+
+	log.Info("CreateNFTByOfficial16 end", "Coinbase=", header.Coinbase.Hex())
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))

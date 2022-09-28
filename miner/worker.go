@@ -208,32 +208,34 @@ type worker struct {
 	//empty block
 	emptyTimestamp  int64
 	emptyHandleFlag bool
+	cacheHeight     *big.Int
+	emptyTimer      *time.Timer
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
 	worker := &worker{
-		config:       config,
-		chainConfig:  chainConfig,
-		engine:       engine,
-		eth:          eth,
-		mux:          mux,
-		chain:        eth.BlockChain(),
-		isLocalBlock: isLocalBlock,
-		localUncles:  make(map[common.Hash]*types.Block),
-		remoteUncles: make(map[common.Hash]*types.Block),
-		unconfirmed:  newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks: make(map[common.Hash]*task),
-		txsCh:        make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
-		chainSideCh:  make(chan core.ChainSideEvent, chainSideChanSize),
-		newWorkCh:    make(chan *newWorkReq),
-		taskCh:       make(chan *task),
-		resultCh:     make(chan *types.Block, resultQueueSize),
-		exitCh:       make(chan struct{}),
-		startCh:      make(chan struct{}, 1),
-		onlineCh:     make(chan struct{}, 1),
-		emptyCh:      make(chan struct{}),
-
+		config:             config,
+		chainConfig:        chainConfig,
+		engine:             engine,
+		eth:                eth,
+		mux:                mux,
+		chain:              eth.BlockChain(),
+		isLocalBlock:       isLocalBlock,
+		localUncles:        make(map[common.Hash]*types.Block),
+		remoteUncles:       make(map[common.Hash]*types.Block),
+		unconfirmed:        newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		pendingTasks:       make(map[common.Hash]*task),
+		txsCh:              make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:        make(chan core.ChainHeadEvent, chainHeadChanSize),
+		chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
+		newWorkCh:          make(chan *newWorkReq),
+		taskCh:             make(chan *task),
+		resultCh:           make(chan *types.Block, resultQueueSize),
+		exitCh:             make(chan struct{}),
+		startCh:            make(chan struct{}, 1),
+		onlineCh:           make(chan struct{}, 1),
+		emptyCh:            make(chan struct{}),
+		cacheHeight:        new(big.Int),
 		isEmpty:            false,
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
@@ -394,10 +396,10 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 
 func (w *worker) emptyLoop() {
 
-	emptyTimer := time.NewTimer(0)
-	defer emptyTimer.Stop()
-	<-emptyTimer.C // discard the initial tick
-	emptyTimer.Reset(120 * time.Second)
+	w.emptyTimer = time.NewTimer(0)
+	defer w.emptyTimer.Stop()
+	<-w.emptyTimer.C // discard the initial tick
+	w.emptyTimer.Reset(120 * time.Second)
 
 	gossipTimer := time.NewTimer(0)
 	defer gossipTimer.Stop()
@@ -406,9 +408,9 @@ func (w *worker) emptyLoop() {
 
 	for {
 		select {
-		case <-emptyTimer.C:
+		case <-w.emptyTimer.C:
 			{
-				emptyTimer.Reset(1 * time.Second)
+				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
 					continue
@@ -440,7 +442,7 @@ func (w *worker) emptyLoop() {
 				}
 
 				//w.onlineCh <- struct{}{}
-				emptyTimer.Stop()
+				w.emptyTimer.Stop()
 			}
 		case <-gossipTimer.C:
 			{
@@ -448,7 +450,11 @@ func (w *worker) emptyLoop() {
 				if !w.isEmpty {
 					continue
 				}
+				w.cerytify.validators = make([]common.Address, 0)
+				w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
+				w.cerytify.receiveValidatorsSum = big.NewInt(0)
 				w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
+				w.cacheHeight = w.current.header.Number
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
@@ -456,17 +462,14 @@ func (w *worker) emptyLoop() {
 				log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
 				if rs.Cmp(w.targetSize()) > 0 {
 					log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-					if w.isEmpty {
+					if w.isEmpty && w.cacheHeight == w.cerytify.msgHeight {
 						log.Info("start produce empty block", "time", time.Now())
-						w.cerytify.validators = make([]common.Address, 0)
-						w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-						w.cerytify.receiveValidatorsSum = big.NewInt(0)
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators); err != nil {
 							log.Error("commitEmptyWork error", "err", err)
 						} else {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
-							emptyTimer.Reset(120 * time.Second)
+							w.emptyTimer.Reset(120 * time.Second)
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}
@@ -525,6 +528,12 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
+			if w.isEmpty && w.cacheHeight == head.Block.Number() {
+				w.isEmpty = false
+				w.emptyTimestamp = time.Now().Unix()
+				w.emptyTimer.Reset(120 * time.Second)
+			}
+
 			if w.isRunning() {
 				w.GossipOnlineProof()
 				w.emptyTimestamp = time.Now().Unix()
@@ -722,6 +731,9 @@ func (w *worker) taskLoop() {
 	for {
 		select {
 		case task := <-w.taskCh:
+			if w.isEmpty {
+				continue
+			}
 			if w.newTaskHook != nil {
 				w.newTaskHook(task)
 			}

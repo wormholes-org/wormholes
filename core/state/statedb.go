@@ -2201,7 +2201,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	// reward ERB or SNFT to validators
 	log.Info("CreateNFTByOfficial16", "validators len=", len(validators), "blocknumber=", blocknumber.Uint64())
 	for _, addr := range validators {
-		log.Info("CreateNFTByOfficial16", "validators=", addr, "blocknumber=", blocknumber.Uint64())
+		log.Info("CreateNFTByOfficial16", "validators=", addr.Hex(), "blocknumber=", blocknumber.Uint64())
 	}
 	rewardAmount := GetRewardAmount(blocknumber.Uint64(), DREBlockReward)
 	for _, owner := range validators {
@@ -2215,7 +2215,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	// reward SNFT to exchangers
 	log.Info("CreateNFTByOfficial16", "exchangers len=", len(exchangers), "blocknumber=", blocknumber.Uint64())
 	for _, addr := range exchangers {
-		log.Info("CreateNFTByOfficial16", "exchangers=", addr, "blocknumber=", blocknumber.Uint64())
+		log.Info("CreateNFTByOfficial16", "exchangers=", addr.Hex(), "blocknumber=", blocknumber.Uint64())
 	}
 	for _, owner := range exchangers {
 		nftAddr := common.Address{}
@@ -2237,7 +2237,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 		//	royalty = info.Royalty
 		//	creator = info.Creator
 		//}
-		log.Info("CreateNFTByOfficial16()", "--nftAddr=", nftAddr.String())
+		log.Info("CreateNFTByOfficial16()", "--nftAddr=", nftAddr.String(), "blocknumber=", blocknumber.Uint64())
 
 		s.CreateAccount(nftAddr)
 		stateObject := s.GetOrNewStateObject(nftAddr)
