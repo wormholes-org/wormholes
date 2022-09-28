@@ -7,7 +7,7 @@ import (
 )
 
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
-	log.Info("start SendSignToOtherPeer", "Address", addr)
+	log.Info("start SendSignToOtherPeer", "Address", addr.Hex())
 	ques := &SignatureData{Address: addr, Height: height}
 	encQues, err := Encode(ques)
 	if err != nil {
