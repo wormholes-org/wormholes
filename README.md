@@ -214,7 +214,7 @@ the script should be in the same directory as the main Wormholes program.
 
 	#linux system
 	#Runtime parameter -- private
-	sh ./run_node 94b796b1b11893561c34cf000f23ecf3b39067bb198b9ec9f7b1a79646114680
+	./run_node 94b796b1b11893561c34cf000f23ecf3b39067bb198b9ec9f7b1a79646114680
 
 	#windows system
 	#Go to the directory where the startup script is located in the CMD terminal
