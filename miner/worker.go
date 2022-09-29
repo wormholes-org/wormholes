@@ -415,6 +415,7 @@ func (w *worker) emptyLoop() {
 	for {
 		select {
 		case <-checkTimer.C:
+			log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
 			if !w.isEmpty {
 				continue
@@ -425,6 +426,7 @@ func (w *worker) emptyLoop() {
 				w.emptyTimestamp = time.Now().Unix()
 				w.emptyTimer.Reset(120 * time.Second)
 			}
+
 		case <-w.emptyTimer.C:
 			{
 				w.emptyTimer.Reset(1 * time.Second)
