@@ -156,7 +156,7 @@ avoiding processing the entire history of the Wormholes Chain network, which is 
 
 #### Start validator node
 
-1. Download the binary, config and genesis files from [release](https://github.com/wormholes-org/wormholes>), or compile the binary by ``make wormholes``.
+1. Download the binary, config and genesis files from [release](https://github.com/wormholes-org/wormholes), or compile the binary by ``make wormholes``.
 
 
 2. Prepare a script to start the node, and name it run_node (If the system is windows, you need to add the file suffix .bat), or something else. Note that
