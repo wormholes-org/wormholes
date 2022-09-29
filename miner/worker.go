@@ -407,8 +407,24 @@ func (w *worker) emptyLoop() {
 	<-gossipTimer.C // discard the initial tick
 	gossipTimer.Reset(5 * time.Second)
 
+	checkTimer := time.NewTimer(0)
+	defer checkTimer.Stop()
+	<-checkTimer.C // discard the initial tick
+	checkTimer.Reset(1 * time.Second)
+
 	for {
 		select {
+		case <-checkTimer.C:
+			checkTimer.Reset(1 * time.Second)
+			if !w.isEmpty {
+				continue
+			}
+			log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
+			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
+				w.isEmpty = false
+				w.emptyTimestamp = time.Now().Unix()
+				w.emptyTimer.Reset(120 * time.Second)
+			}
 		case <-w.emptyTimer.C:
 			{
 				w.emptyTimer.Reset(1 * time.Second)
@@ -441,6 +457,7 @@ func (w *worker) emptyLoop() {
 					w.emptyHandleFlag = true
 					go w.cerytify.handleEvents()
 				}
+				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
 
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
@@ -454,16 +471,16 @@ func (w *worker) emptyLoop() {
 				w.cerytify.validators = make([]common.Address, 0)
 				w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
 				w.cerytify.receiveValidatorsSum = big.NewInt(0)
-				w.cerytify.SendSignToOtherPeer(w.coinbase, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(0)))
-				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(0))
+				w.cerytify.SendSignToOtherPeer(w.coinbase, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
+				log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1, "w.cacheHeight", w.cacheHeight, "w.cerytify.msgHeight", w.cerytify.msgHeight)
 				if rs.Cmp(w.targetSize()) > 0 {
 					log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-					if w.isEmpty && w.cacheHeight == w.cerytify.msgHeight {
+					if w.isEmpty && w.cacheHeight.Cmp(w.cerytify.msgHeight) == 0 {
 						log.Info("start produce empty block", "time", time.Now())
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators); err != nil {
 							log.Error("commitEmptyWork error", "err", err)
@@ -529,11 +546,13 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
-			if w.isEmpty && w.cacheHeight == head.Block.Number() {
+			if w.cacheHeight.Cmp(head.Block.Number()) <= 0 {
+				log.Info("w.chainHeadCh: reset empty timer", "no", head.Block.NumberU64())
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
 				w.emptyTimer.Reset(120 * time.Second)
 			}
+			log.Info("w.chainHeadCh: start commit block", "no", head.Block.NumberU64())
 
 			if w.isRunning() {
 				w.GossipOnlineProof()
