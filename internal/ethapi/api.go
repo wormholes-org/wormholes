@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"reflect"
 	"strings"
 	"time"
 
@@ -106,10 +105,6 @@ func (s *PublicEthereumAPI) QueryMinerProxy(ctx context.Context, number rpc.Bloc
 		MinerProxyList = append(MinerProxyList, &m)
 	}
 	return MinerProxyList, nil
-}
-
-func (s *PublicEthereumAPI) CheckValidator(ctx context.Context, number int64) reflect.Value {
-	return s.b.CheckValidator(ctx, number)
 }
 
 type feeHistoryResult struct {
@@ -890,6 +885,15 @@ func (s *PublicBlockChainAPI) GetValidator(ctx context.Context, number rpc.Block
 		return types.ValidatorList{}
 	}
 	return *validatorList
+}
+
+func (s *PublicBlockChainAPI) GetConsusValidator(ctx context.Context, number rpc.BlockNumber) *types.ValidatorList {
+	header, err := s.b.HeaderByNumber(ctx, number)
+	if header == nil || err != nil {
+		return &types.ValidatorList{}
+	}
+	consensusValidator, _ := s.b.CheckValidator(header)
+	return consensusValidator
 }
 
 func (s *PublicBlockChainAPI) GetValidatorLen(ctx context.Context, number rpc.BlockNumber) int {

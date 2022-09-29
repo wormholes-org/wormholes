@@ -45,12 +45,12 @@ type LesApiBackend struct {
 	gpo                 *gasprice.Oracle
 }
 
-func (b *LesApiBackend) QueryMinerProxy(ctx context.Context, number int64, addr *common.Address) (*types.ValidatorList, error) {
+func (b *LesApiBackend) QueryMinerProxy(header *types.Header) (*types.ValidatorList, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (b *LesApiBackend) CheckValidator(ctx context.Context, number int64) string {
+func (b *LesApiBackend) CheckValidator(ctx context.Context, number int64) (*types.ValidatorList, error) {
 	panic("implement me")
 }
 

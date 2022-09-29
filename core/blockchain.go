@@ -25,7 +25,6 @@ import (
 	"io"
 	"math/big"
 	mrand "math/rand"
-	"reflect"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -2815,13 +2814,12 @@ func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common
 	//return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))
 }
 
-func (bc *BlockChain) CheckValidator(ctx context.Context, number int64) string {
-	back := bc.Engine()
-	core := reflect.ValueOf(back).FieldByName("core")
-	valSet := core.FieldByName("valSet")
-	//vs := istanbul.ValidatorSet(valSet)
-	fmt.Println(valSet)
-	return ""
+func (bc *BlockChain) CheckValidator(header *types.Header) (*types.ValidatorList, error) {
+	pool, err := bc.Random11ValidatorFromPool(header)
+	if err != nil {
+		return &types.ValidatorList{}, err
+	}
+	return pool, err
 }
 
 func getSurroundingChainNo(i, Nr, Np int) []int {

@@ -68,7 +68,7 @@ type Backend interface {
 	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
 	SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
 	QueryMinerProxy(ctx context.Context, number int64, addr *common.Address) (*types.ValidatorList, error)
-	CheckValidator(ctx context.Context, number int64) string
+	CheckValidator(header *types.Header) (*types.ValidatorList, error)
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error

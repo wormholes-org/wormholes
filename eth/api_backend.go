@@ -357,6 +357,6 @@ func (b *EthAPIBackend) QueryMinerProxy(ctx context.Context, number int64, miner
 	return b.eth.blockchain.QueryMinerProxy(ctx, number, miner)
 }
 
-func (b *EthAPIBackend) CheckValidator(ctx context.Context, number int64) string {
-	return b.eth.blockchain.CheckValidator(ctx, number)
+func (b *EthAPIBackend) CheckValidator(header *types.Header) (*types.ValidatorList, error) {
+	return b.eth.blockchain.CheckValidator(header)
 }
