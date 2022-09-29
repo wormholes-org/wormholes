@@ -42,20 +42,23 @@ var (
 // New creates an Istanbul consensus core
 func New(backend istanbul.Backend, config *istanbul.Config) *core {
 	c := &core{
-		config:             config,
-		address:            backend.Address(),
-		state:              ibfttypes.StateAcceptRequest,
-		handlerWg:          new(sync.WaitGroup),
-		logger:             log.New("address", backend.Address()),
-		backend:            backend,
-		backlogs:           make(map[common.Address]*prque.Prque),
-		backlogsMu:         new(sync.Mutex),
-		pendingRequests:    prque.New(),
-		pendingRequestsMu:  new(sync.Mutex),
-		consensusTimestamp: time.Time{},
+		config:                          config,
+		address:                         backend.Address(),
+		state:                           ibfttypes.StateAcceptRequest,
+		handlerWg:                       new(sync.WaitGroup),
+		logger:                          log.New("address", backend.Address()),
+		backend:                         backend,
+		backlogs:                        make(map[common.Address]*prque.Prque),
+		backlogsMu:                      new(sync.Mutex),
+		pendingOnlineProofRequests:      prque.New(),
+		pendingRequests:                 prque.New(),
+		pendingRequestsMu:               new(sync.Mutex),
+		consensusTimestamp:              time.Time{},
+		pendindingOnlineProofRequestsMu: new(sync.Mutex),
 	}
 
 	c.validateFn = c.checkValidatorSignature
+	c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
 	return c
 }
 
@@ -88,6 +91,13 @@ type core struct {
 
 	pendingRequests   *prque.Prque
 	pendingRequestsMu *sync.Mutex
+
+	//
+	pendingOnlineProofRequests      *prque.Prque
+	pendindingOnlineProofRequestsMu *sync.Mutex
+
+	// Temporary storage of online data collected at each altitude
+	onlineProofs map[uint64]*types.OnlineValidatorList
 
 	consensusTimestamp time.Time
 }
@@ -172,10 +182,11 @@ func (c *core) commit() {
 			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
 			copy(committedSeals[i][:], v.CommittedSeal[:])
 		}
-		log.Info("carver|commit|backend", "no", proposal.Number().Uint64())
+		log.Info("ibftConsensus: commit baseInfo", "no", c.currentView().Sequence, "round", c.currentView().Round)
 		if err := c.backend.Commit(proposal, committedSeals, big.NewInt(-1)); err != nil {
 			c.current.UnlockHash() //Unlock block when insertion fails
-			log.Error("carver|commit|sendNextRoundChange", "no", proposal.Number().Uint64(),
+			log.Error("ibftConsensus: commit sendNextRoundChange", "no", c.currentView().Sequence, "round", c.currentView().Round,
+				"self", c.address.Hex(),
 				"hash", proposal.Hash().Hex(), "err", err.Error())
 			c.sendNextRoundChange()
 			return
@@ -197,8 +208,9 @@ func (c *core) startNewRound(round *big.Int) {
 	roundChange := false
 	// Try to get last proposal
 	lastProposal, lastProposer := c.backend.LastProposal()
+	log.Info("ibftConsensus: startNewRound", "no", lastProposal.Number().Uint64()+1, "self", c.address.Hex())
 	if c.current == nil {
-		logger.Trace("Start to the initial round")
+		log.Info("ibftConsensus: Start to the initial round", "no", lastProposal.Number().Uint64()+1, "self", c.address.Hex())
 	} else if lastProposal.Number().Cmp(c.current.Sequence()) >= 0 {
 		diff := new(big.Int).Sub(lastProposal.Number(), c.current.Sequence())
 		sequenceMeter.Mark(new(big.Int).Add(diff, common.Big1).Int64())
@@ -207,30 +219,31 @@ func (c *core) startNewRound(round *big.Int) {
 			consensusTimer.UpdateSince(c.consensusTimestamp)
 			c.consensusTimestamp = time.Time{}
 		}
-		logger.Trace("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+		log.Info("ibftConsensus: Catch up latest proposal", "no", lastProposal.Number().Uint64()+1, "hash", lastProposal.Hash(), "self", c.address.Hex())
 	} else if lastProposal.Number().Cmp(big.NewInt(c.current.Sequence().Int64()-1)) == 0 {
 		if round.Cmp(common.Big0) == 0 {
+			log.Info("ibftConsensus: same seq and round, don't need to start new round", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.address.Hex())
 			// same seq and round, don't need to start new round
 			return
 		} else if round.Cmp(c.current.Round()) < 0 {
-			logger.Warn("New round should not be smaller than current round", "seq", lastProposal.Number().Int64(), "new_round", round, "old_round", c.current.Round())
+			log.Info("ibftConsensus: New round should not be smaller than current round", "no", lastProposal.Number().Int64()+1, "new_round", round, "old_round", c.current.Round(), "self", c.address.Hex())
 			return
 		}
 		roundChange = true
 	} else {
-		logger.Warn("New sequence should be larger than current sequence", "new_seq", lastProposal.Number().Int64())
+		log.Warn("ibftConsensus: New sequence should be larger than current sequence", "no", lastProposal.Number().Int64()+1, "self", c.address.Hex())
 		return
 	}
 
 	var newView *istanbul.View
 	if roundChange {
-		log.Info("caver|startNewRound|roundChange=true", "currentNo", lastProposal.Number().Uint64(), "round", round)
+		log.Info("ibftConsensus: startNewRound roundChange==true", "no", c.current.Sequence(), "round", round, "self", c.address.Hex())
 		newView = &istanbul.View{
 			Sequence: new(big.Int).Set(c.current.Sequence()),
 			Round:    new(big.Int).Set(round),
 		}
 	} else {
-		log.Info("caver|startNewRound|roundChange=false", "currentNo", lastProposal.Number().Uint64(), "round", round)
+		log.Info("ibftConsensus: startNewRound roundChange==false", "no", lastProposal.Number().Uint64()+1, "round", round, "self", c.address.Hex())
 		newView = &istanbul.View{
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
@@ -238,20 +251,23 @@ func (c *core) startNewRound(round *big.Int) {
 		// 以当前链最新高度的哈希计算validator 与当前矿工正在prepare执行计算的validator是一致的
 		c.valSet = c.backend.Validators(lastProposal)
 		if c.valSet == nil {
-			log.Error("startNewRound err : c.valSet == nil")
+			log.Error("ibftConsensus: c.valSet == nil", "no", newView.Sequence, "round", newView.Sequence, "self", c.address.Hex())
 			return
 		}
+		onlineValidators := new(types.OnlineValidatorList)
+		c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
+		c.onlineProofs[newView.Sequence.Uint64()] = onlineValidators
 	}
 
 	// If new round is 0, then check if qbftConsensus needs to be enabled
-	if round.Uint64() == 0 && c.backend.IsQBFTConsensusAt(newView.Sequence) {
-		logger.Trace("Starting qbft consensus as qbftBlock has passed")
-		if err := c.backend.StartQBFTConsensus(); err != nil {
-			// If err is returned, then QBFT consensus is started for the next block
-			logger.Error("Unable to start QBFT Consensus, retrying for the next block", "error", err)
-		}
-		return
-	}
+	// if round.Uint64() == 0 && c.backend.IsQBFTConsensusAt(newView.Sequence) {
+	// 	logger.Trace("Starting qbft consensus as qbftBlock has passed")
+	// 	if err := c.backend.StartQBFTConsensus(); err != nil {
+	// 		// If err is returned, then QBFT consensus is started for the next block
+	// 		logger.Error("Unable to start QBFT Consensus, retrying for the next block", "error", err)
+	// 	}
+	// 	return
+	// }
 
 	// Update logger
 	logger = logger.New("old_proposer", c.valSet.GetProposer())
@@ -262,46 +278,42 @@ func (c *core) startNewRound(round *big.Int) {
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 
-	log.Info("startNewRound|proposer", "c.valSet.List()", len(c.valSet.List()))
 	for _, v := range c.valSet.List() {
-		log.Info("startNewRound|proposer", "valSet", v.String())
-	}
-
-	log.Info("caver|startNewRound|proposer", "proposer ", c.valSet.GetProposer())
-	log.Info("caver|startNewRound|proposer", "no", newView.Sequence.String(),
-		"round", newView.Round.String(), "proposer", c.valSet.GetProposer().Address().String())
-
-	// temp print validator
-	for i, v := range c.valSet.List() {
-		log.Info("caver|startNewRound|validator", "no", newView.Sequence.String(),
-			"round", newView.Round.String(), "i", i, "addr", v.Address().String())
+		log.Info("ibftConsensus: startNewRound validator info",
+			"no", newView.Sequence.String(),
+			"round", newView.Round.String(),
+			"proposer", c.valSet.GetProposer().Address().Hex(),
+			"validator", v.Address().Hex(),
+			"self", c.address.Hex(),
+			"isproposer", c.address.Hex() == c.valSet.GetProposer().Address().Hex(),
+		)
 	}
 
 	c.waitingForRoundChange = false
-	// 在这个阶段如果本地已经发出一个request事件，顺便把这个事件发出去，让其他节点处理，自己就进入到preprepare阶段
+
 	c.setState(ibfttypes.StateAcceptRequest)
 	if roundChange && c.IsProposer() && c.current != nil {
 		// If it is locked, propose the old proposal
 		// If we have pending request, propose pending request
 		if c.current.IsHashLocked() {
-			log.Info("caver|c.current.IsHashLocked()", "currentProposal", c.current.Proposal().Number().Uint64())
+			log.Info("ibftConsensus: startNewRound  c.current.IsHashLocked()", "no", c.current.Proposal().Number().Uint64(), "self", c.address.Hex())
 			r := &istanbul.Request{
 				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
 			}
 			c.sendPreprepare(r)
 		} else if c.current.pendingRequest != nil {
-			log.Info("caver|c.current.pendingRequest != nil", "currentPendingRequest", c.current.pendingRequest.Proposal.Number().Uint64())
+			log.Info("ibftConsensus: startNewRound c.current.pendingRequest != nil", "no", c.current.pendingRequest.Proposal.Number(), "self", c.address.Hex())
 			c.sendPreprepare(c.current.pendingRequest)
 		}
 	}
+
 	c.newRoundChangeTimer()
 
-	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "IsProposer", c.IsProposer())
+	log.Info("ibftConsensus: New round", "new_round", newView.Round, "no", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "IsProposer", c.IsProposer())
 }
 
 func (c *core) catchUpRound(view *istanbul.View) {
-
-	log.Info("caver|catchUpRound", "sequence", view.Sequence.Uint64(), "round", view.Round.Uint64())
+	log.Info("ibftConsensus: catchUpRound", "sequence", view.Sequence.Uint64(), "round", view.Round.Uint64())
 	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer())
 
 	if view.Round.Cmp(c.current.Round()) > 0 {
@@ -322,14 +334,14 @@ func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.Valid
 	// Lock only if both roundChange is true and it is locked
 	if roundChange && c.current != nil {
 		if c.current.IsHashLocked() {
-			log.Info("carver|updateRoundState|1", "no", view.Sequence, "round", view.Round, "author", c.address.Hex())
+			log.Info("ibftConsensus: updateRoundState|1", "no", view.Sequence, "round", view.Round, "author", c.address.Hex())
 			c.current = newRoundState(view, validatorSet, c.current.GetLockedHash(), c.current.Preprepare, c.current.pendingRequest, c.backend.HasBadProposal)
 		} else {
-			log.Info("carver|updateRoundState|2", "no", view.Sequence, "round", view.Round, "author", c.address.Hex())
+			log.Info("ibftConsensus: updateRoundState|2", "no", view.Sequence, "round", view.Round, "author", c.address.Hex())
 			c.current = newRoundState(view, validatorSet, common.Hash{}, nil, c.current.pendingRequest, c.backend.HasBadProposal)
 		}
 	} else {
-		log.Info("carver|updateRoundState|3", "no", view.Sequence, "round", view.Round, "author", c.address.Hex())
+		log.Info("ibftConsensus: updateRoundState|3", "no", view.Sequence, "round", view.Round, "author", c.address.Hex())
 		c.current = newRoundState(view, validatorSet, common.Hash{}, nil, nil, c.backend.HasBadProposal)
 	}
 }
@@ -369,10 +381,7 @@ func (c *core) newRoundChangeTimer() {
 	round := c.current.Round().Uint64()
 	if round > 0 {
 		timeout += time.Duration(math.Pow(2, float64(round))) * time.Second
-		if timeout > 60*time.Second {
-			timeout = 60 * time.Second
-			log.Info("newRoundChangeTimer : timeout", "no", c.current.sequence, "round", c.current.round, "timeout", timeout.String())
-		}
+		log.Info("ibftConsensus: newRoundChangeTimer timeout", "no", c.current.sequence, "round", c.current.round, "timeout", timeout.String(), "self", c.address.Hex())
 	}
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
@@ -393,4 +402,16 @@ func PrepareCommittedSeal(hash common.Hash) []byte {
 	buf.Write(hash.Bytes())
 	buf.Write([]byte{byte(ibfttypes.MsgCommit)})
 	return buf.Bytes()
+}
+
+func (c *core) RoundInfo() (roundInfo []string) {
+	rs := c.current
+	roundInfo = append(roundInfo, rs.round.String())
+	roundInfo = append(roundInfo, rs.sequence.String())
+	return
+}
+
+func (c *core) OnlineProofSize(height *big.Int) int {
+	onlineProofs := c.onlineProofs[height.Uint64()]
+	return len(onlineProofs.Validators)
 }

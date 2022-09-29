@@ -98,7 +98,7 @@ type Ethereum struct {
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 
-	nodekey  *ecdsa.PrivateKey
+	nodekey *ecdsa.PrivateKey
 }
 
 // New creates a new Ethereum object (including the
@@ -224,6 +224,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		eth.blockchain.SetHead(compat.RewindTo)
 		rawdb.WriteChainConfig(chainDb, genesisHash, chainConfig)
 	}
+	eth.blockchain.SetCoinbase(eth.etherbase)
 	eth.bloomIndexer.Start(eth.blockchain)
 
 	if config.TxPool.Journal != "" {
@@ -237,6 +238,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if checkpoint == nil {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
+
+	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
+	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
 	if eth.handler, err = newHandler(&handlerConfig{
 		Database:   chainDb,
 		Chain:      eth.blockchain,
@@ -248,12 +252,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		Checkpoint: checkpoint,
 		Whitelist:  config.Whitelist,
 		Engine:     eth.engine,
+		miner:      eth.miner,
 	}); err != nil {
 		return nil, err
 	}
-
-	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
-	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
 
 	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil}
 	if eth.APIBackend.allowUnprotectedTxs {
@@ -600,6 +602,23 @@ func (s *Ethereum) Stop() error {
 	return nil
 }
 
-func (s *Ethereum) GetNodeKey() (*ecdsa.PrivateKey){
+func (s *Ethereum) GetNodeKey() *ecdsa.PrivateKey {
 	return s.nodekey
+}
+
+func (s *Ethereum) FindPeers() map[common.Address]miner.Peer {
+	// var peers map[common.Address]*miner.Peer
+	// log.Info("PeerStore len", "len", len(s.handler.peers.peers))
+	// for _, p := range s.handler.peers.peers {
+	// 	peers = append(peers, p.Peer)
+	// }
+	// return peers
+
+	m := make(map[common.Address]miner.Peer)
+	for _, p := range s.handler.peers.peers {
+		pubKey := p.Node().Pubkey()
+		addr := crypto.PubkeyToAddress(*pubKey)
+		m[addr] = p
+	}
+	return m
 }

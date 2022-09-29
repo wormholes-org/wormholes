@@ -1,6 +1,9 @@
 package istanbul
 
-import "github.com/ethereum/go-ethereum/common"
+import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+)
 
 type Core interface {
 	Start() error
@@ -14,4 +17,8 @@ type Core interface {
 	// pending request is populated right at the preprepare stage so this would give us the earliest verification
 	// to avoid any race condition of coming propagated blocks
 	IsCurrentProposal(blockHash common.Hash) bool
+
+	RoundInfo() []string
+
+	GetOnlineValidators() map[uint64]*types.OnlineValidatorList
 }

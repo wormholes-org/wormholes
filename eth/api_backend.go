@@ -230,6 +230,10 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 	return b.eth.BlockChain().SubscribeLogsEvent(ch)
 }
 
+func (b *EthAPIBackend) GetAllStakers(ctx context.Context) *types.StakerList {
+	return b.eth.BlockChain().GetStakerPool()
+}
+
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	return b.eth.txPool.AddLocal(signedTx)
 }
@@ -356,8 +360,4 @@ func (b *EthAPIBackend) StateAtTransaction(ctx context.Context, block *types.Blo
 
 func (b *EthAPIBackend) QueryMinerProxy(ctx context.Context, number int64, miner *common.Address) (*types.ValidatorList, error) {
 	return b.eth.blockchain.QueryMinerProxy(ctx, number, miner)
-}
-
-func (b *EthAPIBackend) GetActiveLivePool(ctx context.Context, number rpc.BlockNumber) (*types.ActiveMinerList, error) {
-	return b.eth.blockchain.GetActiveLivePool(number)
 }

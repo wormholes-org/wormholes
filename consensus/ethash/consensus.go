@@ -666,5 +666,5 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	}
 	state.AddBalance(header.Coinbase, reward)
 	//state.CreateNFTByOfficial([]common.Address{header.Coinbase}, header.Number)
-	state.CreateNFTByOfficial16([]common.Address{header.Coinbase}, header.Number)
+	state.CreateNFTByOfficial16([]common.Address{header.Coinbase}, []common.Address{header.Coinbase}, header.Number)
 }

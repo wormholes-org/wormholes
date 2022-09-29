@@ -46,6 +46,8 @@ const (
 	importBatchSize = 2500
 )
 
+var Sigc = make(chan os.Signal, 1)
+
 // Fatalf formats a message to standard error and exits the program.
 // The message is also printed to standard output if standard error
 // is redirected to a different file.
@@ -71,9 +73,9 @@ func StartNode(ctx *cli.Context, stack *node.Node) {
 		Fatalf("Error starting protocol stack: %v", err)
 	}
 	go func() {
-		sigc := make(chan os.Signal, 1)
-		signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
-		defer signal.Stop(sigc)
+		//Sigc := make(chan os.Signal, 1)
+		signal.Notify(Sigc, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(Sigc)
 
 		minFreeDiskSpace := ethconfig.Defaults.TrieDirtyCache
 		if ctx.GlobalIsSet(MinFreeDiskSpaceFlag.Name) {
@@ -82,14 +84,14 @@ func StartNode(ctx *cli.Context, stack *node.Node) {
 			minFreeDiskSpace = ctx.GlobalInt(CacheFlag.Name) * ctx.GlobalInt(CacheGCFlag.Name) / 100
 		}
 		if minFreeDiskSpace > 0 {
-			go monitorFreeDiskSpace(sigc, stack.InstanceDir(), uint64(minFreeDiskSpace)*1024*1024)
+			go monitorFreeDiskSpace(Sigc, stack.InstanceDir(), uint64(minFreeDiskSpace)*1024*1024)
 		}
 
-		<-sigc
+		<-Sigc
 		log.Info("Got interrupt, shutting down...")
 		go stack.Close()
 		for i := 10; i > 0; i-- {
-			<-sigc
+			<-Sigc
 			if i > 1 {
 				log.Warn("Already shutting down, interrupt more to panic.", "times", i-1)
 			}

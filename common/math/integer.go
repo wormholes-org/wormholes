@@ -17,6 +17,8 @@
 package math
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/bits"
 	"strconv"
@@ -95,4 +97,11 @@ func SafeAdd(x, y uint64) (uint64, bool) {
 func SafeMul(x, y uint64) (uint64, bool) {
 	hi, lo := bits.Mul64(x, y)
 	return lo, hi != 0
+}
+
+func BytesToInt(bys []byte) int {
+	bytebuff := bytes.NewBuffer(bys)
+	var data int32
+	binary.Read(bytebuff, binary.BigEndian, &data)
+	return int(data)
 }

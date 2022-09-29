@@ -19,8 +19,9 @@ package rawdb
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/core/types"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -166,6 +167,31 @@ func ReadStakePool(db ethdb.Reader, hash common.Hash, number uint64) (*types.Sta
 	return stakeList, nil
 }
 
+func WriteDBStakerPool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, dbStakerList *types.DBStakerList) {
+	data, err := rlp.EncodeToBytes(dbStakerList)
+	if err != nil {
+		log.Crit("Failed to RLP stakePool", "err", err)
+	}
+
+	if err := db.Put(DBStakerPoolKey(number, hash), data); err != nil {
+		log.Crit("Failed to store stakePool", "err", err)
+	}
+}
+
+func ReadDBStakerPool(db ethdb.Reader, hash common.Hash, number uint64) (*types.DBStakerList, error) {
+	data, err := db.Get(DBStakerPoolKey(number, hash))
+	if err != nil {
+		return nil, err
+	}
+
+	dbStakeList := new(types.DBStakerList)
+	if err := rlp.Decode(bytes.NewReader(data), dbStakeList); err != nil {
+		log.Error("Invalid stakeAddr RLP", "hash", hash, "err", err)
+		return nil, err
+	}
+	return dbStakeList, nil
+}
+
 func WriteValidatorPool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, validatorList *types.ValidatorList) {
 	data, err := rlp.EncodeToBytes(validatorList)
 	if err != nil {
@@ -189,29 +215,4 @@ func ReadValidatorPool(db ethdb.Reader, hash common.Hash, number uint64) (*types
 		return nil, err
 	}
 	return validatorList, nil
-}
-
-func WriteActiveMinersPool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, activeMiners *types.ActiveMinerList) {
-	data, err := rlp.EncodeToBytes(activeMiners)
-	if err != nil {
-		log.Crit("Failed to RLP activeMinersPool", "err", err)
-	}
-
-	if err := db.Put(ActiveMinersPoolKey(number, hash), data); err != nil {
-		log.Crit("Failed to store activeMinersPool", "err", err)
-	}
-}
-
-func ReadActiveMinersPool(db ethdb.Reader, hash common.Hash, number uint64) (*types.ActiveMinerList, error) {
-	data, err := db.Get(ActiveMinersPoolKey(number, hash))
-	if err != nil {
-		return nil, err
-	}
-
-	activeMiners := new(types.ActiveMinerList)
-	if err := rlp.Decode(bytes.NewReader(data), activeMiners); err != nil {
-		log.Error("Invalid activeMiners RLP", "hash", hash, "err", err)
-		return nil, err
-	}
-	return activeMiners, nil
 }

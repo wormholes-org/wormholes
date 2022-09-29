@@ -240,7 +240,10 @@ func recoverAddress(msg string, sigStr string) (common.Address, error) {
 		!strings.HasPrefix(sigStr, "0X") {
 		return common.Address{}, fmt.Errorf("signature must be started with 0x or 0X")
 	}
-	sigData := hexutil.MustDecode(sigStr)
+	sigData, err := hexutil.Decode(sigStr)
+	if err != nil {
+		return common.Address{}, err
+	}
 	if len(sigData) != 65 {
 		return common.Address{}, fmt.Errorf("signature must be 65 bytes long")
 	}

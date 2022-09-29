@@ -37,6 +37,8 @@ var (
 
 	// ErrInvalidIstanbulHeaderExtra is returned if the length of extra-data is less than 32 bytes
 	ErrInvalidIstanbulHeaderExtra = errors.New("invalid istanbul header extra-data")
+
+	OnlineValidatorVanity = 632
 )
 
 // IstanbulExtra represents the legacy IBFT header extradata
@@ -44,7 +46,9 @@ type IstanbulExtra struct {
 	Validators    []common.Address
 	Seal          []byte
 	CommittedSeal [][]byte
-	BeneficiaryAddr []common.Address
+	ExchangerAddr []common.Address
+	ValidatorAddr []common.Address
+	RandomHash    common.Hash
 }
 
 // EncodeRLP serializes ist into the Ethereum RLP format.
@@ -53,7 +57,9 @@ func (ist *IstanbulExtra) EncodeRLP(w io.Writer) error {
 		ist.Validators,
 		ist.Seal,
 		ist.CommittedSeal,
-		ist.BeneficiaryAddr,
+		ist.ExchangerAddr,
+		ist.ValidatorAddr,
+		ist.RandomHash,
 	})
 }
 
@@ -63,12 +69,14 @@ func (ist *IstanbulExtra) DecodeRLP(s *rlp.Stream) error {
 		Validators    []common.Address
 		Seal          []byte
 		CommittedSeal [][]byte
-		BeneficiaryAddr []common.Address
+		ExchangerAddr []common.Address
+		ValidatorAddr []common.Address
+		RandomHash    common.Hash
 	}
 	if err := s.Decode(&istanbulExtra); err != nil {
 		return err
 	}
-	ist.Validators, ist.Seal, ist.CommittedSeal, ist.BeneficiaryAddr = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.BeneficiaryAddr
+	ist.Validators, ist.Seal, ist.CommittedSeal, ist.ExchangerAddr, ist.ValidatorAddr, ist.RandomHash = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr, istanbulExtra.RandomHash
 	return nil
 }
 
@@ -111,19 +119,35 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 		return nil
 	}
 
-	if !keepSeal {
+	if h.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && h.Number.Cmp(common.Big0) > 0 {
 		istanbulExtra.Seal = []byte{}
+		istanbulExtra.CommittedSeal = [][]byte{}
+		istanbulExtra.Validators = []common.Address{}
+		istanbulExtra.ValidatorAddr = []common.Address{}
+		istanbulExtra.ExchangerAddr = []common.Address{}
+		istanbulExtra.RandomHash = common.Hash{}
+		payload, err := rlp.EncodeToBytes(&istanbulExtra)
+		if err != nil {
+			return nil
+		}
+		newHeader.Extra = append(newHeader.Extra[:IstanbulExtraVanity], payload...)
+
+		return newHeader
+	} else {
+		if !keepSeal {
+			istanbulExtra.Seal = []byte{}
+		}
+		istanbulExtra.CommittedSeal = [][]byte{}
+
+		payload, err := rlp.EncodeToBytes(&istanbulExtra)
+		if err != nil {
+			return nil
+		}
+
+		newHeader.Extra = append(newHeader.Extra[:IstanbulExtraVanity], payload...)
+
+		return newHeader
 	}
-	istanbulExtra.CommittedSeal = [][]byte{}
-
-	payload, err := rlp.EncodeToBytes(&istanbulExtra)
-	if err != nil {
-		return nil
-	}
-
-	newHeader.Extra = append(newHeader.Extra[:IstanbulExtraVanity], payload...)
-
-	return newHeader
 }
 
 // QBFTExtra represents header extradata for qbft protocol

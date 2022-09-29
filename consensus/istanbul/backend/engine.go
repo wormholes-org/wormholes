@@ -18,9 +18,10 @@ package backend
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/core"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -99,6 +100,16 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 	go func() {
 		errored := false
 		for i, header := range headers {
+			if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+				var err error
+				err = nil
+				select {
+				case <-abort:
+					return
+				case results <- err:
+				}
+				continue
+			}
 			var err error
 			if errored {
 				err = consensus.ErrUnknownAncestor
@@ -138,13 +149,43 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
-		if err != nil{
+		if err != nil {
+			log.Error("VerifySeal : invalid validator list", "no", c.CurrentBlock().Header(), "err", err)
+			return err
+		}
+		for _, v := range validatorList.Validators {
+			log.Info("Backend|VerifySeal", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
+		}
+
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+	}
+
+	return sb.EngineForBlockNumber(header.Number).VerifySeal(chain, header, valSet)
+}
+
+// PrepareForEmptyBlock initializes the consensus fields of a block header according to the
+// rules of a particular engine. The changes are executed inline.
+func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
+	var valSet istanbul.ValidatorSet
+	if c, ok := chain.(*core.BlockChain); ok {
+		log.Info("Prepare", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number.String())
+		cHeader := c.CurrentBlock().Header()
+		if cHeader == nil {
+			return errors.New("prepare err: current header is nil")
+		}
+		validatorList, err := c.ReadValidatorPool(cHeader)
+		if err != nil {
+			log.Error("PrepareForEmptyBlock : err", "err", err)
 			return err
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 
-	return sb.EngineForBlockNumber(header.Number).VerifySeal(chain, header, valSet)
+	err := sb.EngineForBlockNumber(header.Number).PrepareEmpty(chain, header, valSet)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Prepare initializes the consensus fields of a block header according to the
@@ -152,14 +193,21 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
-		log.Info("Prepare", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number.String())
-		cHeader := c.CurrentBlock().Header()
-		if cHeader == nil{
-			return errors.New("prepare err: current header is nil")
+		cBlk := c.CurrentBlock()
+		if cBlk == nil {
+			return errors.New("err prepare : current block is nil")
 		}
-		validatorList, err := c.Random11ValidatorFromPool(cHeader)
-		if err != nil{
+
+		log.Info("Prepare : info", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number)
+
+		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
+		if err != nil {
+			log.Error("Prepare: invalid validator list", "err", err, "no", cBlk.Header().Number)
 			return err
+		}
+
+		for _, v := range validatorList.Validators {
+			log.Info("Backend : Prepare", "height", cBlk.Number, "v", v)
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
@@ -168,6 +216,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -184,6 +233,37 @@ func (sb *Backend) Finalize(chain consensus.ChainHeaderReader, header *types.Hea
 // nor block rewards given, and returns the final block.
 func (sb *Backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	return sb.EngineForBlockNumber(header.Number).FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
+
+}
+
+// SealforEmptyBlock generates a new block for the given input block with the local miner's
+// seal place on top.
+func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error) {
+	// update the block header timestamp and signature and propose the block to core engine
+	var emptyBlock *types.Block
+	header := block.Header()
+
+	if sb.core == nil {
+		return emptyBlock, errors.New("seal|ibft engine not active")
+	}
+
+	log.Info("caver|SealforEmptyBlock|enter", "sealNo", block.Number().String(), "is proposer", sb.core.IsProposer())
+
+	//Get the validatorset for this round
+	//istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
+	//if err1 != nil {
+	//	log.Info("caver|seal|ExtractIstanbulExtra|Empty", "no", header.Number, "err", err1.Error())
+	//	return emptyBlock, err1
+	//}
+	//valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
+	valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
+
+	emptyBlock, err := sb.EngineForBlockNumber(header.Number).Seal(chain, block, valSet)
+	if err != nil {
+		log.Info("caver|SealforEmptyBlock|err", "sealNo", header.Number.String(), "err", err.Error())
+		return emptyBlock, err
+	}
+	return emptyBlock, err
 }
 
 // Seal generates a new block for the given input block with the local miner's
@@ -192,16 +272,21 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 
-	if sb.core == nil{
-		return errors.New("seal|ibft engine not active")
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Uint64() > 0 {
+		log.Error("Seal : coinbase error", "err", "coinbase is 0")
+		return errors.New("coinbase is 0")
 	}
 
-	log.Info("caver|seal|enter", "sealNo", block.Number().String(), "is proposer", sb.core.IsProposer())
+	if sb.core == nil {
+		return errors.New("seal : ibft engine not active")
+	}
+
+	log.Info("seal : enter", "no", block.Number().String(), "is proposer", sb.core.IsProposer())
 
 	//Get the validatorset for this round
 	istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
 	if err1 != nil {
-		log.Info("caver|seal|ExtractIstanbulExtra", "no", header.Number, "err", err1.Error())
+		log.Error("Seal : ExtractIstanbulExtra", "err", err1)
 		return err1
 	}
 
@@ -209,7 +294,6 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 
 	block, err := sb.EngineForBlockNumber(header.Number).Seal(chain, block, valSet)
 	if err != nil {
-		log.Info("caver|seal|err", "sealNo", header.Number.String(), "err", err.Error())
 		return err
 	}
 
@@ -233,8 +317,8 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 			sb.sealMu.Unlock()
 		}()
 
-		log.Info("caver|Seal|post block into Istanbul engine", "sealNo", block.NumberU64(),
-			"hash", block.Hash(), "is proposer", sb.core.IsProposer())
+		log.Info("seal : post block into Istanbul engine", "no", block.NumberU64(),
+			"hash", block.Hash())
 		// post block into Istanbul engine
 		go sb.EventMux().Post(istanbul.RequestEvent{
 			Proposal: block,
@@ -282,6 +366,10 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	}
 	sb.commitCh = make(chan *types.Block, 1)
 
+	if sb.notifyBlockCh != nil {
+		close(sb.notifyBlockCh)
+	}
+	sb.notifyBlockCh = make(chan *types.OnlineValidatorList, 1)
 	sb.chain = chain
 	sb.currentBlock = currentBlock
 	sb.hasBadBlock = hasBadBlock
@@ -560,4 +648,130 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 		delete(snap.Tally, candidate)
 	}
 	return nil
+}
+
+func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorList, stop <-chan struct{}) error {
+	timeout := time.NewTimer(60 * time.Second)
+	defer timeout.Stop()
+	log.Info("SealOnlineProofBlk : info", "height", block.Number())
+	// Only this round of validators can send online proofs
+	header := block.Header()
+
+	if sb.core == nil {
+		log.Error("SealOnlineProofBlk : sb.core", "err", errors.New("SealOnlineProofBlk : ibft engine not active !"), "no", header.Number.Uint64())
+		return errors.New("SealOnlineProofBlk : ibft engine not active !")
+	}
+
+	//Get the validatorset for this round
+	// istanbulExtra, err := types.ExtractIstanbulExtra(header)
+	// if err != nil {
+	// 	log.Error("SealOnlineProofBlk  : istanbulExtra", "err", err.Error())
+	// 	return err
+	// }
+
+	// valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
+	var valset istanbul.ValidatorSet
+	if c, ok := chain.(*core.BlockChain); ok {
+		log.Info("SealOnlineProofBlk : calculate valset")
+
+		cBlk := c.CurrentBlock()
+		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
+		if err != nil {
+			log.Error("SealOnlineProofBlk : err", "err", err.Error(), "no", header.Number.Uint64())
+			return err
+		}
+		log.Info("SealOnlineProofBlk : len", "len", len(validatorList.Validators), "no", header.Number.Uint64())
+
+		valset = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+	}
+	if _, v := valset.GetByAddress(sb.address); v == nil {
+		log.Error("SealOnlineProofBlk  : ErrUnauthorized", "err", istanbulcommon.ErrUnauthorized, "no", header.Number.Uint64())
+		return istanbulcommon.ErrUnauthorized
+	}
+
+	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+	if parent == nil {
+		log.Error("SealOnlineProofBlk  : ErrUnknownAncestor", "err", consensus.ErrUnknownAncestor, "no", header.Number.Uint64())
+		return consensus.ErrUnknownAncestor
+	}
+
+	// generate a local random number
+	localTime := time.Now().Nanosecond()
+	common.BigToHash(big.NewInt(int64(localTime)))
+	log.Info("SealOnlineProofBlk : post OnlineProofEvent", "no", header.Number.Uint64())
+
+	go func() {
+		sb.EventMux().Post(istanbul.OnlineProofEvent{
+			Proposal:   block,
+			RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
+		})
+		for {
+			select {
+			case onlineValidators := <-sb.notifyBlockCh:
+				log.Info("SealOnlineProofBlk : onlineValidators", "no", block.NumberU64(), "info", onlineValidators)
+				if onlineValidators != nil {
+					notifyBlockCh <- onlineValidators
+					return
+				}
+			case <-stop:
+				log.Info("SealOnlineProofBlk : stop")
+				return
+			case <-timeout.C:
+				log.Warn("SealOnlineProofBlk: Collect online proof timed out", "no", block.NumberU64())
+				return
+			}
+		}
+	}()
+	return nil
+}
+
+func (sb *Backend) GossipOnlineProof(chain consensus.ChainHeaderReader, block *types.Block) error {
+	log.Info("GossipOnlineProof : info", "height", block.Number())
+	// Only this round of validators can send online proofs
+	header := block.Header()
+
+	if sb.core == nil {
+		log.Error("GossipOnlineProof : sb.core", "err", errors.New("GossipOnlineProof : ibft engine not active !"), "no", header.Number.Uint64())
+		return errors.New("GossipOnlineProof : ibft engine not active !")
+	}
+
+	var valset istanbul.ValidatorSet
+	if c, ok := chain.(*core.BlockChain); ok {
+		log.Info("GossipOnlineProof : calculate valset")
+
+		cBlk := c.CurrentBlock()
+		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
+		log.Info("GossipOnlineProof : len", "len", len(validatorList.Validators), "no", header.Number.Uint64())
+		if err != nil {
+			log.Error("GossipOnlineProof : err", "err", err.Error(), "no", header.Number.Uint64())
+			return err
+		}
+		valset = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+	}
+	if _, v := valset.GetByAddress(sb.address); v == nil {
+		log.Error("GossipOnlineProof  : ErrUnauthorized", "err", istanbulcommon.ErrUnauthorized, "no", header.Number.Uint64())
+		return istanbulcommon.ErrUnauthorized
+	}
+
+	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+	if parent == nil {
+		log.Error("GossipOnlineProof  : ErrUnknownAncestor", "err", consensus.ErrUnknownAncestor, "no", header.Number.Uint64())
+		return consensus.ErrUnknownAncestor
+	}
+
+	// generate a local random number
+	localTime := time.Now().Nanosecond()
+	common.BigToHash(big.NewInt(int64(localTime)))
+	log.Info("GossipOnlineProof : post OnlineProofEvent", "no", header.Number.Uint64())
+
+	go sb.EventMux().Post(istanbul.OnlineProofEvent{
+		Proposal:   block,
+		RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
+	})
+
+	return nil
+}
+
+func (sb *Backend) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+	return sb.EngineForBlockNumber(header.Number).FinalizeOnlineProofBlk(chain, header, state, txs, uncles, receipts)
 }

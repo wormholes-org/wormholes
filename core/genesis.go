@@ -291,16 +291,10 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 		statedb.OpenExchanger(addr, account.Balance, big.NewInt(0), 250, "EXCHANGER", "www.xiaoli.com")
 	}
 
-	emptyAddr := common.Address{}
 	for addr, account := range g.Validator {
 		log.Info("caver|ToBlock|validator", "addr", addr, "amount", account.Balance.String())
 		proxy := common.HexToAddress(account.Proxy)
 		statedb.PledgeToken(addr, account.Balance, proxy, big.NewInt(0))
-		if proxy != emptyAddr {
-			statedb.AddOrUpdateActiveMiner(proxy, account.Balance, 0)
-		} else {
-			statedb.AddOrUpdateActiveMiner(addr, account.Balance, 0)
-		}
 	}
 
 	root := statedb.IntermediateRoot(false)
@@ -361,33 +355,35 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	rawdb.WriteChainConfig(db, block.Hash(), config)
 
 	var (
-		stakerList       types.StakerList
-		validatorList    types.ValidatorList
-		activeMinersList types.ActiveMinerList
+		//stakerList    types.StakerList
+		stakerList    types.DBStakerList
+		validatorList types.ValidatorList
 	)
 
 	for addr, account := range g.Stake {
-		stakerList.AddStaker(addr, account.Balance)
+		var dbStaker types.DBStaker
+		dbStaker.Addr = addr
+		dbStaker.Balance = account.Balance
+		dbStaker.DeleteFlag = false
+		stakerList.DBStakers = append(stakerList.DBStakers, &dbStaker)
+		//stakerList.AddStaker(addr, account.Balance)
 	}
 
-	emptyAddr := common.Address{}
 	for addr, account := range g.Validator {
 		proxy := common.HexToAddress(account.Proxy)
 		validatorList.AddValidator(addr, account.Balance, proxy)
-		if proxy != emptyAddr {
-			activeMinersList.AddAndUpdateActiveAddr(proxy, account.Balance, block.NumberU64())
-		} else {
-			activeMinersList.AddAndUpdateActiveAddr(addr, account.Balance, block.NumberU64())
-		}
+	}
+	// Recalculate the weight, which needs to be calculated after the list is determined
+	for addr, account := range g.Validator {
+		validatorList.CalculateAddressRange(addr, account.Balance)
 	}
 
-	for _, v := range activeMinersList.ActiveMiners {
-		log.Info("activeMinersList.ActiveMiners", "address", v.Address.String(), "balance", v.Balance)
+	for _, v := range validatorList.Validators {
+		log.Info("genesis|validator|weight", "addr", v.Addr, "balance", v.Balance, "weight", v.Weight)
 	}
-
-	rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
+	//rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
+	rawdb.WriteDBStakerPool(db, block.Hash(), block.NumberU64(), &stakerList)
 	rawdb.WriteValidatorPool(db, block.Hash(), block.NumberU64(), &validatorList)
-	rawdb.WriteActiveMinersPool(db, block.Hash(), block.NumberU64(), &activeMinersList)
 
 	officialNFT := types.InjectedOfficialNFT{
 		Dir:        g.Dir,
@@ -598,8 +594,8 @@ func DefaultTestNetGenesisBlock() *Genesis {
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
 		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
 		Timestamp:    0,
-		Dir:          "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3",
-		InjectNumber: 65536,
+		Dir:          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
+		InjectNumber: 4096,
 		StartIndex:   big.NewInt(0),
 		Royalty:      100,
 		Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
@@ -621,8 +617,8 @@ func DefaultDevNetGenesisBlock() *Genesis {
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
 		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
 		Timestamp:    0,
-		Dir:          "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3",
-		InjectNumber: 65536,
+		Dir:          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
+		InjectNumber: 4096,
 		StartIndex:   big.NewInt(0),
 		Royalty:      100,
 		Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",

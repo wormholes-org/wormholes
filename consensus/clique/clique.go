@@ -584,6 +584,11 @@ func (c *Clique) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil
 }
 
+func (e *Clique) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil
+}
+
 // Authorize injects a private key into the consensus engine to mint new blocks
 // with.
 func (c *Clique) Authorize(signer common.Address, signFn SignerFn) {
@@ -592,6 +597,12 @@ func (c *Clique) Authorize(signer common.Address, signFn SignerFn) {
 
 	c.signer = signer
 	c.signFn = signFn
+}
+func (c *Clique) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error) {
+	return nil, nil
+}
+func (c *Clique) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
+	return nil
 }
 
 // Seal implements consensus.Engine, attempting to create a sealed block using
@@ -756,4 +767,12 @@ func encodeSigHeader(w io.Writer, header *types.Header) {
 // Protocol implements consensus.Engine.Protocol
 func (c *Clique) Protocol() consensus.Protocol {
 	return consensus.CliqueProtocol
+}
+
+func (c *Clique) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorList, stop <-chan struct{}) error {
+	return nil
+}
+
+func (ethash *Clique) GossipOnlineProof(chain consensus.ChainHeaderReader, block *types.Block) error {
+	return nil
 }

@@ -18,12 +18,13 @@ package debug
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/miniredis"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
+
+	"github.com/ethereum/go-ethereum/miniredis"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -41,6 +42,14 @@ var (
 		Name:  "verbosity",
 		Usage: "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail",
 		Value: 3,
+	}
+	mergeLogeFlag = cli.BoolFlag{
+		Name:  "log.merge",
+		Usage: "merge the log",
+	}
+	logePathFlag = cli.StringFlag{
+		Name:  "log.path",
+		Usage: "where store the log",
 	}
 	vmoduleFlag = cli.StringFlag{
 		Name:  "vmodule",
@@ -133,6 +142,8 @@ var (
 // Flags holds all command-line flags required for debugging.
 var Flags = []cli.Flag{
 	verbosityFlag,
+	mergeLogeFlag,
+	logePathFlag,
 	vmoduleFlag,
 	logjsonFlag,
 	backtraceAtFlag,
@@ -158,31 +169,41 @@ var DeprecatedFlags = []cli.Flag{
 	legacyDebugFlag,
 }
 
-var glogger *log.GlogHandler
+var (
+	ostream log.Handler
+	glogger *log.GlogHandler
+)
 
 func init() {
-	glogger = log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
-	glogger.Verbosity(log.LvlInfo)
-	log.Root().SetHandler(glogger)
+	usecolor := (isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())) && os.Getenv("TERM") != "dumb"
+
+	output := io.Writer(os.Stdout)
+	if usecolor {
+		output = colorable.NewColorableStdout()
+	}
+	ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
+	glogger = log.NewGlogHandler(ostream)
 }
 
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) error {
-	var ostream log.Handler
-	output := io.Writer(os.Stderr)
-	if ctx.GlobalBool(logjsonFlag.Name) {
-		ostream = log.StreamHandler(output, log.JSONFormat())
-	} else {
-		usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
-		if usecolor {
-			output = colorable.NewColorableStderr()
-		}
-		ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
-	}
-	glogger.SetHandler(ostream)
-
 	// logging
+	logPath := ctx.GlobalString(logePathFlag.Name)
+	logMerge := ctx.GlobalBool(mergeLogeFlag.Name)
+	if logMerge {
+		rotatingFile := log.MergeLog(logPath, log.TerminalFormat(false))
+		glogger.SetHandler(log.MultiHandler(ostream, rotatingFile))
+	} else {
+		if logPath != "" {
+			f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+			if err != nil {
+				return err
+			}
+			ostream = log.StreamHandler(f, log.TerminalFormat(false))
+			glogger.SetHandler(ostream)
+		}
+	}
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)
 	glogger.Verbosity(log.Lvl(verbosity))
 	vmodule := ctx.GlobalString(vmoduleFlag.Name)

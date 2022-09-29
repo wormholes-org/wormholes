@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
 )
@@ -139,12 +140,14 @@ func (sb *Backend) SetBroadcaster(broadcaster consensus.Broadcaster) {
 }
 
 func (sb *Backend) NewChainHead() error {
+	log.Info("Backend : NewChainHead", "no", sb.chain.CurrentHeader().Number.Uint64()+1)
 	sb.coreMu.RLock()
 	defer sb.coreMu.RUnlock()
 	if !sb.coreStarted {
-		sb.logger.Info("caver|NewChainHead|ErrStoppedEngine", "!sb.coreStarted", !sb.coreStarted)
+		log.Error("NewChainHead ErrStoppedEngine", "!sb.coreStarted", !sb.coreStarted, "no", sb.chain.CurrentHeader().Number.Uint64()+1)
 		return istanbul.ErrStoppedEngine
 	}
+	log.Info("NewChainHead post FinalCommittedEvent", "no", sb.chain.CurrentHeader().Number.Uint64()+1)
 	go sb.istanbulEventMux.Post(istanbul.FinalCommittedEvent{})
 	return nil
 }

@@ -51,11 +51,6 @@ func (b *LesApiBackend) QueryMinerProxy(ctx context.Context, number int64, addr 
 	panic("implement me")
 }
 
-
-func (b *LesApiBackend) GetActiveLivePool(ctx context.Context, number rpc.BlockNumber) (*types.ActiveMinerList, error) {
-	return nil, nil
-}
-
 func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.chainConfig
 }
@@ -116,6 +111,10 @@ func (b *LesApiBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 
 func (b *LesApiBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	return b.eth.blockchain.GetBlockByHash(ctx, hash)
+}
+
+func (b *LesApiBackend) GetAllStakers(ctx context.Context) *types.StakerList {
+	return b.eth.blockchain.GetStakerPool()
 }
 
 func (b *LesApiBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {

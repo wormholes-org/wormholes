@@ -17,11 +17,12 @@
 package core
 
 import (
+	"reflect"
+
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/log"
-	"reflect"
 )
 
 func (c *core) sendPrepare() {
@@ -34,11 +35,11 @@ func (c *core) sendPrepare() {
 		return
 	}
 
-	log.Info("carver|sendPrepare|baseinfo",
+	log.Info("ibftConsensus: sendPrepare",
 		"no", sub.View.Sequence.Uint64(),
 		"round", sub.View.Round.String(),
 		"hash", sub.Digest.Hex(),
-		"author", c.Address().Hex())
+		"self", c.Address().Hex())
 	c.broadcast(&ibfttypes.Message{
 		Code: ibfttypes.MsgPrepare,
 		Msg:  encodedSubject,
@@ -53,16 +54,19 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 		return istanbulcommon.ErrFailedDecodePrepare
 	}
 
-	log.Info("carver|handlePrepare|baseinfo",  "no", prepare.View.Sequence,
+	log.Info("ibftConsensus: handlePrepare", "no", prepare.View.Sequence,
 		"round", prepare.View.Round,
 		"from", src.Address().Hex(),
-		"hash", prepare.Digest.Hex())
+		"hash", prepare.Digest.Hex(),
+		"slef", c.address.Hex())
 
 	if err := c.checkMessage(ibfttypes.MsgPrepare, prepare.View); err != nil {
-		log.Error("caver|handlePrepare|checkMessage", "no", prepare.View.Sequence,
+		log.Error("ibftConsensus: handlePrepare checkMessage",
+			"no", prepare.View.Sequence,
 			"round", prepare.View.Round,
 			"from", src.Address().Hex(),
 			"hash", prepare.Digest.Hex(),
+			"self", c.address.Hex(),
 			"err", err.Error())
 		return err
 	}
@@ -70,9 +74,11 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 	// If it is locked, it can only process on the locked block.
 	// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepared state.
 	if err := c.verifyPrepare(prepare, src); err != nil {
-		log.Info("carver|handlePrepare|verifyPrepare", "no", prepare.View.Sequence,
+		log.Info("ibftConsensus: handlePrepare verifyPrepare",
+			"no", prepare.View.Sequence,
 			"round", prepare.View.Round.String(),
 			"hash", prepare.Digest.Hex(),
+			"self", c.address.Hex(),
 			"err", err)
 		return err
 	}
@@ -84,7 +90,7 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 		c.state.Cmp(ibfttypes.StatePrepared) < 0 {
 		c.current.LockHash()
 		c.setState(ibfttypes.StatePrepared)
-		log.Info("caver|handlePrepare|sendCommit",
+		log.Info("ibftConsensus: handlePrepare sendCommit",
 			"no", prepare.View.Sequence,
 			"round", prepare.View.Round,
 			"prepare+commitSize", c.current.GetPrepareOrCommitSize(),

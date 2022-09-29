@@ -172,6 +172,9 @@ type (
 		oldOwner                 common.Address
 		oldNFTApproveAddressList common.Address
 		oldMergeLevel            uint8
+		oldMergeNumber           uint32
+		oldPledgedFlag           bool
+		oldNFTPledgedBlockNumber *big.Int
 		oldCreator               common.Address
 		oldRoyalty               uint32
 		oldExchanger             common.Address
@@ -193,15 +196,26 @@ type (
 		prev    *big.Int
 	}
 
+	blockNumberChange struct {
+		account *common.Address
+		prev    *big.Int
+	}
+
 	voteWeightChange struct {
 		account *common.Address
 		prev    *big.Int
 	}
 
-	RewardFlagChange struct {
-		account    *common.Address
-		rewardFlag uint8
+	pledgedNFTInfo struct {
+		account               *common.Address
+		pledgedFlag           bool
+		nftPledgedBlockNumber *big.Int
 	}
+
+	//RewardFlagChange struct {
+	//	account    *common.Address
+	//	rewardFlag uint8
+	//}
 )
 
 func (ch createObjectChange) revert(s *StateDB) {
@@ -416,6 +430,14 @@ func (ch exchangerBalanceChange) dirtied() *common.Address {
 	return ch.account
 }
 
+func (ch blockNumberChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setBlockNumber(ch.prev)
+}
+
+func (ch blockNumberChange) dirtied() *common.Address {
+	return ch.account
+}
+
 func (ch voteWeightChange) revert(s *StateDB) {
 	s.getStateObject(*ch.account).setVoteWeight(ch.prev)
 }
@@ -424,10 +446,18 @@ func (ch voteWeightChange) dirtied() *common.Address {
 	return ch.account
 }
 
-func (r RewardFlagChange) revert(s *StateDB) {
-	s.getStateObject(*r.account).setRewardFlag(r.rewardFlag)
+//func (r RewardFlagChange) revert(s *StateDB) {
+//	s.getStateObject(*r.account).setRewardFlag(r.rewardFlag)
+//}
+//
+//func (r RewardFlagChange) dirtied() *common.Address {
+//	return r.account
+//}
+
+func (ch pledgedNFTInfo) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setPledgedNFTInfo(ch.pledgedFlag, ch.nftPledgedBlockNumber)
 }
 
-func (r RewardFlagChange) dirtied() *common.Address {
-	return r.account
+func (ch pledgedNFTInfo) dirtied() *common.Address {
+	return ch.account
 }

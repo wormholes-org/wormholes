@@ -33,7 +33,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
@@ -45,6 +47,14 @@ var (
 	errNoMiningWork      = errors.New("no mining work available yet")
 	errInvalidSealResult = errors.New("invalid or stale proof-of-work solution")
 )
+
+func (ethash *Ethash) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
+	return nil
+}
+
+func (ethash *Ethash) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error) {
+	return nil, nil
+}
 
 // Seal implements consensus.Engine, attempting to find a nonce that satisfies
 // the block's difficulty requirements.
@@ -447,4 +457,16 @@ func (s *remoteSealer) submitWork(nonce types.BlockNonce, mixDigest common.Hash,
 	// The submitted block is too old to accept, drop it.
 	s.ethash.config.Log.Warn("Work submitted is too old", "number", solution.NumberU64(), "sealhash", sealhash, "hash", solution.Hash())
 	return false
+}
+
+func (ethash *Ethash) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorList, stop <-chan struct{}) error {
+	return nil
+}
+func (ethash *Ethash) GossipOnlineProof(chain consensus.ChainHeaderReader, block *types.Block) error {
+	return nil
+}
+
+func (ethash *Ethash) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
 }

@@ -2,12 +2,13 @@ package types
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestBeValidatorProbaBilitity(t *testing.T) {
@@ -97,6 +98,7 @@ func TestValidatorByWeightAndDistance(t *testing.T) {
 }
 
 func randomHash() common.Hash {
+	rand.Seed(time.Now().Local().UnixMicro())
 	var hash common.Hash
 	if n, err := rand.Read(hash[:]); n != common.HashLength || err != nil {
 		panic(err)
@@ -104,9 +106,8 @@ func randomHash() common.Hash {
 	return hash
 }
 
-
 // Batch generation of private keys and related addresses
-func TestBatchGenPriKeyAndAddr(t *testing.T){
+func TestBatchGenPriKeyAndAddr(t *testing.T) {
 	for i := 0; i < 7; i++ {
 		priKey, _ := crypto.GenerateKey()
 		hexPriKey := common.Bytes2Hex(crypto.FromECDSA(priKey))
@@ -121,7 +122,7 @@ func TestGenerateSevenValidator(t *testing.T) {
 	for i := 0; i < 7; i++ {
 		priKey, _ := crypto.GenerateKey()
 		addr := crypto.PubkeyToAddress(priKey.PublicKey)
-		addrs =  append(addrs, addr)
+		addrs = append(addrs, addr)
 	}
 
 	var sl StakerList
@@ -146,18 +147,18 @@ func TestGenerateSevenValidator(t *testing.T) {
 	}
 }
 
-func  TestPrintAddr(t *testing.T){
+func TestPrintAddr(t *testing.T) {
 	pri, _ := crypto.HexToECDSA("7b2546a5d4e658d079c6b2755c6d7495edd01a686fddae010830e9c93b23e398")
 	addr := crypto.PubkeyToAddress(pri.PublicKey)
 	fmt.Println("addr=", addr.Hex())
 }
 
-func BenchmarkValidatorByDistanceAndWeight(b *testing.B){
+func BenchmarkValidatorByDistanceAndWeight(b *testing.B) {
 	var addrs []common.Address
 	for i := 0; i < 100; i++ {
 		priKey, _ := crypto.GenerateKey()
 		addr := crypto.PubkeyToAddress(priKey.PublicKey)
-		addrs =  append(addrs, addr)
+		addrs = append(addrs, addr)
 	}
 
 	var sl StakerList

@@ -442,10 +442,10 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 	defer func() {
 		// reset on error
 		if err != nil {
-			log.Error("caver|syncWithPeer|err", "failedEvent-err", err.Error())
+			log.Error("syncWithPeer err", "failedEvent-err", err.Error())
 			d.mux.Post(FailedEvent{err})
 		} else {
-			log.Error("caver|syncWithPeer|DoneEvent", "currentHeader-no", d.lightchain.CurrentHeader().Number.String())
+			log.Info("syncWithPeer : DoneEvent", "currentHeader-no", d.lightchain.CurrentHeader().Number.String())
 			latest := d.lightchain.CurrentHeader()
 			d.mux.Post(DoneEvent{latest})
 		}
@@ -1749,8 +1749,7 @@ func (d *Downloader) importBlockResults(results []*fetchResult) error {
 			return fmt.Errorf("%w: %v", errInvalidChain, err)
 		}
 	}
-
-
+	log.Info("importBlockResults : success")
 
 	return nil
 }

@@ -1693,7 +1693,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		SetDNSDiscoveryDefaults(cfg, params.TestNetGenesisHash)
 	case ctx.GlobalBool(DevNetFlag.Name):
 		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
-			cfg.NetworkId = 51889
+			cfg.NetworkId = 51890
 		}
 		cfg.Genesis = core.DefaultDevNetGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.DevNetGenesisHash)
@@ -1734,6 +1734,13 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		return backend.ApiBackend, nil
 	}
 	backend, err := eth.New(stack, cfg)
+
+	log.Chain = backend.BlockChain()
+
+	backend.BlockChain().Engine()
+
+	backend.Engine()
+
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}

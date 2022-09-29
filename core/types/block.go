@@ -20,6 +20,7 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"math/big"
 	"reflect"
@@ -105,12 +106,16 @@ func (h *Header) Hash() common.Hash {
 	//return rlpHash(h)
 	// If the mix digest is equivalent to the predefined Istanbul digest, use Istanbul
 	// specific hash calculation.
+	log.Info("Hash", "time", time.Now().Unix())
 	if h.MixDigest == IstanbulDigest {
+		log.Info("MixDigest", "time", time.Now().Unix())
 		// Seal is reserved in extra-data. To prove block is signed by the proposer.
 		if istanbulHeader := FilteredHeader(h); istanbulHeader != nil {
+			log.Info("istanbulHeader", "time", time.Now().Unix(), "Extra", h.Extra, "rlpHash(istanbulHeader):", rlpHash(istanbulHeader))
 			return rlpHash(istanbulHeader)
 		}
 	}
+	log.Info("rlpHash end", "time", time.Now().Unix(), "Extra", h.Extra, "rlpHash(h):", rlpHash(h))
 	return rlpHash(h)
 }
 

@@ -17,21 +17,22 @@
 package core
 
 import (
+	"reflect"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/log"
-	"reflect"
 )
 
 func (c *core) sendCommit() {
 	sub := c.current.Subject()
-	log.Info("carver|sendCommit|baseinfo",
+	log.Info("ibftConsensus: sendCommit",
 		"no", sub.View.Sequence.Uint64(),
 		"round", sub.View.Round.String(),
 		"hash", sub.Digest.Hex(),
-		"author", c.Address().Hex())
+		"self", c.Address().Hex())
 	c.broadcastCommit(sub)
 }
 
@@ -62,42 +63,45 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	var commit *istanbul.Subject
 	err := msg.Decode(&commit)
 	if err != nil {
-		log.Error("caver|handleCommit|Decodecommit")
+		log.Error("ibftConsensus: handleCommit Decodecommit  err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
 		return istanbulcommon.ErrFailedDecodeCommit
 	}
 
-	log.Info("carver|handleCommit|baseinfo",  "no", commit.View.Sequence,
+	log.Info("ibftConsensus: handleCommit info", "no", commit.View.Sequence,
 		"round", commit.View.Round,
 		"from", src.Address().Hex(),
-		"hash", commit.Digest.Hex())
+		"hash", commit.Digest.Hex(),
+		"self", c.Address().Hex())
 
 	if err := c.checkMessage(ibfttypes.MsgCommit, commit.View); err != nil {
-		log.Error("caver|handleCommit|checkMessage", "no", commit.View.Sequence,
+		log.Error("ibftConsensus: handleCommit checkMessage", "no", commit.View.Sequence,
 			"round", commit.View.Round,
 			"who", c.address.Hex(),
 			"hash", commit.Digest.Hex(),
+			"self", c.address.Hex(),
 			"err", err.Error())
 		return err
 	}
 
 	if err := c.verifyCommit(commit, src); err != nil {
-		log.Error("caver|handleCommit|verifyCommit", "no", commit.View.Sequence, "round", commit.View.Round, "who", c.address.Hex(),"hash", commit.Digest.Hex(), "err", err.Error())
+		log.Error("ibftConsensus: handleCommit verifyCommit", "no", commit.View.Sequence, "round", commit.View.Round, "self", c.address.Hex(), "hash", commit.Digest.Hex(), "err", err.Error())
 		return err
 	}
 
 	c.acceptCommit(msg, src)
-	log.Info("carver|handleCommit|baseinfo",  "no",  commit.View.Sequence.Uint64(), "round", commit.View.Round, "from", src.Address().Hex(),"hash", commit.Digest.Hex())
+	log.Info("ibftConsensus: handleCommit baseinfo", "no", commit.View.Sequence.Uint64(), "round", commit.View.Round, "from", src.Address().Hex(), "hash", commit.Digest.Hex(), "self", c.address.Hex())
 	// Commit the proposal once we have enough COMMIT messages and we are not in the Committed state.
 	//
 	// If we already have a proposal, we may have chance to speed up the consensus process
 	// by committing the proposal without PREPARE messages.
 	if c.current.Commits.Size() >= c.QuorumSize() && c.state.Cmp(ibfttypes.StateCommitted) < 0 {
 		// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
-		log.Info("caver|handleCommit|commit",
+		log.Info("ibftConsensus: handleCommit commit",
 			"no", commit.View.Sequence,
 			"round", commit.View.Round,
 			"CommitsSize", c.current.Commits.Size(),
 			"hash", commit.Digest.Hex(),
+			"self", c.address.Hex(),
 		)
 		c.current.LockHash()
 		c.commit()

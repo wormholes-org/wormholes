@@ -34,6 +34,7 @@ func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, lock
 		round:          view.Round,
 		sequence:       view.Sequence,
 		Preprepare:     preprepare,
+		OnlineProofs:   newMessageSet(validatorSet),
 		Prepares:       newMessageSet(validatorSet),
 		Commits:        newMessageSet(validatorSet),
 		lockedHash:     lockedHash,
@@ -45,13 +46,15 @@ func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, lock
 
 // roundState stores the consensus state
 type roundState struct {
-	round          *big.Int
-	sequence       *big.Int
-	Preprepare     *istanbul.Preprepare
-	Prepares       *messageSet
-	Commits        *messageSet
-	lockedHash     common.Hash
-	pendingRequest *istanbul.Request
+	round                     *big.Int
+	sequence                  *big.Int
+	Preprepare                *istanbul.Preprepare
+	Prepares                  *messageSet
+	Commits                   *messageSet
+	OnlineProofs              *messageSet
+	lockedHash                common.Hash
+	pendingRequest            *istanbul.Request
+	pendingOnlineProofRequest *istanbul.OnlineProofRequest
 
 	mu             *sync.RWMutex
 	hasBadProposal func(hash common.Hash) bool
@@ -173,13 +176,15 @@ func (s *roundState) GetLockedHash() common.Hash {
 // be confusing.
 func (s *roundState) DecodeRLP(stream *rlp.Stream) error {
 	var ss struct {
-		Round          *big.Int
-		Sequence       *big.Int
-		Preprepare     *istanbul.Preprepare
-		Prepares       *messageSet
-		Commits        *messageSet
-		lockedHash     common.Hash
-		pendingRequest *istanbul.Request
+		Round                     *big.Int
+		Sequence                  *big.Int
+		Preprepare                *istanbul.Preprepare
+		Prepares                  *messageSet
+		Commits                   *messageSet
+		OnlineProofs              *messageSet
+		lockedHash                common.Hash
+		pendingRequest            *istanbul.Request
+		pendingOnlineProofRequest *istanbul.OnlineProofRequest
 	}
 
 	if err := stream.Decode(&ss); err != nil {
@@ -190,8 +195,10 @@ func (s *roundState) DecodeRLP(stream *rlp.Stream) error {
 	s.Preprepare = ss.Preprepare
 	s.Prepares = ss.Prepares
 	s.Commits = ss.Commits
+	s.OnlineProofs = ss.OnlineProofs
 	s.lockedHash = ss.lockedHash
 	s.pendingRequest = ss.pendingRequest
+	s.pendingOnlineProofRequest = ss.pendingOnlineProofRequest
 	s.mu = new(sync.RWMutex)
 
 	return nil

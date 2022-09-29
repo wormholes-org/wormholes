@@ -607,15 +607,18 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 		// Retrieve the current account and flatten it into the internal format
 		type AccountNFT struct {
 			//Account
-			Name                  string
-			Symbol                string
-			Price                 *big.Int
-			Direction             uint8 // 0:未交易,1:买入,2:卖出
+			Name   string
+			Symbol string
+			//Price                 *big.Int
+			//Direction             uint8 // 0:未交易,1:买入,2:卖出
 			Owner                 common.Address
 			NFTApproveAddressList common.Address
 			//Auctions map[string][]common.Address
 			// MergeLevel is the level of NFT merged
-			MergeLevel uint8
+			MergeLevel            uint8
+			MergeNumber           uint32
+			PledgedFlag           bool
+			NFTPledgedBlockNumber *big.Int
 
 			Creator   common.Address
 			Royalty   uint32
@@ -643,7 +646,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			ApproveAddressList []common.Address
 			// NFTBalance is the nft number that the account have
 			NFTBalance uint64
-			RewardFlag uint8
+			//RewardFlag uint8
 			AccountNFT
 			//Owner common.Address
 		}
@@ -680,16 +683,18 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 					acc.NFTBalance,
 					acc.Name,
 					acc.Symbol,
-					acc.Price,
-					acc.Direction,
+					//acc.Price,
+					//acc.Direction,
 					acc.Owner,
 					acc.NFTApproveAddressList,
 					acc.MergeLevel,
+					acc.MergeNumber,
+					acc.PledgedFlag,
+					acc.NFTPledgedBlockNumber,
 					acc.Creator,
 					acc.Royalty,
 					acc.Exchanger,
-					acc.MetaURL,
-					acc.RewardFlag)
+					acc.MetaURL)
 				//data := SlimAccountRLP(acc.Nonce, acc.Balance, acc.Root, acc.CodeHash)
 				// *** modify to support nft transaction 20211217 end ***
 				dataLen = len(data)

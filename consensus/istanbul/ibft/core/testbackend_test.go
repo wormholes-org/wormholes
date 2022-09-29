@@ -26,6 +26,7 @@ import (
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -175,6 +176,10 @@ func (sb *testSystemBackend) IsQBFTConsensusAt(*big.Int) bool {
 
 func (sb *testSystemBackend) StartQBFTConsensus() error {
 	return nil
+}
+
+func (sb *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorInfo) {
+	return
 }
 
 // ==============================================

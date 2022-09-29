@@ -281,3 +281,11 @@ func PrepareCommittedSeal(header *types.Header, round uint32) []byte {
 	h := types.CopyHeader(header)
 	return h.QBFTHashWithRoundNumber(round).Bytes()
 }
+
+func (c *core) RoundInfo() []string {
+	return nil
+}
+
+func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
+	return nil
+}

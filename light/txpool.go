@@ -389,7 +389,7 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 			if pledgedBalance.Cmp(tx.Value()) != 0 {
 				// cancel partial pledged balance
 				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-				Erb100000 := big.NewInt(100000)
+				Erb100000 := big.NewInt(70000)
 				Erb100000.Mul(Erb100000, baseErb)
 				if pledgedBalance.Cmp(new(big.Int).Add(tx.Value(), Erb100000)) < 0 {
 					return core.ErrInsufficientFunds
@@ -436,7 +436,7 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 				return core.ErrInsufficientFunds
 			}
 			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
-			if currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+			if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
 				return core.ErrInsufficientFunds
 			}
 			// recover buyer address
@@ -458,7 +458,7 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 				return core.ErrInsufficientFunds
 			}
 			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
-			if currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+			if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
 				return core.ErrInsufficientFunds
 			}
 			// recover buyer address
@@ -498,14 +498,14 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 				return core.ErrInsufficientFunds
 			}
 			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-			Erb100 := big.NewInt(100)
+			Erb100 := big.NewInt(280)
 			Erb100.Mul(Erb100, baseErb)
 			if currentState.GetExchangerBalance(from).Cmp(new(big.Int).Add(tx.Value(), Erb100)) < 0 {
 				return core.ErrInsufficientFunds
 			}
 		case 24:
 			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
-			if currentState.GetExchangerBalance(owner).Cmp(tx.GasFee()) < 0 {
+			if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
 				return core.ErrInsufficientFunds
 			}
 		default:
