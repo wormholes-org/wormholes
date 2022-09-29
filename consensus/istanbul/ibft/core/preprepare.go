@@ -37,14 +37,16 @@ var csssStat = PreprepareStep1                     //consensus state mark Prepre
 var randSeedMessages *messageSet = new(messageSet) // collected random data message
 
 func (c *core) sendPreprepare(request *istanbul.Request) {
-	if csssStat == PreprepareStep1 {
-		c.sendPreprepareStep1(request)
-		return
-	}
-	if csssStat == PreprepareStep2 {
-		c.sendPreprepareStep2(request)
-		return
-	}
+	//if csssStat == PreprepareStep1 {
+	//	c.sendPreprepareStep1(request)
+	//	return
+	//}
+	//if csssStat == PreprepareStep2 {
+	//	c.sendPreprepareStep2(request)
+	//	return
+	//}
+	log.Info("send Preprepare [csss]")
+	c.sendPreprepareStep2(request)
 }
 
 func (c *core) sendPreprepareStep1(request *istanbul.Request) {
@@ -112,12 +114,13 @@ func (c *core) sendPreprepareStep2(request *istanbul.Request) {
 }
 
 func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) error {
-	if csssStat == 0 {
-		return c.handlePreprepareStep1(msg, src)
-	} else {
-		return c.handlePreprepareStep2(msg, src)
-	}
-	return nil
+	//if csssStat == 0 {
+	//	return c.handlePreprepareStep1(msg, src)
+	//} else {
+	//	return c.handlePreprepareStep2(msg, src)
+	//}
+	//return nil
+	return c.handlePreprepareStep2(msg, src)
 }
 
 func (c *core) handlePreprepareStep1(msg *ibfttypes.Message, src istanbul.Validator) error {
