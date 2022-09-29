@@ -67,13 +67,11 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 	return certify
 }
 
-func (c *Certify) rebroadcast(from common.Address, payload []byte, msg *Msg) error {
+func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
 	// Broadcast payload
 	if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
 		return err
 	}
-	// send to self
-	go c.eventMux.Post(msg)
 	return nil
 }
 
@@ -240,10 +238,7 @@ func (c *Certify) handleEvents() {
 					log.Info("SendSignMsg", "SendSignMsg", c.stakers)
 					//If the GatherOtherPeerSignature is ok, gossip message directly
 					if err := c.GatherOtherPeerSignature(msg.Address, signature.Height, encQues); err == nil {
-						c.rebroadcast(c.Address(), ev.Payload, &Msg{
-							Code: SendSignMsg,
-							Msg:  encQues,
-						})
+						c.rebroadcast(c.Address(), ev.Payload)})
 					}
 				}
 			}
