@@ -120,20 +120,16 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 	}
 
 	if h.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && h.Number.Cmp(common.Big0) > 0 {
-		if !keepSeal {
-			istanbulExtra.Seal = []byte{}
-		}
+		istanbulExtra.Seal = []byte{}
 		istanbulExtra.CommittedSeal = [][]byte{}
 		istanbulExtra.Validators = []common.Address{}
 		istanbulExtra.ValidatorAddr = []common.Address{}
 		istanbulExtra.ExchangerAddr = []common.Address{}
 		istanbulExtra.RandomHash = common.Hash{}
-
 		payload, err := rlp.EncodeToBytes(&istanbulExtra)
 		if err != nil {
 			return nil
 		}
-
 		newHeader.Extra = append(newHeader.Extra[:IstanbulExtraVanity], payload...)
 
 		return newHeader
