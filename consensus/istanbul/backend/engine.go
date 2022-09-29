@@ -149,12 +149,14 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
+		if err != nil {
+			log.Error("VerifySeal : invalid validator list", "no", c.CurrentBlock().Header(), "err", err)
+			return err
+		}
 		for _, v := range validatorList.Validators {
 			log.Info("Backend|VerifySeal", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
 		}
-		if err != nil {
-			return err
-		}
+
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 
@@ -171,7 +173,11 @@ func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, heade
 		if cHeader == nil {
 			return errors.New("prepare err: current header is nil")
 		}
-		validatorList := c.ReadValidatorPool(cHeader)
+		validatorList, err := c.ReadValidatorPool(cHeader)
+		if err != nil {
+			log.Error("PrepareForEmptyBlock : err", "err", err)
+			return err
+		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 
@@ -196,11 +202,12 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 
 		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
 		if err != nil {
+			log.Error("Prepare: invalid validator list", "err", err, "no", cBlk.Header().Number)
 			return err
 		}
 
 		for _, v := range validatorList.Validators {
-			log.Info("Backend|Prepare", "height", cBlk.Number, "v", v)
+			log.Info("Backend : Prepare", "height", cBlk.Number, "v", v)
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
@@ -669,11 +676,12 @@ func (sb *Backend) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *
 
 		cBlk := c.CurrentBlock()
 		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
-		log.Info("SealOnlineProofBlk : len", "len", len(validatorList.Validators), "no", header.Number.Uint64())
 		if err != nil {
 			log.Error("SealOnlineProofBlk : err", "err", err.Error(), "no", header.Number.Uint64())
 			return err
 		}
+		log.Info("SealOnlineProofBlk : len", "len", len(validatorList.Validators), "no", header.Number.Uint64())
+
 		valset = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 	if _, v := valset.GetByAddress(sb.address); v == nil {

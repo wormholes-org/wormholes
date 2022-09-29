@@ -280,6 +280,7 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	if c, ok := sb.chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
 		if err != nil {
+			log.Error("Verify: invalid validator list", "no", c.CurrentBlock().Header().Number, "err", err)
 			return 0, err
 		}
 		for _, v := range validatorList.Validators {
@@ -349,7 +350,7 @@ func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 	if c, ok := sb.chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.GetHeaderByHash(hash))
 		if err != nil {
-			log.Error("Backend: getValidators", "err", err)
+			log.Error("Backend: getValidators", "err", err, "no", number)
 			return nil
 		}
 		for _, v := range validatorList.Validators {

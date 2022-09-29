@@ -454,7 +454,14 @@ func (w *worker) emptyLoop() {
 				w.emptyCh <- struct{}{}
 				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 				//w.stop()
-				w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+
+				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+				if err != nil {
+					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
+					continue
+				}
+				w.cerytify.stakers = stakers
+
 				if !w.emptyHandleFlag {
 					w.emptyHandleFlag = true
 					go w.cerytify.handleEvents()
@@ -927,7 +934,12 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	vallist := w.chain.ReadValidatorPool(parent.Header())
+	vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	if err != nil {
+		log.Error("makeEmptyCurrent : invalid validator list", "no", header.Number, "err", err)
+		return err
+	}
+
 	state.ValidatorPool = vallist.Validators
 
 	env := &environment{
@@ -1027,7 +1039,11 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	vallist := w.chain.ReadValidatorPool(parent.Header())
+	vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	if err != nil {
+		log.Error("makeCurrent : invalid validator list", "no", header.Number, "err", err)
+		return err
+	}
 	state.ValidatorPool = vallist.Validators
 
 	env := &environment{

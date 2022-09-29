@@ -363,7 +363,11 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		validatorAddr = append(validatorAddr, rewardToValidators...)
 
 		//new&update  at 20220523
-		validatorPool := c.ReadValidatorPool(c.CurrentBlock().Header())
+		validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
+		if err != nil {
+			log.Error("Prepare : validator pool err", err, err)
+			return err
+		}
 		if validatorPool != nil && len(validatorPool.Validators) > 0 {
 			//k:proxy,v:validator
 			mp := make(map[string]*types.Validator, 0)
@@ -509,6 +513,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	for _, addr := range istanbulExtra.ValidatorAddr {
 		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
 	}
+
 	for _, addr := range istanbulExtra.ExchangerAddr {
 		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
 	}
@@ -770,9 +775,17 @@ func BytesToInt(bys []byte) int {
 
 func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Address) ([]common.Address, error) {
 	header := chain.CurrentHeader()
-	totalValidators := chain.ReadValidatorPool(header)
+	totalValidators, err := chain.ReadValidatorPool(header)
+	if err != nil {
+		log.Error("PickRewardValidators : invalid validator list", "err", err)
+		return []common.Address{}, err
+	}
 	validator11 := make(map[common.Address]bool)
 	elevenAddrs, err := chain.Random11ValidatorFromPool(header)
+	if err != nil {
+		log.Error("PickRewardValidators : invalid validator list", "err", err)
+		return []common.Address{}, err
+	}
 	online7 := make(map[common.Address]bool)
 	coinbase := chain.Coinbase()
 
