@@ -64,6 +64,7 @@ const (
 	GetReceiptsMsg     = 0x0f
 	ReceiptsMsg        = 0x10
 	WormholeEngineMsg  = 0x11
+	WorkerMsg          = 0x12
 
 	// Protocol messages overloaded in eth/65
 	NewPooledTransactionHashesMsg = 0x08

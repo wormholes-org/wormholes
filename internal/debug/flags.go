@@ -18,12 +18,13 @@ package debug
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/miniredis"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
+
+	"github.com/ethereum/go-ethereum/miniredis"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -175,6 +176,7 @@ var (
 
 func init() {
 	usecolor := (isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())) && os.Getenv("TERM") != "dumb"
+
 	output := io.Writer(os.Stdout)
 	if usecolor {
 		output = colorable.NewColorableStdout()
@@ -190,10 +192,7 @@ func Setup(ctx *cli.Context) error {
 	logPath := ctx.GlobalString(logePathFlag.Name)
 	logMerge := ctx.GlobalBool(mergeLogeFlag.Name)
 	if logMerge {
-		rotatingFile, err := log.RotatingFileHandler(logPath, log.TerminalFormat(false))
-		if err != nil {
-			return err
-		}
+		rotatingFile := log.MergeLog(logPath, log.TerminalFormat(false))
 		glogger.SetHandler(log.MultiHandler(ostream, rotatingFile))
 	} else {
 		if logPath != "" {

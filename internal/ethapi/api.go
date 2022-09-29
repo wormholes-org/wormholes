@@ -827,24 +827,28 @@ func (s *PublicBlockChainAPI) GetOfficialMintDeep(ctx context.Context, number rp
 	return mintDeep.OfficialMint.Text(16)
 }
 
-func (s *PublicBlockChainAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.StakerList {
+func (s *PublicBlockChainAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.DBStakerList {
 	header, err := s.b.HeaderByNumber(ctx, number)
 	if header == nil || err != nil {
-		return types.StakerList{}
+		return types.DBStakerList{}
 	}
 
 	db := s.b.ChainDb()
-	data, err := db.Get(rawdb.StakePoolKey(header.Number.Uint64(), header.Hash()))
+	data, err := db.Get(rawdb.DBStakerPoolKey(header.Number.Uint64(), header.Hash()))
 	if err != nil {
-		return types.StakerList{}
+		return types.DBStakerList{}
 	}
 
-	stakeList := new(types.StakerList)
+	stakeList := new(types.DBStakerList)
 	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
 		log.Error("Invalid stakeAddr RLP", "blocknumber", number, "err", err)
-		return types.StakerList{}
+		return types.DBStakerList{}
 	}
 	return *stakeList
+}
+
+func (s *PublicBlockChainAPI) GetAllStakers(ctx context.Context) *types.StakerList {
+	return s.b.GetAllStakers(ctx)
 }
 
 func (s *PublicBlockChainAPI) GetStakerLen(ctx context.Context, number rpc.BlockNumber) int {
@@ -1004,6 +1008,11 @@ func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc
 	}
 
 	return InjectedList
+}
+
+func (s *PublicBlockChainAPI) Version(ctx context.Context) string {
+	version := "wormholes v0.8.3"
+	return version
 }
 
 // Result structs for GetProof

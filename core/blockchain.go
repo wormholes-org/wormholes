@@ -213,8 +213,19 @@ type BlockChain struct {
 	shouldPreserve  func(*types.Block) bool        // Function used to determine whether should preserve the given block.
 	terminateInsert func(common.Hash, uint64) bool // Testing hook used to terminate ancient receipt chain insertion.
 
+	coinbase common.Address
 	//deep for mint NFT
 	//mintDeep types.MintDeep
+
+	stakerPool *types.StakerList
+}
+
+func (bc *BlockChain) Coinbase() common.Address {
+	return bc.coinbase
+}
+
+func (bc *BlockChain) SetCoinbase(pAddr common.Address) {
+	bc.coinbase = pAddr
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -251,6 +262,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		futureBlocks:   futureBlocks,
 		engine:         engine,
 		vmConfig:       vmConfig,
+		stakerPool:     new(types.StakerList),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -344,6 +356,10 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			}
 		}
 	}
+
+	// load staker pool
+	bc.loadStakerPool()
+
 	// The first thing the node will do is reconstruct the verification data for
 	// the head block (ethash cache or clique voting snapshot). Might as well do
 	// it in advance.
@@ -420,6 +436,34 @@ func (bc *BlockChain) empty() bool {
 		}
 	}
 	return true
+}
+
+// loadStakerPool loads the latest state of stakerpool
+func (bc *BlockChain) loadStakerPool() error {
+	currentBlock := bc.CurrentBlock()
+	currentHeight := currentBlock.NumberU64()
+	var header *types.Header
+	var dbStakers *types.DBStakerList
+	for i := uint64(0); i <= currentHeight; i++ {
+		header = bc.GetHeaderByNumber(i)
+		dbStakers = bc.ReadDBStakerPool(header)
+		if dbStakers != nil && len(dbStakers.DBStakers) > 0 {
+			for _, staker := range dbStakers.DBStakers {
+				if staker.DeleteFlag {
+					bc.stakerPool.RemoveStaker(staker.Address(), staker.Balance)
+				} else {
+					bc.stakerPool.AddStaker(staker.Address(), staker.Balance)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// GetStakerPool return bc.stakerPool
+func (bc *BlockChain) GetStakerPool() *types.StakerList {
+	return bc.stakerPool
 }
 
 // loadLastState loads the last known chain state from the database. This method
@@ -1547,22 +1591,29 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	bc.WriteNominatedOfficialNFT(block.Header(), state.NominatedOfficialNFT)
 
 	// modify Pledge list
-
-	exchangerPool := bc.ReadStakePool(bc.GetHeaderByHash(block.Header().ParentHash))
-	log.Info("caver|stake-before", "no", block.Header().Number, "len", exchangerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
+	//exchangerPool := bc.ReadStakePool(bc.GetHeaderByHash(block.Header().ParentHash))
+	log.Info("caver|stake-before", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
+	var dbStakers types.DBStakerList
 	if len(state.ExchangerTokenPool) > 0 {
 		for _, v := range state.ExchangerTokenPool {
+			var dbStaker types.DBStaker
+			dbStaker.Addr = v.Address
+			dbStaker.Balance = v.Amount
 			if v.Flag {
-				exchangerPool.AddStaker(v.Address, v.Amount)
+				bc.stakerPool.AddStaker(v.Address, v.Amount)
+				dbStaker.DeleteFlag = false
 			} else {
-				exchangerPool.RemoveStaker(v.Address, v.Amount)
+				bc.stakerPool.RemoveStaker(v.Address, v.Amount)
+				dbStaker.DeleteFlag = true
 			}
+			dbStakers.DBStakers = append(dbStakers.DBStakers, &dbStaker)
 		}
 		state.ExchangerTokenPool = state.ExchangerTokenPool[:0]
 	}
-	bc.WriteStakePool(block.Header(), exchangerPool)
+	bc.WriteDBStakerPool(block.Header(), &dbStakers)
+	//bc.WriteStakePool(block.Header(), exchangerPool)
 
-	log.Info("caver|stake-after", "no", block.Header().Number, "len", exchangerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
+	log.Info("caver|stake-after", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
 
 	validatorPool := bc.ReadValidatorPool(bc.GetHeaderByHash(block.Header().ParentHash))
 	log.Info("caver|validator-before", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
@@ -1724,7 +1775,7 @@ func (bc *BlockChain) InsertChainWithoutSealVerification(block *types.Block) (in
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
 func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, error) {
-	log.Info("caver|insertChain", "len", len(chain))
+	log.Info("insertChain : enter", "len", len(chain))
 	// If the chain is terminating, don't even bother starting up
 	if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 		return 0, nil
@@ -2656,6 +2707,19 @@ func (bc *BlockChain) ReadStakePool(header *types.Header) *types.StakerList {
 func (bc *BlockChain) WriteStakePool(header *types.Header, stakePool *types.StakerList) {
 	poolBatch := bc.db.NewBatch()
 	rawdb.WriteStakePool(poolBatch, header.Hash(), header.Number.Uint64(), stakePool)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write stakePool disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) ReadDBStakerPool(header *types.Header) *types.DBStakerList {
+	dbStakerPool, _ := rawdb.ReadDBStakerPool(bc.db, header.Hash(), header.Number.Uint64())
+	return dbStakerPool
+}
+
+func (bc *BlockChain) WriteDBStakerPool(header *types.Header, dbStakePool *types.DBStakerList) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteDBStakerPool(poolBatch, header.Hash(), header.Number.Uint64(), dbStakePool)
 	if err := poolBatch.Write(); err != nil {
 		log.Crit("Failed to write stakePool disk", "err", err)
 	}

@@ -33,11 +33,15 @@ func (c *core) handleRequest(request *istanbul.Request) error {
 		logger.Warn("unexpected request", "err", err, "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 		return err
 	}
-	logger.Trace("handleRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
+	log.Info("ibftConsensus: handleRequest", "no", "round", c.currentView().Round, request.Proposal.Number(), "hash", request.Proposal.Hash(), "self", c.address.Hex())
 
 	c.current.pendingRequest = request
+	log.Info("ibftConsensus: handleRequest sendPreprepare",
+		"no", request.Proposal.Number(),
+		"round", c.currentView().Round,
+		"hash", request.Proposal.Hash(),
+		"state", c.state)
 	if c.state == ibfttypes.StateAcceptRequest {
-		log.Info("caver|handleRequest|sendPreprepare", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 		c.sendPreprepare(request)
 	}
 	return nil
@@ -95,7 +99,6 @@ func (c *core) processPendingRequests() {
 			continue
 		}
 		c.logger.Trace("Post pending request", "number", r.Proposal.Number(), "hash", r.Proposal.Hash())
-
 		go c.sendEvent(istanbul.RequestEvent{
 			Proposal: r.Proposal,
 		})

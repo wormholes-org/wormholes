@@ -21,6 +21,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/p2p"
 	"math/big"
 	"time"
 
@@ -41,7 +42,8 @@ type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
 	AccountManager() *accounts.Manager
-	GetNodeKey() (*ecdsa.PrivateKey)
+	GetNodeKey() *ecdsa.PrivateKey
+	FindPeers() map[common.Address]Peer
 }
 
 // Config is the configuration parameters of mining.
@@ -60,14 +62,24 @@ type Config struct {
 
 // Miner creates blocks and searches for proof-of-work values.
 type Miner struct {
-	mux      *event.TypeMux
-	worker   *worker
-	coinbase common.Address
-	eth      Backend
-	engine   consensus.Engine
-	exitCh   chan struct{}
-	startCh  chan common.Address
-	stopCh   chan struct{}
+	mux         *event.TypeMux
+	worker      *worker
+	coinbase    common.Address
+	eth         Backend
+	engine      consensus.Engine
+	exitCh      chan struct{}
+	startCh     chan common.Address
+	stopCh      chan struct{}
+	broadcaster Broadcaster
+}
+
+func (miner *Miner) SetBroadcaster(broadcaster Broadcaster) {
+	miner.broadcaster = broadcaster
+}
+
+func (miner *Miner) HandleMsg(address common.Address, data p2p.Msg) (bool, error) {
+	flg, err := miner.worker.cerytify.HandleMsg(address, data)
+	return flg, err
 }
 
 func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(block *types.Block) bool) *Miner {
@@ -78,8 +90,8 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 		exitCh:  make(chan struct{}),
 		startCh: make(chan common.Address),
 		stopCh:  make(chan struct{}),
-		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, true),
 	}
+	miner.worker = newWorker(miner, config, chainConfig, engine, eth, mux, isLocalBlock, true)
 	go miner.update()
 
 	return miner
@@ -110,7 +122,7 @@ func (miner *Miner) update() {
 			}
 			switch ev.Data.(type) {
 			case downloader.StartEvent:
-				log.Info("caver|update|downloader.StartEvent")
+				log.Info("downloader start")
 				wasMining := miner.Mining()
 				miner.worker.stop()
 				canStart = false
@@ -120,12 +132,14 @@ func (miner *Miner) update() {
 					log.Info("Mining aborted due to sync")
 				}
 			case downloader.FailedEvent:
+				log.Info("downloader failed")
 				canStart = true
 				if shouldStart {
 					miner.SetEtherbase(miner.coinbase)
 					miner.worker.start()
 				}
 			case downloader.DoneEvent:
+				log.Info("downloader done")
 				canStart = true
 				if shouldStart {
 					miner.SetEtherbase(miner.coinbase)
@@ -238,4 +252,8 @@ func (miner *Miner) DisablePreseal() {
 // to the given channel.
 func (miner *Miner) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscription {
 	return miner.worker.pendingLogsFeed.Subscribe(ch)
+}
+
+func (miner *Miner) GetCertify() *Certify {
+	return miner.worker.cerytify
 }

@@ -2237,7 +2237,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 		//	royalty = info.Royalty
 		//	creator = info.Creator
 		//}
-		log.Info("CreateNFTByOfficial16()", "--nftAddr=", nftAddr.String())
+		log.Info("CreateNFTByOfficial16()", "--nftAddr=", nftAddr.String(), "blocknumber=", blocknumber.Uint64())
 
 		s.CreateAccount(nftAddr)
 		stateObject := s.GetOrNewStateObject(nftAddr)
@@ -2526,6 +2526,10 @@ func (s *StateDB) PledgeToken(address common.Address,
 	amount *big.Int,
 	proxy common.Address,
 	blocknumber *big.Int) error {
+
+	if amount == nil {
+		amount = big.NewInt(0)
+	}
 
 	stateObject := s.GetOrNewStateObject(address)
 	log.Info("PledgeToken", "address", address.Hex(), "proxy", proxy.Hex(), "amount", amount, "ValidatorPool", len(s.ValidatorPool))

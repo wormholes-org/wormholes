@@ -1,31 +1,9 @@
-// Copyright 2014 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 package p2p
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"golang.org/x/crypto/sha3"
 	"io"
-	"io/ioutil"
-	"math/big"
 	"net"
 	"sort"
 	"sync"
@@ -127,8 +105,6 @@ type Peer struct {
 	// Quorum
 	EthPeerRegistered   chan struct{}
 	EthPeerDisconnected chan struct{}
-
-	Msgs *MsgList
 }
 
 // NewPeer returns a peer for testing purposes.
@@ -238,12 +214,6 @@ func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {
 		protoErr: make(chan error, len(protomap)+1), // protocols + pingLoop
 		closed:   make(chan struct{}),
 		log:      log.New("id", conn.node.ID(), "conn", conn.flags),
-		Msgs: 	&MsgList {
-					MuxCh: make(chan bool, 1),
-					ExistMsg: make(chan struct{}, 1),
-					Msg17s: make([]*Msg, 0),
-					MsgNot17s: make([]*Msg, 0),
-				},
 	}
 	return p
 }
@@ -324,339 +294,26 @@ func (p *Peer) pingLoop() {
 	}
 }
 
-//func (p *Peer) readLoop(errc chan<- error) {
-//	defer p.wg.Done()
-//	for {
-//		msg, err := p.rw.ReadMsg()
-//		if msg.Code == 17{
-//			log.Info("caver|readMsg|17", "msgCode", msg.Code, "err", err)
-//		}
-//		if err != nil {
-//			errc <- err
-//			return
-//		}
-//		msg.ReceivedAt = time.Now()
-//		if err = p.handle(msg); err != nil {
-//			if msg.Code ==17 {
-//				log.Info("caver|handleMsg|17", "msgCode", msg.Code, "err", err)
-//			}
-//			errc <- err
-//			return
-//		}
-//	}
-//}
-
-
-type MsgList struct {
-	MuxCh chan bool
-	ExistMsg chan struct{}
-	Msg17s []*Msg
-	MsgNot17s []*Msg
-}
-
-func (ml *MsgList) Add(msg *Msg, code uint64, ibftCode uint64) {
-	ml.MuxCh<- true
-	if code == 17 && (ibftCode == 0 || ibftCode == 3) {
-		ml.Msg17s = append(ml.Msg17s, msg)
-	} else {
-		ml.MsgNot17s = append(ml.MsgNot17s, msg)
-	}
-	<-ml.MuxCh
-}
-
-func (ml *MsgList) Pop() *Msg {
-	var msg *Msg
-
-	ml.MuxCh<- true
-	if len(ml.Msg17s) > 0 {
-		msg = ml.Msg17s[0]
-		if len(ml.Msg17s) > 1 {
-			ml.Msg17s = ml.Msg17s[1:]
-		} else {
-			ml.Msg17s = ml.Msg17s[:0]
-		}
-	} else if len(ml.MsgNot17s) > 0 {
-		msg = ml.MsgNot17s[0]
-		if len(ml.MsgNot17s) > 1 {
-			ml.MsgNot17s = ml.MsgNot17s[1:]
-		} else {
-			ml.MsgNot17s = ml.MsgNot17s[:0]
-		}
-	}
-	<-ml.MuxCh
-
-	return msg
-}
-
-func (ml *MsgList) NoticeExistMsg() {
+func (p *Peer) readLoop(errc chan<- error) {
+	defer p.wg.Done()
 	for {
-		select {
-		case <-time.After(100 * time.Millisecond):
-
-			if len(ml.Msg17s) > 0 {
-				for i := len(ml.Msg17s); i > 0; i-- {
-					ml.ExistMsg <- struct{}{}
-				}
-			}
-			if len(ml.MsgNot17s) > 0 {
-				for i := len(ml.MsgNot17s); i > 0; i-- {
-					ml.ExistMsg <- struct{}{}
-				}
-			}
-
-		}
- 	}
-}
-
-
-
-func (p *Peer) ReadMsg(errc chan<- error) {
-	var code uint64
-	var ibftCode uint64
-	for {
-		ibftCode = 9999
 		msg, err := p.rw.ReadMsg()
-		if msg.Code == 17{
+		if msg.Code == 17 {
 			log.Info("caver|readMsg|17", "msgCode", msg.Code, "err", err)
 		}
 		if err != nil {
 			errc <- err
 			return
 		}
-
 		msg.ReceivedAt = time.Now()
-
-		if msg.Code == 17 {
-			code = 17
-		} else {
-			proto, err := p.getProto(msg.Code)
-			if err == nil {
-				code = msg.Code - proto.offset
-				log.Info("Peer.ReadMsg()", "msg.Code", msg.Code, "proto.offset", proto.offset,
-					"peer.id", p.ID().String())
-				// for test
-				tempMsg := Copy(msg).(Msg)
-				tempPayload, _ := ioutil.ReadAll(msg.Payload)
-				////fmt.Println(time.Now().UnixNano()/1e6, "ProtocolManager.handleMsg() msg.Code=", msg.Code, "tempPayload=", tempPayload)
-				msg.Payload = bytes.NewReader(tempPayload)
-				tempMsg.Payload = bytes.NewReader(tempPayload)
-				//var tempdata []byte
-				//tempMsg.Decode(&tempdata)
-				////fmt.Println(time.Now().UnixNano()/1e6, "ProtocolManager.handleMsg() tempMsg.Code=", tempMsg.Code, "tempMsg.tempdata=", tempdata)
-				if code == 17 {
-					ibftMsg, _, err := Decode17Msg(tempMsg)
-					if err != nil {
-						log.Error("Peer.ReadMsg()", "Decode17Msg err", err)
-					}
-					ibftCode = ibftMsg.Code
-				}
+		if err = p.handle(msg); err != nil {
+			if msg.Code == 17 {
+				log.Info("caver|handleMsg|17", "msgCode", msg.Code, "err", err)
 			}
-		}
-
-		p.Msgs.Add(&msg, code, ibftCode)
-
-		log.Info("Peer.ReadMsg()", "msg.code", code, "p.Msgs.Msg17s lens", len(p.Msgs.Msg17s),
-			"p.Msgs.MsgNot17s lens", len(p.Msgs.MsgNot17s), "peer.id", p.ID().String())
-	}
-}
-
-//MsgPreprepare uint64 = iota
-//MsgPrepare
-//MsgCommit
-//MsgRoundChange
-
-type Message struct {
-	Code          uint64
-	Msg           []byte
-	Address       common.Address
-	Signature     []byte
-	CommittedSeal []byte
-}
-
-func (m *Message) Decode(val interface{}) error {
-	return rlp.DecodeBytes(m.Msg, val)
-}
-
-type Preprepare struct {
-	View     *View
-	Proposal Proposal
-}
-
-// EncodeRLP serializes b into the Ethereum RLP format.
-func (b *Preprepare) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{b.View, b.Proposal})
-}
-
-// DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
-func (b *Preprepare) DecodeRLP(s *rlp.Stream) error {
-	var preprepare struct {
-		View     *View
-		Proposal *types.Block
-	}
-
-	if err := s.Decode(&preprepare); err != nil {
-		return err
-	}
-	b.View, b.Proposal = preprepare.View, preprepare.Proposal
-
-	return nil
-}
-
-type View struct {
-	Round    *big.Int
-	Sequence *big.Int
-}
-
-// EncodeRLP serializes b into the Ethereum RLP format.
-func (v *View) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{v.Round, v.Sequence})
-}
-
-// DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
-func (v *View) DecodeRLP(s *rlp.Stream) error {
-	var view struct {
-		Round    *big.Int
-		Sequence *big.Int
-	}
-
-	if err := s.Decode(&view); err != nil {
-		return err
-	}
-	v.Round, v.Sequence = view.Round, view.Sequence
-	return nil
-}
-
-func (v *View) String() string {
-	return fmt.Sprintf("{Round: %d, Sequence: %d}", v.Round.Uint64(), v.Sequence.Uint64())
-}
-
-// Cmp compares v and y and returns:
-//   -1 if v <  y
-//    0 if v == y
-//   +1 if v >  y
-func (v *View) Cmp(y *View) int {
-	if v.Sequence.Cmp(y.Sequence) != 0 {
-		return v.Sequence.Cmp(y.Sequence)
-	}
-	if v.Round.Cmp(y.Round) != 0 {
-		return v.Round.Cmp(y.Round)
-	}
-	return 0
-}
-
-// Proposal supports retrieving height and serialized block to be used during Istanbul consensus.
-type Proposal interface {
-	// Number retrieves the sequence number of this proposal.
-	Number() *big.Int
-
-	// Hash retrieves the hash of this proposal.
-	Hash() common.Hash
-
-	EncodeRLP(w io.Writer) error
-
-	DecodeRLP(s *rlp.Stream) error
-
-	String() string
-}
-
-type Subject struct {
-	View   *View
-	Digest common.Hash
-}
-
-// EncodeRLP serializes b into the Ethereum RLP format.
-func (b *Subject) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{b.View, b.Digest})
-}
-
-// DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
-func (b *Subject) DecodeRLP(s *rlp.Stream) error {
-	var subject struct {
-		View   *View
-		Digest common.Hash
-	}
-
-	if err := s.Decode(&subject); err != nil {
-		return err
-	}
-	b.View, b.Digest = subject.View, subject.Digest
-	return nil
-}
-
-func (b *Subject) String() string {
-	return fmt.Sprintf("{View: %v, Digest: %v}", b.View, b.Digest.String())
-}
-
-func RLPHash(v interface{}) (h common.Hash) {
-	hw := sha3.NewLegacyKeccak256()
-	rlp.Encode(hw, v)
-	hw.Sum(h[:0])
-	return h
-}
-
-func Decode17Msg(msg Msg) (*Message, common.Hash, error) {
-	var data []byte
-	if err := msg.Decode(&data); err != nil {
-		return nil, common.Hash{}, errors.New("Decode17Msg decode p2p.Msg error")
-	}
-
-	msg17 := new(Message)
-	err := rlp.DecodeBytes(data, &msg17)
-	if err != nil {
-		return nil, common.Hash{}, err
-	}
-
-	switch msg17.Code {
-	case 0:
-		var preprepare *Preprepare
-		err := msg17.Decode(&preprepare)
-		if err != nil {
-			return nil, common.Hash{}, err
-		}
-		log.Info("Decode17Msg()", "ibfttypes.MsgPreprepare Proposal Number", preprepare.Proposal.Number().Uint64(),
-			"Sequence", preprepare.View.Sequence.Uint64(), "Round", preprepare.View.Round.Uint64())
-	case 1:
-
-	case 2:
-
-	case 3:
-		var rc Subject
-		if err := msg17.Decode(&rc); err != nil {
-			return nil, common.Hash{}, err
-		}
-		log.Info("Decode17Msg()", "ibfttypes.MsgRoundChange Sequence", rc.View.Sequence.Uint64(), "Round", rc.View.Round.Uint64())
-
-	default:
-	}
-
-	return msg17, RLPHash(data), nil
-}
-
-
-func (p *Peer) HandeMsg(errc chan<- error) {
-	for {
-		select {
-		case <-p.Msgs.ExistMsg:
-			msg := p.Msgs.Pop()
-			if msg == nil {
-				continue
-			}
-			if err := p.handle(*msg); err != nil {
-				if msg.Code ==17 {
-					log.Info("caver|handleMsg|17", "msgCode", msg.Code, "err", err)
-				}
-				errc <- err
-				return
-			}
+			errc <- err
+			return
 		}
 	}
-}
-
-func (p *Peer) readLoop(errc chan<- error) {
-	defer p.wg.Done()
-	go p.Msgs.NoticeExistMsg()
-	go p.ReadMsg(errc)
-	go p.HandeMsg(errc)
 }
 
 func (p *Peer) handle(msg Msg) error {
@@ -740,14 +397,6 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 		proto.closed = p.closed
 		proto.wstart = writeStart
 		proto.werr = writeErr
-
-		proto.Msgs = &MsgList {
-		MuxCh: make(chan bool, 1),
-		ExistMsg: make(chan struct{}, 1),
-		Msg17s: make([]*Msg, 0),
-		MsgNot17s: make([]*Msg, 0),
-	}
-
 		var rw MsgReadWriter = proto
 		if p.events != nil {
 			rw = newMsgEventer(rw, p.events, p.ID(), proto.Name, p.Info().Network.RemoteAddress, p.Info().Network.LocalAddress)
@@ -755,10 +404,6 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 		p.log.Trace(fmt.Sprintf("Starting protocol %s/%d", proto.Name, proto.Version))
 		go func() {
 			defer p.wg.Done()
-
-			go proto.WriteSocket()
-			go proto.Msgs.NoticeExistMsg()
-
 			err := proto.Run(p, rw)
 			if err == nil {
 				p.log.Trace(fmt.Sprintf("Protocol %s/%d returned", proto.Name, proto.Version))
@@ -790,37 +435,9 @@ type protoRW struct {
 	werr   chan<- error    // for write results
 	offset uint64
 	w      MsgWriter
-
-	Msgs *MsgList
 }
 
-//func (rw *protoRW) WriteMsg(msg Msg) (err error) {
-//	if msg.Code >= rw.Length {
-//		return newPeerError(errInvalidMsgCode, "not handled")
-//	}
-//	msg.meterCap = rw.cap()
-//	msg.meterCode = msg.Code
-//
-//	log.Info("protoRW.WriteMsg()", "msg.Code", msg.Code, "proto.offset", rw.offset)
-//
-//	msg.Code += rw.offset
-//
-//	select {
-//	case <-rw.wstart:
-//		err = rw.w.WriteMsg(msg)
-//		// Report write status back to Peer.run. It will initiate
-//		// shutdown if the error is non-nil and unblock the next write
-//		// otherwise. The calling protocol code should exit for errors
-//		// as well but we don't want to rely on that.
-//		rw.werr <- err
-//	case <-rw.closed:
-//		err = ErrShuttingDown
-//	}
-//	return err
-//}
-
 func (rw *protoRW) WriteMsg(msg Msg) (err error) {
-	var ibftCode uint64
 	if msg.Code >= rw.Length {
 		return newPeerError(errInvalidMsgCode, "not handled")
 	}
@@ -833,48 +450,23 @@ func (rw *protoRW) WriteMsg(msg Msg) (err error) {
 
 	select {
 	case <-rw.wstart:
-		code := msg.Code - rw.offset
-		// for test
-		tempMsg := Copy(msg).(Msg)
-		tempPayload, _ := ioutil.ReadAll(msg.Payload)
-		////fmt.Println(time.Now().UnixNano()/1e6, "ProtocolManager.handleMsg() msg.Code=", msg.Code, "tempPayload=", tempPayload)
-		msg.Payload = bytes.NewReader(tempPayload)
-		tempMsg.Payload = bytes.NewReader(tempPayload)
-		//var tempdata []byte
-		//tempMsg.Decode(&tempdata)
-		////fmt.Println(time.Now().UnixNano()/1e6, "ProtocolManager.handleMsg() tempMsg.Code=", tempMsg.Code, "tempMsg.tempdata=", tempdata)
-		if code == 17 {
-			ibftMsg, _, err := Decode17Msg(tempMsg)
-			if err != nil {
-				log.Error("protoRW.WriteMsg()", "Decode17Msg err", err)
-			}
-			ibftCode = ibftMsg.Code
-		}
-		rw.Msgs.Add(&msg, code, ibftCode)
-
+		log.Info("protoRW.WriteMsg(), wstart 0")
+		err = rw.w.WriteMsg(msg)
+		log.Info("protoRW.WriteMsg(), wstart 1")
+		// Report write status back to Peer.run. It will initiate
+		// shutdown if the error is non-nil and unblock the next write
+		// otherwise. The calling protocol code should exit for errors
+		// as well but we don't want to rely on that.
+		rw.werr <- err
+		log.Info("protoRW.WriteMsg(), wstart 2")
+		// Report write status back to Peer.run. It will initiate
+		// shutdown if the error is non-nil and unblock the next write
+		// otherwise. The calling protocol code should exit for errors
+		// as well but we don't want to rely on that.
 	case <-rw.closed:
 		err = ErrShuttingDown
 	}
 	return err
-}
-
-func (rw *protoRW) WriteSocket() (err error) {
-	for {
-		select {
-		case <-rw.Msgs.ExistMsg:
-			msg := rw.Msgs.Pop()
-			if msg == nil {
-				continue
-			}
-
-			err = rw.w.WriteMsg(*msg)
-			// Report write status back to Peer.run. It will initiate
-			// shutdown if the error is non-nil and unblock the next write
-			// otherwise. The calling protocol code should exit for errors
-			// as well but we don't want to rely on that.
-			rw.werr <- err
-		}
-	}
 }
 
 func (rw *protoRW) ReadMsg() (Msg, error) {

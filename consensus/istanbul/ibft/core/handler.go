@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -31,12 +32,10 @@ func (c *core) Start() error {
 	c.subscribeEvents()
 	c.handlerWg.Add(1)
 
-
 	// Start a new round from last sequence + 1
 	c.startNewRound(common.Big0)
 
 	go c.handleEvents()
-
 
 	return nil
 }
@@ -60,6 +59,9 @@ func (c *core) subscribeEvents() {
 		istanbul.MessageEvent{},
 		// internal events
 		backlogEvent{},
+
+		// onlineProof events
+		istanbul.OnlineProofEvent{},
 	)
 	c.timeoutSub = c.backend.EventMux().Subscribe(
 		timeoutEvent{},
@@ -101,18 +103,20 @@ func (c *core) handleEvents() {
 				if err == istanbulcommon.ErrFutureMessage {
 					c.storeRequestMsg(r)
 				}
+			case istanbul.OnlineProofEvent:
+				o := &istanbul.OnlineProofRequest{
+					Proposal:   ev.Proposal,
+					RandomHash: ev.RandomHash,
+				}
+				err := c.handleOnlineProofRequest(o)
+				if err == istanbulcommon.ErrFutureMessage {
+					c.storeOnlineProofRequestMsg(o)
+				}
+
 			case istanbul.MessageEvent:
-				// If it is a normal node or not the validator of this round, gossip message directly
-				if c.valSet != nil {
-					_, self := c.valSet.GetByAddress(c.address)
-					if self == nil {
-						log.Info("not validator", "code", ev.Code)
-						c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
-					} else {
-						if err := c.handleMsg(ev.Payload); err == nil {
-							c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
-						}
-					}
+				//If it is a normal node or not the validator of this round, gossip message directly
+				if err := c.handleMsg(ev.Payload); err == nil {
+					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
 				}
 			case backlogEvent:
 				// No need to check signature for internal messages
@@ -129,15 +133,18 @@ func (c *core) handleEvents() {
 			if !ok {
 				return
 			}
-			c.logger.Info("caver|handleTimeoutMsg|c.timeoutSub.Chan()")
 			c.handleTimeoutMsg()
 		case event, ok := <-c.finalCommittedSub.Chan():
 			if !ok {
+				log.Info("handleEvents: c.finalCommittedSub.Chan() : !ok")
 				return
 			}
 			switch event.Data.(type) {
 			case istanbul.FinalCommittedEvent:
+				log.Info("handleEvents:  FinalCommittedEvent")
 				c.handleFinalCommitted()
+			default:
+				log.Info("handleEvents: default handleEvents")
 			}
 		}
 	}
@@ -181,6 +188,9 @@ func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) 
 	}
 
 	switch msg.Code {
+	case ibfttypes.MsgOnlineProof:
+		err := c.handleOnlineProof(msg, src)
+		return testBacklog(err)
 	case ibfttypes.MsgPreprepare:
 		err := c.handlePreprepare(msg, src)
 		return testBacklog(err)
@@ -207,7 +217,7 @@ func (c *core) handleTimeoutMsg() {
 	if !c.waitingForRoundChange {
 		maxRound := c.roundChangeSet.MaxRound(c.valSet.F() + 1)
 		if maxRound != nil && maxRound.Cmp(c.current.Round()) > 0 {
-			log.Info("caver|handleTimeoutMsg|c.sendRoundChange(maxRound)", "sequence", c.current.Sequence().String(), "round", c.current.Round())
+			log.Info("ibftConsensus: handleTimeoutMsg  c.sendRoundChange(maxRound)", "no", c.current.Sequence().String(), "round", c.current.Round(), "self", c.address.Hex())
 			c.sendRoundChange(maxRound)
 			return
 		}
@@ -216,11 +226,15 @@ func (c *core) handleTimeoutMsg() {
 	lastProposal, _ := c.backend.LastProposal()
 	if lastProposal != nil && lastProposal.Number().Cmp(c.current.Sequence()) >= 0 {
 		c.logger.Trace("round change timeout, catch up latest sequence", "number", lastProposal.Number().Uint64())
-		log.Info("caver|handleTimeoutMsg|c.startNewRound(common.Big0)", "number", lastProposal.Number().Uint64(), "round", c.currentView().Round)
+		log.Info("ibftConsensus: handleTimeoutMsg c.startNewRound(common.Big0)", "no", lastProposal.Number().Uint64(), "round", c.currentView().Round, "self", c.address.Hex())
 		c.startNewRound(common.Big0)
 	} else {
-		log.Info("caver|handleTimeoutMsg|sendNextRoundChange", "lastProposal.Number()", lastProposal.Number().Uint64(),
-			"c.current.Sequence", c.current.Sequence().Uint64(), "round", c.currentView().Round.String())
+		log.Info("ibftConsensus: handleTimeoutMsg sendNextRoundChange",
+			"no", c.currentView().Sequence, "round", c.currentView().Round.String(), "self", c.address.Hex())
 		c.sendNextRoundChange()
 	}
+}
+
+func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
+	return c.onlineProofs
 }

@@ -66,10 +66,11 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		coreStarted:      false,
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
+		notifyBlockCh:    make(chan *types.OnlineValidatorList, 1),
 	}
 
 	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
-	sb.ibftEngine = ibftengine.NewEngine(sb.config, sb.address, sb.Sign)
+	sb.ibftEngine = ibftengine.NewEngine(sb.config, sb.address, sb.Sign, sb)
 
 	return sb
 }
@@ -118,6 +119,8 @@ type Backend struct {
 	knownMessages  *lru.ARCCache // the cache of self messages
 
 	qbftConsensusEnabled bool // qbft consensus
+
+	notifyBlockCh chan *types.OnlineValidatorList // Notify worker modules to produce blocks
 }
 
 func (sb *Backend) Engine() istanbul.Engine {
@@ -163,7 +166,6 @@ func (sb *Backend) Broadcast(valSet istanbul.ValidatorSet, code uint64, payload 
 	return nil
 }
 
-// Gossip implements istanbul.Backend.Gossip
 func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
@@ -286,6 +288,11 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		//return 0, istanbulcommon.ErrEmptyBlock
+		return sb.EngineForBlockNumber(header.Number).VerifyBlockProposal(sb.chain, block, valSet)
+	}
+
 	return sb.EngineForBlockNumber(header.Number).VerifyBlockProposal(sb.chain, block, valSet)
 }
 
@@ -341,10 +348,10 @@ func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 	if c, ok := sb.chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.GetHeaderByHash(hash))
 		for _, v := range validatorList.Validators {
-			log.Info("Backend|getValidators", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v.Addr.Hex())
+			log.Info("Backend: getValidators", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v.Addr.Hex())
 		}
 		if err != nil {
-			log.Info("getValidators", "err", err)
+			log.Error("Backend: getValidators", "err", err)
 			return nil
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
@@ -355,18 +362,25 @@ func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 func (sb *Backend) LastProposal() (istanbul.Proposal, common.Address) {
 	block := sb.currentBlock()
 
-	var proposer common.Address
-	if block.Number().Cmp(common.Big0) > 0 {
-		var err error
-		proposer, err = sb.Author(block.Header())
-		if err != nil {
-			sb.logger.Error("BFT: last block proposal invalid", "err", err)
-			return nil, common.Address{}
+	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.Number().Cmp(common.Big0) > 0 {
+		log.Info("LastProposal Empty block")
+		return block, common.Address{}
+	} else {
+		var proposer common.Address
+		if block.Number().Cmp(common.Big0) > 0 {
+			var err error
+			proposer, err = sb.Author(block.Header())
+			if err != nil {
+				sb.logger.Error("BFT: last block proposal invalid", "err", err)
+				return nil, common.Address{}
+			}
+
 		}
+
+		// Return header only block here since we don't need block body
+		return block, proposer
 	}
 
-	// Return header only block here since we don't need block body
-	return block, proposer
 }
 
 func (sb *Backend) HasBadProposal(hash common.Hash) bool {
@@ -451,4 +465,12 @@ func (sb *Backend) StartQBFTConsensus() error {
 	}
 
 	return sb.startQBFT()
+}
+
+func (sb *Backend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
+	sb.notifyBlockCh <- onlineValidators
+}
+
+func (sb *Backend) GetCore() istanbul.Core {
+	return sb.core
 }

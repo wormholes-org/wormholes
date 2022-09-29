@@ -18,6 +18,7 @@ package miner
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"sync/atomic"
@@ -37,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const (
@@ -527,4 +529,27 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 	case <-time.NewTimer(time.Second).C:
 		t.Error("interval reset timeout")
 	}
+}
+
+func TestOnlineValidatorsDecode(t *testing.T) {
+	onlineValidators := &types.OnlineValidatorList{Height: big.NewInt(888)}
+	payload, _ := onlineValidators.Encode()
+	uncle := &types.Header{}
+
+	//uncle.Extra = append(uncle.Extra, bytes.Repeat([]byte{0x00}, 32-len(uncle.Extra))...)
+	uncle.Extra = append(uncle.Extra, payload...)
+	fmt.Println("commitUncle : extra======", uncle.Extra)
+
+	var v2 *types.OnlineValidatorList
+	err := rlp.DecodeBytes(uncle.Extra, &v2)
+	if err != nil {
+		fmt.Println("err :", err)
+	} else {
+		fmt.Println("v2: ", v2.Height)
+	}
+}
+
+func TestIntTobytes(t *testing.T) {
+	bytes := IntToBytes(1200000)
+	fmt.Println("bytes====", bytes)
 }

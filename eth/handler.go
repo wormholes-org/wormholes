@@ -19,16 +19,18 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/clique"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/clique"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -96,6 +98,9 @@ type handlerConfig struct {
 
 	// Quorum
 	Engine consensus.Engine
+
+	// worker
+	miner miner.Handler
 }
 
 type handler struct {
@@ -137,6 +142,9 @@ type handler struct {
 
 	// Quorum
 	engine consensus.Engine
+
+	// miner
+	miner miner.Handler
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
@@ -157,11 +165,16 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		txsyncCh:   make(chan *txsync),
 		quitSync:   make(chan struct{}),
 		engine:     config.Engine,
+		miner:      config.miner,
 	}
 
 	// Quorum
 	if handler, ok := h.engine.(consensus.Handler); ok {
-		log.Info("carver|newHandler|SetBroadcaster")
+		handler.SetBroadcaster(h)
+	}
+
+	// Worker
+	if handler, ok := h.miner.(miner.Handler); ok {
 		handler.SetBroadcaster(h)
 	}
 
@@ -760,6 +773,19 @@ func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]
 		addr := crypto.PubkeyToAddress(*pubKey)
 		log.Info("caver|FindPeers", "addr", addr)
 		m[addr] = p
+	}
+	return m
+}
+
+func (h *handler) FindPeerSet(targets map[common.Address]bool) map[common.Address]miner.Peer {
+	m := make(map[common.Address]miner.Peer)
+	for _, p := range h.peers.peers {
+		pubKey := p.Node().Pubkey()
+		addr := crypto.PubkeyToAddress(*pubKey)
+		if targets[addr] {
+			log.Info("FindPeerSet")
+			m[addr] = p
+		}
 	}
 	return m
 }

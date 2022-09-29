@@ -4,6 +4,9 @@ import "errors"
 
 var (
 	// ErrInvalidProposal is returned when a prposal is malformed.
+	ErrEmptyBlock = errors.New("error empty block")
+
+	// ErrInvalidProposal is returned when a prposal is malformed.
 	ErrInvalidProposal = errors.New("invalid proposal")
 
 	// ErrInvalidSignature is returned when given signature is not signed by given
@@ -94,4 +97,7 @@ var (
 	ErrInvalidSigner = errors.New("message not signed by the sender")
 
 	ErrInvalidBenifitedAddr = errors.New("invalid benifited Address ")
+
+	// ErrFailedDecodeOnlineProof is returned when the ONLINE-PROOF message is malformed.
+	ErrFailedDecodeOnlineProof = errors.New("failed to decode ONLINE-PROOF message")
 )
