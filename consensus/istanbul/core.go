@@ -21,4 +21,7 @@ type Core interface {
 	RoundInfo() []string
 
 	GetOnlineValidators() map[uint64]*types.OnlineValidatorList
+
+	GetPrepre0Ch() chan *[]common.Address
+	GetPrepre1Ch() chan *types.Block
 }

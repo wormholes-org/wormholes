@@ -90,6 +90,14 @@ func (ethash *Ethash) Author(header *types.Header) (common.Address, error) {
 	return header.Coinbase, nil
 }
 
+func (ethash *Ethash) GetPrepre0Ch() chan *[]common.Address {
+	return nil
+}
+
+func (ethash *Ethash) GetPrepre1Ch() chan *types.Block {
+	return nil
+}
+
 // VerifyHeader checks whether a header conforms to the consensus rules of the
 // stock Ethereum ethash engine.
 func (ethash *Ethash) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {

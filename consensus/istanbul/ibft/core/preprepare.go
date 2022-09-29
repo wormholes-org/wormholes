@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/log"
 	"strconv"
@@ -37,6 +38,8 @@ const (
 
 var csssStat = PreprepareStep1                     //consensus state mark PreprepareStep1 = 0, PreprepareStep2 = 1
 var randSeedMessages *messageSet = new(messageSet) // collected random data message
+var prepre0Ch chan *[]common.Address
+var prepre1Ch chan *types.Block
 
 func (c *core) sendPreprepare(request *istanbul.Request) {
 	log.Info("send Preprepare [csss]")

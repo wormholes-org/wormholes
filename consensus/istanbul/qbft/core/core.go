@@ -107,6 +107,14 @@ func (c *core) IsProposer() bool {
 	return v.IsProposer(c.backend.Address())
 }
 
+func (c *core) GetPrepre0Ch() chan *[]common.Address {
+	return nil
+}
+
+func (c *core) GetPrepre1Ch() chan *types.Block {
+	return nil
+}
+
 func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 	return c.current != nil && c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }

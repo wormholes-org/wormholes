@@ -455,9 +455,10 @@ type Ethash struct {
 	// for test
 	PledgedTokenPool PledgeTokenPool
 }
+
 type PledgedToken struct {
 	Address common.Address
-	Amount *big.Int
+	Amount  *big.Int
 }
 
 type PledgeTokenPool []*PledgedToken

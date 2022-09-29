@@ -266,6 +266,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		go worker.newWorkLoop(recommit)
 		go worker.resultLoop()
 		go worker.taskLoop()
+		go worker.prepre0Loop()
 
 		// Enable worker message processing
 		go worker.cerytify.Start()

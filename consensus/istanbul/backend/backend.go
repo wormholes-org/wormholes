@@ -99,7 +99,8 @@ type Backend struct {
 	hasBadBlock  func(db ethdb.Reader, hash common.Hash) bool
 
 	// the channels for istanbul engine notifications
-	commitCh          chan *types.Block
+	commitCh chan *types.Block
+
 	proposedBlockHash common.Hash
 	sealMu            sync.Mutex
 	coreStarted       bool
@@ -136,6 +137,14 @@ func (sb *Backend) EngineForBlockNumber(blockNumber *big.Int) istanbul.Engine {
 	default:
 		return sb.ibftEngine
 	}
+}
+
+func (sb *Backend) GetPrepre0Ch() chan *[]common.Address {
+	return sb.core.GetPrepre0Ch()
+}
+
+func (sb *Backend) GetPrepre1Ch() chan *types.Block {
+	return sb.core.GetPrepre1Ch()
 }
 
 // zekun: HACK

@@ -87,4 +87,7 @@ type Backend interface {
 	NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList)
 
 	GetCore() Core
+
+	GetPrepre0Ch() chan *[]common.Address
+	GetPrepre1Ch() chan *types.Block
 }
