@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"sort"
 	"strings"
 	"sync"
 
@@ -91,9 +92,16 @@ func (ms *messageSet) CalcRandSeed() int64 {
 func (ms *messageSet) GetAddrs() []common.Address {
 	ms.messagesMu.Lock()
 	defer ms.messagesMu.Unlock()
+
+	keys := make([]string, 0)
+	for k := range ms.messages {
+		keys = append(keys, k.String())
+	}
+	//排序 key
+	sort.Strings(keys)
 	var tmp []common.Address
-	for _, v := range ms.messages {
-		tmp = append(tmp, v.Address)
+	for _, key := range keys {
+		tmp = append(tmp, ms.messages[common.HexToAddress(key)].Address)
 	}
 	return tmp
 }

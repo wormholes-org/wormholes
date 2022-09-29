@@ -112,7 +112,6 @@ func TestExt(t *testing.T) {
 	ms := newMessageSet(valSet)
 	msg := &ibfttypes.Message{
 		Code:    ibfttypes.MsgPrepare,
-		Msg:     common.LocalRandomBytes(),
 		Address: valSet.GetProposer().Address(),
 	}
 	time.Sleep(1)
@@ -123,7 +122,6 @@ func TestExt(t *testing.T) {
 	}
 	msg = &ibfttypes.Message{
 		Code:    ibfttypes.MsgPrepare,
-		Msg:     common.LocalRandomBytes(),
 		Address: valSet.GetByIndex(5).Address(),
 	}
 	time.Sleep(1)
@@ -134,7 +132,6 @@ func TestExt(t *testing.T) {
 
 	msg = &ibfttypes.Message{
 		Code:    ibfttypes.MsgPrepare,
-		Msg:     []byte{},
 		Address: valSet.GetByIndex(6).Address(),
 	}
 	time.Sleep(1)
@@ -145,7 +142,6 @@ func TestExt(t *testing.T) {
 
 	msg = &ibfttypes.Message{
 		Code:    ibfttypes.MsgPrepare,
-		Msg:     common.LocalRandomBytes(),
 		Address: common.HexToAddress("0x0"),
 	}
 	time.Sleep(1)
@@ -155,6 +151,8 @@ func TestExt(t *testing.T) {
 		t.Error(err)
 	}
 	addrs := ms.GetAddrs()
+	t.Log(addrs)
+	addrs = ms.GetAddrs()
 	t.Log(addrs)
 	rnd := ms.CalcRandSeed()
 	t.Log(rnd)

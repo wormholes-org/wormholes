@@ -4,7 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func (c *core) RandomSelectBonus(allocBonus []common.Address, seed int64) {
+func (c *core) RandomSelectBonus(allocBonus []common.Address) {
 	//TODO: Find Finalize alloc Bonus
 	//get validators
 	//state.CreateNFTByOfficial16(allocBonus, istanbulExtra.ExchangerAddr, 0)

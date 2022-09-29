@@ -2,11 +2,13 @@ package common
 
 import (
 	"testing"
+	"time"
 )
 
 func TestT(t *testing.T) {
-	t.Log("hello world")
-	res := LocalRandomBytes()
-	t.Log(res)
-	t.Log("123")
+	for i := 0; i < 10; i++ {
+		res := LocalRandomBytes()
+		t.Log(res)
+		time.Sleep(1 * time.Nanosecond)
+	}
 }
