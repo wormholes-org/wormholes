@@ -402,7 +402,6 @@ type IstanbulConfig struct {
 	Epoch          uint64   `json:"epoch"`                    // Epoch length to reset votes and checkpoint
 	ProposerPolicy uint64   `json:"policy"`                   // The policy for proposer selection
 	Ceil2Nby3Block *big.Int `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
-	TestQBFTBlock  *big.Int `json:"testQBFTBlock,omitempty"`  // Fork block at which block confirmations are done using qbft consensus instead of ibft
 }
 
 // String implements the stringer interface, returning the consensus engine details.

@@ -19,11 +19,6 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"math/big"
-	"reflect"
-	"testing"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -34,6 +29,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"math/big"
+	"reflect"
+	"testing"
 )
 
 func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey, cfg *istanbul.Config) (*core.BlockChain, *Backend) {
@@ -42,7 +40,6 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	// Use the first key as private key
 	backend := New(cfg, nodeKeys[0], memDB)
 
-	backend.qbftConsensusEnabled = backend.IsQBFTConsensus()
 	genesis.MustCommit(memDB)
 
 	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, backend, vm.Config{}, nil, nil)
@@ -81,8 +78,6 @@ func newBlockChain(n int, qbftBlock *big.Int) (*core.BlockChain, *Backend) {
 	genesis, nodeKeys := testutils.GenesisAndKeys(n, isQBFT)
 
 	config := copyConfig(istanbul.DefaultConfig)
-
-	config.TestQBFTBlock = qbftBlock
 
 	return newBlockchainFromConfig(genesis, nodeKeys, config)
 }
@@ -125,28 +120,11 @@ func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types
 func TestIBFTPrepare(t *testing.T) {
 	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
-	chain.Config().Istanbul.TestQBFTBlock = nil
 	header := makeHeader(chain.Genesis(), engine.config)
 	err := engine.Prepare(chain, header)
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
-	//header.ParentHash = common.StringToHash("1234567890")
-	err = engine.Prepare(chain, header)
-	if err != consensus.ErrUnknownAncestor {
-		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrUnknownAncestor)
-	}
-}
-
-func TestQBFTPrepare(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
-	defer engine.Stop()
-	header := makeHeader(chain.Genesis(), engine.config)
-	err := engine.Prepare(chain, header)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-
 	//header.ParentHash = common.StringToHash("1234567890")
 	err = engine.Prepare(chain, header)
 	if err != consensus.ErrUnknownAncestor {
@@ -223,219 +201,5 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	output := <-blockOutputChannel
 	if output != nil {
 		t.Error("Block not nil!")
-	}
-}
-
-func updateQBFTBlock(block *types.Block, addr common.Address) *types.Block {
-	header := block.Header()
-	header.Coinbase = addr
-	return block.WithSeal(header)
-}
-
-func TestSealCommitted(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
-	defer engine.Stop()
-	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	expectedBlock := updateQBFTBlock(block, engine.Address())
-
-	resultCh := make(chan *types.Block, 10)
-	go func() {
-		err := engine.Seal(chain, block, resultCh, make(chan struct{}))
-
-		if err != nil {
-			t.Errorf("error mismatch: have %v, want %v", err, expectedBlock)
-		}
-	}()
-
-	finalBlock := <-resultCh
-	if finalBlock.Hash() != expectedBlock.Hash() {
-		t.Errorf("hash mismatch: have %v, want %v", finalBlock.Hash(), expectedBlock.Hash())
-	}
-}
-
-func TestVerifyHeader(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
-	defer engine.Stop()
-
-	// istanbulcommon.ErrEmptyCommittedSeals case
-	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header := engine.chain.GetHeader(block.ParentHash(), block.NumberU64()-1)
-	block = updateQBFTBlock(block, engine.Address())
-	err := engine.VerifyHeader(chain, block.Header(), false)
-	if err != istanbulcommon.ErrEmptyCommittedSeals {
-		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrEmptyCommittedSeals)
-	}
-
-	// short extra data
-	header = block.Header()
-	header.Extra = []byte{}
-	err = engine.VerifyHeader(chain, header, false)
-	if err != istanbulcommon.ErrInvalidExtraDataFormat {
-		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidExtraDataFormat)
-	}
-	// incorrect extra format
-	header.Extra = []byte("0000000000000000000000000000000012300000000000000000000000000000000000000000000000000000000000000000")
-	err = engine.VerifyHeader(chain, header, false)
-	if err != istanbulcommon.ErrInvalidExtraDataFormat {
-		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidExtraDataFormat)
-	}
-
-	// non zero MixDigest
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
-	header.MixDigest = common.HexToHash("123456789")
-	err = engine.VerifyHeader(chain, header, false)
-	if err != istanbulcommon.ErrInvalidMixDigest {
-		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidMixDigest)
-	}
-	// invalid uncles hash
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
-	header.UncleHash = common.HexToHash("123456789")
-	err = engine.VerifyHeader(chain, header, false)
-	if err != istanbulcommon.ErrInvalidUncleHash {
-		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidUncleHash)
-	}
-
-	// invalid difficulty
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
-	header.Difficulty = big.NewInt(2)
-	err = engine.VerifyHeader(chain, header, false)
-	if err != istanbulcommon.ErrInvalidDifficulty {
-		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidDifficulty)
-	}
-
-	// invalid timestamp
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
-	header.Time = chain.Genesis().Time() + (engine.config.BlockPeriod - 1)
-	err = engine.VerifyHeader(chain, header, false)
-	if err != istanbulcommon.ErrInvalidTimestamp {
-		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidTimestamp)
-	}
-
-	// future block
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
-	header.Time = uint64(time.Now().Unix() + 10)
-	err = engine.VerifyHeader(chain, header, false)
-	if err != consensus.ErrFutureBlock {
-		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrFutureBlock)
-	}
-
-	// future block which is within AllowedFutureBlockTime
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
-	header.Time = new(big.Int).Add(big.NewInt(time.Now().Unix()), new(big.Int).SetUint64(10)).Uint64()
-	priorValue := engine.config.AllowedFutureBlockTime
-	engine.config.AllowedFutureBlockTime = 10
-	err = engine.VerifyHeader(chain, header, false)
-	engine.config.AllowedFutureBlockTime = priorValue //restore changed value
-	if err == consensus.ErrFutureBlock {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-
-	// TODO This test does not make sense anymore as validate vote type is not stored in nonce
-	// invalid nonce
-	/*block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
-	copy(header.Nonce[:], hexutil.MustDecode("0x111111111111"))
-	header.Number = big.NewInt(int64(engine.config.Epoch))
-	err = engine.VerifyHeader(chain, header, false)
-	if err != errInvalidNonce {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidNonce)
-	}*/
-}
-
-func TestVerifyHeaders(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
-	defer engine.Stop()
-	genesis := chain.Genesis()
-
-	// success case
-	headers := []*types.Header{}
-	blocks := []*types.Block{}
-	size := 100
-
-	for i := 0; i < size; i++ {
-		var b *types.Block
-		if i == 0 {
-			b = makeBlockWithoutSeal(chain, engine, genesis)
-			b = updateQBFTBlock(b, engine.Address())
-		} else {
-			b = makeBlockWithoutSeal(chain, engine, blocks[i-1])
-			b = updateQBFTBlock(b, engine.Address())
-		}
-		blocks = append(blocks, b)
-		headers = append(headers, blocks[i].Header())
-	}
-	// now = func() time.Time {
-	// 	return time.Unix(int64(headers[size-1].Time), 0)
-	// }
-	_, results := engine.VerifyHeaders(chain, headers, nil)
-	const timeoutDura = 2 * time.Second
-	timeout := time.NewTimer(timeoutDura)
-	index := 0
-OUT1:
-	for {
-		select {
-		case err := <-results:
-			if err != nil {
-				if err != istanbulcommon.ErrEmptyCommittedSeals && err != istanbulcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
-					t.Errorf("error mismatch: have %v, want istanbulcommon.ErrEmptyCommittedSeals|istanbulcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
-					break OUT1
-				}
-			}
-			index++
-			if index == size {
-				break OUT1
-			}
-		case <-timeout.C:
-			break OUT1
-		}
-	}
-	_, results = engine.VerifyHeaders(chain, headers, nil)
-	timeout = time.NewTimer(timeoutDura)
-OUT2:
-	for {
-		select {
-		case err := <-results:
-			if err != nil {
-				if err != istanbulcommon.ErrEmptyCommittedSeals && err != istanbulcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
-					t.Errorf("error mismatch: have %v, want istanbulcommon.ErrEmptyCommittedSeals|istanbulcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
-					break OUT2
-				}
-			}
-		case <-timeout.C:
-			break OUT2
-		}
-	}
-	// error header cases
-	headers[2].Number = big.NewInt(100)
-	_, results = engine.VerifyHeaders(chain, headers, nil)
-	timeout = time.NewTimer(timeoutDura)
-	index = 0
-	errors := 0
-	expectedErrors := 0
-OUT3:
-	for {
-		select {
-		case err := <-results:
-			if err != nil {
-				if err != istanbulcommon.ErrEmptyCommittedSeals && err != istanbulcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
-					errors++
-				}
-			}
-			index++
-			if index == size {
-				if errors != expectedErrors {
-					t.Errorf("error mismatch: have %v, want %v", errors, expectedErrors)
-				}
-				break OUT3
-			}
-		case <-timeout.C:
-			break OUT3
-		}
 	}
 }
