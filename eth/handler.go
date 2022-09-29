@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/miner"
@@ -685,8 +684,6 @@ func (h *handler) getConsensusAlgorithm() string {
 	switch h.engine.(type) {
 	case consensus.Istanbul:
 		consensusAlgo = "istanbul"
-	case *clique.Clique:
-		consensusAlgo = "clique"
 	case *ethash.Ethash:
 		consensusAlgo = "ethash"
 	default:
