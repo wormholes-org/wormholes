@@ -2739,10 +2739,14 @@ func (bc *BlockChain) ReadValidatorPool(header *types.Header) *types.ValidatorLi
 }
 
 func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
+	if header == nil {
+		log.Error("Random11ValidatorFromPool: header is nil", "no", bc.CurrentHeader().Number.Uint64())
+		return &types.ValidatorList{}, errors.New("err Random11ValidatorFromPool invalid header")
+	}
 	validatorList := bc.ReadValidatorPool(header)
 	// Obtain random landing points according to the surrounding chain algorithm
 	randomHash := GetRandomDrop(validatorList, header)
-	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
+	log.Info("Random11ValidatorFromPool : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
 	validators := validatorList.RandomValidatorV2(11, randomHash)
 	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {

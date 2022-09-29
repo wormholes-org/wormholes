@@ -391,8 +391,9 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	// set header's timestamp
 
 	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + e.cfg.BlockPeriod
+		header.Time = parent.Time + 120
 	} else {
+		header.Time = parent.Time + e.cfg.BlockPeriod
 		if header.Time < uint64(time.Now().Unix()) {
 			header.Time = uint64(time.Now().Unix())
 		}
@@ -470,7 +471,15 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		return
 	}
 
+	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex())
+	for _, addr := range istanbulExtra.ValidatorAddr {
+		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
+	}
+	for _, addr := range istanbulExtra.ExchangerAddr {
+		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
+	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+	log.Info("CreateNFTByOfficial16 end", "Coinbase=", header.Coinbase.Hex())
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -496,7 +505,16 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		return nil, err
 	}
 
+	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex())
+	for _, addr := range istanbulExtra.ValidatorAddr {
+		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
+	}
+	for _, addr := range istanbulExtra.ExchangerAddr {
+		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex())
+	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+
+	log.Info("CreateNFTByOfficial16 end", "Coinbase=", header.Coinbase.Hex())
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))

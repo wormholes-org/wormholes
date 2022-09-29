@@ -17,9 +17,12 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/consensus"
+	"errors"
 	"strconv"
 	"time"
+
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/log"
 
@@ -86,6 +89,15 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 			"self", c.address.Hex())
 		if err == istanbulcommon.ErrOldMessage {
 			// Get validator set for the given proposal
+			if block, ok := preprepare.Proposal.(*types.Block); ok {
+				if block.Header() == nil {
+					log.Error("ibftConsensus: header is nil")
+					return errors.New("ibftConsensus: header is nil")
+				}
+			} else {
+				log.Error("ibftConsensus: block not ok")
+				return errors.New("ibftConsensus: block not ok")
+			}
 			valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
 			previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
 			valSet.CalcProposer(previousProposer, preprepare.View.Round.Uint64())
@@ -111,9 +123,14 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 			"author", src.Address().Hex(), "round", preprepare.View.Round.String())
 		return istanbulcommon.ErrNotFromProposer
 	}
+	// preProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
+	// if preProposer.String() == "0x0000000000000000000000000000000000000000" && preprepare.Proposal.Number().Uint64() > 1 {
+	// 	log.Error("preProposer is empty block:", "no", preProposer.String())
+	// 	return errors.New("preProposer is empty block")
 
-	preProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
-	log.Info("preProposer:", preProposer.String())
+	// } else {
+
+	// }
 	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
 		// if it's a future block, we will handle it again after the duration
 		if err == consensus.ErrFutureBlock {
