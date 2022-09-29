@@ -279,12 +279,13 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	var valSet istanbul.ValidatorSet
 	if c, ok := sb.chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
-		for _, v := range validatorList.Validators {
-			log.Info("Backend|Verify", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
-		}
 		if err != nil {
 			return 0, err
 		}
+		for _, v := range validatorList.Validators {
+			log.Info("Backend|Verify", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
+		}
+
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 
@@ -347,13 +348,14 @@ func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 	var valSet istanbul.ValidatorSet
 	if c, ok := sb.chain.(*core.BlockChain); ok {
 		validatorList, err := c.Random11ValidatorFromPool(c.GetHeaderByHash(hash))
-		for _, v := range validatorList.Validators {
-			log.Info("Backend: getValidators", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v.Addr.Hex())
-		}
 		if err != nil {
 			log.Error("Backend: getValidators", "err", err)
 			return nil
 		}
+		for _, v := range validatorList.Validators {
+			log.Info("Backend: getValidators", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v.Addr.Hex())
+		}
+
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
 	return valSet
