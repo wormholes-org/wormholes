@@ -19,6 +19,7 @@ package core
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -109,10 +110,54 @@ func TestMessageSetWithSubject(t *testing.T) {
 func TestExt(t *testing.T) {
 	valSet := newTestValidatorSet(7)
 	ms := newMessageSet(valSet)
-	rnd := ms.CalcRandSeed()
-	t.Log(rnd)
+	msg := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPrepare,
+		Msg:     common.LocalRandomBytes(),
+		Address: valSet.GetProposer().Address(),
+	}
+	time.Sleep(1)
+	var err = ms.Add(msg)
+	if err != nil {
+		t.Error("add fail")
+		return
+	}
+	msg = &ibfttypes.Message{
+		Code:    ibfttypes.MsgPrepare,
+		Msg:     common.LocalRandomBytes(),
+		Address: valSet.GetByIndex(5).Address(),
+	}
+	time.Sleep(1)
+
+	if err = ms.Add(msg); err != nil {
+		t.Error(err)
+	}
+
+	msg = &ibfttypes.Message{
+		Code:    ibfttypes.MsgPrepare,
+		Msg:     []byte{},
+		Address: valSet.GetByIndex(6).Address(),
+	}
+	time.Sleep(1)
+
+	if err = ms.Add(msg); err != nil {
+		t.Error(err)
+	}
+
+	msg = &ibfttypes.Message{
+		Code:    ibfttypes.MsgPrepare,
+		Msg:     common.LocalRandomBytes(),
+		Address: common.HexToAddress("0x0"),
+	}
+	time.Sleep(1)
+
+	err = ms.Add(msg)
+	if err != nil {
+		t.Error(err)
+	}
 	addrs := ms.GetAddrs()
 	t.Log(addrs)
+	rnd := ms.CalcRandSeed()
+	t.Log(rnd)
 	code := ms.Encode()
 	t.Log(code)
 }

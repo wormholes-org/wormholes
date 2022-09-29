@@ -60,7 +60,8 @@ func (c *core) sendPreprepareStep1(request *istanbul.Request) {
 			"hash", request.Proposal.Hash().Hex(),
 			"self", c.address.Hex())
 		if c.IsProposer() { //start collect random seed
-			randSeedMessages = new(messageSet) //TODO: early clear
+			//randSeedMessages.valSet(c.valSet) //init randSeedMessages
+			randSeedMessages = newMessageSet(c.valSet) //TODO: early clear
 			c.broadcast(&ibfttypes.Message{
 				Code: ibfttypes.MsgPreprepare,
 				Msg:  []byte{},
@@ -125,7 +126,9 @@ func (c *core) handlePreprepareStep1(msg *ibfttypes.Message, src istanbul.Valida
 	if c.IsProposer() { //is proposer
 		//TODO: collect random seed
 		//TODO: check is message from validator, same round, same height
-		randSeedMessages.Add(msg)
+		if err := randSeedMessages.Add(msg); err != nil {
+			log.Error(err.Error())
+		}
 		if randSeedMessages.Size() >= c.QuorumSize() {
 			csssStat = PreprepareStep2
 			//TODO: Ready To PreprepareStep2

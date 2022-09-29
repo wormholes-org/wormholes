@@ -59,6 +59,10 @@ type testCommittedMsgs struct {
 //
 // define the functions that needs to be provided for Istanbul.
 
+func (self *testSystemBackend) GetCore() istanbul.Core {
+	return nil
+}
+
 func (self *testSystemBackend) Address() common.Address {
 	return self.address
 }
@@ -178,7 +182,7 @@ func (sb *testSystemBackend) StartQBFTConsensus() error {
 	return nil
 }
 
-func (sb *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorInfo) {
+func (sb *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
 	return
 }
 
