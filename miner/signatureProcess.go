@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
@@ -19,13 +20,9 @@ func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 		Msg:  encQues,
 	})
 }
-func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) {
+func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	c.broadcast(c.Address(), &Msg{
-		Code: SendSignMsg,
-		Msg:  encQues,
-	})
 	for k, p := range c.proofStatePool.proofs {
 		if k.Cmp(height) == 0 {
 			// Proof data exists for this height
@@ -37,6 +34,8 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 			log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
 			c.validators = append(c.validators, validator)
 			c.signatureResultCh <- c.receiveValidatorsSum
+		} else {
+			return errors.New("not the same height")
 		}
 	}
 	// No proof data exists for this height
@@ -48,4 +47,5 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 
 	log.Info("c.validators", "c.validators", c.validators, "c.receiveValidatorsSum", c.receiveValidatorsSum)
 	c.signatureResultCh <- c.receiveValidatorsSum
+	return nil
 }

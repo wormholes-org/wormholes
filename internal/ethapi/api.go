@@ -959,7 +959,7 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 	} else {
 		Info.Address = common.Address{}
 		Info.VoteWeight = big.NewInt(0)
-		Info.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+		Info.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
 		Info.StartIndex = big.NewInt(0)
 		Info.Number = 4096
 		Info.Royalty = 100
@@ -1002,7 +1002,7 @@ func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc
 }
 
 func (s *PublicBlockChainAPI) Version(ctx context.Context) string {
-	version := "wormholes v0.8.3"
+	version := "wormholes v0.9.0"
 	return version
 }
 

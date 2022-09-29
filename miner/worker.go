@@ -926,7 +926,7 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		}
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
 		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
 		nominatedOfficialNFT.Number = 4096
 		nominatedOfficialNFT.Royalty = 100
@@ -1031,7 +1031,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		}
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
 		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
 		nominatedOfficialNFT.Number = 4096
 		nominatedOfficialNFT.Royalty = 100
