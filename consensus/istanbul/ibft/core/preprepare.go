@@ -18,10 +18,9 @@ package core
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"math/rand"
 	"strconv"
 	"time"
 
@@ -78,17 +77,8 @@ func (c *core) BroadcastLocalRandomData() {
 	//TODO generate & send random Seed
 	c.broadcast(&ibfttypes.Message{
 		Code: ibfttypes.MsgPrepare,
-		Msg:  c.localRandomBytes(),
+		Msg:  common.LocalRandomBytes(),
 	})
-}
-
-// local random address
-func (c *core) localRandomBytes() []byte {
-	rndSeed := time.Now().UnixNano()
-	rand.Seed(rndSeed)
-	bigSeed := big.NewInt(rand.Int63())
-	//rndDat = common.BigToHash(bigSeed)
-	return bigSeed.Bytes()
 }
 
 func (c *core) sendPreprepareStep2(request *istanbul.Request) {

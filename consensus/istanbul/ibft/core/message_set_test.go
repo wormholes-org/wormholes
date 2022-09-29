@@ -105,3 +105,14 @@ func TestMessageSetWithSubject(t *testing.T) {
 		t.Errorf("the size of message set mismatch: have %v, want 1", ms.Size())
 	}
 }
+
+func TestExt(t *testing.T) {
+	valSet := newTestValidatorSet(7)
+	ms := newMessageSet(valSet)
+	rnd := ms.CalcRandSeed()
+	t.Log(rnd)
+	addrs := ms.GetAddrs()
+	t.Log(addrs)
+	code := ms.Encode()
+	t.Log(code)
+}

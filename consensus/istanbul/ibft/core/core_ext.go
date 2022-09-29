@@ -5,6 +5,7 @@ import (
 )
 
 func (c *core) RandomSelectBonus(allocBonus []common.Address, seed int64) {
+	//TODO: Find Finalize alloc Bonus
 	//get validators
 	//state.CreateNFTByOfficial16(allocBonus, istanbulExtra.ExchangerAddr, 0)
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
