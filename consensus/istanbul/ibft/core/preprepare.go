@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/log"
 	"strconv"
@@ -78,7 +77,7 @@ func (c *core) BroadcastLocalRandomData() {
 	//TODO generate & send random Seed
 	c.broadcast(&ibfttypes.Message{
 		Code: ibfttypes.MsgPrepare,
-		Msg:  common.LocalRandomBytes(),
+		//Msg:  common.LocalRandomBytes(),//random seed generate
 	})
 }
 
@@ -122,13 +121,16 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 }
 
 func (c *core) handlePreprepareStep1(msg *ibfttypes.Message, src istanbul.Validator) error {
+	if err := c.checkMessageValid(msg, src); err != nil {
+		return err
+	}
+
+	if err := randSeedMessages.Add(msg); err != nil {
+		log.Error(err.Error())
+		return err
+	}
 
 	if c.IsProposer() { //is proposer
-		//TODO: collect random seed
-		//TODO: check is message from validator, same round, same height
-		if err := randSeedMessages.Add(msg); err != nil {
-			log.Error(err.Error())
-		}
 		if randSeedMessages.Size() >= c.QuorumSize() {
 			csssStat = PreprepareStep2
 			//TODO: Ready To PreprepareStep2
@@ -157,6 +159,18 @@ func (c *core) AssambleNewBlockWithRandomData() {
 	//FinalizeAndAssemble
 	csssStat = PreprepareStep2
 	//TODO: Start preprepare round
+}
+
+//check is message from validator, same round, same height
+func (c *core) checkMessageValid(msg *ibfttypes.Message, src istanbul.Validator) error {
+	var preprepare *istanbul.Preprepare
+	if err := msg.Decode(&preprepare); err != nil {
+		return err
+	}
+	if err := c.checkMessage(ibfttypes.MsgPreprepare, preprepare.View); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *core) handlePreprepareStep2(msg *ibfttypes.Message, src istanbul.Validator) error {
