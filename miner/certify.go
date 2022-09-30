@@ -207,7 +207,6 @@ func (c *Certify) handleEvents() {
 		case event, ok := <-c.events.Chan():
 			if !ok {
 				continue
-				return
 			}
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
