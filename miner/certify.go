@@ -228,13 +228,7 @@ func (c *Certify) handleEvents() {
 
 				c.msgHeight = signature.Height
 				log.Info("signature", "Height", signature.Height)
-				//if len(c.stakers.Validators) > 0 && c.stakers != nil {
-				//	flag := c.stakers.GetByAddress(msg.Address)
-				//	if flag == -1 {
-				//		log.Error("Invalid address in message", "msg", msg)
-				//		return
-				//	}
-				//}
+
 				if msg.Code == SendSignMsg {
 					log.Info("SendSignMsg", "SendSignMsg", c.stakers)
 					//If the GatherOtherPeerSignature is ok, gossip message directly
