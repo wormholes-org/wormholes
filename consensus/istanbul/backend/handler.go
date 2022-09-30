@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -53,15 +52,8 @@ func (sb *Backend) Protocol() consensus.Protocol {
 
 func (sb *Backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 	var data []byte
-	if sb.IsQBFTConsensus() {
-		data = make([]byte, msg.Size)
-		if _, err := msg.Payload.Read(data); err != nil {
-			return nil, common.Hash{}, errPayloadReadFailed
-		}
-	} else {
-		if err := msg.Decode(&data); err != nil {
-			return nil, common.Hash{}, errDecodeFailed
-		}
+	if err := msg.Decode(&data); err != nil {
+		return nil, common.Hash{}, errDecodeFailed
 	}
 	return data, istanbul.RLPHash(data), nil
 }
@@ -70,7 +62,7 @@ func (sb *Backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
-	if _, ok := qbfttypes.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {
+	if msg.Code == istanbulMsg {
 		if !sb.coreStarted {
 			sb.logger.Info("caver|HandleMsg|ErrStoppedEngine", "!sb.coreStarted", !sb.coreStarted)
 			return true, nil

@@ -77,12 +77,6 @@ type Backend interface {
 
 	Close() error
 
-	// IsQBFTConsensus checks qbftBlock fork block and returns if it should be enabled
-	IsQBFTConsensusAt(*big.Int) bool
-
-	// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qbft consensus
-	StartQBFTConsensus() error
-
 	// Notify miners to submit blocks
 	NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList)
 
