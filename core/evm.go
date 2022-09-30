@@ -1292,7 +1292,7 @@ func BuyNFTByApproveExchanger(
 
 	var beneficiaryExchanger common.Address
 	exclusiveExchanger := db.GetNFTExchanger(nftAddress)
-	if CheckSeller1(db, blocknumber, caller, to, wormholes, amount) { //检测 是否为该nft授权交易所,
+	if CheckSeller1(db, blocknumber, caller, to, wormholes, amount) { //check the exchanger is or not approved exchanger,
 		if exclusiveExchanger != emptyAddress {
 			if originalExchanger != exclusiveExchanger {
 				if db.GetExchangerFlag(exclusiveExchanger) {

@@ -944,7 +944,7 @@ func opNMint(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]by
 		uriStr := scope.Memory.GetCopy(offset+32, length)
 		toAddr := common.Address(to.Bytes20())
 		nftAddr, _ := interpreter.evm.StateDB.CreateNFTByUser(caller, toAddr, uint32(royalty.Uint64()), string(uriStr))
-		// 将NFT地址放到栈顶作为返回值
+
 		to.SetBytes(nftAddr.Bytes())
 		fmt.Println("nft.mint()---", caller.String(), toAddr.String(), royalty.Uint64(), string(uriStr), nftAddr.String())
 		return nil, nil
