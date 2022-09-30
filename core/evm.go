@@ -476,7 +476,7 @@ func BuyNFTBySellerOrExchanger(
 	wormholes *types.Wormholes,
 	amount *big.Int) error {
 
-	//1. 恢复buyer账户地址
+	//1. recover buyer's address
 	msg := wormholes.Buyer.Amount +
 		wormholes.Buyer.NFTAddress +
 		wormholes.Buyer.Exchanger +
@@ -496,7 +496,7 @@ func BuyNFTBySellerOrExchanger(
 		return err
 	}
 
-	//2. 检测当前区块是否大于Buyer.BlockNumber, 大于时返回错误
+	//2. compare current block number and Buyer.BlockNumber, return error if current block number is greater than Buyer.BlockNumber.
 	if !strings.HasPrefix(wormholes.Buyer.BlockNumber, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.BlockNumber, "0X") {
 		log.Error("BuyNFTBySellerOrExchanger(), blocknumber  error")
@@ -512,14 +512,14 @@ func BuyNFTBySellerOrExchanger(
 			"buyerBlockNumber", buyerBlockNumber.Text(16), "blocknumber", blocknumber.Text(16))
 		return errors.New("buyer's data is expired!")
 	}
-	//3. 比较buyer地址是否与to地址相同，不同返回错误
+	//3. check buyer's address and to, return error if they are not same.
 	if to != buyer {
 		toS := to.String()
 		buyerS := buyer.String()
 		log.Error("BuyNFTBySellerOrExchanger(), to of the tx is not buyer!", "to", toS, "buyer", buyerS)
 		return errors.New("to of the tx is not buyer!")
 	}
-	//4. 检测交易发起者的balance 是否与 buyer签名里的balance相等
+	//4. return error if the amount that sender send is not equal buyer's amount.
 	if !strings.HasPrefix(wormholes.Buyer.Amount, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.Amount, "0X") {
 		log.Error("BuyNFTBySellerOrExchanger(), amount format error", "wormholes.Buyer.Amount", wormholes.Buyer.Amount)
@@ -536,7 +536,7 @@ func BuyNFTBySellerOrExchanger(
 		return errors.New("tx amount error")
 	}
 
-	//5. 判断from是否为nft拥有者
+	//5. check if the sender is or not the owner of nft.
 	//nftAddress := common.HexToAddress(wormholes.Buyer.NFTAddress)
 	nftAddress, level, err := GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
 	if err != nil {
@@ -566,8 +566,8 @@ func BuyNFTBySellerOrExchanger(
 			"buyerBalance", buyerBalance.Text(16), "amount", amount.Text(16))
 		return errors.New("insufficient balance")
 	}
-	//5.1 检测nft是否设置了铸造的独占交易所, 如果是，当发起者为交易所时，
-	//判断独占交易所是否与from相同，不同则返回错误
+	//5.1 check nft has exclusive exchanger, if have，need to check exclusive exchanger and sender when sender is a exchanger，
+	//return error if they are not same
 	var beneficiaryExchanger common.Address
 	exclusiveExchanger := db.GetNFTExchanger(nftAddress)
 	log.Info("BuyNFTBySellerOrExchanger()", "caller", caller.String(), "nftOwner", nftOwner.String())
@@ -688,7 +688,7 @@ func BuyNFTByBuyer(
 	wormholes *types.Wormholes,
 	amount *big.Int) error {
 
-	//1. 恢复seller的账户地址
+	//1. recover buyer's address
 	msg := wormholes.Seller1.Amount +
 		wormholes.Seller1.NFTAddress +
 		wormholes.Seller1.Exchanger +
@@ -707,7 +707,7 @@ func BuyNFTByBuyer(
 		return err
 	}
 
-	//2. 检测当前区块是否大于Seller.BlockNumber, 大于时返回错误
+	//2. compare current block number and Seller.BlockNumber, return error if current block number is greater than Seller.BlockNumber.
 	if !strings.HasPrefix(wormholes.Seller1.BlockNumber, "0x") &&
 		!strings.HasPrefix(wormholes.Seller1.BlockNumber, "0X") {
 		log.Error("BuyNFTByBuyer()", "blocknumber format error", wormholes.Seller1.BlockNumber)
@@ -723,7 +723,7 @@ func BuyNFTByBuyer(
 			"sellerBlockNumber", sellerBlockNumber.Text(16), "blocknumber", blocknumber.Text(16))
 		return errors.New("seller's data is expired!")
 	}
-	//3. 检测nft的拥有者是否等于seller的账户地址
+	//3. check seller's address and to, return error if they are not same.
 	//nftAddress := common.HexToAddress(wormholes.Seller1.NFTAddress)
 	nftAddress, level, err := GetNftAddressAndLevel(wormholes.Seller1.NFTAddress)
 	if err != nil {
@@ -752,7 +752,7 @@ func BuyNFTByBuyer(
 			"seller", seller.String(), "nftOwner", nftOwner.String())
 		return errors.New("don't have the nft!")
 	}
-	//4. 检测交易发起者的balance 是否与 seller签名里的balance相等
+	//4. return error if the amount that sender send is not equal seller's amount.
 	if !strings.HasPrefix(wormholes.Seller1.Amount, "0x") &&
 		!strings.HasPrefix(wormholes.Seller1.Amount, "0X") {
 		log.Error("BuyNFTByBuyer(), amount format  error", "wormholes.Seller1.Amount", wormholes.Seller1.Amount)
@@ -768,7 +768,7 @@ func BuyNFTByBuyer(
 			"sellerAmount", sellerAmount.Text(16), "amount", amount.Text(16))
 		return errors.New("tx amount error")
 	}
-	//5. 检测buyer是否有足够金额(balance)
+	//5. check if the buyer has sufficient balance.
 	buyerBalance := db.GetBalance(caller)
 	if buyerBalance.Cmp(amount) < 0 {
 		log.Error("BuyNFTByBuyer(), insufficient balance",
@@ -776,7 +776,7 @@ func BuyNFTByBuyer(
 		return errors.New("insufficient balance")
 	}
 
-	//6. 检测nft是否设置了铸造的独占交易所
+	//6. check if the nft has exclusive exchanger.
 	var beneficiaryExchanger common.Address
 	sellerExchanger := common.HexToAddress(wormholes.Seller1.Exchanger)
 	exclusiveExchanger := db.GetNFTExchanger(nftAddress)
@@ -819,7 +819,7 @@ func BuyAndMintNFTByBuyer(
 	wormholes *types.Wormholes,
 	amount *big.Int) error {
 
-	//1. 恢复seller的账户地址
+	//1. recover seller's address.
 	msg := wormholes.Seller2.Amount +
 		wormholes.Seller2.Royalty +
 		wormholes.Seller2.MetaURL +
@@ -840,7 +840,7 @@ func BuyAndMintNFTByBuyer(
 		return err
 	}
 
-	//2. 检测当前区块是否大于Seller.BlockNumber, 大于时返回错误
+	//2. compare current block number and Seller.BlockNumber, return error if current block number is greater than Seller.BlockNumber.
 	if !strings.HasPrefix(wormholes.Seller2.BlockNumber, "0x") &&
 		!strings.HasPrefix(wormholes.Seller2.BlockNumber, "0X") {
 		log.Error("BuyAndMintNFTByBuyer()", "blocknumber format error, not 0x started", wormholes.Seller2.BlockNumber)
@@ -856,7 +856,7 @@ func BuyAndMintNFTByBuyer(
 			"sellerBlockNumber", sellerBlockNumber.Text(16), "blocknumber", blocknumber.Text(16))
 		return errors.New("seller's data is expired!")
 	}
-	//3. 检测交易发起者的balance 是否与 seller签名里的balance相等
+	//3. check seller's address and to, return error if they are not same.
 	if !strings.HasPrefix(wormholes.Seller2.Amount, "0x") &&
 		!strings.HasPrefix(wormholes.Seller2.Amount, "0X") {
 		log.Error("BuyAndMintNFTByBuyer(), amount format error", "wormholes.Seller2.Amount", wormholes.Seller2.Amount)
@@ -872,7 +872,7 @@ func BuyAndMintNFTByBuyer(
 			"sellerAmount", sellerAmount.Text(16), "amount", amount.Text(16))
 		return errors.New("tx amount error")
 	}
-	//4. 检测buyer是否有足够金额(balance)
+	//4. check if the buyer has sufficient balance.
 	buyerBalance := db.GetBalance(caller)
 	if buyerBalance.Cmp(amount) < 0 {
 		log.Error("BuyAndMintNFTByBuyer(), insufficient balance",
@@ -948,7 +948,7 @@ func BuyAndMintNFTByExchanger(
 	to common.Address,
 	wormholes *types.Wormholes,
 	amount *big.Int) error {
-	//1. 恢复buyer, seller的账户地址
+	//1. recover buyer and seller's address
 	buyerMsg := wormholes.Buyer.Amount +
 		wormholes.Buyer.Exchanger +
 		wormholes.Buyer.BlockNumber
@@ -986,14 +986,14 @@ func BuyAndMintNFTByExchanger(
 		return err
 	}
 
-	// 比较buyer地址是否与to地址相同，不同返回错误
+	// check buyer's address and to, return error if they are not same.
 	if to != buyer {
 		log.Error("BuyAndMintNFTByExchanger(), to of the tx is not buyer!",
 			"to", to.String(), "buyer", buyer.String())
 		return errors.New("to of the tx is not buyer!")
 	}
 
-	//2. 检测当前区块是否大于blocknumber, 大于时返回错误
+	//2. compare current block number and BlockNumber, return error if current block number is greater than BlockNumber.
 	if !strings.HasPrefix(wormholes.Buyer.BlockNumber, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.BlockNumber, "0X") {
 		log.Error("BuyAndMintNFTByExchanger(), buyer blocknumber format  error",
@@ -1027,7 +1027,7 @@ func BuyAndMintNFTByExchanger(
 			"sellerBlockNumber", sellerBlockNumber.Text(16), "blocknumber", blocknumber.Text(16))
 		return errors.New("seller's data is expired!")
 	}
-	//3. 检测交易发起者的price 是否与buyer, seller签名里的price相等
+	//3. return error if the amount that sender send is not equal buyer and sender's amount.
 	if !strings.HasPrefix(wormholes.Buyer.Amount, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.Amount, "0X") {
 		log.Error("BuyAndMintNFTByExchanger(), buyer amount format error",
@@ -1058,7 +1058,7 @@ func BuyAndMintNFTByExchanger(
 		return errors.New("tx amount error")
 	}
 
-	//4. 检测buyer的余额是否大于price, 小于时返回错误
+	//4. check if the buyer has sufficient balance.
 	//buyerStr := buyer.String()
 	//sellerStr := seller.String()
 	//log.Error("BuyAndMintNFTByExchanger()", "buyer", buyerStr, "seller", sellerStr)
@@ -1068,7 +1068,8 @@ func BuyAndMintNFTByExchanger(
 			"buyerBalance", buyerBalance.Text(16), "amount", amount.Text(16))
 		return errors.New("insufficient balance")
 	}
-	//5. 检测buyer和seller签名的交易所是否与from相等, 不等则返回错误
+	//5. check if the buyer and seller's exchanger is same with sender address,
+	//return error if they are not.
 	if !db.GetExchangerFlag(caller) {
 		log.Error("BuyAndMintNFTByExchanger(), from is not an exchanger")
 		return errors.New("from is not an exchanger")
@@ -1150,7 +1151,7 @@ func BuyNFTByApproveExchanger(
 	wormholes *types.Wormholes,
 	amount *big.Int) error {
 
-	//1. 恢复buyer账户地址
+	//1. recover buyer's address
 	msg := wormholes.Buyer.Amount +
 		wormholes.Buyer.NFTAddress +
 		wormholes.Buyer.Exchanger +
@@ -1190,7 +1191,8 @@ func BuyNFTByApproveExchanger(
 		return ErrNotMatchAddress
 	}
 
-	//2. 检测当前区块是否大于buyer.blocknumber和exchanger_auth.blocknumber, 大于时返回错误
+	//2. compare current block number and buyer.blocknumber and exchanger_auth.blocknumber,
+	//return error if current block number is greater than buyer.blocknumber and exchanger_auth.blocknumber.
 	if !strings.HasPrefix(wormholes.Buyer.BlockNumber, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.BlockNumber, "0X") {
 		log.Error("BuyNFTByApproveExchanger(), buyer blocknumber format  error",
@@ -1225,7 +1227,8 @@ func BuyNFTByApproveExchanger(
 		return errors.New("exchanger's data is expired!")
 	}
 
-	//3. 比较buyer地址是否与to地址相同，比较exchanger_auth.to与交易发起者是否相同，不同返回错误
+	//3. check buyer's address and to address as well as exchanger_auth.to and sender ,
+	//return error if they are not same.
 	if to != buyer {
 		log.Error("BuyNFTByApproveExchanger(), to of the tx is not buyer!",
 			"to", to.String(), "buyer", buyer.String())
@@ -1239,7 +1242,7 @@ func BuyNFTByApproveExchanger(
 		return errors.New("from of the tx is not approved!")
 	}
 
-	//4. 检测交易发起者的balance 是否与 buyer签名里的balance相等
+	//4. return error if the amount that sender send is not equal buyer's amount.
 	if !strings.HasPrefix(wormholes.Buyer.Amount, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.Amount, "0X") {
 		log.Error("BuyNFTByApproveExchanger(), amount format error", "wormholes.Buyer.Amount", wormholes.Buyer.Amount)
@@ -1280,7 +1283,7 @@ func BuyNFTByApproveExchanger(
 		return errors.New("Get nft owner error!")
 	}
 	buyerBalance := db.GetBalance(buyer)
-	//5.1 检测buyer是否有足够金额(balance)
+	//5.1 check if the buyer has sufficient balance.
 	if buyerBalance.Cmp(amount) < 0 {
 		log.Error("BuyNFTByApproveExchanger(), insufficient balance",
 			"buyerBalance", buyerBalance.Text(16), "amount", amount.Text(16))
@@ -1338,7 +1341,7 @@ func BuyAndMintNFTByApprovedExchanger(
 	to common.Address,
 	wormholes *types.Wormholes,
 	amount *big.Int) error {
-	//1. 恢复buyer, seller的账户地址
+	//1. recover buyer, seller's address
 	buyerMsg := wormholes.Buyer.Amount +
 		wormholes.Buyer.Exchanger +
 		wormholes.Buyer.BlockNumber
@@ -1396,7 +1399,7 @@ func BuyAndMintNFTByApprovedExchanger(
 		return ErrNotMatchAddress
 	}
 
-	//比较exchanger_auth.to与交易发起者是否相同，不同返回错误
+	//check exchanger_auth.to and sender, return error if they are not same.
 	approvedAddr := common.HexToAddress(wormholes.ExchangerAuth.To)
 	if approvedAddr != caller {
 		log.Error("BuyAndMintNFTByApprovedExchanger(), from of the tx is not approved!",
@@ -1404,14 +1407,15 @@ func BuyAndMintNFTByApprovedExchanger(
 		return errors.New("from of the tx is not approved!")
 	}
 
-	// 比较buyer地址是否与to地址相同，不同返回错误
+	// check buyer's address and to, return error if they are not same.
 	if to != buyer {
 		log.Error("BuyAndMintNFTByApprovedExchanger(), to of the tx is not buyer!",
 			"to", to.String(), "buyer", buyer.String())
 		return errors.New("to of the tx is not buyer!")
 	}
 
-	//2. 检测当前区块是否大于blocknumber, 大于时返回错误
+	//2. compare current block number and BlockNumber,
+	//return error if current block number is greater than BlockNumber.
 	if !strings.HasPrefix(wormholes.Buyer.BlockNumber, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.BlockNumber, "0X") {
 		log.Error("BuyAndMintNFTByApprovedExchanger(), buyer blocknumber format error",
@@ -1463,7 +1467,8 @@ func BuyAndMintNFTByApprovedExchanger(
 		return errors.New("exchanger's data is expired!")
 	}
 
-	//3. 检测交易发起者的price 是否与buyer, seller签名里的price相等
+	//3. check the amount that sender send and buyer and seller's amount,
+	//return error if they are not same.
 	if !strings.HasPrefix(wormholes.Buyer.Amount, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.Amount, "0X") {
 		log.Error("BuyAndMintNFTByApprovedExchanger(), buyer amount format error",
@@ -1494,7 +1499,7 @@ func BuyAndMintNFTByApprovedExchanger(
 		return errors.New("tx amount error")
 	}
 
-	//4. 检测buyer的余额是否大于price, 小于时返回错误
+	//4. check if the buyer has sufficient balance.
 	//buyerStr := buyer.String()
 	//sellerStr := seller.String()
 	//log.Info("BuyAndMintNFTByApprovedExchanger()", "buyer", buyerStr, "seller", sellerStr)
@@ -1505,7 +1510,8 @@ func BuyAndMintNFTByApprovedExchanger(
 		return errors.New("insufficient balance")
 	}
 
-	//5. 检测buyer和seller签名的交易所是否与originalexchanger相等, 不等则返回错误
+	//5. check the signature of buyer and seller's exchanger and originalexchanger,
+	//return error if  they are not same.
 	if !db.GetExchangerFlag(originalExchanger) {
 		log.Error("BuyAndMintNFTByApprovedExchanger(), originalExchanger is not an exchanger")
 		return errors.New("originalExchanger is not an exchanger")
@@ -1593,7 +1599,7 @@ func BuyNFTByExchanger(
 	wormholes *types.Wormholes,
 	amount *big.Int) error {
 
-	//1. 恢复buyer, seller1账户地址
+	//1. recover buyer and seller1's address
 	buyerMsg := wormholes.Buyer.Amount +
 		wormholes.Buyer.NFTAddress +
 		wormholes.Buyer.Exchanger +
@@ -1630,7 +1636,9 @@ func BuyNFTByExchanger(
 		return err
 	}
 
-	//2. 检测当前区块是否大于Buyer.BlockNumber, seller1.BlockNumber, 大于时返回错误
+	//2. compare current block number and Buyer.BlockNumber and seller1.BlockNumber,
+	//return error if current block number is greater than Buyer.BlockNumber and seller1.BlockNumber.
+
 	if !strings.HasPrefix(wormholes.Buyer.BlockNumber, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.BlockNumber, "0X") {
 		log.Error("BuyNFTByExchanger(), buyer blocknumber format error",
@@ -1664,13 +1672,13 @@ func BuyNFTByExchanger(
 			"sellerBlockNumber", sellerBlockNumber.Text(16), "blocknumber", blocknumber.Text(16))
 		return errors.New("seller's data is expired!")
 	}
-	//3. 比较buyer地址是否与to地址相同，不同返回错误
+	//3. check buyer's address and to, return error if they are not same.
 	if to != buyer {
 		log.Error("BuyNFTByExchanger(), to of the tx is not buyer!",
 			"to", to.String(), "buyer", buyer.String())
 		return errors.New("to of the tx is not buyer!")
 	}
-	//4. 检测交易发起者的balance 是否与 buyer, seller签名里的balance相等
+	//4. return error if the amount that sender send is not equal buyer and sender's amount.
 	if !strings.HasPrefix(wormholes.Buyer.Amount, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.Amount, "0X") {
 		log.Error("BuyNFTByExchanger(), buyer amount format error",
@@ -1705,7 +1713,7 @@ func BuyNFTByExchanger(
 		return errors.New("tx seller amount error")
 	}
 
-	//5. 判断from是否为nft拥有者
+	//5. check if the sender own the nft.
 	//buyerNftAddress := common.HexToAddress(wormholes.Buyer.NFTAddress)
 	buyerNftAddress, level, err := GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
 	if err != nil {
@@ -1761,8 +1769,8 @@ func BuyNFTByExchanger(
 		return errors.New("seller have no right to sell the nft")
 	}
 
-	//5.1 检测nft是否设置了铸造的独占交易所, 如果是，当发起者为交易所时，
-	//判断独占交易所是否与from相同，不同则返回错误
+	//5.1 check nft has exclusive exchanger, if have，need to check exclusive exchanger and sender when sender is a exchanger，
+	// return error if they are not same.
 	var beneficiaryExchanger common.Address
 	exclusiveExchanger := db.GetNFTExchanger(sellerNftAddress)
 	if exclusiveExchanger != emptyAddress {
@@ -1865,7 +1873,8 @@ func VoteOfficialNFTByApprovedExchanger(
 		return ErrNotMatchAddress
 	}
 
-	//比较exchanger_auth.to与交易发起者是否相同，不同返回错误
+	//check if the exchanger_auth.to is same with sender,
+	//return error if they are not same.
 	approvedAddr := common.HexToAddress(wormholes.ExchangerAuth.To)
 	if approvedAddr != caller {
 		log.Error("BuyAndMintNFTByApprovedExchanger(), from of the tx is not approved!",
