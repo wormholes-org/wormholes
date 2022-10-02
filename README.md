@@ -100,7 +100,16 @@ fi
 
 mkdir -p /wm/.wormholes/wormholes
 if [ -n "$ky" ]; then
-   echo $ky > /wm/.wormholes/wormholes/nodekey
+   echo ${#ky}
+     echo ${ky:0:2}
+     if [ ${#ky} -eq 64 ];then
+             echo $ky > /wm/.wormholes/wormholes/nodekey
+     elif [ ${#ky} -eq 66 ] && ([ ${ky:0:2} == "0x" ] || [ ${ky:0:2} == "0X" ]);then
+             echo ${ky:2:64} > /wm/.wormholes/wormholes/nodekey
+     else
+             echo "the nodekey format is not correct"
+             exit -1
+     fi
 fi
 
 docker run -id -e KEY=$ky  -p 30303:30303 -p 8545:8545 -v /wm/.wormholes:/wm/.wormholes --name wormholes wormholestech/wormholes:v1
