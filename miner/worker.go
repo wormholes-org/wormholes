@@ -466,11 +466,11 @@ func (w *worker) emptyLoop() {
 					w.emptyHandleFlag = true
 					go w.cerytify.handleEvents()
 				}
-				if w.cacheHeight.Cmp(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))) != 0 {
-					w.cerytify.validators = make([]common.Address, 0)
-					w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-					w.cerytify.receiveValidatorsSum = big.NewInt(0)
-				}
+				//if w.cacheHeight.Cmp(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))) != 0 {
+				//	w.cerytify.validators = make([]common.Address, 0)
+				//	w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
+				//	w.cerytify.receiveValidatorsSum = big.NewInt(0)
+				//}
 				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
 
 				//w.onlineCh <- struct{}{}

@@ -1,7 +1,6 @@
 package miner
 
 import (
-	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
@@ -35,7 +34,8 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 			c.validators = append(c.validators, validator)
 			c.signatureResultCh <- c.receiveValidatorsSum
 		} else {
-			return errors.New("not the same height")
+			log.Info("GatherOtherPeerSignature, not the same height, continue!")
+			continue
 		}
 	}
 	// No proof data exists for this height

@@ -206,7 +206,7 @@ func (c *Certify) handleEvents() {
 		select {
 		case event, ok := <-c.events.Chan():
 			if !ok {
-				return
+				continue
 			}
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
@@ -215,6 +215,7 @@ func (c *Certify) handleEvents() {
 				msg := new(Msg)
 				if err := msg.FromPayload(ev.Payload); err != nil {
 					log.Error("Certify Failed to decode message from payload", "err", err)
+					break
 				}
 				var signature *SignatureData
 				msg.Decode(&signature)
@@ -222,18 +223,12 @@ func (c *Certify) handleEvents() {
 				encQues, err := Encode(signature)
 				if err != nil {
 					log.Error("Failed to encode", "subject", err)
-					return
+					break
 				}
 
 				c.msgHeight = signature.Height
 				log.Info("signature", "Height", signature.Height)
-				//if len(c.stakers.Validators) > 0 && c.stakers != nil {
-				//	flag := c.stakers.GetByAddress(msg.Address)
-				//	if flag == -1 {
-				//		log.Error("Invalid address in message", "msg", msg)
-				//		return
-				//	}
-				//}
+
 				if msg.Code == SendSignMsg {
 					log.Info("SendSignMsg", "SendSignMsg", c.stakers)
 					//If the GatherOtherPeerSignature is ok, gossip message directly
