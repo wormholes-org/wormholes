@@ -33,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/contracts/checkpointoracle/contract"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
@@ -191,9 +190,8 @@ func testIndexers(db ethdb.Database, odr light.OdrBackend, config *light.Indexer
 
 func newTestClientHandler(backend *backends.SimulatedBackend, odr *LesOdr, indexers []*core.ChainIndexer, db ethdb.Database, peers *serverPeerSet, ulcServers []string, ulcFraction int) (*clientHandler, func()) {
 	var (
-		evmux  = new(event.TypeMux)
-		engine = ethash.NewFaker()
-		gspec  = core.Genesis{
+		evmux = new(event.TypeMux)
+		gspec = core.Genesis{
 			Config:   params.AllEthashProtocolChanges,
 			Alloc:    core.GenesisAlloc{bankAddr: {Balance: bankFunds}},
 			GasLimit: 100000000,
@@ -202,7 +200,7 @@ func newTestClientHandler(backend *backends.SimulatedBackend, odr *LesOdr, index
 		oracle *checkpointoracle.CheckpointOracle
 	)
 	genesis := gspec.MustCommit(db)
-	chain, _ := light.NewLightChain(odr, gspec.Config, engine, nil)
+	chain, _ := light.NewLightChain(odr, gspec.Config, nil, nil)
 	if indexers != nil {
 		checkpointConfig := &params.CheckpointOracleConfig{
 			Address:   crypto.CreateAddress(bankAddr, 0),
@@ -236,7 +234,7 @@ func newTestClientHandler(backend *backends.SimulatedBackend, odr *LesOdr, index
 		reqDist:    odr.retriever.dist,
 		retriever:  odr.retriever,
 		odr:        odr,
-		engine:     engine,
+		engine:     nil,
 		blockchain: chain,
 		eventMux:   evmux,
 	}
