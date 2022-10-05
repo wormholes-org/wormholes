@@ -415,12 +415,12 @@ func (w *worker) emptyLoop() {
 	for {
 		select {
 		case <-checkTimer.C:
-			log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
+			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
 			if !w.isEmpty {
 				continue
 			}
-			log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
+			//log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
 			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()

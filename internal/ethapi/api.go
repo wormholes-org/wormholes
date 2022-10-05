@@ -1002,7 +1002,7 @@ func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc
 }
 
 func (s *PublicBlockChainAPI) Version(ctx context.Context) string {
-	version := "wormholes v0.9.1"
+	version := "wormholes v0.9.2"
 	return version
 }
 
