@@ -1568,6 +1568,8 @@ func (evm *EVM) HandleNFT(
 				frozenInfo.Amount = new(big.Int).Set(frozenAccount.Amount)
 				frozenInfo.UnfrozenTime = frozenAccount.UnfrozenTime
 				existFlag = true
+				log.Info("HandleNFT(), Unfrozen Info", "blocknumber", evm.Context.BlockNumber.Uint64(),
+					"unfrozen account", frozenInfo.Account.Hex(), "balance", frozenInfo.Amount, "unfrozen time", frozenInfo.UnfrozenTime)
 				//frozenAmount = new(big.Int).Set(frozenAccount.Amount)
 				break
 			}
