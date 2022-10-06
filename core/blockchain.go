@@ -1641,7 +1641,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 
 	if state.FrozenAccounts != nil && len(state.FrozenAccounts) > 0 {
-		if block.NumberU64() < 68000 {
+		if block.NumberU64() < 600 {
 			UpdateFrozenAccounts(state.FrozenAccounts)
 		} else {
 			UpdateFrozenAccounts2(state.FrozenAccounts)
