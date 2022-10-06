@@ -30,11 +30,11 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 			}
 			p.onlineValidator.Add(validator)
 			c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
-			log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
+			//log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
 			c.validators = append(c.validators, validator)
 			c.signatureResultCh <- c.receiveValidatorsSum
 		} else {
-			log.Info("GatherOtherPeerSignature, not the same height, continue!")
+			//log.Info("GatherOtherPeerSignature, not the same height, continue!")
 			continue
 		}
 	}
@@ -42,10 +42,10 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	ps := newProofState(validator, validator)
 	c.proofStatePool.proofs[height] = ps
 	c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
-	log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
+	//log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
 	c.validators = append(c.validators, validator)
 
-	log.Info("c.validators", "c.validators", c.validators, "c.receiveValidatorsSum", c.receiveValidatorsSum)
+	//log.Info("c.validators", "c.validators", c.validators, "c.receiveValidatorsSum", c.receiveValidatorsSum)
 	c.signatureResultCh <- c.receiveValidatorsSum
 	return nil
 }

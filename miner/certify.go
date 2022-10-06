@@ -211,7 +211,7 @@ func (c *Certify) handleEvents() {
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
 			case MessageEvent:
-				log.Info("Certify handle events")
+				//log.Info("Certify handle events")
 				msg := new(Msg)
 				if err := msg.FromPayload(ev.Payload); err != nil {
 					log.Error("Certify Failed to decode message from payload", "err", err)
