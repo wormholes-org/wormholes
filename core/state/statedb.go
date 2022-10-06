@@ -3102,13 +3102,17 @@ func (s *StateDB) NextIndex() *big.Int {
 //	}
 //}
 
-func (s *StateDB) UnfrozenAccount(addr common.Address, amount *big.Int) {
-	stateObject := s.GetOrNewStateObject(addr)
+func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount) {
+	if frozenInfo == nil {
+		return
+	}
+	stateObject := s.GetOrNewStateObject(frozenInfo.Account)
 	if stateObject != nil {
-		stateObject.AddBalance(amount)
+		stateObject.AddBalance(frozenInfo.Amount)
 		var frozenAccount types.FrozenAccount
-		frozenAccount.Account = addr
-		frozenAccount.Amount = new(big.Int).Set(amount)
+		frozenAccount.Account = frozenInfo.Account
+		frozenAccount.Amount = new(big.Int).Set(frozenInfo.Amount)
+		frozenAccount.UnfrozenTime = frozenInfo.UnfrozenTime
 		s.FrozenAccounts = append(s.FrozenAccounts, &frozenAccount)
 	}
 }

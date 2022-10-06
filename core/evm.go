@@ -1942,6 +1942,6 @@ func GetNFTPledgedBlockNumber(db vm.StateDB, nftaddress common.Address) *big.Int
 	return db.GetNFTPledgedBlockNumber(nftaddress)
 }
 
-func UnfrozenAccount(db vm.StateDB, address common.Address, amount *big.Int) {
-	db.UnfrozenAccount(address, amount)
+func UnfrozenAccount(db vm.StateDB, frozenInfo *types.FrozenAccount) {
+	db.UnfrozenAccount(frozenInfo)
 }

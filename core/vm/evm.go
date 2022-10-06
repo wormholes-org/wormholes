@@ -118,7 +118,7 @@ type (
 	GetMergeNumberFunc           func(StateDB, common.Address) uint32
 	GetPledgedFlagFunc           func(StateDB, common.Address) bool
 	GetNFTPledgedBlockNumberFunc func(StateDB, common.Address) *big.Int
-	UnfrozenAccountFunc          func(StateDB, common.Address, *big.Int)
+	UnfrozenAccountFunc          func(StateDB, *types.FrozenAccount)
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -1552,12 +1552,16 @@ func (evm *EVM) HandleNFT(
 		log.Info("HandleNFT(), UnfrozenAccount", "wormholes.Type", wormholes.Type,
 			"parentblocknumber", evm.Context.ParentHeader.Number.Uint64(), "parenttime", evm.Context.ParentHeader.Time)
 		var existFlag bool
-		var frozenAmount *big.Int
+		//var frozenAmount *big.Int
+		var frozenInfo types.FrozenAccount
 		for _, frozenAccount := range FrozenAcconts {
 			if frozenAccount.Account == caller.Address() &&
 				frozenAccount.UnfrozenTime <= evm.Context.ParentHeader.Time {
+				frozenInfo.Account = frozenAccount.Account
+				frozenInfo.Amount = new(big.Int).Set(frozenAccount.Amount)
+				frozenInfo.UnfrozenTime = frozenAccount.UnfrozenTime
 				existFlag = true
-				frozenAmount = new(big.Int).Set(frozenAccount.Amount)
+				//frozenAmount = new(big.Int).Set(frozenAccount.Amount)
 				break
 			}
 		}
@@ -1568,7 +1572,7 @@ func (evm *EVM) HandleNFT(
 			return nil, gas, ErrNotExistFrozenAccount
 		}
 
-		evm.Context.UnfrozenAccount(evm.StateDB, caller.Address(), frozenAmount)
+		evm.Context.UnfrozenAccount(evm.StateDB, &frozenInfo)
 		log.Info("HandleNFT(), UnfrozenAccount<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 
