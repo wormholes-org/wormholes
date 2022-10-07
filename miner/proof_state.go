@@ -23,12 +23,16 @@ func (p *ProofStatePool) ClearPrev(height *big.Int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p != nil {
-		for k := range p.proofs {
-			if k.Cmp(height) <= 0 {
-				delete(p.proofs, k)
-			}
+	var removeHeight []*big.Int
+
+	for k := range p.proofs {
+		if k.Cmp(height) <= 0 {
+			removeHeight = append(removeHeight, k)
 		}
+	}
+
+	for _, v := range removeHeight {
+		delete(p.proofs, v)
 	}
 }
 
