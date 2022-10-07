@@ -34,6 +34,10 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	if c.proofStatePool.proofs[height] == nil {
 		ps := newProofState(validator, validator)
 		c.proofStatePool.proofs[height] = ps
+		c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
+		c.validators = append(c.validators, validator)
+		c.signatureResultCh <- c.receiveValidatorsSum
+		return nil
 	}
 
 	curProofs := c.proofStatePool.proofs[height]
