@@ -24,12 +24,12 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	defer c.lock.Unlock()
 
 	c.proofStatePool.ClearPrev(c.miner.GetWorker().chain.CurrentHeader().Number)
-	
+
 	for k, p := range c.proofStatePool.proofs {
 		if k.Cmp(height) == 0 {
 			// Proof data exists for this height
 			if p.onlineValidator.Has(validator) {
-				continue
+				return nil
 			}
 			p.onlineValidator.Add(validator)
 			c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
@@ -37,9 +37,6 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 			c.validators = append(c.validators, validator)
 			c.signatureResultCh <- c.receiveValidatorsSum
 			return nil
-		} else {
-			//log.Info("GatherOtherPeerSignature, not the same height, continue!")
-			continue
 		}
 	}
 	// No proof data exists for this height
