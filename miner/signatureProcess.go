@@ -22,6 +22,9 @@ func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+
+	c.proofStatePool.ClearPrev(c.miner.GetWorker().chain.CurrentHeader().Number)
+	
 	for k, p := range c.proofStatePool.proofs {
 		if k.Cmp(height) == 0 {
 			// Proof data exists for this height
@@ -33,6 +36,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 			//log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
 			c.validators = append(c.validators, validator)
 			c.signatureResultCh <- c.receiveValidatorsSum
+			return nil
 		} else {
 			//log.Info("GatherOtherPeerSignature, not the same height, continue!")
 			continue
