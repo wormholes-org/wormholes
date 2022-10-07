@@ -33,12 +33,20 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 
 	if c.proofStatePool.proofs[height] == nil {
 		ps := newProofState(validator, validator)
+		ps.receiveValidatorsSum = big.NewInt(0)
+		ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, c.stakers.StakeBalance(validator))
+		ps.onlineValidator = make(OnlineValidator)
+		ps.onlineValidator.Add(validator)
+		ps.height = new(big.Int).Set(height)
+
+		if c.self != validator {
+			// add my own amount
+			ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, c.stakers.StakeBalance(c.self))
+			ps.onlineValidator.Add(c.self)
+		}
+
 		c.proofStatePool.proofs[height] = ps
-		c.receiveValidatorsSum = big.NewInt(0)
-		c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
-		c.validators = make([]common.Address, 0)
-		c.validators = append(c.validators, validator)
-		c.signatureResultCh <- c.receiveValidatorsSum
+		c.signatureResultCh <- height
 		return nil
 	}
 
@@ -46,10 +54,9 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	if curProofs.onlineValidator.Has(validator) {
 		return errors.New("GatherOtherPeerSignature: validator exist")
 	}
-	curProofs.onlineValidator.Add(validator)
-	c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
+	c.proofStatePool.proofs[height].onlineValidator.Add(validator)
+	c.proofStatePool.proofs[height].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height].receiveValidatorsSum, c.stakers.StakeBalance(validator))
 	//log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
-	c.validators = append(c.validators, validator)
-	c.signatureResultCh <- c.receiveValidatorsSum
+	c.signatureResultCh <- height
 	return nil
 }

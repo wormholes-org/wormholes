@@ -3,7 +3,6 @@ package miner
 import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
-	"strconv"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -46,8 +45,7 @@ func (psp *ProofStatePool) Put(height *big.Int, proposer, validator common.Addre
 				return false
 			}
 			p.onlineValidator.Add(validator)
-			num, _ := strconv.Atoi(vl.StakeBalance(validator).String())
-			p.receiveValidatorsSum += num
+			p.receiveValidatorsSum = new(big.Int).Add(p.receiveValidatorsSum, vl.StakeBalance(validator))
 			p.count++
 			return true
 		}
@@ -55,8 +53,7 @@ func (psp *ProofStatePool) Put(height *big.Int, proposer, validator common.Addre
 	// No proof data exists for this height
 	ps := newProofState(proposer, validator)
 	psp.proofs[height] = ps
-	num, _ := strconv.Atoi(vl.StakeBalance(validator).String())
-	ps.receiveValidatorsSum += num
+	ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, vl.StakeBalance(validator))
 	ps.count++
 	return true
 }
@@ -74,7 +71,8 @@ func (psp *ProofStatePool) GetProofCountByHeight(height *big.Int) int {
 
 type ProofState struct {
 	count                int // Represents the number of proofs collected
-	receiveValidatorsSum int
+	height               *big.Int
+	receiveValidatorsSum *big.Int
 	proposer             common.Address
 	onlineValidator      OnlineValidator // The highly online validator of this block & reward addr
 }
@@ -98,4 +96,12 @@ func (ov OnlineValidator) Add(addr common.Address) {
 
 func (ov OnlineValidator) Delete(addr common.Address) {
 	delete(ov, addr)
+}
+
+func (ov OnlineValidator) GetAllAddress() []common.Address {
+	var addrs []common.Address
+	for address, _ := range ov {
+		addrs = append(addrs, address)
+	}
+	return addrs
 }

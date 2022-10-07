@@ -13,8 +13,8 @@ func TestDecodeMsg(t *testing.T) {
 	q := &OnlineZkQuestion{Height: big.NewInt(100)}
 	enq, _ := Encode(q)
 	msg := &Msg{
-		Code: MsgOnlineQuestion,
-		Msg:  enq,
+		//Code: MsgOnlineQuestion,
+		Msg: enq,
 	}
 	enqMsg, _ := Encode(msg)
 	var msg2 Msg

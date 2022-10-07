@@ -488,11 +488,12 @@ func (w *worker) emptyLoop() {
 		case rs := <-w.cerytify.signatureResultCh:
 			{
 				//log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1, "w.cacheHeight", w.cacheHeight, "w.cerytify.msgHeight", w.cerytify.msgHeight)
-				if rs.Cmp(w.targetSize()) > 0 {
+				if w.cerytify.proofStatePool.proofs[rs].receiveValidatorsSum.Cmp(w.targetSize()) >= 0 {
 					//log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-					if w.isEmpty && w.cacheHeight.Cmp(w.cerytify.msgHeight) == 0 {
+					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						//log.Info("start produce empty block", "time", time.Now())
-						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators); err != nil {
+						validators := w.cerytify.proofStatePool.proofs[rs].onlineValidator.GetAllAddress()
+						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
 							log.Error("commitEmptyWork error", "err", err)
 						} else {
 							w.isEmpty = false

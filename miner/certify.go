@@ -20,22 +20,22 @@ const (
 )
 
 type Certify struct {
-	mu                   sync.Mutex
-	self                 common.Address
-	eth                  Backend
-	otherMessages        *lru.ARCCache // the cache of peer's messages
-	selfMessages         *lru.ARCCache // the cache of self messages
-	eventMux             *event.TypeMux
-	events               *event.TypeMuxSubscription
-	stakers              *types.ValidatorList // all validator
-	signatureResultCh    chan *big.Int
-	miner                Handler // Apply some of the capabilities of the parent class
-	lock                 sync.Mutex
-	receiveValidatorsSum *big.Int
-	validators           []common.Address
-	validatorsHeight     []string
-	proofStatePool       *ProofStatePool // Currently highly collected validators that have sent online proofs
-	msgHeight            *big.Int
+	mu                sync.Mutex
+	self              common.Address
+	eth               Backend
+	otherMessages     *lru.ARCCache // the cache of peer's messages
+	selfMessages      *lru.ARCCache // the cache of self messages
+	eventMux          *event.TypeMux
+	events            *event.TypeMuxSubscription
+	stakers           *types.ValidatorList // all validator
+	signatureResultCh chan *big.Int
+	miner             Handler // Apply some of the capabilities of the parent class
+	lock              sync.Mutex
+	//receiveValidatorsSum *big.Int
+	//validators           []common.Address
+	validatorsHeight []string
+	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
+	//msgHeight        *big.Int
 }
 
 func (c *Certify) Start() {
@@ -51,18 +51,18 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 	otherMsgs, _ := lru.NewARC(remotePeers)
 	selfMsgs, _ := lru.NewARC(storeMsgs)
 	certify := &Certify{
-		self:                 self,
-		eth:                  eth,
-		eventMux:             new(event.TypeMux),
-		otherMessages:        otherMsgs,
-		selfMessages:         selfMsgs,
-		miner:                handler,
-		signatureResultCh:    make(chan *big.Int),
-		receiveValidatorsSum: big.NewInt(0),
-		validators:           make([]common.Address, 0),
-		validatorsHeight:     make([]string, 0),
-		proofStatePool:       NewProofStatePool(),
-		msgHeight:            new(big.Int),
+		self:              self,
+		eth:               eth,
+		eventMux:          new(event.TypeMux),
+		otherMessages:     otherMsgs,
+		selfMessages:      selfMsgs,
+		miner:             handler,
+		signatureResultCh: make(chan *big.Int),
+		//receiveValidatorsSum: big.NewInt(0),
+		//validators:           make([]common.Address, 0),
+		validatorsHeight: make([]string, 0),
+		proofStatePool:   NewProofStatePool(),
+		//msgHeight:        new(big.Int),
 	}
 	return certify
 }
@@ -226,7 +226,7 @@ func (c *Certify) handleEvents() {
 					break
 				}
 
-				c.msgHeight = signature.Height
+				//c.msgHeight = signature.Height
 				log.Info("signature", "Height", signature.Height)
 
 				if msg.Code == SendSignMsg {
