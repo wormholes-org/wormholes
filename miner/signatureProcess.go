@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
@@ -19,34 +20,30 @@ func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 		Msg:  encQues,
 	})
 }
+
 func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
+	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) > 0 {
+		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
+	}
+
 	c.proofStatePool.ClearPrev(c.miner.GetWorker().chain.CurrentHeader().Number)
 
-	for k, p := range c.proofStatePool.proofs {
-		if k.Cmp(height) == 0 {
-			// Proof data exists for this height
-			if p.onlineValidator.Has(validator) {
-				return nil
-			}
-			p.onlineValidator.Add(validator)
-			c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
-			//log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
-			c.validators = append(c.validators, validator)
-			c.signatureResultCh <- c.receiveValidatorsSum
-			return nil
-		}
+	if c.proofStatePool.proofs[height] == nil {
+		ps := newProofState(validator, validator)
+		c.proofStatePool.proofs[height] = ps
 	}
-	// No proof data exists for this height
-	ps := newProofState(validator, validator)
-	c.proofStatePool.proofs[height] = ps
+
+	curProofs := c.proofStatePool.proofs[height]
+	if curProofs.onlineValidator.Has(validator) {
+		return errors.New("GatherOtherPeerSignature: validator exist")
+	}
+	curProofs.onlineValidator.Add(validator)
 	c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
 	//log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
 	c.validators = append(c.validators, validator)
-
-	//log.Info("c.validators", "c.validators", c.validators, "c.receiveValidatorsSum", c.receiveValidatorsSum)
 	c.signatureResultCh <- c.receiveValidatorsSum
 	return nil
 }
