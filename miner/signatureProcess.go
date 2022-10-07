@@ -25,7 +25,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) > 0 {
+	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) >= 0 {
 		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
 	}
 
