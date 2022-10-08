@@ -448,11 +448,11 @@ func (w *worker) emptyLoop() {
 					//log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
-					//log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
-				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 				//w.stop()
 
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
@@ -487,11 +487,11 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				//log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1, "w.cacheHeight", w.cacheHeight, "w.cerytify.msgHeight", w.cerytify.msgHeight)
+				log.Info("signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "header.Number", w.current.header.Number.Uint64()+1, "w.cacheHeight", w.cacheHeight, "w.cerytify.msgHeight", rs)
 				if w.cerytify.proofStatePool.proofs[rs].receiveValidatorsSum.Cmp(w.targetSize()) >= 0 {
-					//log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
-						//log.Info("start produce empty block", "time", time.Now())
+						log.Info("start produce empty block", "time", time.Now())
 						validators := w.cerytify.proofStatePool.proofs[rs].onlineValidator.GetAllAddress()
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
 							log.Error("commitEmptyWork error", "err", err)

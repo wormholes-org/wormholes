@@ -56,7 +56,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	}
 	c.proofStatePool.proofs[height].onlineValidator.Add(validator)
 	c.proofStatePool.proofs[height].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height].receiveValidatorsSum, c.stakers.StakeBalance(validator))
-	//log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
+	log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.proofStatePool.proofs[height].receiveValidatorsSum, "heigh", height)
 	c.signatureResultCh <- height
 	return nil
 }
