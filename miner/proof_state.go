@@ -10,11 +10,11 @@ import (
 
 type ProofStatePool struct {
 	mu     sync.Mutex
-	proofs map[*big.Int]*ProofState // Online attestation status of current altitude
+	proofs map[uint64]*ProofState // Online attestation status of current altitude
 }
 
 func NewProofStatePool() *ProofStatePool {
-	return &ProofStatePool{proofs: make(map[*big.Int]*ProofState)}
+	return &ProofStatePool{proofs: make(map[uint64]*ProofState)}
 }
 
 // ClearPrev Clear all proof data before this altitude
@@ -22,10 +22,10 @@ func (p *ProofStatePool) ClearPrev(height *big.Int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	var removeHeight []*big.Int
+	var removeHeight []uint64
 
 	for k := range p.proofs {
-		if k.Cmp(height) <= 0 {
+		if k <= height.Uint64() {
 			removeHeight = append(removeHeight, k)
 		}
 	}
@@ -39,7 +39,7 @@ func (psp *ProofStatePool) Put(height *big.Int, proposer, validator common.Addre
 	psp.mu.Lock()
 	defer psp.mu.Unlock()
 	for k, p := range psp.proofs {
-		if k.Cmp(height) == 0 {
+		if k == height.Uint64() {
 			// Proof data exists for this height
 			if p.onlineValidator.Has(validator) {
 				return false
@@ -52,7 +52,7 @@ func (psp *ProofStatePool) Put(height *big.Int, proposer, validator common.Addre
 	}
 	// No proof data exists for this height
 	ps := newProofState(proposer, validator)
-	psp.proofs[height] = ps
+	psp.proofs[height.Uint64()] = ps
 	ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, vl.StakeBalance(validator))
 	ps.count++
 	return true
@@ -62,7 +62,7 @@ func (psp *ProofStatePool) GetProofCountByHeight(height *big.Int) int {
 	psp.mu.Lock()
 	defer psp.mu.Unlock()
 	for h, v := range psp.proofs {
-		if h.Cmp(height) == 0 {
+		if h == height.Uint64() {
 			return v.count
 		}
 	}

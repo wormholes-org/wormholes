@@ -38,7 +38,19 @@ func TestProofStatePool(t *testing.T) {
 
 	height := big.NewInt(1)
 	ps := newProofState(common.HexToAddress("0x1000000000000000000000000000000000000000"), common.HexToAddress("0x1000000000000000000000000000000000000000"))
-	proofStatePool.proofs[height] = ps
-	t.Log(proofStatePool.proofs[height] == nil)
-	
+	proofStatePool.proofs[height.Uint64()] = ps
+	t.Log(proofStatePool.proofs[height.Uint64()] == nil)
+	height2 := big.NewInt(1)
+	ps2 := newProofState(common.HexToAddress("0x1000000000000000000000000000000000000001"), common.HexToAddress("0x1000000000000000000000000000000000000001"))
+	proofStatePool.proofs[height2.Uint64()] = ps2
+	t.Log(proofStatePool.proofs[height2.Uint64()] == nil)
+
+	t.Log(proofStatePool.proofs[height2.Uint64()] == proofStatePool.proofs[height.Uint64()])
+
+	//proofStatePool.ClearPrev(height)
+
+	//for index := range proofStatePool.proofs {
+	//	t.Log("index=", index)
+	//}
+
 }
