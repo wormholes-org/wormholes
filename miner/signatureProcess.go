@@ -38,11 +38,11 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 
 	log.Info("Certify.GatherOtherPeerSignature", "c.miner.GetWorker().chain.CurrentHeader().Number", c.miner.GetWorker().chain.CurrentHeader().Number,
 		"height", height, "c.proofStatePool.proofs[height] == nil 1", c.proofStatePool.proofs[height] == nil)
-	c.proofStatePool.ClearPrev(c.miner.GetWorker().chain.CurrentHeader().Number)
+	//c.proofStatePool.ClearPrev(c.miner.GetWorker().chain.CurrentHeader().Number)
 	log.Info("Certify.GatherOtherPeerSignature", "c.miner.GetWorker().chain.CurrentHeader().Number", c.miner.GetWorker().chain.CurrentHeader().Number,
 		"height", height, "c.proofStatePool.proofs[height] == nil 2", c.proofStatePool.proofs[height] == nil)
 
-	if c.proofStatePool.proofs[height] == nil {
+	if _, ok := c.proofStatePool.proofs[height]; !ok {
 		ps := newProofState(validator, validator)
 		ps.receiveValidatorsSum = big.NewInt(0)
 		ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, c.stakers.StakeBalance(validator))

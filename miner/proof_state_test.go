@@ -2,6 +2,7 @@ package miner
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"math/big"
 	"testing"
 )
 
@@ -30,4 +31,14 @@ func TestOnlineValidator_GetAllAddress(t *testing.T) {
 	for _, addr := range addrs {
 		t.Log(addr.Hex())
 	}
+}
+
+func TestProofStatePool(t *testing.T) {
+	proofStatePool := NewProofStatePool()
+
+	height := big.NewInt(1)
+	ps := newProofState(common.HexToAddress("0x1000000000000000000000000000000000000000"), common.HexToAddress("0x1000000000000000000000000000000000000000"))
+	proofStatePool.proofs[height] = ps
+	t.Log(proofStatePool.proofs[height] == nil)
+	
 }
