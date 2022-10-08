@@ -218,7 +218,11 @@ func (c *Certify) handleEvents() {
 					break
 				}
 				var signature *SignatureData
-				msg.Decode(&signature)
+				err := msg.Decode(&signature)
+				if err != nil {
+					log.Error("Certify.handleEvents", "msg.Decode error", err)
+					break
+				}
 
 				encQues, err := Encode(signature)
 				if err != nil {
