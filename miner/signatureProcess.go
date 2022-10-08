@@ -36,7 +36,11 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
 	}
 
+	log.Info("Certify.GatherOtherPeerSignature", "c.miner.GetWorker().chain.CurrentHeader().Number", c.miner.GetWorker().chain.CurrentHeader().Number,
+		"height", height, "c.proofStatePool.proofs[height] == nil 1", c.proofStatePool.proofs[height] == nil)
 	c.proofStatePool.ClearPrev(c.miner.GetWorker().chain.CurrentHeader().Number)
+	log.Info("Certify.GatherOtherPeerSignature", "c.miner.GetWorker().chain.CurrentHeader().Number", c.miner.GetWorker().chain.CurrentHeader().Number,
+		"height", height, "c.proofStatePool.proofs[height] == nil 2", c.proofStatePool.proofs[height] == nil)
 
 	if c.proofStatePool.proofs[height] == nil {
 		ps := newProofState(validator, validator)
