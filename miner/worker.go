@@ -487,14 +487,14 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				log.Info("signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "header.Number", w.current.header.Number.Uint64()+1, "w.cacheHeight", w.cacheHeight, "w.cerytify.msgHeight", rs)
+				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				if w.cerytify.proofStatePool.proofs[rs].receiveValidatorsSum.Cmp(w.targetSize()) >= 0 {
-					log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
-						log.Info("start produce empty block", "time", time.Now())
+						log.Info("emptyLoop.start produce empty block", "time", time.Now())
 						validators := w.cerytify.proofStatePool.proofs[rs].onlineValidator.GetAllAddress()
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
-							log.Error("commitEmptyWork error", "err", err)
+							log.Error("emptyLoop.commitEmptyWork error", "err", err)
 						} else {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()

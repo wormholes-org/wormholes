@@ -5,11 +5,16 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
+	"time"
 )
 
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 	log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
-	ques := &SignatureData{Address: addr, Height: height}
+	ques := &SignatureData{
+		Address:   addr,
+		Height:    height,
+		Timestamp: uint64(time.Now().Unix()),
+	}
 	encQues, err := Encode(ques)
 	if err != nil {
 		log.Error("Failed to encode", "subject", err)
@@ -24,6 +29,8 @@ func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+
+	log.Info("Certify.GatherOtherPeerSignature >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
 	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) >= 0 {
 		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
@@ -47,6 +54,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 
 		c.proofStatePool.proofs[height] = ps
 		c.signatureResultCh <- height
+		log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 1")
 		return nil
 	}
 
@@ -56,7 +64,8 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	}
 	c.proofStatePool.proofs[height].onlineValidator.Add(validator)
 	c.proofStatePool.proofs[height].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height].receiveValidatorsSum, c.stakers.StakeBalance(validator))
-	log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.proofStatePool.proofs[height].receiveValidatorsSum, "heigh", height)
+	log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height].receiveValidatorsSum, "heigh", height)
 	c.signatureResultCh <- height
+	log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
 	return nil
 }

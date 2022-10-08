@@ -56,8 +56,9 @@ type OnlineZkQuestion struct {
 }
 
 type SignatureData struct {
-	Address common.Address
-	Height  *big.Int
+	Address   common.Address
+	Height    *big.Int
+	Timestamp uint64
 }
 
 type OnlineZkProof struct {
