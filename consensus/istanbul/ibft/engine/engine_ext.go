@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -11,12 +12,14 @@ func DecodeMessages(data []byte) ([]*ibfttypes.Message, error) {
 	msg := new(ibfttypes.Message)
 	err := rlp.DecodeBytes(data, &msg)
 	if err != nil {
+		log.Info("rlp code:", string(data))
 		return nil, err
 	}
 
 	var messages []*ibfttypes.Message
 	err = msg.DecodeCommitSeals(&messages)
 	if err != nil {
+		log
 		return nil, err
 	}
 	return messages, nil
