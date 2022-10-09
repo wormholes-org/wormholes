@@ -183,10 +183,9 @@ func (c *core) commit() {
 			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
 			copy(committedSeals[i][:], v.CommittedSeal[:])
 		}
-		commits := c.current.Prepares.Values()
-		encodedCommitSeals, errSeals := ibfttypes.Encode(commits)
+		encodedCommitSeals, errSeals := ibfttypes.Encode(c.currentRewardlist)
 		if errSeals != nil {
-			log.Error("core.commit Failed to encode", "commitseals", commits)
+			log.Error("core.commit Failed to encode currentRewardlist", "err", errSeals)
 			return
 		}
 		committedSeals[len(committedSeals)-1] = encodedCommitSeals

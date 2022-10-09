@@ -96,7 +96,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 			log.Error("ibftConsensus: handleCommit DecodecommitSeals  err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
 			return istanbulcommon.ErrFailedDecodeCommit
 		}
-		proposerCommited = true
+		c.currentRewardlist = commitseals
 	}
 
 	log.Info("ibftConsensus: handleCommit info", "no", commit.View.Sequence,
