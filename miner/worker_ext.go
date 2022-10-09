@@ -2,6 +2,7 @@ package miner
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func (w *worker) prepre0Loop() {
@@ -15,4 +16,8 @@ func (w *worker) prepre0Loop() {
 			//w.snapshotState.SnapshotCommits()
 		}
 	}
+}
+
+func (w *worker) RewardOnline(validators []common.Address) {
+	w.current.state.RewardOnline(validators, w.current.header.Number)
 }
