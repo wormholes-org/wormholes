@@ -41,6 +41,7 @@ type Message struct {
 	Address       common.Address
 	Signature     []byte
 	CommittedSeal []byte
+	Rewardlist    []byte
 }
 
 // ==============================================
@@ -49,7 +50,7 @@ type Message struct {
 
 // EncodeRLP serializes m into the Ethereum RLP format.
 func (m *Message) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal})
+	return rlp.Encode(w, []interface{}{m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.Rewardlist})
 }
 
 // DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
@@ -60,12 +61,13 @@ func (m *Message) DecodeRLP(s *rlp.Stream) error {
 		Address       common.Address
 		Signature     []byte
 		CommittedSeal []byte
+		Rewardlist    []byte
 	}
 
 	if err := s.Decode(&msg); err != nil {
 		return err
 	}
-	m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal = msg.Code, msg.Msg, msg.Address, msg.Signature, msg.CommittedSeal
+	m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.Rewardlist = msg.Code, msg.Msg, msg.Address, msg.Signature, msg.CommittedSeal, msg.Rewardlist
 	return nil
 }
 
@@ -110,6 +112,7 @@ func (m *Message) PayloadNoSig() ([]byte, error) {
 		Address:       m.Address,
 		Signature:     []byte{},
 		CommittedSeal: m.CommittedSeal,
+		Rewardlist:    m.Rewardlist,
 	})
 }
 
@@ -118,8 +121,8 @@ func (m *Message) Decode(val interface{}) error {
 }
 
 //Get out the reward list
-func (m *Message) DecodeCommitSeals(val interface{}) error {
-	return rlp.DecodeBytes(m.CommittedSeal, val)
+func (m *Message) DecodeRewardlist(val interface{}) error {
+	return rlp.DecodeBytes(m.Rewardlist, val)
 }
 
 func (m *Message) String() string {
