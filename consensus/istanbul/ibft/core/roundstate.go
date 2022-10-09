@@ -60,6 +60,12 @@ type roundState struct {
 	hasBadProposal func(hash common.Hash) bool
 }
 
+func (s *roundState) GetPrepareSize() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.Prepares.Size()
+}
+
 func (s *roundState) GetPrepareOrCommitSize() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
