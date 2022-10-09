@@ -88,6 +88,7 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 	// and we are in earlier state before Prepared state.
 	if (c.current.GetPrepareSize() >= c.QuorumSize()) && c.state.Cmp(ibfttypes.StatePrepared) < 0 {
 		c.current.LockHash()
+		c.currentRewardlist = c.current.GetPrepareValues()
 		c.setState(ibfttypes.StatePrepared)
 		log.Info("ibftConsensus: handlePrepare sendCommit",
 			"no", prepare.View.Sequence,

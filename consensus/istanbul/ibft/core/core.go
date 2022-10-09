@@ -83,8 +83,9 @@ type core struct {
 	backlogs   map[common.Address]*prque.Prque
 	backlogsMu *sync.Mutex
 
-	current   *roundState
-	handlerWg *sync.WaitGroup
+	current           *roundState
+	handlerWg         *sync.WaitGroup
+	currentRewardlist []*ibfttypes.Message
 
 	roundChangeSet   *roundChangeSet
 	roundChangeTimer *time.Timer

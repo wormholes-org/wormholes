@@ -54,11 +54,11 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 	}
 
 	if c.IsProposer() {
-		commits := c.current.GetPrepareValues()
-		if len(commits) > 7 {
-			commits = commits[:7]
-		} else if len(commits) < 7 {
-			logger.Error("broadcastCommit Failed: commits < 7", "subject", sub)
+		commits := c.currentRewardlist
+		if len(commits) > c.QuorumSize() {
+			commits = commits[:c.QuorumSize()]
+		} else if len(commits) < c.QuorumSize() {
+			logger.Error("broadcastCommit Failed: commits < 7", "subject", sub, "len", len(commits))
 			return
 		}
 		encodedCommitSeals, errSeals := ibfttypes.Encode(commits)
