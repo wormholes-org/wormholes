@@ -54,7 +54,7 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 	}
 
 	if c.IsProposer() {
-		commits := c.current.Prepares.Values()
+		commits := c.current.GetPrepareValues()
 		if len(commits) > 7 {
 			commits = commits[:7]
 		} else if len(commits) < 7 {

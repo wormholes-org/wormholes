@@ -17,6 +17,7 @@
 package core
 
 import (
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"io"
 	"math/big"
 	"sync"
@@ -64,6 +65,12 @@ func (s *roundState) GetPrepareSize() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.Prepares.Size()
+}
+
+func (s *roundState) GetPrepareValues() (result []*ibfttypes.Message) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.Prepares.Values()
 }
 
 func (s *roundState) GetPrepareOrCommitSize() int {
