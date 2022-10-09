@@ -5,15 +5,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
-	"time"
 )
 
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 	log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
 	ques := &SignatureData{
-		Address:   addr,
-		Height:    height,
-		Timestamp: uint64(time.Now().Unix()),
+		Address: addr,
+		Height:  height,
+		//Timestamp: uint64(time.Now().Unix()),
 	}
 	encQues, err := Encode(ques)
 	if err != nil {
