@@ -545,7 +545,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 	}
 
-	// 如果是NFT碎片兑换交易且成功，则不收取gasfee
+	// if s-nft redeem success，gasfee free
 	//if st.IsWormholesNFTTx() {
 	//	txType, _ := st.GetWormholesType()
 	//	if txType == 6 && vmerr == nil {
@@ -553,7 +553,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	//	} else {
 	//		st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 	//	}
-	//	// liveness交易不消耗gasfee
+	//	// liveness tx gasfee free
 	//	//if txType == 30{
 	//	//	st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 	//	//}

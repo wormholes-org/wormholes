@@ -20,22 +20,22 @@ const (
 )
 
 type Certify struct {
-	mu                   sync.Mutex
-	self                 common.Address
-	eth                  Backend
-	otherMessages        *lru.ARCCache // the cache of peer's messages
-	selfMessages         *lru.ARCCache // the cache of self messages
-	eventMux             *event.TypeMux
-	events               *event.TypeMuxSubscription
-	stakers              *types.ValidatorList // all validator
-	signatureResultCh    chan *big.Int
-	miner                Handler // Apply some of the capabilities of the parent class
-	lock                 sync.Mutex
-	receiveValidatorsSum *big.Int
-	validators           []common.Address
-	validatorsHeight     []string
-	proofStatePool       *ProofStatePool // Currently highly collected validators that have sent online proofs
-	msgHeight            *big.Int
+	mu                sync.Mutex
+	self              common.Address
+	eth               Backend
+	otherMessages     *lru.ARCCache // the cache of peer's messages
+	selfMessages      *lru.ARCCache // the cache of self messages
+	eventMux          *event.TypeMux
+	events            *event.TypeMuxSubscription
+	stakers           *types.ValidatorList // all validator
+	signatureResultCh chan *big.Int
+	miner             Handler // Apply some of the capabilities of the parent class
+	lock              sync.Mutex
+	//receiveValidatorsSum *big.Int
+	//validators           []common.Address
+	validatorsHeight []string
+	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
+	//msgHeight        *big.Int
 }
 
 func (c *Certify) Start() {
@@ -51,18 +51,18 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 	otherMsgs, _ := lru.NewARC(remotePeers)
 	selfMsgs, _ := lru.NewARC(storeMsgs)
 	certify := &Certify{
-		self:                 self,
-		eth:                  eth,
-		eventMux:             new(event.TypeMux),
-		otherMessages:        otherMsgs,
-		selfMessages:         selfMsgs,
-		miner:                handler,
-		signatureResultCh:    make(chan *big.Int),
-		receiveValidatorsSum: big.NewInt(0),
-		validators:           make([]common.Address, 0),
-		validatorsHeight:     make([]string, 0),
-		proofStatePool:       NewProofStatePool(),
-		msgHeight:            new(big.Int),
+		self:              self,
+		eth:               eth,
+		eventMux:          new(event.TypeMux),
+		otherMessages:     otherMsgs,
+		selfMessages:      selfMsgs,
+		miner:             handler,
+		signatureResultCh: make(chan *big.Int),
+		//receiveValidatorsSum: big.NewInt(0),
+		//validators:           make([]common.Address, 0),
+		validatorsHeight: make([]string, 0),
+		proofStatePool:   NewProofStatePool(),
+		//msgHeight:        new(big.Int),
 	}
 	return certify
 }
@@ -206,36 +206,37 @@ func (c *Certify) handleEvents() {
 		select {
 		case event, ok := <-c.events.Chan():
 			if !ok {
-				return
+				continue
 			}
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
 			case MessageEvent:
-				log.Info("Certify handle events")
+				//log.Info("Certify handle events")
 				msg := new(Msg)
 				if err := msg.FromPayload(ev.Payload); err != nil {
 					log.Error("Certify Failed to decode message from payload", "err", err)
+					break
 				}
 				var signature *SignatureData
-				msg.Decode(&signature)
+				err := msg.Decode(&signature)
+				if err != nil {
+					log.Error("Certify.handleEvents", "msg.Decode error", err)
+					break
+				}
 
 				encQues, err := Encode(signature)
 				if err != nil {
 					log.Error("Failed to encode", "subject", err)
-					return
+					break
 				}
 
-				c.msgHeight = signature.Height
-				log.Info("signature", "Height", signature.Height)
-				//if len(c.stakers.Validators) > 0 && c.stakers != nil {
-				//	flag := c.stakers.GetByAddress(msg.Address)
-				//	if flag == -1 {
-				//		log.Error("Invalid address in message", "msg", msg)
-				//		return
-				//	}
-				//}
+				//c.msgHeight = signature.Height
+				//log.Info("Certify.handleEvents", "msg.Code", msg.Code, "SendSignMsg", SendSignMsg, "Height", signature.Height)
+
 				if msg.Code == SendSignMsg {
-					log.Info("SendSignMsg", "SendSignMsg", c.stakers)
+					//log.Info("Certify.handleEvents", "SendSignMsg", SendSignMsg, "msg.Address", msg.Address.Hex(),
+					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
+					//	"c.stakers number", len(c.stakers.Validators))
 					//If the GatherOtherPeerSignature is ok, gossip message directly
 					if err := c.GatherOtherPeerSignature(msg.Address, signature.Height, encQues); err == nil {
 						c.rebroadcast(c.Address(), ev.Payload)

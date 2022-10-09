@@ -2786,7 +2786,7 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	}
 	elevenValidator := new(types.ValidatorList)
 	for _, addr := range validators {
-		//todo proxy 全部空值
+		//todo proxy all nil
 		proxy, exsist := validatorList.GetProxy(addr)
 
 		if exsist {

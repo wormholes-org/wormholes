@@ -52,12 +52,13 @@ func (m *Msg) Decode(val interface{}) error {
 }
 
 type OnlineZkQuestion struct {
-	Height *big.Int // 区块高度
+	Height *big.Int // block height
 }
 
 type SignatureData struct {
-	Address common.Address
-	Height  *big.Int
+	Address   common.Address
+	Height    *big.Int
+	Timestamp uint64
 }
 
 type OnlineZkProof struct {

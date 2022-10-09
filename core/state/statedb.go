@@ -2599,9 +2599,9 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 //- cancel pledged token
 //````
 //{
-//from:持有者
+//from: holder
 //to:0xffff...ffff
-//balance:????撤销多少ERB
+//balance:???? amount of recall ERB
 //data:{
 //version:0
 //type:7

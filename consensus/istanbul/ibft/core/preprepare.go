@@ -25,6 +25,11 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"strconv"
+	"time"
+
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
@@ -206,33 +211,34 @@ func (c *core) handlePreprepareStep2(msg *ibfttypes.Message, src istanbul.Valida
 			"err", err.Error(),
 			"hash", preprepare.Proposal.Hash().Hex(),
 			"self", c.address.Hex())
-		if err == istanbulcommon.ErrOldMessage {
-			// Get validator set for the given proposal
-			if block, ok := preprepare.Proposal.(*types.Block); ok {
-				if block.Header() == nil {
-					log.Error("ibftConsensus: header is nil")
-					return errors.New("ibftConsensus: header is nil")
-				}
-			} else {
-				log.Error("ibftConsensus: block not ok")
-				return errors.New("ibftConsensus: block not ok")
-			}
-			valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
-			previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
-			valSet.CalcProposer(previousProposer, preprepare.View.Round.Uint64())
-			// Broadcast COMMIT if it is an existing block
-			// 1. The proposer needs to be a proposer matches the given (Sequence + Round)
-			// 2. The given block must exist
-			if valSet.IsProposer(src.Address()) && c.backend.HasPropsal(preprepare.Proposal.Hash(), preprepare.Proposal.Number()) {
-				log.Info("ibftConsensus: handlePreprepare sendCommitForOldBlock",
-					"no", preprepare.Proposal.Number().String(),
-					"round", preprepare.View.Round.String(),
-					"hash", preprepare.Proposal.Hash().Hex(),
-					"self", c.address.Hex())
-				c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal.Hash())
-				return nil
-			}
-		}
+		// remove this part on 2022-1002
+		//if err == istanbulcommon.ErrOldMessage {
+		//	// Get validator set for the given proposal
+		//	if block, ok := preprepare.Proposal.(*types.Block); ok {
+		//		if block.Header() == nil {
+		//			log.Error("ibftConsensus: header is nil")
+		//			return errors.New("ibftConsensus: header is nil")
+		//		}
+		//	} else {
+		//		log.Error("ibftConsensus: block not ok")
+		//		return errors.New("ibftConsensus: block not ok")
+		//	}
+		//	valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
+		//	previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
+		//	valSet.CalcProposer(previousProposer, preprepare.View.Round.Uint64())
+		//	// Broadcast COMMIT if it is an existing block
+		//	// 1. The proposer needs to be a proposer matches the given (Sequence + Round)
+		//	// 2. The given block must exist
+		//	if valSet.IsProposer(src.Address()) && c.backend.HasPropsal(preprepare.Proposal.Hash(), preprepare.Proposal.Number()) {
+		//		log.Info("ibftConsensus: handlePreprepare sendCommitForOldBlock",
+		//			"no", preprepare.Proposal.Number().String(),
+		//			"round", preprepare.View.Round.String(),
+		//			"hash", preprepare.Proposal.Hash().Hex(),
+		//			"self", c.address.Hex())
+		//		c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal.Hash())
+		//		return nil
+		//	}
+		//}
 		return err
 	}
 

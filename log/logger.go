@@ -274,6 +274,6 @@ func getCallerInfo() string {
 		return "runtime.Caller() failed"
 	}
 	funcName := path.Base(runtime.FuncForPC(pc).Name())
-	fileName := path.Base(file) // Base函数返回路径的最后一个元素
+	fileName := path.Base(file) // Base function return last element of path
 	return fmt.Sprintf("%s %s ", fileName, funcName)
 }
