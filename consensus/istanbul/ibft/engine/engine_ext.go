@@ -27,10 +27,14 @@ func GetValidatorRewardList(header *types.Header) ([]common.Address, error) {
 	if err != nil {
 		return nil, err
 	}
-	msgs, err := DecodeMessages(istanbulExtra.RewardList)
+	messages, err := DecodeMessages(istanbulExtra.RewardList)
 	//Decode Message
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	var rwdLst []common.Address
+	for _, v := range messages {
+		rwdLst = append(rwdLst, v.Address)
+	}
+	return rwdLst, nil
 }
