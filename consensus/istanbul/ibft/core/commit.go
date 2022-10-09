@@ -67,9 +67,9 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 			return
 		}
 		c.broadcast(&ibfttypes.Message{
-			Code:          ibfttypes.MsgCommit,
-			Msg:           encodedSubject,
-			CommittedSeal: encodedCommitSeals,
+			Code:       ibfttypes.MsgCommit,
+			Msg:        encodedSubject,
+			Rewardlist: encodedCommitSeals,
 		})
 	} else {
 		c.broadcast(&ibfttypes.Message{
