@@ -52,19 +52,43 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
-	c.broadcast(&ibfttypes.Message{
-		Code: ibfttypes.MsgCommit,
-		Msg:  encodedSubject,
-	})
+
+	if c.IsProposer() {
+		commits := c.current.Prepares.Values()
+		encodedCommitSeals, errSeals := ibfttypes.Encode(commits)
+		if errSeals != nil {
+			logger.Error("Failed to encode", "commitseals", commits)
+			return
+		}
+		c.broadcast(&ibfttypes.Message{
+			Code:          ibfttypes.MsgCommit,
+			Msg:           encodedSubject,
+			CommittedSeal: encodedCommitSeals,
+		})
+	} else {
+		c.broadcast(&ibfttypes.Message{
+			Code: ibfttypes.MsgCommit,
+			Msg:  encodedSubject,
+		})
+	}
 }
 
 func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) error {
 	// Decode COMMIT message
 	var commit *istanbul.Subject
 	err := msg.Decode(&commit)
+
 	if err != nil {
 		log.Error("ibftConsensus: handleCommit Decodecommit  err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
 		return istanbulcommon.ErrFailedDecodeCommit
+	}
+	var commitseals []*ibfttypes.Message
+	if c.valSet.IsProposer(src.Address()) {
+		err = msg.DecodeCommitSeals(&commitseals)
+		if err != nil {
+			log.Error("ibftConsensus: handleCommit DecodecommitSeals  err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+			return istanbulcommon.ErrFailedDecodeCommit
+		}
 	}
 
 	log.Info("ibftConsensus: handleCommit info", "no", commit.View.Sequence,
@@ -90,11 +114,20 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 
 	c.acceptCommit(msg, src)
 	log.Info("ibftConsensus: handleCommit baseinfo", "no", commit.View.Sequence.Uint64(), "round", commit.View.Round, "from", src.Address().Hex(), "hash", commit.Digest.Hex(), "self", c.address.Hex())
+
+	proposerCommited := false
+	for _, v := range c.current.Commits.Values() {
+		if c.valSet.IsProposer(v.Address) {
+			proposerCommited = true
+			break
+		}
+	}
+
 	// Commit the proposal once we have enough COMMIT messages and we are not in the Committed state.
 	//
 	// If we already have a proposal, we may have chance to speed up the consensus process
 	// by committing the proposal without PREPARE messages.
-	if c.current.Commits.Size() >= c.QuorumSize() && c.state.Cmp(ibfttypes.StateCommitted) < 0 {
+	if c.current.Commits.Size() >= c.QuorumSize() && c.state.Cmp(ibfttypes.StateCommitted) < 0 && proposerCommited {
 		// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
 		log.Info("ibftConsensus: handleCommit commit",
 			"no", commit.View.Sequence,

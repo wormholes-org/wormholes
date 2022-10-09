@@ -177,11 +177,18 @@ func (c *core) commit() {
 
 	proposal := c.current.Proposal()
 	if proposal != nil {
-		committedSeals := make([][]byte, c.current.Commits.Size())
+		committedSeals := make([][]byte, c.current.Commits.Size()+1)
 		for i, v := range c.current.Commits.Values() {
 			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
 			copy(committedSeals[i][:], v.CommittedSeal[:])
 		}
+		commits := c.current.Prepares.Values()
+		encodedCommitSeals, errSeals := ibfttypes.Encode(commits)
+		if errSeals != nil {
+			log.Error("core.commit Failed to encode", "commitseals", commits)
+			return
+		}
+		committedSeals[len(committedSeals)-1] = encodedCommitSeals
 		log.Info("ibftConsensus: commit baseInfo", "no", c.currentView().Sequence, "round", c.currentView().Round)
 		if err := c.backend.Commit(proposal, committedSeals, big.NewInt(-1)); err != nil {
 			c.current.UnlockHash() //Unlock block when insertion fails

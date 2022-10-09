@@ -67,9 +67,9 @@ func (e *Engine) Author(header *types.Header) (common.Address, error) {
 
 }
 
-func (e *Engine) CommitHeader(header *types.Header, seals [][]byte, round *big.Int) error {
+func (e *Engine) CommitHeader(header *types.Header, seals [][]byte, reards []byte, round *big.Int) error {
 	// Append seals into extra-data
-	return writeCommittedSeals(header, seals)
+	return writeCommittedSealsReward(header, seals, reards)
 }
 
 func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators istanbul.ValidatorSet) (time.Duration, error) {
@@ -692,7 +692,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	return hash
 }
 
-func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
+func writeCommittedSealsReward(h *types.Header, committedSeals [][]byte, rewards []byte) error {
 	if len(committedSeals) == 0 {
 		return istanbulcommon.ErrInvalidCommittedSeals
 	}
@@ -710,6 +710,9 @@ func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 
 	istanbulExtra.CommittedSeal = make([][]byte, len(committedSeals))
 	copy(istanbulExtra.CommittedSeal, committedSeals)
+
+	istanbulExtra.RewardList = make([]byte, len(rewards))
+	copy(istanbulExtra.RewardList, rewards)
 
 	payload, err := rlp.EncodeToBytes(&istanbulExtra)
 	if err != nil {

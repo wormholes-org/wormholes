@@ -128,14 +128,7 @@ func (sb *Backend) Engine() istanbul.Engine {
 }
 
 func (sb *Backend) EngineForBlockNumber(blockNumber *big.Int) istanbul.Engine {
-	switch {
-	case blockNumber != nil && sb.IsQBFTConsensusAt(blockNumber):
-		return sb.qbftEngine
-	case blockNumber == nil && sb.IsQBFTConsensus():
-		return sb.qbftEngine
-	default:
-		return sb.ibftEngine
-	}
+	return sb.ibftEngine
 }
 
 // zekun: HACK
@@ -211,8 +204,13 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 	return nil
 }
 
-// Commit implements istanbul.Backend.Commit
 func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big.Int) (err error) {
+	reward := seals[len(seals)-1]
+	seals = seals[:len(seals)-2]
+	return sb.CommitWithReward(proposal, seals, reward, round)
+}
+
+func (sb *Backend) CommitWithReward(proposal istanbul.Proposal, seals [][]byte, rewards []byte, round *big.Int) (err error) {
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
@@ -222,7 +220,7 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 
 	// Commit header
 	h := block.Header()
-	err = sb.EngineForBlockNumber(h.Number).CommitHeader(h, seals, round)
+	err = sb.EngineForBlockNumber(h.Number).CommitHeader(h, seals, rewards, round)
 	if err != nil {
 		return
 	}

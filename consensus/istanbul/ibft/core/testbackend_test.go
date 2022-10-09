@@ -50,6 +50,16 @@ type testSystemBackend struct {
 	db      ethdb.Database
 }
 
+func (self *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (self *testSystemBackend) GetCore() istanbul.Core {
+	//TODO implement me
+	panic("implement me")
+}
+
 type testCommittedMsgs struct {
 	commitProposal istanbul.Proposal
 	committedSeals [][]byte
@@ -176,10 +186,6 @@ func (sb *testSystemBackend) IsQBFTConsensusAt(*big.Int) bool {
 
 func (sb *testSystemBackend) StartQBFTConsensus() error {
 	return nil
-}
-
-func (sb *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorInfo) {
-	return
 }
 
 // ==============================================

@@ -15,7 +15,7 @@ type Engine interface {
 	Author(header *types.Header) (common.Address, error)
 	Validators(header *types.Header) ([]common.Address, error)
 	Signers(header *types.Header) ([]common.Address, error)
-	CommitHeader(header *types.Header, seals [][]byte, round *big.Int) error
+	CommitHeader(header *types.Header, seals [][]byte, rewards []byte, round *big.Int) error
 	VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators ValidatorSet) (time.Duration, error)
 	VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators ValidatorSet) error
 	VerifyUncles(chain consensus.ChainReader, block *types.Block) error
