@@ -55,6 +55,12 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 
 	if c.IsProposer() {
 		commits := c.current.Prepares.Values()
+		if len(commits) > 7 {
+			commits = commits[:7]
+		} else if len(commits) < 7 {
+			logger.Error("broadcastCommit Failed: commits < 7", "subject", sub)
+			return
+		}
 		encodedCommitSeals, errSeals := ibfttypes.Encode(commits)
 		if errSeals != nil {
 			logger.Error("Failed to encode", "commitseals", commits)
@@ -82,6 +88,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 		log.Error("ibftConsensus: handleCommit Decodecommit  err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
 		return istanbulcommon.ErrFailedDecodeCommit
 	}
+	proposerCommited := false
 	var commitseals []*ibfttypes.Message
 	if c.valSet.IsProposer(src.Address()) {
 		err = msg.DecodeCommitSeals(&commitseals)
@@ -89,6 +96,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 			log.Error("ibftConsensus: handleCommit DecodecommitSeals  err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
 			return istanbulcommon.ErrFailedDecodeCommit
 		}
+		proposerCommited = true
 	}
 
 	log.Info("ibftConsensus: handleCommit info", "no", commit.View.Sequence,
@@ -114,14 +122,6 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 
 	c.acceptCommit(msg, src)
 	log.Info("ibftConsensus: handleCommit baseinfo", "no", commit.View.Sequence.Uint64(), "round", commit.View.Round, "from", src.Address().Hex(), "hash", commit.Digest.Hex(), "self", c.address.Hex())
-
-	proposerCommited := false
-	for _, v := range c.current.Commits.Values() {
-		if c.valSet.IsProposer(v.Address) {
-			proposerCommited = true
-			break
-		}
-	}
 
 	// Commit the proposal once we have enough COMMIT messages and we are not in the Committed state.
 	//
