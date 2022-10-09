@@ -8,12 +8,13 @@ import (
 )
 
 func DecodeMessages(data []byte) ([]*ibfttypes.Message, error) {
-	var messages []*ibfttypes.Message
 	msg := new(ibfttypes.Message)
 	err := rlp.DecodeBytes(data, &msg)
 	if err != nil {
 		return nil, err
 	}
+
+	var messages []*ibfttypes.Message
 	err = msg.DecodeCommitSeals(&messages)
 	if err != nil {
 		return nil, err

@@ -10,18 +10,18 @@ func TestGetValidatorList(t *testing.T) {
 	rwdExtra, err := core.GenTestExtra()
 	istblExtra := types.IstanbulExtra{}
 	istblExtra.RewardList = rwdExtra
-	var header = types.Header{}
-	header.Extra = istblExtra.EncodeRLP()
 
-	messages, err := DecodeMessages(extra)
+	messages, err := DecodeMessages(rwdExtra)
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(messages)
 
-	addrs, err := GetValidatorRewardList(&header)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Log(addrs)
+	//var header = types.Header{}
+	//header.Extra = istblExtra.EncodeRLP()
+	//addrs, err := GetValidatorRewardList(&header)
+	//if err != nil {
+	//	t.Error(err)
+	//}
+	//t.Log(addrs)
 }
