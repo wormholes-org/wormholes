@@ -17,6 +17,9 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	"github.com/ethereum/go-ethereum/rlp"
+	"math/big"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -166,4 +169,81 @@ func (c *core) acceptCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	}
 
 	return nil
+}
+
+func GenTestExtra() ([]byte, error) {
+	addr0 := common.HexToAddress("0x4110E56ED25e21267FBeEf79244f47ada4e2E963")
+	addr1 := common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F")
+	addr2 := common.HexToAddress("0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD")
+	addr3 := common.HexToAddress("0x612DFa56DcA1F581Ed34b9c60Da86f1268Ab6349")
+	addr4 := common.HexToAddress("0x84d84e6073A06B6e784241a9B13aA824AB455326")
+	addr5 := common.HexToAddress("0x9e4d5C72569465270232ed7Af71981Ee82d08dBF")
+	addr6 := common.HexToAddress("0xa270bBDFf450EbbC2d0413026De5545864a1b6d6")
+	valSet := validator.NewSet([]common.Address{addr0, addr1, addr2, addr3, addr4, addr5, addr6}, istanbul.NewRoundRobinProposerPolicy())
+
+	ms := newMessageSet(valSet)
+
+	view := &istanbul.View{
+		Round:    new(big.Int),
+		Sequence: new(big.Int),
+	}
+	pp := &istanbul.Preprepare{
+		View:     view,
+		Proposal: nil,
+	}
+
+	rawPP, err := rlp.EncodeToBytes(pp)
+	if err != nil {
+		return nil, nil
+	}
+	msg := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPreprepare,
+		Msg:     rawPP,
+		Address: valSet.GetProposer().Address(),
+	}
+	ms.Add(msg)
+	msg0 := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPreprepare,
+		Msg:     rawPP,
+		Address: addr0,
+	}
+	msg1 := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPreprepare,
+		Msg:     rawPP,
+		Address: addr1,
+	}
+	msg2 := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPreprepare,
+		Msg:     rawPP,
+		Address: addr2,
+	}
+	msg3 := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPreprepare,
+		Msg:     rawPP,
+		Address: addr3,
+	}
+	msg4 := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPreprepare,
+		Msg:     rawPP,
+		Address: addr4,
+	}
+	msg5 := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPreprepare,
+		Msg:     rawPP,
+		Address: addr5,
+	}
+	msg6 := &ibfttypes.Message{
+		Code:    ibfttypes.MsgPreprepare,
+		Msg:     rawPP,
+		Address: addr6,
+	}
+	ms.Add(msg0)
+	ms.Add(msg1)
+	ms.Add(msg2)
+	ms.Add(msg3)
+	ms.Add(msg4)
+	ms.Add(msg5)
+	ms.Add(msg6)
+
+	return ibfttypes.Encode(ms.Values())
 }

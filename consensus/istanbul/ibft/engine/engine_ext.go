@@ -4,22 +4,21 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func DecodeMessages(data []byte) ([]*ibfttypes.Message, error) {
-	var commitseals []*ibfttypes.Message
+	var messages []*ibfttypes.Message
 	msg := new(ibfttypes.Message)
 	err := rlp.DecodeBytes(data, &msg)
 	if err != nil {
 		return nil, err
 	}
-	err = msg.DecodeCommitSeals(&commitseals)
+	err = msg.DecodeCommitSeals(&messages)
 	if err != nil {
-		log.Error("Decode Msg Err")
+		return nil, err
 	}
-	return commitseals, nil
+	return messages, nil
 }
 
 func GetValidatorRewardList(header *types.Header) ([]common.Address, error) {
