@@ -15,7 +15,7 @@ import (
 )
 
 func TestEngine(t *testing.T) {
-	engine := NewEngine(nil, common.Address{}, nil)
+	engine := NewEngine(nil, common.Address{}, nil, nil)
 	require.NotNil(t, engine, "Constructor")
 	assert.Implements(t, new(istanbul.Engine), engine)
 }
@@ -34,7 +34,7 @@ func TestPrepareExtra(t *testing.T) {
 		Extra: vanity,
 	}
 
-	payload, err := prepareExtra(h, validators, nil)
+	payload, err := prepareExtra(h, validators, validators, validators)
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want: nil", err)
 	}
@@ -45,7 +45,7 @@ func TestPrepareExtra(t *testing.T) {
 	// append useless information to extra-data
 	h.Extra = append(vanity, make([]byte, 15)...)
 
-	payload, _ = prepareExtra(h, validators, nil)
+	payload, _ = prepareExtra(h, validators, validators, validators)
 	if !reflect.DeepEqual(payload, expectedResult) {
 		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
 	}

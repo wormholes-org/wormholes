@@ -503,8 +503,13 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	// 	}
 	// }
 
+	preHeader := header
 	// Prepare reward address
-	istanbulExtra, err := types.ExtractIstanbulExtra(header)
+	if header.Number.Cmp(big.NewInt(0)) > 0 {
+		preNumber := header.Number.Sub(header.Number, big.NewInt(int64(1)))
+		preHeader = chain.GetHeaderByNumber(preNumber.Uint64())
+	}
+	istanbulExtra, err := types.ExtractIstanbulExtra(preHeader)
 	if err != nil {
 		return nil, err
 	}
