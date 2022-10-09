@@ -1,7 +1,9 @@
 package ibftengine
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -18,4 +20,17 @@ func DecodeMessages(data []byte) ([]*ibfttypes.Message, error) {
 		log.Error("Decode Msg Err")
 	}
 	return commitseals, nil
+}
+
+func GetValidatorRewardList(header *types.Header) ([]common.Address, error) {
+	istanbulExtra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return nil, err
+	}
+	msgs, err := DecodeMessages(istanbulExtra.RewardList)
+	//Decode Message
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
 }

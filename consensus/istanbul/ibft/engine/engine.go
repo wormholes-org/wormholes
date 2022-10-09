@@ -515,27 +515,17 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		preHeader = chain.GetHeaderByNumber(preNumber.Uint64())
 	}
 
-	preIstanbulExtra, err := types.ExtractIstanbulExtra(preHeader)
-	if err != nil {
-		return nil, err
-	}
-	msgs, err := DecodeMessages(preIstanbulExtra.RewardList)
-	//Decode Message
-	if err != nil {
-		return nil, err
-	}
+	rwdLst, err := GetValidatorRewardList(preHeader)
 
-	//TODO: reward list to validator list
-
-	//log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
-	//for _, addr := range istanbulExtra.ValidatorAddr {
-	//	log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
-	//}
+	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
+	for _, addr := range rwdLst {
+		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
+	}
 
 	for _, addr := range istanbulExtra.ExchangerAddr {
 		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 	}
-	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+	state.CreateNFTByOfficial16(rwdLst, istanbulExtra.ExchangerAddr, header.Number)
 
 	log.Info("CreateNFTByOfficial16 end", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 
