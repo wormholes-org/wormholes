@@ -308,7 +308,7 @@ func newBackend() (b *Backend) {
 	return
 }
 
-func TestGetExtraData(t *testing.T){
+func TestGetExtraData(t *testing.T) {
 	address := []string{
 		"0x4991Dd8c3307b00cB3d022496591B03BC4a606f4",
 		"0xb54E590418aba304590880aB2190fB49Ed6e09fb",
@@ -353,7 +353,6 @@ func istExtraEncode(vanity string, validators []common.Address) (string, error) 
 		Validators:    validators,
 		Seal:          make([]byte, types.IstanbulExtraSeal),
 		CommittedSeal: [][]byte{},
-		BeneficiaryAddr: []common.Address{},
 	}
 
 	payload, err := rlp.EncodeToBytes(&ist)
