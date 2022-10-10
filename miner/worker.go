@@ -594,6 +594,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// higher priced transactions. Disable this overhead for pending blocks.
 			if w.isRunning() {
 				log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+				w.GossipOnlineProof()
 				commit(false, commitInterruptResubmit)
 			}
 			//log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1, "w.isRunning", w.isRunning())
