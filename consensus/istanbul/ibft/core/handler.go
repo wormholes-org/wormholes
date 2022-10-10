@@ -104,6 +104,10 @@ func (c *core) handleEvents() {
 				return
 			}
 
+			if c.valSet == nil {
+				continue
+			}
+
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
 			case istanbul.RequestEvent:

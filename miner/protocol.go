@@ -13,6 +13,8 @@ type Handler interface {
 	SetBroadcaster(Broadcaster)
 	// HandleMsg handles a message from peer
 	HandleMsg(address common.Address, data p2p.Msg) (bool, error)
+
+	GetWorker() *worker
 }
 
 type Peer interface {

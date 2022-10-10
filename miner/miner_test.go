@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/event"
@@ -255,17 +254,17 @@ func createMiner(t *testing.T) (*Miner, *event.TypeMux) {
 	// Create consensus engine
 	engine := clique.New(chainConfig.Clique, chainDB)
 	// Create Ethereum backend
-	bc, err := core.NewBlockChain(chainDB, nil, chainConfig, engine, vm.Config{}, nil, nil)
-	if err != nil {
-		t.Fatalf("can't create new chain %v", err)
-	}
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(chainDB), nil)
-	blockchain := &testBlockChain{statedb, 10000000, new(event.Feed)}
+	//bc, err := core.NewBlockChain(chainDB, nil, chainConfig, engine, vm.Config{}, nil, nil)
+	//if err != nil {
+	//	t.Fatalf("can't create new chain %v", err)
+	//}
+	//statedb, _ := state.New(common.Hash{}, state.NewDatabase(chainDB), nil)
+	//blockchain := &testBlockChain{statedb, 10000000, new(event.Feed)}
 
-	pool := core.NewTxPool(testTxPoolConfig, chainConfig, blockchain)
-	backend := NewMockBackend(bc, pool)
+	//pool := core.NewTxPool(testTxPoolConfig, chainConfig, blockchain)
+	//backend := NewMockBackend(bc, pool)
 	// Create event Mux
 	mux := new(event.TypeMux)
 	// Create Miner
-	return New(backend, &config, chainConfig, mux, engine, nil), mux
+	return New(nil, &config, chainConfig, mux, engine, nil), mux
 }

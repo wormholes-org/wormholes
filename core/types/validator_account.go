@@ -50,7 +50,7 @@ func (vl *ValidatorList) TargetSize() *big.Int {
 	for _, voter := range vl.Validators {
 		total.Add(total, voter.Balance)
 	}
-	a := new(big.Int).Mul(big.NewInt(51), total)
+	a := new(big.Int).Mul(big.NewInt(50), total)
 	b := new(big.Int).Div(a, big.NewInt(100))
 	return b
 }
