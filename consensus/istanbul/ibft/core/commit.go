@@ -245,5 +245,11 @@ func GenTestExtra() ([]byte, error) {
 	ms.Add(msg5)
 	ms.Add(msg6)
 
-	return ibfttypes.Encode(ms.Values())
+	encodedCommitSeals, _ := ibfttypes.Encode(ms.Values())
+	message := &ibfttypes.Message{
+		Code:          ibfttypes.MsgCommit,
+		Signature:     []byte{},
+		CommittedSeal: encodedCommitSeals, // small hack
+	}
+	return rlp.EncodeToBytes(message)
 }

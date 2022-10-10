@@ -19,7 +19,7 @@ func DecodeMessages(data []byte) ([]*ibfttypes.Message, error) {
 	var messages []*ibfttypes.Message
 	err = msg.DecodeCommitSeals(&messages)
 	if err != nil {
-		log
+		log.Info("commited seal:", string(msg.CommittedSeal))
 		return nil, err
 	}
 	return messages, nil
@@ -35,8 +35,13 @@ func GetValidatorRewardList(header *types.Header) ([]common.Address, error) {
 	if err != nil {
 		return nil, err
 	}
+	return MessagesToAddress(messages)
+}
+
+func MessagesToAddress(messages []*ibfttypes.Message) ([]common.Address, error) {
 	var rwdLst []common.Address
 	for _, v := range messages {
+		log.Info("rwd addr:", v.Address)
 		rwdLst = append(rwdLst, v.Address)
 	}
 	return rwdLst, nil

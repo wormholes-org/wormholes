@@ -3,13 +3,12 @@ package ibftengine
 import (
 	core "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"testing"
 )
 
 func TestGetValidatorList(t *testing.T) {
 	rwdExtra, err := core.GenTestExtra()
-	istblExtra := types.IstanbulExtra{}
-	istblExtra.RewardList = rwdExtra
 
 	messages, err := DecodeMessages(rwdExtra)
 	if err != nil {
@@ -17,11 +16,17 @@ func TestGetValidatorList(t *testing.T) {
 	}
 	t.Log(messages)
 
-	//var header = types.Header{}
-	//header.Extra = istblExtra.EncodeRLP()
-	//addrs, err := GetValidatorRewardList(&header)
-	//if err != nil {
-	//	t.Error(err)
-	//}
-	//t.Log(addrs)
+	addrs, _ := MessagesToAddress(messages)
+	t.Log(addrs)
+
+	var header = types.Header{}
+	istblExtra := types.IstanbulExtra{
+		RewardList: rwdExtra,
+	}
+	header.Extra, _ = rlp.EncodeToBytes(istblExtra)
+	addrs, err = GetValidatorRewardList(&header)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(addrs)
 }
