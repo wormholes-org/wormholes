@@ -173,6 +173,15 @@ func (c *core) handleMsg(payload []byte) error {
 	// Decode message and check its signature
 	msg := new(ibfttypes.Message)
 	if err := msg.FromPayload(payload, c.validateFn); err != nil {
+		if msg.Code == ibfttypes.MsgOnlineProof {
+			if ok, _ := c.validateExistFn(msg.Address); !ok {
+				curAddress := OnlineValidator{}
+				curAddress.addr = msg.Address
+				return c.handleOnlineProof(msg, &curAddress)
+			}
+		} else {
+			log.Info("handleMsg MsgOnlineProof validator not exist", "addr", msg.Address)
+		}
 		logger.Error("Failed to decode message from payload", "err", err)
 		return err
 	}
@@ -181,15 +190,6 @@ func (c *core) handleMsg(payload []byte) error {
 	_, src := c.valSet.GetByAddress(msg.Address)
 
 	if src == nil {
-
-		if msg.Code == ibfttypes.MsgOnlineProof {
-			if ok, _ := c.validateExistFn(msg.Address); !ok {
-				curAddress := OnlineValidator{}
-				curAddress.addr = msg.Address
-				return c.handleOnlineProof(msg, &curAddress)
-			}
-		}
-
 		logger.Error("Invalid address in message", "msg", msg)
 		return istanbul.ErrUnauthorizedAddress
 	}
