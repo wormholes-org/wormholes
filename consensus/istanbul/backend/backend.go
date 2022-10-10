@@ -427,7 +427,8 @@ func (sb *Backend) startIBFT() error {
 	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByString())
 	sb.qbftConsensusEnabled = false
 
-	sb.core = ibftcore.New(sb, sb.config)
+	//sb.core = ibftcore.New(sb, sb.config)
+	sb.core = ibftcore.NewCore(sb, sb.config, sb.ValidatorExist)
 	if err := sb.core.Start(); err != nil {
 		sb.logger.Error("BFT: failed to activate IBFT", "err", err)
 		return err

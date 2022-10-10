@@ -62,6 +62,30 @@ func New(backend istanbul.Backend, config *istanbul.Config) *core {
 	return c
 }
 
+// NewCore creates an Istanbul consensus core
+func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(common.Address) (bool, error)) *core {
+	c := &core{
+		config:                          config,
+		address:                         backend.Address(),
+		state:                           ibfttypes.StateAcceptRequest,
+		handlerWg:                       new(sync.WaitGroup),
+		logger:                          log.New("address", backend.Address()),
+		backend:                         backend,
+		backlogs:                        make(map[common.Address]*prque.Prque),
+		backlogsMu:                      new(sync.Mutex),
+		pendingOnlineProofRequests:      prque.New(),
+		pendingRequests:                 prque.New(),
+		pendingRequestsMu:               new(sync.Mutex),
+		consensusTimestamp:              time.Time{},
+		pendindingOnlineProofRequestsMu: new(sync.Mutex),
+	}
+
+	c.validateFn = c.checkValidatorSignature
+	c.validateExistFn = vExistFn
+	c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
+	return c
+}
+
 // ----------------------------------------------------------------------------
 
 type core struct {
@@ -79,6 +103,7 @@ type core struct {
 	valSet                istanbul.ValidatorSet
 	waitingForRoundChange bool
 	validateFn            func([]byte, []byte) (common.Address, error)
+	validateExistFn       func(common.Address) (bool, error)
 
 	backlogs   map[common.Address]*prque.Prque
 	backlogsMu *sync.Mutex

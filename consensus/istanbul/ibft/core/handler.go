@@ -183,7 +183,7 @@ func (c *core) handleMsg(payload []byte) error {
 	if src == nil {
 
 		if msg.Code == ibfttypes.MsgOnlineProof {
-			if ok, _ := c.backend.ValidatorExist(msg.Address); !ok {
+			if ok, _ := c.validateExistFn(msg.Address); !ok {
 				curAddress := OnlineValidator{}
 				curAddress.addr = msg.Address
 				return c.handleOnlineProof(msg, &curAddress)
