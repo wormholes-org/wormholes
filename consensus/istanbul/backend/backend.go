@@ -127,6 +127,14 @@ func (sb *Backend) Engine() istanbul.Engine {
 	return sb.EngineForBlockNumber(nil)
 }
 
+func (sb *Backend) ValidatorExist(address common.Address) (bool, error) {
+	all, err := sb.chain.(*core.BlockChain).ReadValidatorPool(sb.chain.CurrentHeader())
+	if err != nil {
+		return false, err
+	}
+	return all.Exist(address), nil
+}
+
 func (sb *Backend) EngineForBlockNumber(blockNumber *big.Int) istanbul.Engine {
 	switch {
 	case blockNumber != nil && sb.IsQBFTConsensusAt(blockNumber):

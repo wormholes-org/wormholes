@@ -25,6 +25,18 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+type OnlineValidator struct {
+	addr common.Address
+}
+
+func (c *OnlineValidator) String() string {
+	panic("")
+}
+
+func (c *OnlineValidator) Address() common.Address {
+	return c.addr
+}
+
 // Start implements core.Engine.Start
 func (c *core) Start() error {
 	// Tests will handle events itself, so we have to make subscribeEvents()
@@ -167,7 +179,17 @@ func (c *core) handleMsg(payload []byte) error {
 
 	// Only accept message if the address is valid
 	_, src := c.valSet.GetByAddress(msg.Address)
+
 	if src == nil {
+
+		if msg.Code == ibfttypes.MsgOnlineProof {
+			if ok, _ := c.backend.ValidatorExist(msg.Address); !ok {
+				curAddress := OnlineValidator{}
+				curAddress.addr = msg.Address
+				return c.handleOnlineProof(msg, &curAddress)
+			}
+		}
+
 		logger.Error("Invalid address in message", "msg", msg)
 		return istanbul.ErrUnauthorizedAddress
 	}
