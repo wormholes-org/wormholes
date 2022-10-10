@@ -2201,7 +2201,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	// reward ERB or SNFT to validators
 	log.Info("CreateNFTByOfficial16", "validators len=", len(validators), "blocknumber=", blocknumber.Uint64())
 	for _, addr := range validators {
-		log.Info("CreateNFTByOfficial16", "validators=", addr, "blocknumber=", blocknumber.Uint64())
+		log.Info("CreateNFTByOfficial16", "validators=", addr.Hex(), "blocknumber=", blocknumber.Uint64())
 	}
 	rewardAmount := GetRewardAmount(blocknumber.Uint64(), DREBlockReward)
 	for _, owner := range validators {
@@ -2215,7 +2215,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	// reward SNFT to exchangers
 	log.Info("CreateNFTByOfficial16", "exchangers len=", len(exchangers), "blocknumber=", blocknumber.Uint64())
 	for _, addr := range exchangers {
-		log.Info("CreateNFTByOfficial16", "exchangers=", addr, "blocknumber=", blocknumber.Uint64())
+		log.Info("CreateNFTByOfficial16", "exchangers=", addr.Hex(), "blocknumber=", blocknumber.Uint64())
 	}
 	for _, owner := range exchangers {
 		nftAddr := common.Address{}
@@ -2237,7 +2237,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 		//	royalty = info.Royalty
 		//	creator = info.Creator
 		//}
-		log.Info("CreateNFTByOfficial16()", "--nftAddr=", nftAddr.String())
+		log.Info("CreateNFTByOfficial16()", "--nftAddr=", nftAddr.String(), "blocknumber=", blocknumber.Uint64())
 
 		s.CreateAccount(nftAddr)
 		stateObject := s.GetOrNewStateObject(nftAddr)
@@ -2599,9 +2599,9 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 //- cancel pledged token
 //````
 //{
-//from:持有者
+//from: holder
 //to:0xffff...ffff
-//balance:????撤销多少ERB
+//balance:???? amount of recall ERB
 //data:{
 //version:0
 //type:7
@@ -3041,7 +3041,7 @@ func (s *StateDB) ElectNominatedOfficialNFT() {
 		s.AddBalance(s.NominatedOfficialNFT.Address, injectRewardBalance)
 
 		////s.NominatedOfficialNFT = nil
-		//s.NominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+		//s.NominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
 		//s.NominatedOfficialNFT.StartIndex = new(big.Int).Set(s.OfficialNFTPool.MaxIndex())
 		//s.NominatedOfficialNFT.Number = 65536
 		//s.NominatedOfficialNFT.Royalty = 100
@@ -3049,7 +3049,7 @@ func (s *StateDB) ElectNominatedOfficialNFT() {
 		//s.NominatedOfficialNFT.Address = common.Address{}
 	} else {
 		injectNFT := &types.InjectedOfficialNFT{
-			Dir:        "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3",
+			Dir:        "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
 			StartIndex: new(big.Int).Set(s.OfficialNFTPool.MaxIndex()),
 			Number:     4096,
 			Royalty:    100,
@@ -3058,7 +3058,7 @@ func (s *StateDB) ElectNominatedOfficialNFT() {
 		s.OfficialNFTPool.InjectedOfficialNFTs = append(s.OfficialNFTPool.InjectedOfficialNFTs, injectNFT)
 	}
 
-	s.NominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+	s.NominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
 	s.NominatedOfficialNFT.StartIndex = new(big.Int).Set(s.OfficialNFTPool.MaxIndex())
 	s.NominatedOfficialNFT.Number = 4096
 	s.NominatedOfficialNFT.Royalty = 100

@@ -207,7 +207,7 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		}
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
 		nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.OfficialNFTPool.MaxIndex())
 		nominatedOfficialNFT.Number = 4096
 		nominatedOfficialNFT.Royalty = 100
@@ -216,7 +216,11 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		statedb.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	vallist := eth.blockchain.ReadValidatorPool(parent.Header())
+	vallist, err := eth.blockchain.ReadValidatorPool(parent.Header())
+	if err != nil {
+		log.Error("stateAtTransaction : invalid validator list", "err", err)
+		return nil, vm.BlockContext{}, nil, err
+	}
 	statedb.ValidatorPool = vallist.Validators
 
 	if txIndex == 0 && len(block.Transactions()) == 0 {

@@ -248,7 +248,7 @@ func (c *core) startNewRound(round *big.Int) {
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
 		}
-		// 以当前链最新高度的哈希计算validator 与当前矿工正在prepare执行计算的validator是一致的
+		// calc validator by hash of current block height same with current miner prepared validators
 		c.valSet = c.backend.Validators(lastProposal)
 		if c.valSet == nil {
 			log.Error("ibftConsensus: c.valSet == nil", "no", newView.Sequence, "round", newView.Sequence, "self", c.address.Hex())

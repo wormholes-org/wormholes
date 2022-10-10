@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	remotePeers = 22  // Number of messages kept in consensus workers per round (11 * 2)
-	storeMsgs   = 250 // Number of messages stored by yourself
+	remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
+	storeMsgs   = 2500 // Number of messages stored by yourself
 )
 
 type Certify struct {
@@ -35,6 +35,7 @@ type Certify struct {
 	validators           []common.Address
 	validatorsHeight     []string
 	proofStatePool       *ProofStatePool // Currently highly collected validators that have sent online proofs
+	msgHeight            *big.Int
 }
 
 func (c *Certify) Start() {
@@ -61,8 +62,17 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		validators:           make([]common.Address, 0),
 		validatorsHeight:     make([]string, 0),
 		proofStatePool:       NewProofStatePool(),
+		msgHeight:            new(big.Int),
 	}
 	return certify
+}
+
+func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
+	// Broadcast payload
+	if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Certify) broadcast(from common.Address, msg *Msg) error {
@@ -196,30 +206,35 @@ func (c *Certify) handleEvents() {
 		select {
 		case event, ok := <-c.events.Chan():
 			if !ok {
-				return
+				continue
 			}
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
 			case MessageEvent:
-				log.Info("Certify handle events")
+				//log.Info("Certify handle events")
 				msg := new(Msg)
 				if err := msg.FromPayload(ev.Payload); err != nil {
 					log.Error("Certify Failed to decode message from payload", "err", err)
+					break
 				}
 				var signature *SignatureData
 				msg.Decode(&signature)
 
+				encQues, err := Encode(signature)
+				if err != nil {
+					log.Error("Failed to encode", "subject", err)
+					break
+				}
+
+				c.msgHeight = signature.Height
 				log.Info("signature", "Height", signature.Height)
-				//if len(c.stakers.Validators) > 0 && c.stakers != nil {
-				//	flag := c.stakers.GetByAddress(msg.Address)
-				//	if flag == -1 {
-				//		log.Error("Invalid address in message", "msg", msg)
-				//		return
-				//	}
-				//}
+
 				if msg.Code == SendSignMsg {
 					log.Info("SendSignMsg", "SendSignMsg", c.stakers)
-					c.GatherOtherPeerSignature(msg.Address, signature.Height)
+					//If the GatherOtherPeerSignature is ok, gossip message directly
+					if err := c.GatherOtherPeerSignature(msg.Address, signature.Height, encQues); err == nil {
+						c.rebroadcast(c.Address(), ev.Payload)
+					}
 				}
 			}
 		}

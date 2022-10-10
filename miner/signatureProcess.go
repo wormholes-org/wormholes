@@ -7,7 +7,7 @@ import (
 )
 
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
-	log.Info("start SendSignToOtherPeer", "Address", addr)
+	log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
 	ques := &SignatureData{Address: addr, Height: height}
 	encQues, err := Encode(ques)
 	if err != nil {
@@ -19,7 +19,7 @@ func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 		Msg:  encQues,
 	})
 }
-func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int) {
+func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	for k, p := range c.proofStatePool.proofs {
@@ -30,18 +30,22 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 			}
 			p.onlineValidator.Add(validator)
 			c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
-			log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
+			//log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
 			c.validators = append(c.validators, validator)
 			c.signatureResultCh <- c.receiveValidatorsSum
+		} else {
+			//log.Info("GatherOtherPeerSignature, not the same height, continue!")
+			continue
 		}
 	}
 	// No proof data exists for this height
 	ps := newProofState(validator, validator)
 	c.proofStatePool.proofs[height] = ps
 	c.receiveValidatorsSum = new(big.Int).Add(c.stakers.StakeBalance(validator), c.receiveValidatorsSum)
-	log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
+	//log.Info("c.receiveValidatorsSum", "c.receiveValidatorsSum", c.receiveValidatorsSum)
 	c.validators = append(c.validators, validator)
 
-	log.Info("c.validators", "c.validators", c.validators, "c.receiveValidatorsSum", c.receiveValidatorsSum)
+	//log.Info("c.validators", "c.validators", c.validators, "c.receiveValidatorsSum", c.receiveValidatorsSum)
 	c.signatureResultCh <- c.receiveValidatorsSum
+	return nil
 }

@@ -366,7 +366,11 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		validatorAddr = append(validatorAddr, rewardToValidators...)
 
 		//new&update  at 20220523
-		validatorPool := c.ReadValidatorPool(c.CurrentBlock().Header())
+		validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
+		if err != nil {
+			log.Error("Prepare : validator pool err", err, err)
+			return err
+		}
 		if validatorPool != nil && len(validatorPool.Validators) > 0 {
 			//k:proxy,v:validator
 			mp := make(map[string]*types.Validator, 0)
@@ -392,9 +396,46 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Extra = extra
 
 	// set header's timestamp
-	header.Time = parent.Time + e.cfg.BlockPeriod
-	if header.Time < uint64(time.Now().Unix()) {
-		header.Time = uint64(time.Now().Unix())
+
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		header.Time = parent.Time + 120
+	} else {
+		header.Time = parent.Time + e.cfg.BlockPeriod
+		if header.Time < uint64(time.Now().Unix()) {
+			header.Time = uint64(time.Now().Unix())
+		}
+	}
+
+	return nil
+}
+
+func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+	header.Nonce = istanbulcommon.EmptyBlockNonce
+	header.MixDigest = types.IstanbulDigest
+
+	// copy the parent extra data as the header extra data
+	number := header.Number.Uint64()
+	parent := chain.GetHeader(header.ParentHash, number-1)
+	if parent == nil {
+		return consensus.ErrUnknownAncestor
+	}
+	// use the same difficulty for all blocks
+	header.Difficulty = istanbulcommon.DefaultDifficulty
+	// add validators in snapshot to extraData's validators section
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil)
+	if err != nil {
+		return err
+	}
+	header.Extra = extra
+
+	// set header's timestamp
+
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		header.Time = parent.Time + e.cfg.BlockPeriod
+	} else {
+		if header.Time < uint64(time.Now().Unix()) {
+			header.Time = uint64(time.Now().Unix())
+		}
 	}
 
 	return nil
@@ -437,7 +478,15 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		return
 	}
 
+	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
+	for _, addr := range istanbulExtra.ValidatorAddr {
+		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
+	}
+	for _, addr := range istanbulExtra.ExchangerAddr {
+		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
+	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+	log.Info("CreateNFTByOfficial16 end", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -463,7 +512,17 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		return nil, err
 	}
 
+	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
+	for _, addr := range istanbulExtra.ValidatorAddr {
+		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
+	}
+
+	for _, addr := range istanbulExtra.ExchangerAddr {
+		log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
+	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+
+	log.Info("CreateNFTByOfficial16 end", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -719,9 +778,17 @@ func BytesToInt(bys []byte) int {
 
 func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Address) ([]common.Address, error) {
 	header := chain.CurrentHeader()
-	totalValidators := chain.ReadValidatorPool(header)
+	totalValidators, err := chain.ReadValidatorPool(header)
+	if err != nil {
+		log.Error("PickRewardValidators : invalid validator list", "err", err)
+		return []common.Address{}, err
+	}
 	validator11 := make(map[common.Address]bool)
 	elevenAddrs, err := chain.Random11ValidatorFromPool(header)
+	if err != nil {
+		log.Error("PickRewardValidators : invalid validator list", "err", err)
+		return []common.Address{}, err
+	}
 	online7 := make(map[common.Address]bool)
 	coinbase := chain.Coinbase()
 

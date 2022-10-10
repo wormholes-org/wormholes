@@ -1615,7 +1615,11 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 
 	log.Info("caver|stake-after", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
 
-	validatorPool := bc.ReadValidatorPool(bc.GetHeaderByHash(block.Header().ParentHash))
+	validatorPool, err := bc.ReadValidatorPool(bc.GetHeaderByHash(block.Header().ParentHash))
+	if err != nil {
+		log.Error("writeBlockWithoutState : invalid validator list", "no", block.Header().Number, "err", err)
+		return NonStatTy, err
+	}
 	log.Info("caver|validator-before", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 	if len(state.PledgedTokenPool) > 0 {
 		for _, v := range state.PledgedTokenPool {
@@ -2022,7 +2026,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			}
 		} else {
 			nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-			nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+			nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
 			nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.OfficialNFTPool.MaxIndex())
 			nominatedOfficialNFT.Number = 4096
 			nominatedOfficialNFT.Royalty = 100
@@ -2031,7 +2035,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			statedb.NominatedOfficialNFT = nominatedOfficialNFT
 		}
 
-		valList := bc.ReadValidatorPool(parent)
+		valList, err := bc.ReadValidatorPool(parent)
+		if err != nil {
+			log.Error("insertChain: invalid validator list", "err", err)
+			return it.index, err
+		}
 		statedb.ValidatorPool = valList.Validators
 
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
@@ -2733,16 +2741,38 @@ func (bc *BlockChain) WriteValidatorPool(header *types.Header, validatorPool *ty
 	}
 }
 
-func (bc *BlockChain) ReadValidatorPool(header *types.Header) *types.ValidatorList {
-	validators, _ := rawdb.ReadValidatorPool(bc.db, header.Hash(), header.Number.Uint64())
-	return validators
+func (bc *BlockChain) ReadValidatorPool(header *types.Header) (*types.ValidatorList, error) {
+	if header == nil {
+		return nil, errors.New("ReadValidatorPool : invalid header")
+	}
+	validators, err := rawdb.ReadValidatorPool(bc.db, header.Hash(), header.Number.Uint64())
+	if err != nil {
+		return nil, err
+	}
+	if len(validators.Validators) == 0 {
+		return nil, errors.New("ReadValidatorPool : invalid len")
+	}
+	return validators, nil
 }
 
 func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
-	validatorList := bc.ReadValidatorPool(header)
+	if header == nil {
+		log.Error("Random11ValidatorFromPool: header is nil", "no", bc.CurrentHeader().Number.Uint64())
+		return nil, errors.New("err Random11ValidatorFromPool invalid header")
+	}
+	validatorList, err := bc.ReadValidatorPool(header)
+	if err != nil {
+		log.Error("Random11ValidatorFromPool: ReadValidatorPool", "err", err, "no", bc.CurrentHeader().Number.Uint64())
+		return nil, err
+	}
+
 	// Obtain random landing points according to the surrounding chain algorithm
 	randomHash := GetRandomDrop(validatorList, header)
-	log.Info("Random11ValidatorFromPool : drop", "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
+	if randomHash == (common.Hash{}) {
+		log.Error("Random11ValidatorFromPool : invalid random hash", "no", bc.CurrentHeader().Number.Uint64())
+		return nil, err
+	}
+	log.Info("Random11ValidatorFromPool : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
 	validators := validatorList.RandomValidatorV2(11, randomHash)
 	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
@@ -2756,7 +2786,7 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	}
 	elevenValidator := new(types.ValidatorList)
 	for _, addr := range validators {
-		//todo proxy 全部空值
+		//todo proxy all nil
 		proxy, exsist := validatorList.GetProxy(addr)
 
 		if exsist {
@@ -2829,7 +2859,10 @@ func (bc *BlockChain) ReadNominatedOfficialNFT(header *types.Header) (*types.Nom
 
 func (bc *BlockChain) QueryMinerProxy(ctx context.Context, number int64, minerAddress *common.Address) (*types.ValidatorList, error) {
 	log.Info("QueryMinerProxy", "number", number, "minerAddress", minerAddress.Hex())
-	vList := bc.ReadValidatorPool(bc.GetHeaderByNumber(uint64(number)))
+	vList, err := bc.ReadValidatorPool(bc.GetHeaderByNumber(uint64(number)))
+	if err != nil {
+		return nil, err
+	}
 	//empty := common.Address{}
 
 	//if minerAddress == nil || minerAddress.Hex() == empty.Hex() {
@@ -2845,6 +2878,10 @@ func (bc *BlockChain) QueryMinerProxy(ctx context.Context, number int64, minerAd
 }
 
 func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common.Hash {
+	if validators == nil || len(validators.Validators) == 0 {
+		log.Error("GetRandomDrop : err", "no", header.Number.Uint64(), "validators == nil", validators == nil, "len", len(validators.Validators))
+		return common.Hash{}
+	}
 	// Get the index of the coinbase of the previous block,
 	// if it is a genesis block, the index is 0
 	i := 0

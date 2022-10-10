@@ -20,9 +20,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
@@ -84,24 +84,34 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 			"err", err.Error(),
 			"hash", preprepare.Proposal.Hash().Hex(),
 			"self", c.address.Hex())
-		if err == istanbulcommon.ErrOldMessage {
-			// Get validator set for the given proposal
-			valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
-			previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
-			valSet.CalcProposer(previousProposer, preprepare.View.Round.Uint64())
-			// Broadcast COMMIT if it is an existing block
-			// 1. The proposer needs to be a proposer matches the given (Sequence + Round)
-			// 2. The given block must exist
-			if valSet.IsProposer(src.Address()) && c.backend.HasPropsal(preprepare.Proposal.Hash(), preprepare.Proposal.Number()) {
-				log.Info("ibftConsensus: handlePreprepare sendCommitForOldBlock",
-					"no", preprepare.Proposal.Number().String(),
-					"round", preprepare.View.Round.String(),
-					"hash", preprepare.Proposal.Hash().Hex(),
-					"self", c.address.Hex())
-				c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal.Hash())
-				return nil
-			}
-		}
+		// remove this part on 2022-1002
+		//if err == istanbulcommon.ErrOldMessage {
+		//	// Get validator set for the given proposal
+		//	if block, ok := preprepare.Proposal.(*types.Block); ok {
+		//		if block.Header() == nil {
+		//			log.Error("ibftConsensus: header is nil")
+		//			return errors.New("ibftConsensus: header is nil")
+		//		}
+		//	} else {
+		//		log.Error("ibftConsensus: block not ok")
+		//		return errors.New("ibftConsensus: block not ok")
+		//	}
+		//	valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
+		//	previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
+		//	valSet.CalcProposer(previousProposer, preprepare.View.Round.Uint64())
+		//	// Broadcast COMMIT if it is an existing block
+		//	// 1. The proposer needs to be a proposer matches the given (Sequence + Round)
+		//	// 2. The given block must exist
+		//	if valSet.IsProposer(src.Address()) && c.backend.HasPropsal(preprepare.Proposal.Hash(), preprepare.Proposal.Number()) {
+		//		log.Info("ibftConsensus: handlePreprepare sendCommitForOldBlock",
+		//			"no", preprepare.Proposal.Number().String(),
+		//			"round", preprepare.View.Round.String(),
+		//			"hash", preprepare.Proposal.Hash().Hex(),
+		//			"self", c.address.Hex())
+		//		c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal.Hash())
+		//		return nil
+		//	}
+		//}
 		return err
 	}
 
@@ -111,33 +121,32 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 			"author", src.Address().Hex(), "round", preprepare.View.Round.String())
 		return istanbulcommon.ErrNotFromProposer
 	}
+	// preProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
+	// if preProposer.String() == "0x0000000000000000000000000000000000000000" && preprepare.Proposal.Number().Uint64() > 1 {
+	// 	log.Error("preProposer is empty block:", "no", preProposer.String())
+	// 	return errors.New("preProposer is empty block")
 
-	preProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
-	log.Info("preProposer:", preProposer.String())
-	if preProposer.String() == "0x0000000000000000000000000000000000000000" {
-		log.Info("preProposer is empty block:", preProposer.String())
-	} else {
-		log.Info("preProposer is not empty block:", preProposer.String())
-		// Verify the proposal we received
-		if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
-			// if it's a future block, we will handle it again after the duration
-			if err == consensus.ErrFutureBlock {
-				logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)
-				c.stopFuturePreprepareTimer()
-				c.futurePreprepareTimer = time.AfterFunc(duration, func() {
-					c.sendEvent(backlogEvent{
-						src: src,
-						msg: msg,
-					})
+	// } else {
+
+	// }
+	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
+		// if it's a future block, we will handle it again after the duration
+		if err == consensus.ErrFutureBlock {
+			logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)
+			c.stopFuturePreprepareTimer()
+			c.futurePreprepareTimer = time.AfterFunc(duration, func() {
+				c.sendEvent(backlogEvent{
+					src: src,
+					msg: msg,
 				})
-			} else {
-				logger.Warn("Failed to verify proposal", "err", err, "duration", duration)
-				log.Info("caver|handlePreprepare|sendNextRoundChange1", "no", preprepare.Proposal.Number().String(),
-					"round", preprepare.View.Round.String(), "is proposer", strconv.FormatBool(c.IsProposer()))
-				c.sendNextRoundChange()
-			}
-			return err
+			})
+		} else {
+			logger.Warn("Failed to verify proposal", "err", err, "duration", duration)
+			log.Info("caver|handlePreprepare|sendNextRoundChange1", "no", preprepare.Proposal.Number().String(),
+				"round", preprepare.View.Round.String(), "is proposer", strconv.FormatBool(c.IsProposer()))
+			c.sendNextRoundChange()
 		}
+		return err
 	}
 
 	// Here is about to accept the PRE-PREPARE

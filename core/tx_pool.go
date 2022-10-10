@@ -1065,7 +1065,7 @@ func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) ([]error,
 				jsonErr := json.Unmarshal(tx.Data()[10:], &wormholes)
 				if jsonErr == nil {
 					if wormholes.Type == 30 {
-						// 如果交易类型是30的话，直接调用pool.add(tx,true)就OK了，会直接进入到本地
+						// if tx type 30， call pool.add(tx,true) directly. it will access local directly
 						isTx30 = true
 						replaced, err := pool.add(tx, true)
 						errs[i] = err

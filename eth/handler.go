@@ -778,14 +778,23 @@ func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]
 }
 
 func (h *handler) FindPeerSet(targets map[common.Address]bool) map[common.Address]miner.Peer {
+	//m := make(map[common.Address]miner.Peer)
+	//for _, p := range h.peers.peers {
+	//	pubKey := p.Node().Pubkey()
+	//	addr := crypto.PubkeyToAddress(*pubKey)
+	//	if targets[addr] {
+	//		log.Info("FindPeerSet")
+	//		m[addr] = p
+	//	}
+	//}
+	//return m
+
 	m := make(map[common.Address]miner.Peer)
 	for _, p := range h.peers.peers {
 		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)
-		if targets[addr] {
-			log.Info("FindPeerSet")
-			m[addr] = p
-		}
+		log.Info("FindPeerSet", "addr", addr)
+		m[addr] = p
 	}
 	return m
 }

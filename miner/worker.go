@@ -165,6 +165,7 @@ type worker struct {
 	notifyBlockCh      chan *types.OnlineValidatorList
 
 	current      *environment
+	emptycurrent *environment
 	localUncles  map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
 	remoteUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
 	unconfirmed  *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
@@ -206,33 +207,36 @@ type worker struct {
 	onlineValidators *types.OnlineValidatorList
 
 	//empty block
-	emptyTimestamp int64
+	emptyTimestamp  int64
+	emptyHandleFlag bool
+	cacheHeight     *big.Int
+	emptyTimer      *time.Timer
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
 	worker := &worker{
-		config:       config,
-		chainConfig:  chainConfig,
-		engine:       engine,
-		eth:          eth,
-		mux:          mux,
-		chain:        eth.BlockChain(),
-		isLocalBlock: isLocalBlock,
-		localUncles:  make(map[common.Hash]*types.Block),
-		remoteUncles: make(map[common.Hash]*types.Block),
-		unconfirmed:  newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks: make(map[common.Hash]*task),
-		txsCh:        make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
-		chainSideCh:  make(chan core.ChainSideEvent, chainSideChanSize),
-		newWorkCh:    make(chan *newWorkReq),
-		taskCh:       make(chan *task),
-		resultCh:     make(chan *types.Block, resultQueueSize),
-		exitCh:       make(chan struct{}),
-		startCh:      make(chan struct{}, 1),
-		onlineCh:     make(chan struct{}, 1),
-		emptyCh:      make(chan struct{}),
-
+		config:             config,
+		chainConfig:        chainConfig,
+		engine:             engine,
+		eth:                eth,
+		mux:                mux,
+		chain:              eth.BlockChain(),
+		isLocalBlock:       isLocalBlock,
+		localUncles:        make(map[common.Hash]*types.Block),
+		remoteUncles:       make(map[common.Hash]*types.Block),
+		unconfirmed:        newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		pendingTasks:       make(map[common.Hash]*task),
+		txsCh:              make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:        make(chan core.ChainHeadEvent, chainHeadChanSize),
+		chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
+		newWorkCh:          make(chan *newWorkReq),
+		taskCh:             make(chan *task),
+		resultCh:           make(chan *types.Block, resultQueueSize),
+		exitCh:             make(chan struct{}),
+		startCh:            make(chan struct{}, 1),
+		onlineCh:           make(chan struct{}, 1),
+		emptyCh:            make(chan struct{}),
+		cacheHeight:        new(big.Int),
 		isEmpty:            false,
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
@@ -240,6 +244,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		miner:              handler,
 		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
 		emptyTimestamp:     time.Now().Unix(),
+		emptyHandleFlag:    false,
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -392,37 +397,84 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 
 func (w *worker) emptyLoop() {
 
-	emptyTimer := time.NewTimer(0)
-	defer emptyTimer.Stop()
-	<-emptyTimer.C // discard the initial tick
-	emptyTimer.Reset(120 * time.Second)
+	w.emptyTimer = time.NewTimer(0)
+	defer w.emptyTimer.Stop()
+	<-w.emptyTimer.C // discard the initial tick
+	w.emptyTimer.Reset(120 * time.Second)
 
 	gossipTimer := time.NewTimer(0)
 	defer gossipTimer.Stop()
 	<-gossipTimer.C // discard the initial tick
 	gossipTimer.Reset(5 * time.Second)
+
+	checkTimer := time.NewTimer(0)
+	defer checkTimer.Stop()
+	<-checkTimer.C // discard the initial tick
+	checkTimer.Reset(1 * time.Second)
+
 	for {
 		select {
-		case <-emptyTimer.C:
+		case <-checkTimer.C:
+			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
+			checkTimer.Reset(1 * time.Second)
+			if !w.isEmpty {
+				continue
+			}
+			//log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
+			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
+				w.isEmpty = false
+				w.emptyTimestamp = time.Now().Unix()
+				w.emptyTimer.Reset(120 * time.Second)
+			}
+
+		case <-w.emptyTimer.C:
 			{
-				emptyTimer.Reset(120 * time.Second)
+				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
+					continue
 				}
 				if w.isEmpty {
 					continue
 				}
-				if time.Now().Unix()-w.emptyTimestamp < 120 {
+				/*
+					if time.Now().Unix()-w.emptyTimestamp < 120 {
+						continue
+					}
+				*/
+				curTime := time.Now().Unix()
+				curBlock := w.chain.CurrentBlock()
+				if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
+					//log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
+				} else {
+					//log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
-				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 				//w.stop()
-				w.cerytify.stakers = w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-				go w.cerytify.handleEvents()
-				w.onlineCh <- struct{}{}
-				emptyTimer.Stop()
+
+				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+				if err != nil {
+					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
+					continue
+				}
+				w.cerytify.stakers = stakers
+
+				if !w.emptyHandleFlag {
+					w.emptyHandleFlag = true
+					go w.cerytify.handleEvents()
+				}
+				//if w.cacheHeight.Cmp(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))) != 0 {
+				//	w.cerytify.validators = make([]common.Address, 0)
+				//	w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
+				//	w.cerytify.receiveValidatorsSum = big.NewInt(0)
+				//}
+				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
+
+				//w.onlineCh <- struct{}{}
+				w.emptyTimer.Stop()
 			}
 		case <-gossipTimer.C:
 			{
@@ -430,25 +482,22 @@ func (w *worker) emptyLoop() {
 				if !w.isEmpty {
 					continue
 				}
-				w.cerytify.SendSignToOtherPeer(w.coinbase, w.current.header.Number)
+				w.cerytify.SendSignToOtherPeer(w.coinbase, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1)
+				//log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1, "w.cacheHeight", w.cacheHeight, "w.cerytify.msgHeight", w.cerytify.msgHeight)
 				if rs.Cmp(w.targetSize()) > 0 {
-					log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-					if w.isEmpty {
-						log.Info("start produce empty block", "time", time.Now())
-						w.cerytify.validators = make([]common.Address, 0)
-						w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-						w.cerytify.receiveValidatorsSum = big.NewInt(0)
+					//log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					if w.isEmpty && w.cacheHeight.Cmp(w.cerytify.msgHeight) == 0 {
+						//log.Info("start produce empty block", "time", time.Now())
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators); err != nil {
 							log.Error("commitEmptyWork error", "err", err)
 						} else {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
-							emptyTimer.Reset(120 * time.Second)
+							w.emptyTimer.Reset(120 * time.Second)
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}
@@ -507,6 +556,14 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.startCh", "no", w.chain.CurrentBlock().NumberU64()+1)
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
+			if w.cacheHeight.Cmp(head.Block.Number()) <= 0 {
+				log.Info("w.chainHeadCh: reset empty timer", "no", head.Block.NumberU64())
+				w.isEmpty = false
+				w.emptyTimestamp = time.Now().Unix()
+				w.emptyTimer.Reset(120 * time.Second)
+			}
+			log.Info("w.chainHeadCh: start commit block", "no", head.Block.NumberU64())
+
 			if w.isRunning() {
 				w.GossipOnlineProof()
 				w.emptyTimestamp = time.Now().Unix()
@@ -707,6 +764,10 @@ func (w *worker) taskLoop() {
 			if w.isEmpty {
 				continue
 			}
+			if task.block.Coinbase() == (common.Address{}) {
+				log.Info("w.taskch", "no", task.block.NumberU64())
+				continue
+			}
 			if w.newTaskHook != nil {
 				w.newTaskHook(task)
 			}
@@ -804,6 +865,111 @@ func (w *worker) resultLoop() {
 	}
 }
 
+// makeEmptyCurrent creates a new environment for the current cycle.
+func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) error {
+	// Retrieve the parent state to execute on top and start a prefetcher for
+	// the miner to speed block sealing up a bit
+	state, err := w.chain.StateAt(parent.Root())
+	if err != nil {
+		return err
+	}
+	state.StartPrefetcher("miner")
+
+	var mintDeep *types.MintDeep
+	//var exchangeList *types.SNFTExchangeList
+	if parent.NumberU64() > 0 {
+		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
+		if err != nil {
+			log.Error("Failed get mintdeep ", "err", err)
+			return err
+		}
+		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
+		//if exchangeList == nil {
+		//	exchangeList = &types.SNFTExchangeList{
+		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//	}
+		//}
+	} else {
+		mintDeep = new(types.MintDeep)
+		//mintDeep.OfficialMint = big.NewInt(1)
+		//
+		//mintDeep.UserMint = big.NewInt(0)
+		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
+		mintDeep.UserMint = big.NewInt(1)
+
+		mintDeep.OfficialMint = big.NewInt(0)
+		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
+
+		//exchangeList = &types.SNFTExchangeList{
+		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//}
+	}
+	state.MintDeep = mintDeep
+	//state.SNFTExchangePool = exchangeList
+
+	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
+	state.OfficialNFTPool = officialNFTList
+	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
+		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
+	}
+
+	var nominatedOfficialNFT *types.NominatedOfficialNFT
+	if parent.NumberU64() > 0 {
+		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
+		if err != nil {
+			state.NominatedOfficialNFT = nil
+		} else {
+			state.NominatedOfficialNFT = nominatedOfficialNFT
+		}
+	} else {
+		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
+		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
+		nominatedOfficialNFT.Number = 4096
+		nominatedOfficialNFT.Royalty = 100
+		nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		nominatedOfficialNFT.Address = common.Address{}
+		state.NominatedOfficialNFT = nominatedOfficialNFT
+	}
+
+	vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	if err != nil {
+		log.Error("makeEmptyCurrent : invalid validator list", "no", header.Number, "err", err)
+		return err
+	}
+
+	state.ValidatorPool = vallist.Validators
+
+	env := &environment{
+		signer:    types.MakeSigner(w.chainConfig, header.Number),
+		state:     state,
+		ancestors: mapset.NewSet(),
+		family:    mapset.NewSet(),
+		uncles:    mapset.NewSet(),
+		header:    header,
+	}
+	// when 08 is processed ancestors contain 07 (quick block)
+	for _, ancestor := range w.chain.GetBlocksFromHash(parent.Hash(), 7) {
+		for _, uncle := range ancestor.Uncles() {
+			env.family.Add(uncle.Hash())
+		}
+		env.family.Add(ancestor.Hash())
+		env.ancestors.Add(ancestor.Hash())
+	}
+	// Keep track of transactions which return errors so they can be removed
+	env.tcount = 0
+
+	// Swap out the old work with the new one, terminating any leftover prefetcher
+	// processes in the mean time and starting a new one.
+	if w.current != nil && w.current.state != nil {
+		w.current.state.StopPrefetcher()
+	}
+	w.emptycurrent = env
+	return nil
+}
+
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	// Retrieve the parent state to execute on top and start a prefetcher for
@@ -864,7 +1030,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		}
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = "/ipfs/QmPX7En15rJUaH1qT9LFmKtVaVg8YmGpwbpfuy43BpGZW3"
+		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
 		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
 		nominatedOfficialNFT.Number = 4096
 		nominatedOfficialNFT.Royalty = 100
@@ -873,7 +1039,11 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	vallist := w.chain.ReadValidatorPool(parent.Header())
+	vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	if err != nil {
+		log.Error("makeCurrent : invalid validator list", "no", header.Number, "err", err)
+		return err
+	}
 	state.ValidatorPool = vallist.Validators
 
 	env := &environment{
@@ -1110,23 +1280,23 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		Extra:      w.extra,
 		Time:       uint64(0),
 		BaseFee:    parent.BaseFee(),
+		Coinbase:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
 	}
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
-	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	if err := w.engine.PrepareForEmptyBlock(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
 		return err
 	}
-	err := w.makeCurrent(parent, header)
+	err := w.makeEmptyCurrent(parent, header)
 	if err != nil {
 		log.Error("Failed to create mining context", "err", err)
 		return err
 	}
 	// Split the pending transactions into locals and remotes
-	receipts := copyReceipts(w.current.receipts)
-	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, w.current.state, w.current.txs, nil, receipts)
+	receipts := copyReceipts(w.emptycurrent.receipts)
+	block, err := w.engine.FinalizeAndAssemble(w.chain, w.emptycurrent.header, w.emptycurrent.state, w.emptycurrent.txs, nil, receipts)
 	if err != nil {
-		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.current.header.Number.Uint64(), "err", err.Error())
+		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.emptycurrent.header.Number.Uint64(), "err", err.Error())
 		return err
 	}
 	w.updateSnapshot()
@@ -1137,7 +1307,7 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		log.Warn("Empty Block sealing failed", "err", err, "no", block.NumberU64(), "hash", block.Hash())
 		return err
 	}
-	_, err = w.chain.WriteBlockWithState(emptyblock, receipts, nil, w.current.state, true)
+	_, err = w.chain.WriteBlockWithState(emptyblock, receipts, nil, w.emptycurrent.state, true)
 	if err != nil {
 		log.Error("commitEmpty Failed writing block to chain", "err", err)
 		return err
