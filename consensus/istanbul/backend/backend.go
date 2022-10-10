@@ -240,7 +240,8 @@ func (sb *Backend) CommitWithReward(proposal istanbul.Proposal, seals [][]byte, 
 	//    the next block and the previous Seal() will be stopped.
 	// -- otherwise, a error will be returned and a round change event will be fired.
 	log.Info("caver|Commit|commitCh", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
-	if sb.proposedBlockHash == block.Hash() {
+	//if sb.proposedBlockHash == block.Hash() {
+	if sb.GetCore().IsProposer() {
 		// feed block hash to Seal() and wait the Seal() result
 		sb.commitCh <- block
 		return nil
