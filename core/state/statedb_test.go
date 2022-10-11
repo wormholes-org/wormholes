@@ -151,6 +151,18 @@ func TestIntermediateLeaks(t *testing.T) {
 func TestCopy(t *testing.T) {
 	// Create a random state test to copy and modify "independently"
 	orig, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	//PledgedTokenPool:     make([]*types.PledgedToken, 0),
+	//	ExchangerTokenPool:   make([]*types.PledgedToken, 0),
+	//		OfficialNFTPool:      new(types.InjectedOfficialNFTList),
+	//		NominatedOfficialNFT: new(types.NominatedOfficialNFT),
+	//		FrozenAccounts:       make([]*types.FrozenAccount, 0),
+	orig.PledgedTokenPool = make([]*types.PledgedToken, 0)
+	orig.ExchangerTokenPool = make([]*types.PledgedToken, 0)
+	orig.OfficialNFTPool = new(types.InjectedOfficialNFTList)
+	orig.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
+	orig.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	orig.MintDeep = new(types.MintDeep)
+	orig.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 
 	for i := byte(0); i < 255; i++ {
 		obj := orig.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
