@@ -531,7 +531,13 @@ func TestCopyOfCopy(t *testing.T) {
 // See https://github.com/ethereum/go-ethereum/issues/20106.
 func TestCopyCommitCopy(t *testing.T) {
 	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
-
+	state.PledgedTokenPool = make([]*types.PledgedToken, 0)
+	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
+	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
+	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
+	state.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	state.MintDeep = new(types.MintDeep)
+	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	// Create an account and check if the retrieved balance is correct
 	addr := common.HexToAddress("0xaffeaffeaffeaffeaffeaffeaffeaffeaffeaffe")
 	skey := common.HexToHash("aaa")
