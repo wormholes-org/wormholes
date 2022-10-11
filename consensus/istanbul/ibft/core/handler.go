@@ -178,12 +178,12 @@ func (c *core) handleMsg(payload []byte) error {
 	msg := new(ibfttypes.Message)
 	if err := msg.FromPayload(payload, c.validateFn); err != nil {
 		if msg.Code == ibfttypes.MsgOnlineProof {
-			if ok, err1 := c.validateExistFn(msg.Address); ok {
+			if ok, _ := c.validateExistFn(msg.Address); ok {
 				curAddress := OnlineValidator{}
 				curAddress.addr = msg.Address
 				return c.handleOnlineProof(msg, &curAddress)
 			} else {
-				log.Info("handleMsg MsgOnlineProof validator not exist", "addr", msg.Address, "err", err1.Error())
+				log.Info("handleMsg MsgOnlineProof validator not exist", "addr", msg.Address)
 			}
 		}
 		logger.Error("Failed to decode message from payload", "err", err)
