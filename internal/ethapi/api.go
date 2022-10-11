@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"math/big"
 	"strings"
 	"time"
@@ -2454,6 +2455,14 @@ func (s *PublicNetAPI) PeerCount() hexutil.Uint {
 // Version returns the current ethereum protocol version.
 func (s *PublicNetAPI) Version() string {
 	return fmt.Sprintf("%d", s.networkVersion)
+}
+
+func (s *PublicNetAPI) PrintRoutingTable() *discover.TableInfo {
+	table, err := s.net.PrintRoutingTable()
+	if err != nil {
+		return nil
+	}
+	return table
 }
 
 // checkTxFee is an internal function used to check whether the fee of
