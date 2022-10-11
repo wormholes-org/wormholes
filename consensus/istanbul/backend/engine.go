@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -735,23 +736,23 @@ func (sb *Backend) GossipOnlineProof(chain consensus.ChainHeaderReader, block *t
 		return errors.New("GossipOnlineProof : ibft engine not active !")
 	}
 
-	var valset istanbul.ValidatorSet
-	if c, ok := chain.(*core.BlockChain); ok {
-		log.Info("GossipOnlineProof : calculate valset")
+	// var valset istanbul.ValidatorSet
+	// if c, ok := chain.(*core.BlockChain); ok {
+	// 	log.Info("GossipOnlineProof : calculate valset")
 
-		cBlk := c.CurrentBlock()
-		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
-		log.Info("GossipOnlineProof : len", "len", len(validatorList.Validators), "no", header.Number.Uint64())
-		if err != nil {
-			log.Error("GossipOnlineProof : err", "err", err.Error(), "no", header.Number.Uint64())
-			return err
-		}
-		valset = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
-	}
-	if _, v := valset.GetByAddress(sb.address); v == nil {
-		log.Error("GossipOnlineProof  : ErrUnauthorized", "err", istanbulcommon.ErrUnauthorized, "no", header.Number.Uint64())
-		return istanbulcommon.ErrUnauthorized
-	}
+	// 	cBlk := c.CurrentBlock()
+	// 	validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
+	// 	log.Info("GossipOnlineProof : len", "len", len(validatorList.Validators), "no", header.Number.Uint64())
+	// 	if err != nil {
+	// 		log.Error("GossipOnlineProof : err", "err", err.Error(), "no", header.Number.Uint64())
+	// 		return err
+	// 	}
+	// 	valset = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+	// }
+	// if _, v := valset.GetByAddress(sb.address); v == nil {
+	// 	log.Error("GossipOnlineProof  : ErrUnauthorized", "err", istanbulcommon.ErrUnauthorized, "no", header.Number.Uint64())
+	// 	return istanbulcommon.ErrUnauthorized
+	// }
 
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
@@ -767,6 +768,7 @@ func (sb *Backend) GossipOnlineProof(chain consensus.ChainHeaderReader, block *t
 	go sb.EventMux().Post(istanbul.OnlineProofEvent{
 		Proposal:   block,
 		RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
+		Version:    params.Version,
 	})
 
 	return nil

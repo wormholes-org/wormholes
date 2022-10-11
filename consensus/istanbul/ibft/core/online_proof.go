@@ -27,6 +27,7 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 		View:       curView,
 		Proposal:   request.Proposal,
 		RandomHash: request.RandomHash,
+		Version:    request.Version,
 	}
 
 	// sign data total byte: 8 + 32
@@ -72,7 +73,7 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 	c.acceptOnlineProof(msg, src)
 
 	onlineValidators := c.onlineProofs[c.current.sequence.Uint64()]
-	if !onlineValidators.ExistAddress(src.Address()) {
+	if onlineValidators == nil || (onlineValidators != nil && !onlineValidators.ExistAddress(src.Address())) {
 		validator := types.NewOnlineValidator(c.current.sequence, src.Address(), onlineProof.RandomHash, onlineProof.Signature)
 		onlineValidators.Validators = append(onlineValidators.Validators, validator)
 	} else {

@@ -48,6 +48,7 @@ type Request struct {
 type OnlineProofRequest struct {
 	Proposal   Proposal
 	RandomHash common.Hash
+	Version    string
 }
 
 // View includes a round number and a sequence number.
@@ -103,11 +104,12 @@ type OnlineProof struct {
 	Proposal   Proposal
 	RandomHash common.Hash
 	Signature  []byte
+	Version    string
 }
 
 // EncodeRLP serializes b into the Ethereum RLP format.
 func (o *OnlineProof) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{o.View, o.Proposal, o.RandomHash, o.Signature})
+	return rlp.Encode(w, []interface{}{o.View, o.Proposal, o.RandomHash, o.Signature, o.Version})
 }
 
 // DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
@@ -117,12 +119,13 @@ func (o *OnlineProof) DecodeRLP(s *rlp.Stream) error {
 		Proposal   *types.Block
 		RandomHash common.Hash
 		Signature  []byte
+		Version    string
 	}
 
 	if err := s.Decode(&onlineProof); err != nil {
 		return err
 	}
-	o.View, o.Proposal, o.RandomHash, o.Signature = onlineProof.View, onlineProof.Proposal, onlineProof.RandomHash, onlineProof.Signature
+	o.View, o.Proposal, o.RandomHash, o.Signature, o.Version = onlineProof.View, onlineProof.Proposal, onlineProof.RandomHash, onlineProof.Signature, onlineProof.Version
 
 	return nil
 }
