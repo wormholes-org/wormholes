@@ -28,7 +28,7 @@ func TestPrepareExtra(t *testing.T) {
 	validators[3] = common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440"))
 
 	vanity := make([]byte, types.IstanbulExtraVanity)
-	expectedResult := append(vanity, hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")...)
+	expectedResult := append(vanity, hexutil.MustDecode("0xf90125f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440a00000000000000000000000000000000000000000000000000000000000000000")...)
 
 	h := &types.Header{
 		Extra: vanity,
@@ -53,7 +53,7 @@ func TestPrepareExtra(t *testing.T) {
 
 func TestWriteSeal(t *testing.T) {
 	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
-	istRawData := hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")
+	istRawData := hexutil.MustDecode("0xf8bdf8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440b8410102030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0c0c0a00000000000000000000000000000000000000000000000000000000000000000")
 	expectedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedIstExtra := &types.IstanbulExtra{
 		Validators: []common.Address{
@@ -64,6 +64,9 @@ func TestWriteSeal(t *testing.T) {
 		},
 		Seal:          expectedSeal,
 		CommittedSeal: [][]byte{},
+		ValidatorAddr: []common.Address{},
+		RandomHash:    common.Hash{},
+		ExchangerAddr: []common.Address{},
 	}
 	var expectedErr error
 
@@ -82,7 +85,7 @@ func TestWriteSeal(t *testing.T) {
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
-	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
+	if !assert.Equal(t, istExtra, expectedIstExtra) {
 		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
 	}
 
@@ -96,7 +99,7 @@ func TestWriteSeal(t *testing.T) {
 
 func TestWriteCommittedSeals(t *testing.T) {
 	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
-	istRawData := hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")
+	istRawData := hexutil.MustDecode("0xf8bff8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080f843b8410102030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0c0a00000000000000000000000000000000000000000000000000000000000000000")
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedIstExtra := &types.IstanbulExtra{
 		Validators: []common.Address{
@@ -107,6 +110,9 @@ func TestWriteCommittedSeals(t *testing.T) {
 		},
 		Seal:          []byte{},
 		CommittedSeal: [][]byte{expectedCommittedSeal},
+		ValidatorAddr: []common.Address{},
+		RandomHash:    common.Hash{},
+		ExchangerAddr: []common.Address{},
 	}
 	var expectedErr error
 
@@ -125,7 +131,7 @@ func TestWriteCommittedSeals(t *testing.T) {
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
-	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
+	if !assert.Equal(t, istExtra, expectedIstExtra) {
 		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
 	}
 
