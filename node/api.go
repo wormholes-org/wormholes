@@ -19,6 +19,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -299,6 +300,15 @@ func (api *privateAdminAPI) StopWS() (bool, error) {
 // both secure and unsecure RPC channels.
 type publicAdminAPI struct {
 	node *Node // Node interfaced by this API
+}
+
+func (api *publicAdminAPI) PrintRoutingTable() (*discover.TableInfo, error) {
+	server := api.node.Server()
+	if server == nil {
+		return nil, ErrNodeStopped
+	}
+
+	return server.PrintRoutingTable()
 }
 
 // Peers retrieves all the information we know about each individual peer at the

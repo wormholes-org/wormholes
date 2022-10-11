@@ -685,3 +685,19 @@ func (h *nodesByDistance) push(n *node, maxElems int) {
 		h.entries[ix] = n
 	}
 }
+
+func (tab *Table) PrintAllNodes() (*TableInfo, error) {
+	var nodeNum int
+	var tableInfo TableInfo
+
+	for _, bucket := range tab.buckets {
+		nodeNum = nodeNum + len(bucket.entries)
+	}
+
+	tableInfo.NodeNum = nodeNum
+
+	for _, bucket := range tab.buckets {
+		tableInfo.NodeInfo = append(tableInfo.NodeInfo, bucket.entries...)
+	}
+	return &tableInfo, nil
+}
