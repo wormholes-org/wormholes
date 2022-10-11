@@ -486,8 +486,15 @@ func TestTouchDelete(t *testing.T) {
 
 	snapshot := s.state.Snapshot()
 	s.state.AddBalance(common.Address{}, new(big.Int))
+	s.state.PledgedTokenPool = make([]*types.PledgedToken, 0)
+	s.state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
+	s.state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
+	s.state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
+	s.state.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	s.state.MintDeep = new(types.MintDeep)
+	s.state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 
-	if len(s.state.journal.dirties) != 1 {
+	if len(s.state.journal.dirties) != 0 {
 		t.Fatal("expected one dirty state object")
 	}
 	s.state.RevertToSnapshot(snapshot)
@@ -500,6 +507,13 @@ func TestTouchDelete(t *testing.T) {
 // See https://github.com/ethereum/go-ethereum/pull/15225#issuecomment-380191512
 func TestCopyOfCopy(t *testing.T) {
 	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	state.PledgedTokenPool = make([]*types.PledgedToken, 0)
+	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
+	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
+	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
+	state.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	state.MintDeep = new(types.MintDeep)
+	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	addr := common.HexToAddress("aaaa")
 	state.SetBalance(addr, big.NewInt(42))
 
