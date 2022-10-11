@@ -3,6 +3,7 @@ package testutils
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
@@ -23,6 +24,7 @@ func Genesis(validators []common.Address, isQBFT bool) *core.Genesis {
 	genesis.Difficulty = istanbulcommon.DefaultDifficulty
 	genesis.Nonce = istanbulcommon.EmptyBlockNonce.Uint64()
 	genesis.Mixhash = types.IstanbulDigest
+	genesis.StartIndex = big.NewInt(0)
 
 	if isQBFT {
 		appendValidators(genesis, validators)

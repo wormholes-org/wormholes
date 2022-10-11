@@ -134,7 +134,7 @@ func TestCommit(t *testing.T) {
 			nil,
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			func() *types.Block {
-				chain, engine := newBlockChain(1, big.NewInt(0))
+				chain, engine := newBlockChain(1, big.NewInt(1))
 				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 				return updateQBFTBlock(block, engine.Address())
 			},
@@ -180,7 +180,7 @@ func TestCommit(t *testing.T) {
 }
 
 func TestGetProposer(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, big.NewInt(1))
 	defer engine.Stop()
 	block := makeBlock(chain, engine, chain.Genesis())
 	chain.InsertChain(types.Blocks{block})
@@ -302,7 +302,7 @@ func (slice Keys) Swap(i, j int) {
 }
 
 func newBackend() (b *Backend) {
-	_, b = newBlockChain(1, big.NewInt(0))
+	_, b = newBlockChain(1, big.NewInt(1))
 	key, _ := generatePrivateKey()
 	b.privateKey = key
 	return
