@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
@@ -94,6 +95,9 @@ func copyConfig(config *istanbul.Config) *istanbul.Config {
 }
 
 func makeHeader(parent *types.Block, config *istanbul.Config) *types.Header {
+	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
+	istRawData := hexutil.MustDecode("0xf8bdf8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440b8410102030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0c0c0a00000000000000000000000000000000000000000000000000000000000000000")
+
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     parent.Number().Add(parent.Number(), common.Big1),
@@ -101,6 +105,8 @@ func makeHeader(parent *types.Block, config *istanbul.Config) *types.Header {
 		GasUsed:    0,
 		Time:       parent.Time() + config.BlockPeriod,
 		Difficulty: istanbulcommon.DefaultDifficulty,
+		Extra:      append(vanity, istRawData...),
+		MixDigest:  types.IstanbulDigest,
 	}
 	return header
 }
@@ -118,6 +124,9 @@ func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
 	state, _ := chain.StateAt(parent.Root())
+	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
+	state.MintDeep = new(types.MintDeep)
+	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
 	block, _ := engine.FinalizeAndAssemble(chain, header, state, nil, nil, nil)
 	return block
 }
@@ -138,24 +147,8 @@ func TestIBFTPrepare(t *testing.T) {
 	}
 }
 
-func TestQBFTPrepare(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
-	defer engine.Stop()
-	header := makeHeader(chain.Genesis(), engine.config)
-	err := engine.Prepare(chain, header)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-
-	//header.ParentHash = common.StringToHash("1234567890")
-	err = engine.Prepare(chain, header)
-	if err != consensus.ErrUnknownAncestor {
-		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrUnknownAncestor)
-	}
-}
-
 func TestSealStopChannel(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	stop := make(chan struct{}, 1)
@@ -185,7 +178,7 @@ func TestSealStopChannel(t *testing.T) {
 }
 
 func TestSealCommittedOtherHash(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	otherBlock := makeBlockWithoutSeal(chain, engine, block)
@@ -233,7 +226,7 @@ func updateQBFTBlock(block *types.Block, addr common.Address) *types.Block {
 }
 
 func TestSealCommitted(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedBlock := updateQBFTBlock(block, engine.Address())
@@ -254,7 +247,7 @@ func TestSealCommitted(t *testing.T) {
 }
 
 func TestVerifyHeader(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 
 	// istanbulcommon.ErrEmptyCommittedSeals case
@@ -349,7 +342,7 @@ func TestVerifyHeader(t *testing.T) {
 }
 
 func TestVerifyHeaders(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 	genesis := chain.Genesis()
 
