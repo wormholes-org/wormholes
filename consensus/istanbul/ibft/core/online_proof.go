@@ -27,6 +27,7 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 		View:       curView,
 		Proposal:   request.Proposal,
 		RandomHash: request.RandomHash,
+		Version:    request.Version,
 	}
 
 	// sign data total byte: 8 + 32
