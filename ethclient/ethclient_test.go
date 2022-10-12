@@ -227,7 +227,7 @@ func TestClient_QueryMinerProxy(t *testing.T) {
 
 	list, err := c.QueryMinerProxy(context.Background(), 7, a)
 	if err != nil {
-		panic(err)
+		log.Printf("%+v\n", err)
 	}
 
 	for _, v := range list {
