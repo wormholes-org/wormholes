@@ -15,6 +15,11 @@ import (
 )
 
 func Genesis(validators []common.Address, isQBFT bool) *core.Genesis {
+	addr1 := common.Address{}
+	alloc := core.GenesisAlloc{
+		addr1: {Balance: big.NewInt(1000000)},
+	}
+
 	// generate genesis block
 	genesis := core.DefaultGenesisBlock()
 	genesis.Config = params.TestChainConfig
@@ -25,6 +30,8 @@ func Genesis(validators []common.Address, isQBFT bool) *core.Genesis {
 	genesis.Nonce = istanbulcommon.EmptyBlockNonce.Uint64()
 	genesis.Mixhash = types.IstanbulDigest
 	genesis.StartIndex = big.NewInt(0)
+	genesis.Alloc = alloc
+	genesis.Validator = alloc
 
 	if isQBFT {
 		appendValidators(genesis, validators)
@@ -37,11 +44,16 @@ func Genesis(validators []common.Address, isQBFT bool) *core.Genesis {
 
 func GenesisAndKeys(n int, isQBFT bool) (*core.Genesis, []*ecdsa.PrivateKey) {
 	// Setup validators
-	var nodeKeys = make([]*ecdsa.PrivateKey, n)
-	var addrs = make([]common.Address, n)
+	var nodeKeys []*ecdsa.PrivateKey
+	var addrs []common.Address
+
 	for i := 0; i < n; i++ {
-		nodeKeys[i], _ = crypto.GenerateKey()
-		addrs[i] = crypto.PubkeyToAddress(nodeKeys[i].PublicKey)
+		// nodeKeys[i], _ = crypto.GenerateKey()
+		// addrs[i] = crypto.PubkeyToAddress(nodeKeys[i].PublicKey)
+		prikey, _ := crypto.HexToECDSA("f616c4d20311a2e73c67ef334630f834b7fb42304a1d4448fb2058e9940ecc0a")
+		nodeKeys = append(nodeKeys, prikey)
+
+		addrs = append(addrs, crypto.PubkeyToAddress(prikey.PublicKey))
 	}
 
 	// generate genesis block

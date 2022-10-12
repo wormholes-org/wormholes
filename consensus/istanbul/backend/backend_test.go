@@ -239,7 +239,7 @@ func (slice Keys) Swap(i, j int) {
 }
 
 func newBackend() (b *Backend) {
-	_, b = newBlockChain(1, big.NewInt(1))
+	_, b = newBlockChain(1, nil)
 	key, _ := generatePrivateKey()
 	b.privateKey = key
 	return

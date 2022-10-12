@@ -64,12 +64,6 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 }
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
-	// Assemble the voting snapshot
-	//snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents)
-	//if err != nil {
-	//	return err
-	//}
-
 	if header.Number.Cmp(big.NewInt(0)) == 0 {
 		genesis := chain.GetHeaderByNumber(0)
 		if err := sb.EngineForBlockNumber(big.NewInt(0)).VerifyHeader(chain, genesis, nil, nil); err != nil {
@@ -78,10 +72,9 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		}
 	} else {
 		// Get the validatorset for this round
-		istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
-		if err1 != nil {
-			log.Info("caver|verifyHeader|ExtractIstanbulExtra", "no", header.Number, "err", err1.Error())
-			return err1
+		istanbulExtra, err := types.ExtractIstanbulExtra(header)
+		if err != nil {
+			return istanbulcommon.ErrInvalidExtraDataFormat
 		}
 		validators := istanbulExtra.Validators
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
