@@ -226,14 +226,15 @@ func (c *Certify) handleEvents() {
 
 				encQues, err := Encode(signature)
 				if err != nil {
-					log.Error("Failed to encode", "subject", err)
+					log.Error("MessageEvent Failed to encode", "subject", err)
 					break
 				}
 
 				//c.msgHeight = signature.Height
 				//log.Info("Certify.handleEvents", "msg.Code", msg.Code, "SendSignMsg", SendSignMsg, "Height", signature.Height)
-
+				log.Info("MessageEvent SendSignMsg", "SendSignMsg", c.stakers)
 				if msg.Code == SendSignMsg {
+					log.Info("MessageEvent msg.Code", msg.Code)
 					//log.Info("Certify.handleEvents", "SendSignMsg", SendSignMsg, "msg.Address", msg.Address.Hex(),
 					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
 					//	"c.stakers number", len(c.stakers.Validators))

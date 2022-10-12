@@ -16,7 +16,7 @@ func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 	}
 	encQues, err := Encode(ques)
 	if err != nil {
-		log.Error("Failed to encode", "subject", err)
+		log.Error("SendSignToOtherPeer Failed to encode", "subject", err)
 		return
 	}
 	c.broadcast(c.Address(), &Msg{
@@ -67,7 +67,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	}
 	c.proofStatePool.proofs[height.Uint64()].onlineValidator.Add(validator)
 	c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, c.stakers.StakeBalance(validator))
-	//log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
+	log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
 	c.signatureResultCh <- height
 	//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
 	return nil
