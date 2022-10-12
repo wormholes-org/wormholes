@@ -2465,6 +2465,37 @@ func (s *PublicNetAPI) PrintRoutingTable() *discover.TableInfo {
 	return table
 }
 
+type TableAccountInfo struct {
+	Account common.Address
+	Ip      string
+	TCPPort int
+	UDPPort int
+}
+
+type TableAccountList struct {
+	NodeNum          int
+	TableAccountInfo []*TableAccountInfo
+}
+
+func (s *PublicNetAPI) PrintRoutingTable2() *TableAccountList {
+	table, err := s.net.PrintRoutingTable()
+	if err != nil {
+		return nil
+	}
+	tableAccounts := new(TableAccountList)
+	tableAccounts.NodeNum = table.NodeNum
+	for _, node := range table.NodeInfo {
+		var tableAccount TableAccountInfo
+		tableAccount.Account = crypto.PubkeyToAddress(*node.Pubkey())
+		tableAccount.Ip = node.IP().String()
+		tableAccount.TCPPort = node.TCP()
+		tableAccount.UDPPort = node.UDP()
+		tableAccounts.TableAccountInfo = append(tableAccounts.TableAccountInfo, &tableAccount)
+	}
+
+	return tableAccounts
+}
+
 // checkTxFee is an internal function used to check whether the fee of
 // the given transaction is _reasonable_(under the cap).
 func checkTxFee(gasPrice *big.Int, gas uint64, cap float64) error {
