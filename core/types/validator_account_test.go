@@ -1167,7 +1167,7 @@ func TestMockData(t *testing.T) {
 }
 
 func randomHash2() common.Hash {
-	rand.Seed(time.Now().Local().UnixMicro())
+	rand.Seed(time.Now().Local().Unix())
 	var hash common.Hash
 	if n, err := rand.Read(hash[:]); n != common.HashLength || err != nil {
 		panic(err)
