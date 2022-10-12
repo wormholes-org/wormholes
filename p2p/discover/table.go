@@ -26,6 +26,7 @@ import (
 	crand "crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	mrand "math/rand"
 	"net"
 	"sort"
@@ -298,6 +299,7 @@ func (tab *Table) doRefresh(done chan struct{}) {
 	for i := 0; i < 3; i++ {
 		tab.net.lookupRandom()
 	}
+	tab.PrintAllNodesLog()
 }
 
 func (tab *Table) loadSeedNodes() {
@@ -700,4 +702,22 @@ func (tab *Table) PrintAllNodes() (*TableInfo, error) {
 		tableInfo.NodeInfo = append(tableInfo.NodeInfo, bucket.entries...)
 	}
 	return &tableInfo, nil
+}
+
+func (tab *Table) PrintAllNodesLog() {
+	var nodeNum int
+
+	for _, bucket := range tab.buckets {
+		nodeNum = nodeNum + len(bucket.entries)
+	}
+
+	log.Info("Table.PrintAllNodesLog start >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	log.Info("Table.PrintAllNodesLog", "nodenum", nodeNum)
+	for _, bucket := range tab.buckets {
+		for _, node := range bucket.entries {
+			log.Info("Table.PrintAllNodesLog", "account", crypto.PubkeyToAddress(*node.Pubkey()),
+				"ip", node.IP().String(), "tcpport", node.TCP(), "udp", node.UDP())
+		}
+	}
+	log.Info("Table.PrintAllNodesLog end <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 }
