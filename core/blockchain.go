@@ -2022,7 +2022,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 
 			frozenAccounts := GetInitFrozenAccounts(FrozenAccounts)
 			statedb.FrozenAccounts = frozenAccounts
-			
+
 		}
 		statedb.MintDeep = mintDeep
 		//statedb.SNFTExchangePool = exchangeList
@@ -3036,47 +3036,47 @@ func getSurroundingChainNo(i, Nr, Np int) []int {
 	return chainNoSet
 }
 
-func UpdateFrozenAccounts(unfrozenAccounts []*types.FrozenAccount) {
-	var exist bool
-	var tempFrozenAccounts []*types.FrozenAccount
-
-	if unfrozenAccounts != nil && len(unfrozenAccounts) > 0 {
-		for _, frozenAccount := range vm.FrozenAcconts {
-			exist = false
-			for _, unfrozenAccount := range unfrozenAccounts {
-				if frozenAccount.Account == unfrozenAccount.Account {
-					exist = true
-				}
-			}
-			if !exist {
-				tempFrozenAccounts = append(tempFrozenAccounts, frozenAccount)
-			}
-		}
-		vm.FrozenAcconts = tempFrozenAccounts
-	}
-}
-
-func UpdateFrozenAccounts2(unfrozenAccounts []*types.FrozenAccount) {
-	var exist bool
-	var tempFrozenAccounts []*types.FrozenAccount
-
-	if unfrozenAccounts != nil && len(unfrozenAccounts) > 0 {
-		for _, frozenAccount := range vm.FrozenAcconts {
-			exist = false
-			for _, unfrozenAccount := range unfrozenAccounts {
-				if frozenAccount.Account == unfrozenAccount.Account &&
-					frozenAccount.Amount.Cmp(unfrozenAccount.Amount) == 0 &&
-					frozenAccount.UnfrozenTime == unfrozenAccount.UnfrozenTime {
-					exist = true
-				}
-			}
-			if !exist {
-				tempFrozenAccounts = append(tempFrozenAccounts, frozenAccount)
-			}
-		}
-		vm.FrozenAcconts = tempFrozenAccounts
-	}
-}
+//func UpdateFrozenAccounts(unfrozenAccounts []*types.FrozenAccount) {
+//	var exist bool
+//	var tempFrozenAccounts []*types.FrozenAccount
+//
+//	if unfrozenAccounts != nil && len(unfrozenAccounts) > 0 {
+//		for _, frozenAccount := range vm.FrozenAcconts {
+//			exist = false
+//			for _, unfrozenAccount := range unfrozenAccounts {
+//				if frozenAccount.Account == unfrozenAccount.Account {
+//					exist = true
+//				}
+//			}
+//			if !exist {
+//				tempFrozenAccounts = append(tempFrozenAccounts, frozenAccount)
+//			}
+//		}
+//		vm.FrozenAcconts = tempFrozenAccounts
+//	}
+//}
+//
+//func UpdateFrozenAccounts2(unfrozenAccounts []*types.FrozenAccount) {
+//	var exist bool
+//	var tempFrozenAccounts []*types.FrozenAccount
+//
+//	if unfrozenAccounts != nil && len(unfrozenAccounts) > 0 {
+//		for _, frozenAccount := range vm.FrozenAcconts {
+//			exist = false
+//			for _, unfrozenAccount := range unfrozenAccounts {
+//				if frozenAccount.Account == unfrozenAccount.Account &&
+//					frozenAccount.Amount.Cmp(unfrozenAccount.Amount) == 0 &&
+//					frozenAccount.UnfrozenTime == unfrozenAccount.UnfrozenTime {
+//					exist = true
+//				}
+//			}
+//			if !exist {
+//				tempFrozenAccounts = append(tempFrozenAccounts, frozenAccount)
+//			}
+//		}
+//		vm.FrozenAcconts = tempFrozenAccounts
+//	}
+//}
 
 func (bc *BlockChain) WriteFrozenAccounts(header *types.Header, frozenAccounts *types.FrozenAccountList) {
 	poolBatch := bc.db.NewBatch()

@@ -1551,19 +1551,19 @@ func (evm *EVM) HandleNFT(
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 		log.Info("HandleNFT(), UnfrozenAccount", "wormholes.Type", wormholes.Type,
 			"parentblocknumber", evm.Context.ParentHeader.Number.Uint64(), "parenttime", evm.Context.ParentHeader.Time)
-		log.Info("HandleNFT(), UnfrozenAccount", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64(), "frozen accounts number", len(FrozenAcconts))
-		for _, frozenAcc := range FrozenAcconts {
-			log.Info("HandleNFT(), UnfrozenAccount", "blocknumber", evm.Context.BlockNumber.Uint64(),
-				"frozen account", frozenAcc.Account.Hex(), "balance", frozenAcc.Amount, "unfrozen time", frozenAcc.UnfrozenTime)
-		}
-
 		var existFlag bool
 		//var frozenAmount *big.Int
 		var frozenInfo types.FrozenAccount
 		frozenAccouts := evm.StateDB.GetFrozenAccounts()
 		if frozenAccouts != nil && len(frozenAccouts.FrozenAccounts) > 0 {
-			for _, frozenAccount := range FrozenAcconts {
+			log.Info("HandleNFT(), UnfrozenAccount", "wormholes.Type", wormholes.Type,
+				"blocknumber", evm.Context.BlockNumber.Uint64(), "frozen accounts number", len(frozenAccouts.FrozenAccounts))
+
+			for _, frozenAcc := range frozenAccouts.FrozenAccounts {
+				log.Info("HandleNFT(), UnfrozenAccount", "blocknumber", evm.Context.BlockNumber.Uint64(),
+					"frozen account", frozenAcc.Account.Hex(), "balance", frozenAcc.Amount, "unfrozen time", frozenAcc.UnfrozenTime)
+			}
+			for _, frozenAccount := range frozenAccouts.FrozenAccounts {
 				if frozenAccount.Account == caller.Address() &&
 					frozenAccount.UnfrozenTime <= evm.Context.ParentHeader.Time {
 					frozenInfo.Account = frozenAccount.Account
