@@ -140,8 +140,7 @@ type StateDB struct {
 	ExchangerTokenPool   []*types.PledgedToken
 	OfficialNFTPool      *types.InjectedOfficialNFTList
 	NominatedOfficialNFT *types.NominatedOfficialNFT
-
-	FrozenAccounts []*types.FrozenAccount
+	FrozenAccounts       *types.FrozenAccountList
 
 	ValidatorPool []*types.Validator
 }
@@ -836,7 +835,7 @@ func (s *StateDB) Copy() *StateDB {
 		ExchangerTokenPool:   make([]*types.PledgedToken, 0),
 		OfficialNFTPool:      new(types.InjectedOfficialNFTList),
 		NominatedOfficialNFT: new(types.NominatedOfficialNFT),
-		FrozenAccounts:       make([]*types.FrozenAccount, 0),
+		FrozenAccounts:       new(types.FrozenAccountList),
 	}
 	// Copy the dirty states, logs, and preimages
 	for addr := range s.journal.dirties {
@@ -1003,13 +1002,13 @@ func (s *StateDB) Copy() *StateDB {
 		}
 	}
 
-	if s.FrozenAccounts != nil && len(s.FrozenAccounts) > 0 {
-		for _, v := range s.FrozenAccounts {
+	if s.FrozenAccounts != nil && len(s.FrozenAccounts.FrozenAccounts) > 0 {
+		for _, v := range s.FrozenAccounts.FrozenAccounts {
 			var frozenAccount types.FrozenAccount
 			frozenAccount.Account = v.Account
 			frozenAccount.Amount = new(big.Int).Set(v.Amount)
 			frozenAccount.UnfrozenTime = v.UnfrozenTime
-			state.FrozenAccounts = append(state.FrozenAccounts, &frozenAccount)
+			state.FrozenAccounts.FrozenAccounts = append(state.FrozenAccounts.FrozenAccounts, &frozenAccount)
 		}
 	}
 
@@ -3109,10 +3108,19 @@ func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount) {
 	stateObject := s.GetOrNewStateObject(frozenInfo.Account)
 	if stateObject != nil {
 		stateObject.AddBalance(frozenInfo.Amount)
-		var frozenAccount types.FrozenAccount
-		frozenAccount.Account = frozenInfo.Account
-		frozenAccount.Amount = new(big.Int).Set(frozenInfo.Amount)
-		frozenAccount.UnfrozenTime = frozenInfo.UnfrozenTime
-		s.FrozenAccounts = append(s.FrozenAccounts, &frozenAccount)
+		var deleteIndex int = 0
+		var deleteFlag bool = false
+		for k, frozenAccount := range s.FrozenAccounts.FrozenAccounts {
+			if frozenAccount.Account == frozenInfo.Account &&
+				frozenAccount.Amount.Cmp(frozenInfo.Amount) == 0 &&
+				frozenAccount.UnfrozenTime == frozenInfo.UnfrozenTime {
+				deleteIndex = k
+				deleteFlag = true
+				break
+			}
+		}
+		if deleteFlag {
+			s.FrozenAccounts.FrozenAccounts = append(s.FrozenAccounts.FrozenAccounts[:deleteIndex], s.FrozenAccounts.FrozenAccounts[deleteIndex+1:]...)
+		}
 	}
 }

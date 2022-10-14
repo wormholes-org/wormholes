@@ -891,6 +891,12 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//	}
 		//}
+		frozenAccounts, err := w.chain.ReadFrozenAccounts(parent.Header())
+		if err != nil {
+			return err
+		}
+		state.FrozenAccounts = frozenAccounts
+
 	} else {
 		mintDeep = new(types.MintDeep)
 		//mintDeep.OfficialMint = big.NewInt(1)
@@ -907,6 +913,10 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		//exchangeList = &types.SNFTExchangeList{
 		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//}
+
+		frozenAccounts := core.GetInitFrozenAccounts(core.FrozenAccounts)
+		state.FrozenAccounts = frozenAccounts
+
 	}
 	state.MintDeep = mintDeep
 	//state.SNFTExchangePool = exchangeList
@@ -996,6 +1006,12 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//	}
 		//}
+		frozenAccounts, err := w.chain.ReadFrozenAccounts(parent.Header())
+		if err != nil {
+			return err
+		}
+		state.FrozenAccounts = frozenAccounts
+
 	} else {
 		mintDeep = new(types.MintDeep)
 		//mintDeep.OfficialMint = big.NewInt(1)
@@ -1012,6 +1028,10 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		//exchangeList = &types.SNFTExchangeList{
 		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//}
+
+		frozenAccounts := core.GetInitFrozenAccounts(core.FrozenAccounts)
+		state.FrozenAccounts = frozenAccounts
+
 	}
 	state.MintDeep = mintDeep
 	//state.SNFTExchangePool = exchangeList
