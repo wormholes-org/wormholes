@@ -2727,8 +2727,8 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-	//*big.Int,
-	//uint8,
+//*big.Int,
+//uint8,
 	common.Address,
 	common.Address,
 	uint8,
@@ -3101,7 +3101,7 @@ func (s *StateDB) NextIndex() *big.Int {
 //	}
 //}
 
-func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount) {
+func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount, blocknumber *big.Int) {
 	if frozenInfo == nil {
 		return
 	}
@@ -3120,7 +3120,27 @@ func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount) {
 			}
 		}
 		if deleteFlag {
-			s.FrozenAccounts.FrozenAccounts = append(s.FrozenAccounts.FrozenAccounts[:deleteIndex], s.FrozenAccounts.FrozenAccounts[deleteIndex+1:]...)
+			if blocknumber.Uint64() < 68000 {
+				var tempFrozenAccounts types.FrozenAccountList
+				for _, acc := range s.FrozenAccounts.FrozenAccounts {
+					if acc.Account != frozenInfo.Account {
+						tempFrozenAccounts.FrozenAccounts = append(tempFrozenAccounts.FrozenAccounts, acc)
+					}
+				}
+
+				s.FrozenAccounts = &tempFrozenAccounts
+			} else {
+				s.FrozenAccounts.FrozenAccounts = append(s.FrozenAccounts.FrozenAccounts[:deleteIndex], s.FrozenAccounts.FrozenAccounts[deleteIndex+1:]...)
+			}
 		}
 	}
+}
+
+func (s *StateDB) GetFrozenAccounts() *types.FrozenAccountList {
+	var tempFrozenAccounts types.FrozenAccountList
+	for _, acc := range s.FrozenAccounts.FrozenAccounts {
+		tempFrozenAccounts.FrozenAccounts = append(tempFrozenAccounts.FrozenAccounts, acc)
+	}
+
+	return &tempFrozenAccounts
 }
