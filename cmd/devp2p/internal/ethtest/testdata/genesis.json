@@ -18,22 +18,22 @@
     "coinbase": "0x0000000000000000000000000000000000000000",
     "dir": "0x20000",
     "inject_number": 3,
-    "start_index": 110,
+    "start_index": 20000,
     "royalty": 3,
     "creator": "LUCY",
     "stake": {
     "71562b71999873db5b286df957af199ec94617f7": {
-        "balance": "0x1"
+        "balance": 21
     }
-},
+    },
     "validator": {
         "71562b71999873db5b286df957af199ec94617f7": {
-            "balance": "0x1"
+            "balance": 21
         }
     },
     "alloc": {
         "71562b71999873db5b286df957af199ec94617f7": {
-            "balance": "0x1"
+            "balance": 12
         }
     },
     "number": "0x0",
