@@ -127,6 +127,14 @@ func (sb *Backend) Engine() istanbul.Engine {
 	return sb.EngineForBlockNumber(nil)
 }
 
+func (sb *Backend) ValidatorExist(address common.Address) (bool, error) {
+	all, err := sb.chain.(*core.BlockChain).ReadValidatorPool(sb.chain.CurrentHeader())
+	if err != nil {
+		return false, err
+	}
+	return all.Exist(address), nil
+}
+
 func (sb *Backend) EngineForBlockNumber(blockNumber *big.Int) istanbul.Engine {
 	switch {
 	case blockNumber != nil && sb.IsQBFTConsensusAt(blockNumber):
@@ -419,7 +427,8 @@ func (sb *Backend) startIBFT() error {
 	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByString())
 	sb.qbftConsensusEnabled = false
 
-	sb.core = ibftcore.New(sb, sb.config)
+	//sb.core = ibftcore.New(sb, sb.config)
+	sb.core = ibftcore.NewCore(sb, sb.config, sb.ValidatorExist)
 	if err := sb.core.Start(); err != nil {
 		sb.logger.Error("BFT: failed to activate IBFT", "err", err)
 		return err
