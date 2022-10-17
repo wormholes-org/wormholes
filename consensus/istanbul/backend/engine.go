@@ -285,6 +285,9 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 
 	sb.peers = newPeerSet()
 	sb.server = &p2p.Server{Config: sb.config.P2P}
+	if sb.server.PrivateKey == nil {
+		sb.server.PrivateKey = sb.privateKey
+	}
 	sb.server.Protocols = []p2p.Protocol{
 		{
 			Name:    "istanbul",
