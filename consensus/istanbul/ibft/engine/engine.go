@@ -312,10 +312,13 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		vals := ibftCore.GetOnlineValidators()
 		if _, ok := vals[header.Number.Uint64()]; ok {
 			for _, v := range vals[header.Number.Uint64()].Validators {
-				log.Info("Prepare: onlineValidators", "no", header.Number, "onlineValidators", v.Address.Hex())
 				onlineValidators = append(onlineValidators, v.Address)
 			}
 		}
+	}
+
+	for _, v := range onlineValidators {
+		log.Info("Prepare: onlineValidators", "no", header.Number, "onlineValidators", v)
 	}
 
 	header.Nonce = istanbulcommon.EmptyBlockNonce

@@ -3,7 +3,6 @@ package miner
 import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
-	"strconv"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -11,11 +10,11 @@ import (
 
 type ProofStatePool struct {
 	mu     sync.Mutex
-	proofs map[*big.Int]*ProofState // Online attestation status of current altitude
+	proofs map[uint64]*ProofState // Online attestation status of current altitude
 }
 
 func NewProofStatePool() *ProofStatePool {
-	return &ProofStatePool{proofs: make(map[*big.Int]*ProofState)}
+	return &ProofStatePool{proofs: make(map[uint64]*ProofState)}
 }
 
 // ClearPrev Clear all proof data before this altitude
@@ -23,12 +22,16 @@ func (p *ProofStatePool) ClearPrev(height *big.Int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p != nil {
-		for k := range p.proofs {
-			if k.Cmp(height) <= 0 {
-				delete(p.proofs, k)
-			}
+	var removeHeight []uint64
+
+	for k := range p.proofs {
+		if k <= height.Uint64() {
+			removeHeight = append(removeHeight, k)
 		}
+	}
+
+	for _, v := range removeHeight {
+		delete(p.proofs, v)
 	}
 }
 
@@ -36,23 +39,21 @@ func (psp *ProofStatePool) Put(height *big.Int, proposer, validator common.Addre
 	psp.mu.Lock()
 	defer psp.mu.Unlock()
 	for k, p := range psp.proofs {
-		if k.Cmp(height) == 0 {
+		if k == height.Uint64() {
 			// Proof data exists for this height
 			if p.onlineValidator.Has(validator) {
 				return false
 			}
 			p.onlineValidator.Add(validator)
-			num, _ := strconv.Atoi(vl.StakeBalance(validator).String())
-			p.receiveValidatorsSum += num
+			p.receiveValidatorsSum = new(big.Int).Add(p.receiveValidatorsSum, vl.StakeBalance(validator))
 			p.count++
 			return true
 		}
 	}
 	// No proof data exists for this height
 	ps := newProofState(proposer, validator)
-	psp.proofs[height] = ps
-	num, _ := strconv.Atoi(vl.StakeBalance(validator).String())
-	ps.receiveValidatorsSum += num
+	psp.proofs[height.Uint64()] = ps
+	ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, vl.StakeBalance(validator))
 	ps.count++
 	return true
 }
@@ -61,7 +62,7 @@ func (psp *ProofStatePool) GetProofCountByHeight(height *big.Int) int {
 	psp.mu.Lock()
 	defer psp.mu.Unlock()
 	for h, v := range psp.proofs {
-		if h.Cmp(height) == 0 {
+		if h == height.Uint64() {
 			return v.count
 		}
 	}
@@ -70,7 +71,8 @@ func (psp *ProofStatePool) GetProofCountByHeight(height *big.Int) int {
 
 type ProofState struct {
 	count                int // Represents the number of proofs collected
-	receiveValidatorsSum int
+	height               *big.Int
+	receiveValidatorsSum *big.Int
 	proposer             common.Address
 	onlineValidator      OnlineValidator // The highly online validator of this block & reward addr
 }
@@ -94,4 +96,12 @@ func (ov OnlineValidator) Add(addr common.Address) {
 
 func (ov OnlineValidator) Delete(addr common.Address) {
 	delete(ov, addr)
+}
+
+func (ov OnlineValidator) GetAllAddress() []common.Address {
+	var addrs []common.Address
+	for address, _ := range ov {
+		addrs = append(addrs, address)
+	}
+	return addrs
 }
