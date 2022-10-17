@@ -28,10 +28,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/vm"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -2539,7 +2537,7 @@ func (s *StateDB) PledgeToken(address common.Address,
 	for _, v := range s.ValidatorPool {
 		if v.Proxy != empty && v.Addr != address && v.Proxy == proxy {
 			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
-			return vm.ErrMinerProxy
+			return errors.New("cannot delegate repeatedly")
 		}
 	}
 
@@ -2573,14 +2571,14 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 	}
 	if !existAddress {
 		log.Info("MinerConsign", "err", "no repeated pledge")
-		return vm.ErrRepeatedPledge
+		return errors.New("no repeated pledge")
 	}
 
 	//Resolving duplicates is delegated
 	for _, v := range s.ValidatorPool {
 		if v.Proxy.Hex() != empty.Hex() && v.Proxy.Hex() == proxy.Hex() {
 			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
-			return vm.ErrMinerProxy
+			return errors.New("cannot delegate repeatedly")
 		}
 	}
 	if stateObject != nil {
