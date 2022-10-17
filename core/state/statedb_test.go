@@ -1149,7 +1149,13 @@ func TestMergeNFT16(t *testing.T) {
 	memDb := rawdb.NewMemoryDatabase()
 	db := NewDatabase(memDb)
 	state, _ := New(common.Hash{}, db, nil)
-
+	state.PledgedTokenPool = make([]*types.PledgedToken, 0)
+	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
+	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
+	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
+	state.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	state.MintDeep = new(types.MintDeep)
+	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 
 	for i := 0; i < 16; i++ {

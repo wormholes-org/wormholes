@@ -6,6 +6,7 @@
         "eip155Block": 0,
         "eip158Block": 0,
         "byzantiumBlock": 0,
+
         "ethash": {}
     },
     "nonce": "0xdeadbeefdeadbeef",
@@ -15,9 +16,24 @@
     "difficulty": "0x20000",
     "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "coinbase": "0x0000000000000000000000000000000000000000",
+    "dir": "0x20000",
+    "inject_number": 3,
+    "start_index": 110,
+    "royalty": 3,
+    "creator": "LUCY",
+    "stake": {
+    "71562b71999873db5b286df957af199ec94617f7": {
+        "balance": "0x1"
+    }
+},
+    "validator": {
+        "71562b71999873db5b286df957af199ec94617f7": {
+            "balance": "0x1"
+        }
+    },
     "alloc": {
         "71562b71999873db5b286df957af199ec94617f7": {
-            "balance": "0xffffffffffffffffffffffffff"
+            "balance": "0x1"
         }
     },
     "number": "0x0",
