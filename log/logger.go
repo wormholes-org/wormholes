@@ -136,21 +136,25 @@ type logger struct {
 	h   *swapHandler
 }
 
+var LogFlag bool
+
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
-	l.h.Log(&Record{
-		Time:        time.Now(),
-		BlockNumber: getBlockNumber(),
-		Lvl:         lvl,
-		Msg:         msg,
-		Ctx:         newContext(l.ctx, ctx),
-		Call:        stack.Caller(skip),
-		KeyNames: RecordKeyNames{
-			Time: timeKey,
-			Msg:  msgKey,
-			Lvl:  lvlKey,
-			Ctx:  ctxKey,
-		},
-	})
+	if LogFlag {
+		l.h.Log(&Record{
+			Time:        time.Now(),
+			BlockNumber: getBlockNumber(),
+			Lvl:         lvl,
+			Msg:         msg,
+			Ctx:         newContext(l.ctx, ctx),
+			Call:        stack.Caller(skip),
+			KeyNames: RecordKeyNames{
+				Time: timeKey,
+				Msg:  msgKey,
+				Lvl:  lvlKey,
+				Ctx:  ctxKey,
+			},
+		})
+	}
 }
 
 func (l *logger) New(ctx ...interface{}) Logger {

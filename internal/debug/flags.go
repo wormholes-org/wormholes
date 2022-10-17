@@ -194,6 +194,7 @@ func Setup(ctx *cli.Context) error {
 	if logMerge {
 		rotatingFile := log.MergeLog(logPath, log.TerminalFormat(false))
 		glogger.SetHandler(log.MultiHandler(ostream, rotatingFile))
+		log.LogFlag = true
 	} else {
 		if logPath != "" {
 			f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
@@ -202,6 +203,7 @@ func Setup(ctx *cli.Context) error {
 			}
 			ostream = log.StreamHandler(f, log.TerminalFormat(false))
 			glogger.SetHandler(ostream)
+			log.LogFlag = true
 		}
 	}
 	verbosity := ctx.GlobalInt(verbosityFlag.Name)

@@ -1842,7 +1842,7 @@ module.exports = function (value, options) {
 };
 
 
-},{"crypto-js":59,"crypto-js/sha3":80}],20:[function(require,module,exports){
+},{"crypto-js":60,"crypto-js/sha3":81}],20:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -2121,6 +2121,60 @@ var toHex = function (val) {
 };
 
 /**
+ * Returns value of Array
+ *
+ * @method toBytes
+ * @param {String} unit the unit to convert to
+ * @returns {Array} value of the unit
+ */
+var toBytes = function (unit){
+  var ch, st, re = [];
+  for (var i = 0; i < unit.length; i++ ) {
+    ch = unit.charCodeAt(i);  // get char
+    st = [];                 // set up "stack"
+
+    do {
+      st.push( ch & 0xFF );  // push byte to stack
+      ch = ch >> 8;          // shift value down by 1 byte
+    }
+
+    while ( ch );
+    // add stack contents to result
+    // done because chars have "wrong" endianness
+    re = re.concat( st.reverse() );
+  }
+  // return an array of bytes
+  return re;
+}
+
+/**
+ * Returns value of Array
+ *
+ * @method toHexutil
+ * @param {String} unit the unit to convert to
+ * @returns {String} value of the unit
+ */
+var hexutilEncode = function (unit){
+  var hextable = "0123456789abcdef"
+  var byts = toBytes(unit);
+  var rs = new Array(byts.length*2+2);
+  rs[0] = "0".charCodeAt(0);
+  rs[1] = "x".charCodeAt(0);
+  var j = 2;
+  byts.forEach(function (value) {
+    rs[j] = hextable.charCodeAt(value>>4);
+    rs[j+1] = hextable.charCodeAt(value&0x0f);
+    j += 2
+  })
+
+  var str = "";
+  rs.forEach(function (item) {
+    str += String.fromCharCode(item)
+  })
+  return str;
+}
+
+/**
  * Returns value of unit in Wei
  *
  * @method getValueOfUnit
@@ -2135,6 +2189,23 @@ var getValueOfUnit = function (unit) {
         throw new Error('This unit doesn\'t exists, please use the one of the following units' + JSON.stringify(unitMap, null, 2));
     }
     return new BigNumber(unitValue, 10);
+};
+
+/**
+ * Returns value of unit in Wei
+ *
+ * @method getValueOfUnit
+ * @param {String} unit the unit to convert to, default ether
+ * @returns {BigNumber} value of the unit (in Wei)
+ * @throws error if the unit is not correct:w
+ */
+var getValueOfUnits = function (unit) {
+  unit = unit ? unit.toLowerCase() : 'erb';
+  var unitValue = unitMaps[unit];
+  if (unitValue === undefined) {
+    throw new Error('This unit doesn\'t exists, please use the one of the following units' + JSON.stringify(unitMaps, null, 2));
+  }
+  return new BigNumber(unitValue, 10);
 };
 
 /**
@@ -2159,7 +2230,12 @@ var getValueOfUnit = function (unit) {
  * @return {String|Object} When given a BigNumber object it returns one as well, otherwise a number
 */
 var fromWei = function(number, unit) {
-    var returnValue = toBigNumber(number).dividedBy(getValueOfUnit(unit));
+    var returnValue = ''
+    if (unit === "ether" || unit.toLowerCase() === "ether") {
+        returnValue = toBigNumber(number).dividedBy(getValueOfUnit(unit));
+    }else{
+        returnValue = toBigNumber(number).dividedBy(getValueOfUnits(unit));
+    }
 
     return isBigNumber(number) ? returnValue : returnValue.toString(10);
 };
@@ -2444,6 +2520,7 @@ module.exports = {
     padLeft: padLeft,
     padRight: padRight,
     toHex: toHex,
+    hexutilEncode: hexutilEncode,
     toDecimal: toDecimal,
     fromDecimal: fromDecimal,
     toUtf8: toUtf8,
@@ -2473,7 +2550,7 @@ module.exports = {
     isTopic: isTopic,
 };
 
-},{"./sha3.js":19,"bignumber.js":"bignumber.js","utf8":85}],21:[function(require,module,exports){
+},{"./sha3.js":19,"bignumber.js":"bignumber.js","utf8":86}],21:[function(require,module,exports){
 module.exports={
     "version": "0.20.1"
 }
@@ -2509,6 +2586,7 @@ module.exports={
 var RequestManager = require('./web3/requestmanager');
 var Iban = require('./web3/iban');
 var Eth = require('./web3/methods/eth');
+var ERB = require('./web3/methods/erb');
 var DB = require('./web3/methods/db');
 var Shh = require('./web3/methods/shh');
 var Net = require('./web3/methods/net');
@@ -2531,6 +2609,7 @@ function Web3 (provider) {
     this._requestManager = new RequestManager(provider);
     this.currentProvider = provider;
     this.eth = new Eth(this);
+    this.erb = new ERB(this);
     this.db = new DB(this);
     this.shh = new Shh(this);
     this.net = new Net(this);
@@ -2568,6 +2647,7 @@ Web3.prototype.reset = function (keepIsSyncing) {
 
 Web3.prototype.BigNumber = BigNumber;
 Web3.prototype.toHex = utils.toHex;
+Web3.prototype.hexutilEncode = utils.hexutilEncode;
 Web3.prototype.toAscii = utils.toAscii;
 Web3.prototype.toUtf8 = utils.toUtf8;
 Web3.prototype.fromAscii = utils.fromAscii;
@@ -2632,7 +2712,7 @@ Web3.prototype.createBatch = function () {
 module.exports = Web3;
 
 
-},{"./utils/sha3":19,"./utils/utils":20,"./version.json":21,"./web3/batch":24,"./web3/extend":28,"./web3/httpprovider":32,"./web3/iban":33,"./web3/ipcprovider":34,"./web3/methods/db":37,"./web3/methods/eth":38,"./web3/methods/net":39,"./web3/methods/personal":40,"./web3/methods/shh":41,"./web3/methods/swarm":42,"./web3/property":45,"./web3/requestmanager":46,"./web3/settings":47,"bignumber.js":"bignumber.js"}],23:[function(require,module,exports){
+},{"./utils/sha3":19,"./utils/utils":20,"./version.json":21,"./web3/batch":24,"./web3/extend":28,"./web3/httpprovider":32,"./web3/iban":33,"./web3/ipcprovider":34,"./web3/methods/db":37,"./web3/methods/eth":38,"./web3/methods/net":39,"./web3/methods/erb":40,"./web3/methods/personal":41,"./web3/methods/shh":42,"./web3/methods/swarm":43,"./web3/property":46,"./web3/requestmanager":47,"./web3/settings":48,"bignumber.js":"bignumber.js"}],23:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -2722,7 +2802,7 @@ AllSolidityEvents.prototype.attachToContract = function (contract) {
 module.exports = AllSolidityEvents;
 
 
-},{"../utils/sha3":19,"../utils/utils":20,"./event":27,"./filter":29,"./formatters":30,"./methods/watches":43}],24:[function(require,module,exports){
+},{"../utils/sha3":19,"../utils/utils":20,"./event":27,"./filter":29,"./formatters":30,"./methods/watches":44}],24:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -3357,7 +3437,7 @@ SolidityEvent.prototype.attachToContract = function (contract) {
 module.exports = SolidityEvent;
 
 
-},{"../solidity/coder":7,"../utils/sha3":19,"../utils/utils":20,"./filter":29,"./formatters":30,"./methods/watches":43}],28:[function(require,module,exports){
+},{"../solidity/coder":7,"../utils/sha3":19,"../utils/utils":20,"./filter":29,"./formatters":30,"./methods/watches":44}],28:[function(require,module,exports){
 var formatters = require('./formatters');
 var utils = require('./../utils/utils');
 var Method = require('./method');
@@ -3407,7 +3487,7 @@ var extend = function (web3) {
 module.exports = extend;
 
 
-},{"./../utils/utils":20,"./formatters":30,"./method":36,"./property":45}],29:[function(require,module,exports){
+},{"./../utils/utils":20,"./formatters":30,"./method":36,"./property":46}],29:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5533,7 +5613,7 @@ Eth.prototype.isSyncing = function (callback) {
 
 module.exports = Eth;
 
-},{"../../utils/config":18,"../../utils/utils":20,"../contract":25,"../filter":29,"../formatters":30,"../iban":33,"../method":36,"../namereg":44,"../property":45,"../syncing":48,"../transfer":49,"./watches":43}],39:[function(require,module,exports){
+},{"../../utils/config":18,"../../utils/utils":20,"../contract":25,"../filter":29,"../formatters":30,"../iban":33,"../method":36,"../namereg":45,"../property":46,"../syncing":47,"../transfer":50,"./watches":44}],39:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5587,7 +5667,655 @@ var properties = function () {
 
 module.exports = Net;
 
-},{"../../utils/utils":20,"../property":45}],40:[function(require,module,exports){
+},{"../../utils/utils":20,"../property":46}],40:[function(require,module,exports){
+/*
+   This file is part of web3.js.
+
+   web3.js is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   web3.js is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public License
+   along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
+*/
+/**
+ * @file erb.js
+ * @author Marek Kotewicz <marek@erbdev.com>
+ * @author Fabian Vogelsteller <fabian@erbdev.com>
+ * @date 2015
+ */
+
+"use strict";
+
+var formatters = require('../formatters');
+var Method = require('../method');
+var Property = require('../property');
+var c = require('../../utils/config');
+var utils = require('../../utils/utils');
+var IsSyncing = require('../syncing');
+
+var blockCall = function (args) {
+    return (utils.isString(args[0]) && args[0].indexOf('0x') === 0) ? "eth_getBlockByHash" : "eth_getBlockByNumber";
+};
+
+var transactionFromBlockCall = function (args) {
+    return (utils.isString(args[0]) && args[0].indexOf('0x') === 0) ? 'eth_getTransactionByBlockHashAndIndex' : 'eth_getTransactionByBlockNumberAndIndex';
+};
+
+var getBlockTransactionCountCall = function (args) {
+    return (utils.isString(args[0]) && args[0].indexOf('0x') === 0) ? 'eth_getBlockTransactionCountByHash' : 'eth_getBlockTransactionCountByNumber';
+};
+
+function ERB(web3) {
+    this._requestManager = web3._requestManager;
+
+    var self = this;
+
+    methods().forEach(function(method) {
+        method.attachToObject(self);
+        method.setRequestManager(self._requestManager);
+    });
+
+    properties().forEach(function(p) {
+        p.attachToObject(self);
+        p.setRequestManager(self._requestManager);
+    });
+}
+
+Object.defineProperty(ERB.prototype, 'defaultBlock', {
+    get: function () {
+        return c.defaultBlock;
+    },
+    set: function (val) {
+        c.defaultBlock = val;
+        return val;
+    }
+});
+
+Object.defineProperty(ERB.prototype, 'defaultAccount', {
+    get: function () {
+        return c.defaultAccount;
+    },
+    set: function (val) {
+        c.defaultAccount = val;
+        return val;
+    }
+});
+
+var methods = function () {
+    var getBalance = new Method({
+        name: 'getBalance',
+        call: 'eth_getBalance',
+        params: 2,
+        inputFormatter: [formatters.inputAddressFormatter, formatters.inputDefaultBlockNumberFormatter],
+        outputFormatter: formatters.outputBigNumberFormatter
+    });
+
+    var getBlock = new Method({
+        name: 'getBlock',
+        call: blockCall,
+        params: 2,
+        inputFormatter: [formatters.inputBlockNumberFormatter, function (val) { return !!val; }],
+        outputFormatter: formatters.outputBlockFormatter
+    });
+
+    var getBlockTransactionCount = new Method({
+        name: 'getBlockTransactionCount',
+        call: getBlockTransactionCountCall,
+        params: 1,
+        inputFormatter: [formatters.inputBlockNumberFormatter],
+        outputFormatter: utils.toDecimal
+    });
+
+    var getTransaction = new Method({
+        name: 'getTransaction',
+        call: 'eth_getTransactionByHash',
+        params: 1,
+        outputFormatter: formatters.outputTransactionFormatter
+    });
+
+    var getTransactionFromBlock = new Method({
+        name: 'getTransactionFromBlock',
+        call: transactionFromBlockCall,
+        params: 2,
+        inputFormatter: [formatters.inputBlockNumberFormatter, utils.toHex],
+        outputFormatter: formatters.outputTransactionFormatter
+    });
+
+    var getTransactionReceipt = new Method({
+        name: 'getTransactionReceipt',
+        call: 'eth_getTransactionReceipt',
+        params: 1,
+        outputFormatter: formatters.outputTransactionReceiptFormatter
+    });
+
+    var getTransactionCount = new Method({
+        name: 'getTransactionCount',
+        call: 'eth_getTransactionCount',
+        params: 2,
+        inputFormatter: [null, formatters.inputDefaultBlockNumberFormatter],
+        outputFormatter: utils.toDecimal
+    });
+
+    var sendRawTransaction = new Method({
+        name: 'sendRawTransaction',
+        call: 'eth_sendRawTransaction',
+        params: 1,
+        inputFormatter: [null]
+    });
+
+    var sendTransaction = new Method({
+        name: 'sendTransaction',
+        call: 'eth_sendTransaction',
+        params: 1,
+        inputFormatter: [formatters.inputTransactionFormatter]
+    });
+
+    var signTransaction = new Method({
+        name: 'signTransaction',
+        call: 'eth_signTransaction',
+        params: 1,
+        inputFormatter: [formatters.inputTransactionFormatter]
+    });
+
+    var sign = new Method({
+        name: 'sign',
+        call: 'eth_sign',
+        params: 2,
+        inputFormatter: [formatters.inputAddressFormatter, null]
+    });
+
+    var call = new Method({
+        name: 'call',
+        call: 'eth_call',
+        params: 2,
+        inputFormatter: [formatters.inputCallFormatter, formatters.inputDefaultBlockNumberFormatter]
+    });
+
+    var estimateGas = new Method({
+        name: 'estimateGas',
+        call: 'eth_estimateGas',
+        params: 1,
+        inputFormatter: [formatters.inputCallFormatter],
+        outputFormatter: utils.toDecimal
+    });
+
+    var submitWork = new Method({
+        name: 'submitWork',
+        call: 'eth_submitWork',
+        params: 3
+    });
+
+    var getWork = new Method({
+        name: 'getWork',
+        call: 'eth_getWork',
+        params: 0
+    });
+
+    var queryMinerProxy = new Method({
+        name: 'queryMinerProxy',
+        call: 'erb_queryMinerProxy',
+        params: 2,
+        inputFormatter: [formatters.inputBlockNumberFormatter,formatters.inputAddressFormatter],
+    });
+
+    var getActiveLivePool = new Method({
+        name: 'getActiveLivePool',
+        call: 'erb_getActiveLivePool',
+        params: 1,
+        inputFormatter: [formatters.inputBlockNumberFormatter],
+    });
+
+    var getAccountInfo = new Method({
+        name: 'getAccountInfo',
+        call: 'erb_getAccountInfo',
+        params: 2,
+        inputFormatter: [formatters.inputAddressFormatter,null],
+    });
+
+    var getBlockBeneficiaryAddressByNumber = new Method({
+        name: 'getBlockBeneficiaryAddressByNumber',
+        call: 'erb_getBlockBeneficiaryAddressByNumber',
+        params: 2,
+    });
+
+    var getUserMintDeep = new Method({
+        name: 'getUserMintDeep',
+        call: 'erb_getUserMintDeep',
+        params: 1,
+        inputFormatter: [formatters.inputBlockNumberFormatter]
+    });
+
+    var getStaker = new Method({
+        name: 'getStaker',
+        call: 'erb_getStaker',
+        params: 1,
+        inputFormatter: [formatters.inputBlockNumberFormatter]
+    });
+
+    var getStakerLen = new Method({
+        name: 'getStakerLen',
+        call: 'erb_getStakerLen',
+        params: 1,
+        inputFormatter: [formatters.inputBlockNumberFormatter]
+    });
+
+    var getValidator = new Method({
+        name: 'getValidator',
+        call: 'erb_getValidator',
+        params: 1,
+        inputFormatter: [formatters.inputBlockNumberFormatter]
+    });
+
+    var getValidatorLen = new Method({
+        name: 'getValidatorLen',
+        call: 'erb_getValidatorLen',
+        params: 1,
+        inputFormatter: [formatters.inputBlockNumberFormatter]
+    });
+
+    var getNominatedNFTInfo = new Method({
+        name: 'getNominatedNFTInfo',
+        call: 'erb_getNominatedNFTInfo',
+        params: 1,
+        inputFormatter: [formatters.inputBlockNumberFormatter]
+    });
+
+    var getInjectedNFTInfo = new Method({
+        name: 'getInjectedNFTInfo',
+        call: 'erb_getInjectedNFTInfo',
+        params: 1,
+        inputFormatter: [formatters.inputBlockNumberFormatter]
+    });
+
+    var rawMint = new Method({
+        name: 'rawMint',
+        call: 'erb_rawMint',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var mint = new Method({
+        name: 'mint',
+        call: 'erb_mint',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawTransfer = new Method({
+        name: 'rawTransfer',
+        call: 'erb_rawTransfer',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var transfer = new Method({
+        name: 'transfer',
+        call: 'erb_transfer',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawAuthor = new Method({
+        name: 'rawAuthor',
+        call: 'erb_rawAuthor',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var author = new Method({
+        name: 'author',
+        call: 'erb_author',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawAuthorRevoke = new Method({
+        name: 'rawAuthorRevoke',
+        call: 'erb_rawAuthorRevoke',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var authorRevoke = new Method({
+        name: 'authorRevoke',
+        call: 'erb_authorRevoke',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawAccountAuthor = new Method({
+        name: 'rawAccountAuthor',
+        call: 'erb_rawAccountAuthor',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var accountAuthor = new Method({
+        name: 'accountAuthor',
+        call: 'erb_accountAuthor',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawAccountAuthorRevoke = new Method({
+        name: 'rawAccountAuthorRevoke',
+        call: 'erb_rawAccountAuthorRevoke',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var accountAuthorRevoke = new Method({
+        name: 'accountAuthorRevoke',
+        call: 'erb_accountAuthorRevoke',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawSNFTToERB = new Method({
+        name: 'rawSNFTToERB',
+        call: 'erb_rawSNFTToERB',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var sNFTToERB = new Method({
+        name: 'sNFTToERB',
+        call: 'erb_sNFTToERB',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawTokenPledge = new Method({
+        name: 'rawTokenPledge',
+        call: 'erb_rawTokenPledge',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawTokenRevokesPledge = new Method({
+        name: 'rawTokenRevokesPledge',
+        call: 'erb_rawTokenRevokesPledge',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var tokenRevokesPledge = new Method({
+        name: 'tokenRevokesPledge',
+        call: 'erb_tokenPledge',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawOpenExchanger = new Method({
+        name: 'rawOpenExchanger',
+        call: 'erb_rawOpenExchanger',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var openExchanger = new Method({
+        name: 'openExchanger',
+        call: 'erb_openExchanger',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawCloseExchanger = new Method({
+        name: 'rawCloseExchanger',
+        call: 'erb_rawCloseExchanger',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var closeExchanger = new Method({
+        name: 'closeExchanger',
+        call: 'erb_closeExchanger',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawTransactionNFT = new Method({
+        name: 'rawTransactionNFT',
+        call: 'erb_rawTransactionNFT',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawBuyerInitiatingTransaction = new Method({
+        name: 'rawBuyerInitiatingTransaction',
+        call: 'rawBuyerInitiatingTransaction',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawFoundryTradeBuyer = new Method({
+        name: 'rawFoundryTradeBuyer',
+        call: 'erb_rawFoundryTradeBuyer',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawFoundryExchange = new Method({
+        name: 'rawFoundryExchange',
+        call: 'erb_rawFoundryExchange',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawNFTExchangeMatch = new Method({
+        name: 'rawNFTExchangeMatch',
+        call: 'erb_rawNFTExchangeMatch',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawFoundryExchangeInitiated = new Method({
+        name: 'rawFoundryExchangeInitiated',
+        call: 'erb_rawFoundryExchangeInitiated',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawNFTDoesNotAuthorizeExchanges = new Method({
+        name: 'rawNFTDoesNotAuthorizeExchanges',
+        call: 'erb_rawNFTDoesNotAuthorizeExchanges',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var additionalPledgeAmount = new Method({
+        name: 'additionalPledgeAmount',
+        call: 'erb_additionalPledgeAmount',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawAdditionalPledgeAmount = new Method({
+        name: 'rawAdditionalPledgeAmount',
+        call: 'erb_rawAdditionalPledgeAmount',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var revokesPledgeAmount = new Method({
+        name: 'revokesPledgeAmount',
+        call: 'erb_revokesPledgeAmount',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawRevokesPledgeAmount = new Method({
+        name: 'rawRevokesPledgeAmount',
+        call: 'erb_rawRevokesPledgeAmount',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var voteOfficialNFT = new Method({
+        name: 'voteOfficialNFT',
+        call: 'erb_voteOfficialNFT',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawVoteOfficialNFT = new Method({
+        name: 'rawVoteOfficialNFT',
+        call: 'erb_rawVoteOfficialNFT',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawVoteOfficialNFTByApprovedExchanger = new Method({
+        name: 'rawVoteOfficialNFTByApprovedExchanger',
+        call: 'erb_rawVoteOfficialNFTByApprovedExchanger',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var Unfrozen = new Method({
+        name: 'unfrozen',
+        call: 'erb_unfrozen',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawUnfrozen = new Method({
+        name: 'rawUnfrozenAccount',
+        call: 'erb_rawUnfrozenAccount',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    var rawAccountDelegate = new Method({
+        name: 'rawAccountDelegate',
+        call: 'erb_rawAccountDelegate',
+        params: 1,
+        inputFormatter: [null],
+    });
+
+    return [
+        getBalance,
+        getBlock,
+        getBlockTransactionCount,
+        getTransaction,
+        getTransactionFromBlock,
+        getTransactionReceipt,
+        getTransactionCount,
+        sendRawTransaction,
+        sendTransaction,
+        signTransaction,
+        sign,
+        call,
+        estimateGas,
+        submitWork,
+        getWork,
+        queryMinerProxy,
+        getActiveLivePool,
+        getAccountInfo,
+        getBlockBeneficiaryAddressByNumber,
+        getUserMintDeep,
+        getStaker,
+        getStakerLen,
+        getValidator,
+        getValidatorLen,
+        getNominatedNFTInfo,
+        getInjectedNFTInfo,
+        rawMint,
+        mint,
+        rawTransfer,
+        transfer,
+        rawAuthor,
+        author,
+        rawAuthorRevoke,
+        authorRevoke,
+        rawAccountAuthor,
+        accountAuthor,
+        rawAccountAuthorRevoke,
+        accountAuthorRevoke,
+        rawSNFTToERB,
+        sNFTToERB,
+        rawTokenPledge,
+        rawTokenRevokesPledge,
+        tokenRevokesPledge,
+        rawOpenExchanger,
+        openExchanger,
+        rawCloseExchanger,
+        closeExchanger,
+        rawTransactionNFT,
+        rawBuyerInitiatingTransaction,
+        rawFoundryTradeBuyer,
+        rawFoundryExchange,
+        rawNFTExchangeMatch,
+        rawFoundryExchangeInitiated,
+        rawNFTDoesNotAuthorizeExchanges,
+        rawAdditionalPledgeAmount,
+        additionalPledgeAmount,
+        rawRevokesPledgeAmount,
+        revokesPledgeAmount,
+        rawVoteOfficialNFT,
+        voteOfficialNFT,
+        rawVoteOfficialNFTByApprovedExchanger,
+        rawUnfrozen,
+        Unfrozen,
+        rawAccountDelegate,
+    ];
+};
+
+var properties = function () {
+    return [
+        new Property({
+            name: 'coinbase',
+            getter: 'eth_coinbase'
+        }),
+        new Property({
+            name: 'mining',
+            getter: 'eth_mining'
+        }),
+        new Property({
+            name: 'hashrate',
+            getter: 'eth_hashrate',
+            outputFormatter: utils.toDecimal
+        }),
+        new Property({
+            name: 'syncing',
+            getter: 'eth_syncing',
+            outputFormatter: formatters.outputSyncingFormatter
+        }),
+        new Property({
+            name: 'gasPrice',
+            getter: 'eth_gasPrice',
+            outputFormatter: formatters.outputBigNumberFormatter
+        }),
+        new Property({
+            name: 'accounts',
+            getter: 'eth_accounts'
+        }),
+        new Property({
+            name: 'blockNumber',
+            getter: 'eth_blockNumber',
+            outputFormatter: utils.toDecimal
+        }),
+        new Property({
+            name: 'protocolVersion',
+            getter: 'eth_protocolVersion'
+        })
+    ];
+};
+
+ERB.prototype.isSyncing = function (callback) {
+    return new IsSyncing(this._requestManager, callback);
+};
+
+module.exports = ERB;
+
+}, {"../../utils/config":18,"../../utils/utils":20,"../formatters":30,"../method":36,"../property":46,"../syncing":48,}], 41:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5704,7 +6432,7 @@ var properties = function () {
 
 module.exports = Personal;
 
-},{"../formatters":30,"../method":36,"../property":45}],41:[function(require,module,exports){
+},{"../formatters":30,"../method":36,"../property":46}],42:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5850,7 +6578,7 @@ var methods = function () {
 module.exports = Shh;
 
 
-},{"../filter":29,"../method":36,"./watches":43}],42:[function(require,module,exports){
+},{"../filter":29,"../method":36,"./watches":44}],43:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5997,7 +6725,7 @@ var properties = function () {
 
 module.exports = Swarm;
 
-},{"../method":36,"../property":45}],43:[function(require,module,exports){
+},{"../method":36,"../property":46}],44:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -6106,7 +6834,7 @@ module.exports = {
 };
 
 
-},{"../method":36}],44:[function(require,module,exports){
+},{"../method":36}],45:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -6147,7 +6875,7 @@ module.exports = {
 };
 
 
-},{"../contracts/GlobalRegistrar.json":1,"../contracts/ICAPRegistrar.json":2}],45:[function(require,module,exports){
+},{"../contracts/GlobalRegistrar.json":1,"../contracts/ICAPRegistrar.json":2}],46:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -6293,7 +7021,7 @@ Property.prototype.request = function () {
 module.exports = Property;
 
 
-},{"../utils/utils":20}],46:[function(require,module,exports){
+},{"../utils/utils":20}],47:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -6560,7 +7288,7 @@ RequestManager.prototype.poll = function () {
 module.exports = RequestManager;
 
 
-},{"../utils/config":18,"../utils/utils":20,"./errors":26,"./jsonrpc":35}],47:[function(require,module,exports){
+},{"../utils/config":18,"../utils/utils":20,"./errors":26,"./jsonrpc":35}],48:[function(require,module,exports){
 
 
 var Settings = function () {
@@ -6571,7 +7299,7 @@ var Settings = function () {
 module.exports = Settings;
 
 
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -6666,7 +7394,7 @@ IsSyncing.prototype.stopWatching = function () {
 module.exports = IsSyncing;
 
 
-},{"../utils/utils":20,"./formatters":30}],49:[function(require,module,exports){
+},{"../utils/utils":20,"./formatters":30}],50:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -6760,9 +7488,9 @@ var deposit = function (eth, from, to, value, client, callback) {
 module.exports = transfer;
 
 
-},{"../contracts/SmartExchange.json":3,"./iban":33}],50:[function(require,module,exports){
+},{"../contracts/SmartExchange.json":3,"./iban":33}],51:[function(require,module,exports){
 
-},{}],51:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -6995,7 +7723,7 @@ module.exports = transfer;
 	return CryptoJS.AES;
 
 }));
-},{"./cipher-core":52,"./core":53,"./enc-base64":54,"./evpkdf":56,"./md5":61}],52:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54,"./enc-base64":55,"./evpkdf":57,"./md5":62}],53:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -7871,7 +8599,7 @@ module.exports = transfer;
 
 
 }));
-},{"./core":53}],53:[function(require,module,exports){
+},{"./core":54}],54:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8632,7 +9360,7 @@ module.exports = transfer;
 	return CryptoJS;
 
 }));
-},{}],54:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8768,7 +9496,7 @@ module.exports = transfer;
 	return CryptoJS.enc.Base64;
 
 }));
-},{"./core":53}],55:[function(require,module,exports){
+},{"./core":54}],56:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8918,7 +9646,7 @@ module.exports = transfer;
 	return CryptoJS.enc.Utf16;
 
 }));
-},{"./core":53}],56:[function(require,module,exports){
+},{"./core":54}],57:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9051,7 +9779,7 @@ module.exports = transfer;
 	return CryptoJS.EvpKDF;
 
 }));
-},{"./core":53,"./hmac":58,"./sha1":77}],57:[function(require,module,exports){
+},{"./core":54,"./hmac":59,"./sha1":78}],58:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9118,7 +9846,7 @@ module.exports = transfer;
 	return CryptoJS.format.Hex;
 
 }));
-},{"./cipher-core":52,"./core":53}],58:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],59:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9262,7 +9990,7 @@ module.exports = transfer;
 
 
 }));
-},{"./core":53}],59:[function(require,module,exports){
+},{"./core":54}],60:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9281,7 +10009,7 @@ module.exports = transfer;
 	return CryptoJS;
 
 }));
-},{"./aes":51,"./cipher-core":52,"./core":53,"./enc-base64":54,"./enc-utf16":55,"./evpkdf":56,"./format-hex":57,"./hmac":58,"./lib-typedarrays":60,"./md5":61,"./mode-cfb":62,"./mode-ctr":64,"./mode-ctr-gladman":63,"./mode-ecb":65,"./mode-ofb":66,"./pad-ansix923":67,"./pad-iso10126":68,"./pad-iso97971":69,"./pad-nopadding":70,"./pad-zeropadding":71,"./pbkdf2":72,"./rabbit":74,"./rabbit-legacy":73,"./rc4":75,"./ripemd160":76,"./sha1":77,"./sha224":78,"./sha256":79,"./sha3":80,"./sha384":81,"./sha512":82,"./tripledes":83,"./x64-core":84}],60:[function(require,module,exports){
+},{"./aes":52,"./cipher-core":53,"./core":54,"./enc-base64":55,"./enc-utf16":56,"./evpkdf":57,"./format-hex":58,"./hmac":59,"./lib-typedarrays":61,"./md5":62,"./mode-cfb":63,"./mode-ctr":65,"./mode-ctr-gladman":64,"./mode-ecb":66,"./mode-ofb":67,"./pad-ansix923":68,"./pad-iso10126":69,"./pad-iso97971":70,"./pad-nopadding":71,"./pad-zeropadding":72,"./pbkdf2":73,"./rabbit":75,"./rabbit-legacy":74,"./rc4":76,"./ripemd160":77,"./sha1":78,"./sha224":79,"./sha256":80,"./sha3":81,"./sha384":82,"./sha512":83,"./tripledes":84,"./x64-core":85}],61:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9358,7 +10086,7 @@ module.exports = transfer;
 	return CryptoJS.lib.WordArray;
 
 }));
-},{"./core":53}],61:[function(require,module,exports){
+},{"./core":54}],62:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9627,7 +10355,7 @@ module.exports = transfer;
 	return CryptoJS.MD5;
 
 }));
-},{"./core":53}],62:[function(require,module,exports){
+},{"./core":54}],63:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9706,7 +10434,7 @@ module.exports = transfer;
 	return CryptoJS.mode.CFB;
 
 }));
-},{"./cipher-core":52,"./core":53}],63:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],64:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9823,7 +10551,7 @@ module.exports = transfer;
 	return CryptoJS.mode.CTRGladman;
 
 }));
-},{"./cipher-core":52,"./core":53}],64:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],65:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9882,7 +10610,7 @@ module.exports = transfer;
 	return CryptoJS.mode.CTR;
 
 }));
-},{"./cipher-core":52,"./core":53}],65:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],66:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9923,7 +10651,7 @@ module.exports = transfer;
 	return CryptoJS.mode.ECB;
 
 }));
-},{"./cipher-core":52,"./core":53}],66:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],67:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9978,7 +10706,7 @@ module.exports = transfer;
 	return CryptoJS.mode.OFB;
 
 }));
-},{"./cipher-core":52,"./core":53}],67:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],68:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10028,7 +10756,7 @@ module.exports = transfer;
 	return CryptoJS.pad.Ansix923;
 
 }));
-},{"./cipher-core":52,"./core":53}],68:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],69:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10073,7 +10801,7 @@ module.exports = transfer;
 	return CryptoJS.pad.Iso10126;
 
 }));
-},{"./cipher-core":52,"./core":53}],69:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],70:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10114,7 +10842,7 @@ module.exports = transfer;
 	return CryptoJS.pad.Iso97971;
 
 }));
-},{"./cipher-core":52,"./core":53}],70:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],71:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10145,7 +10873,7 @@ module.exports = transfer;
 	return CryptoJS.pad.NoPadding;
 
 }));
-},{"./cipher-core":52,"./core":53}],71:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],72:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10191,7 +10919,7 @@ module.exports = transfer;
 	return CryptoJS.pad.ZeroPadding;
 
 }));
-},{"./cipher-core":52,"./core":53}],72:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54}],73:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10337,7 +11065,7 @@ module.exports = transfer;
 	return CryptoJS.PBKDF2;
 
 }));
-},{"./core":53,"./hmac":58,"./sha1":77}],73:[function(require,module,exports){
+},{"./core":54,"./hmac":59,"./sha1":78}],74:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10528,7 +11256,7 @@ module.exports = transfer;
 	return CryptoJS.RabbitLegacy;
 
 }));
-},{"./cipher-core":52,"./core":53,"./enc-base64":54,"./evpkdf":56,"./md5":61}],74:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54,"./enc-base64":55,"./evpkdf":57,"./md5":62}],75:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10721,7 +11449,7 @@ module.exports = transfer;
 	return CryptoJS.Rabbit;
 
 }));
-},{"./cipher-core":52,"./core":53,"./enc-base64":54,"./evpkdf":56,"./md5":61}],75:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54,"./enc-base64":55,"./evpkdf":57,"./md5":62}],76:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10861,7 +11589,7 @@ module.exports = transfer;
 	return CryptoJS.RC4;
 
 }));
-},{"./cipher-core":52,"./core":53,"./enc-base64":54,"./evpkdf":56,"./md5":61}],76:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54,"./enc-base64":55,"./evpkdf":57,"./md5":62}],77:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -11129,7 +11857,7 @@ module.exports = transfer;
 	return CryptoJS.RIPEMD160;
 
 }));
-},{"./core":53}],77:[function(require,module,exports){
+},{"./core":54}],78:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -11280,7 +12008,7 @@ module.exports = transfer;
 	return CryptoJS.SHA1;
 
 }));
-},{"./core":53}],78:[function(require,module,exports){
+},{"./core":54}],79:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -11361,7 +12089,7 @@ module.exports = transfer;
 	return CryptoJS.SHA224;
 
 }));
-},{"./core":53,"./sha256":79}],79:[function(require,module,exports){
+},{"./core":54,"./sha256":80}],80:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -11561,7 +12289,7 @@ module.exports = transfer;
 	return CryptoJS.SHA256;
 
 }));
-},{"./core":53}],80:[function(require,module,exports){
+},{"./core":54}],81:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -11885,7 +12613,7 @@ module.exports = transfer;
 	return CryptoJS.SHA3;
 
 }));
-},{"./core":53,"./x64-core":84}],81:[function(require,module,exports){
+},{"./core":54,"./x64-core":85}],82:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -11969,7 +12697,7 @@ module.exports = transfer;
 	return CryptoJS.SHA384;
 
 }));
-},{"./core":53,"./sha512":82,"./x64-core":84}],82:[function(require,module,exports){
+},{"./core":54,"./sha512":83,"./x64-core":85}],83:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -12293,7 +13021,7 @@ module.exports = transfer;
 	return CryptoJS.SHA512;
 
 }));
-},{"./core":53,"./x64-core":84}],83:[function(require,module,exports){
+},{"./core":54,"./x64-core":85}],84:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -13064,7 +13792,7 @@ module.exports = transfer;
 	return CryptoJS.TripleDES;
 
 }));
-},{"./cipher-core":52,"./core":53,"./enc-base64":54,"./evpkdf":56,"./md5":61}],84:[function(require,module,exports){
+},{"./cipher-core":53,"./core":54,"./enc-base64":55,"./evpkdf":57,"./md5":62}],85:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -13369,7 +14097,7 @@ module.exports = transfer;
 	return CryptoJS;
 
 }));
-},{"./core":53}],85:[function(require,module,exports){
+},{"./core":54}],86:[function(require,module,exports){
 /*! https://mths.be/utf8js v2.1.2 by @mathias */
 ;(function(root) {
 
@@ -13615,7 +14343,7 @@ module.exports = transfer;
 
 }(this));
 
-},{}],86:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 module.exports = XMLHttpRequest;
 
 },{}],"bignumber.js":[function(require,module,exports){

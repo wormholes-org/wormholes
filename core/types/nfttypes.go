@@ -203,6 +203,8 @@ type Wormholes struct {
 	RewardFlag    uint8            `json:"reward_flag"`
 }
 
+const WormholesVersion = "v0.0.1"
+
 //var PattenAddr = "^0[xX][0-9a-fA-F]{40}$"
 //var PattenHex = "^[0-9a-fA-F]+$"
 func (w *Wormholes) CheckFormat() error {
