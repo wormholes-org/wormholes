@@ -97,15 +97,6 @@ func TestValidatorByWeightAndDistance(t *testing.T) {
 	}
 }
 
-func randomHash() common.Hash {
-	rand.Seed(time.Now().Local().Unix())
-	var hash common.Hash
-	if n, err := rand.Read(hash[:]); n != common.HashLength || err != nil {
-		panic(err)
-	}
-	return hash
-}
-
 // Batch generation of private keys and related addresses
 func TestBatchGenPriKeyAndAddr(t *testing.T) {
 	for i := 0; i < 7; i++ {
