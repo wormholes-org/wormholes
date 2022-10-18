@@ -2727,8 +2727,8 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
@@ -3120,7 +3120,7 @@ func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount, blocknumber *
 			}
 		}
 		if deleteFlag {
-			if blocknumber.Uint64() < 68000 {
+			if blocknumber.Uint64() < 88000 {
 				var tempFrozenAccounts types.FrozenAccountList
 				for _, acc := range s.FrozenAccounts.FrozenAccounts {
 					if acc.Account != frozenInfo.Account {
