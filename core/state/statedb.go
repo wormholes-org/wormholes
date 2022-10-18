@@ -140,8 +140,7 @@ type StateDB struct {
 	ExchangerTokenPool   []*types.PledgedToken
 	OfficialNFTPool      *types.InjectedOfficialNFTList
 	NominatedOfficialNFT *types.NominatedOfficialNFT
-
-	FrozenAccounts []*types.FrozenAccount
+	FrozenAccounts       *types.FrozenAccountList
 
 	ValidatorPool []*types.Validator
 }
@@ -836,7 +835,7 @@ func (s *StateDB) Copy() *StateDB {
 		ExchangerTokenPool:   make([]*types.PledgedToken, 0),
 		OfficialNFTPool:      new(types.InjectedOfficialNFTList),
 		NominatedOfficialNFT: new(types.NominatedOfficialNFT),
-		FrozenAccounts:       make([]*types.FrozenAccount, 0),
+		FrozenAccounts:       new(types.FrozenAccountList),
 	}
 	// Copy the dirty states, logs, and preimages
 	for addr := range s.journal.dirties {
@@ -1003,13 +1002,13 @@ func (s *StateDB) Copy() *StateDB {
 		}
 	}
 
-	if s.FrozenAccounts != nil && len(s.FrozenAccounts) > 0 {
-		for _, v := range s.FrozenAccounts {
+	if s.FrozenAccounts != nil && len(s.FrozenAccounts.FrozenAccounts) > 0 {
+		for _, v := range s.FrozenAccounts.FrozenAccounts {
 			var frozenAccount types.FrozenAccount
 			frozenAccount.Account = v.Account
 			frozenAccount.Amount = new(big.Int).Set(v.Amount)
 			frozenAccount.UnfrozenTime = v.UnfrozenTime
-			state.FrozenAccounts = append(state.FrozenAccounts, &frozenAccount)
+			state.FrozenAccounts.FrozenAccounts = append(state.FrozenAccounts.FrozenAccounts, &frozenAccount)
 		}
 	}
 
@@ -3102,13 +3101,46 @@ func (s *StateDB) NextIndex() *big.Int {
 //	}
 //}
 
-func (s *StateDB) UnfrozenAccount(addr common.Address, amount *big.Int) {
-	stateObject := s.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.AddBalance(amount)
-		var frozenAccount types.FrozenAccount
-		frozenAccount.Account = addr
-		frozenAccount.Amount = new(big.Int).Set(amount)
-		s.FrozenAccounts = append(s.FrozenAccounts, &frozenAccount)
+func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount, blocknumber *big.Int) {
+	if frozenInfo == nil {
+		return
 	}
+	stateObject := s.GetOrNewStateObject(frozenInfo.Account)
+	if stateObject != nil {
+		stateObject.AddBalance(frozenInfo.Amount)
+		var deleteIndex int = 0
+		var deleteFlag bool = false
+		for k, frozenAccount := range s.FrozenAccounts.FrozenAccounts {
+			if frozenAccount.Account == frozenInfo.Account &&
+				frozenAccount.Amount.Cmp(frozenInfo.Amount) == 0 &&
+				frozenAccount.UnfrozenTime == frozenInfo.UnfrozenTime {
+				deleteIndex = k
+				deleteFlag = true
+				break
+			}
+		}
+		if deleteFlag {
+			if blocknumber.Uint64() < 88000 {
+				var tempFrozenAccounts types.FrozenAccountList
+				for _, acc := range s.FrozenAccounts.FrozenAccounts {
+					if acc.Account != frozenInfo.Account {
+						tempFrozenAccounts.FrozenAccounts = append(tempFrozenAccounts.FrozenAccounts, acc)
+					}
+				}
+
+				s.FrozenAccounts = &tempFrozenAccounts
+			} else {
+				s.FrozenAccounts.FrozenAccounts = append(s.FrozenAccounts.FrozenAccounts[:deleteIndex], s.FrozenAccounts.FrozenAccounts[deleteIndex+1:]...)
+			}
+		}
+	}
+}
+
+func (s *StateDB) GetFrozenAccounts() *types.FrozenAccountList {
+	var tempFrozenAccounts types.FrozenAccountList
+	for _, acc := range s.FrozenAccounts.FrozenAccounts {
+		tempFrozenAccounts.FrozenAccounts = append(tempFrozenAccounts.FrozenAccounts, acc)
+	}
+
+	return &tempFrozenAccounts
 }

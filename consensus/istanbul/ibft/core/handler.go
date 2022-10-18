@@ -123,6 +123,7 @@ func (c *core) handleEvents() {
 				o := &istanbul.OnlineProofRequest{
 					Proposal:   ev.Proposal,
 					RandomHash: ev.RandomHash,
+					Version:    ev.Version,
 				}
 				err := c.handleOnlineProofRequest(o)
 				if err == istanbulcommon.ErrFutureMessage {

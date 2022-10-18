@@ -80,3 +80,12 @@ func min(x, y int) int {
 	}
 	return x
 }
+
+type TableInfo struct {
+	NodeNum  int
+	NodeInfo []*node
+}
+
+func (t *UDPv4) PrintRoutingTable() (*TableInfo, error) {
+	return t.tab.PrintAllNodes()
+}

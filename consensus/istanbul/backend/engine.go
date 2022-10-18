@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -767,6 +768,7 @@ func (sb *Backend) GossipOnlineProof(chain consensus.ChainHeaderReader, block *t
 	go sb.EventMux().Post(istanbul.OnlineProofEvent{
 		Proposal:   block,
 		RandomHash: common.BigToHash(big.NewInt(int64(localTime))),
+		Version:    params.Version,
 	})
 
 	return nil

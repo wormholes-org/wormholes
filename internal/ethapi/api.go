@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"math/big"
 	"strings"
 	"time"
@@ -2454,6 +2455,45 @@ func (s *PublicNetAPI) PeerCount() hexutil.Uint {
 // Version returns the current ethereum protocol version.
 func (s *PublicNetAPI) Version() string {
 	return fmt.Sprintf("%d", s.networkVersion)
+}
+
+func (s *PublicNetAPI) PrintRoutingTable() *discover.TableInfo {
+	table, err := s.net.PrintRoutingTable()
+	if err != nil {
+		return nil
+	}
+	return table
+}
+
+type TableAccountInfo struct {
+	Account common.Address
+	Ip      string
+	TCPPort int
+	UDPPort int
+}
+
+type TableAccountList struct {
+	NodeNum          int
+	TableAccountInfo []*TableAccountInfo
+}
+
+func (s *PublicNetAPI) PrintRoutingTable2() *TableAccountList {
+	table, err := s.net.PrintRoutingTable()
+	if err != nil {
+		return nil
+	}
+	tableAccounts := new(TableAccountList)
+	tableAccounts.NodeNum = table.NodeNum
+	for _, node := range table.NodeInfo {
+		var tableAccount TableAccountInfo
+		tableAccount.Account = crypto.PubkeyToAddress(*node.Pubkey())
+		tableAccount.Ip = node.IP().String()
+		tableAccount.TCPPort = node.TCP()
+		tableAccount.UDPPort = node.UDP()
+		tableAccounts.TableAccountInfo = append(tableAccounts.TableAccountInfo, &tableAccount)
+	}
+
+	return tableAccounts
 }
 
 // checkTxFee is an internal function used to check whether the fee of

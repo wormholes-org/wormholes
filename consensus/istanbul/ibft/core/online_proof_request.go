@@ -28,14 +28,6 @@ func (c *core) checkOnlineProofRequestMsg(request *istanbul.OnlineProofRequest) 
 	if request == nil || request.Proposal == nil {
 		return istanbulcommon.ErrInvalidMessage
 	}
-
-	// if c := c.current.sequence.Cmp(request.Proposal.Number()); c > 0 {
-	// 	return istanbulcommon.ErrOldMessage
-	// } else if c < 0 {
-	// 	return istanbulcommon.ErrFutureMessage
-	// } else {
-	// 	return nil
-	// }
 	return nil
 }
 

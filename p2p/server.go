@@ -1119,3 +1119,7 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 	}
 	return infos
 }
+
+func (srv *Server) PrintRoutingTable() (*discover.TableInfo, error) {
+	return srv.ntab.PrintRoutingTable()
+}
