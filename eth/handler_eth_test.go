@@ -48,10 +48,10 @@ type testEthHandler struct {
 	txBroadcasts    event.Feed
 }
 
-func (h *testEthHandler) HandleWorkerMsg(msg eth.Decoder, peer *eth.Peer) error {
-	//TODO implement me
-	panic("implement me")
-}
+//func (h *testEthHandler) HandleWorkerMsg(msg eth.Decoder, peer *eth.Peer) error {
+//	//TODO implement me
+//	panic("implement me")
+//}
 
 func (h *testEthHandler) Chain() *core.BlockChain              { panic("no backing chain") }
 func (h *testEthHandler) StateBloom() *trie.SyncBloom          { panic("no backing state bloom") }
