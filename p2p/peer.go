@@ -444,21 +444,21 @@ func (rw *protoRW) WriteMsg(msg Msg) (err error) {
 	msg.meterCap = rw.cap()
 	msg.meterCode = msg.Code
 
-	log.Info("protoRW.WriteMsg()", "msg.Code", msg.Code, "proto.offset", rw.offset)
+	//log.Info("protoRW.WriteMsg()", "msg.Code", msg.Code, "proto.offset", rw.offset)
 
 	msg.Code += rw.offset
 
 	select {
 	case <-rw.wstart:
-		log.Info("protoRW.WriteMsg(), wstart 0")
+		//log.Info("protoRW.WriteMsg(), wstart 0")
 		err = rw.w.WriteMsg(msg)
-		log.Info("protoRW.WriteMsg(), wstart 1")
+		//log.Info("protoRW.WriteMsg(), wstart 1")
 		// Report write status back to Peer.run. It will initiate
 		// shutdown if the error is non-nil and unblock the next write
 		// otherwise. The calling protocol code should exit for errors
 		// as well but we don't want to rely on that.
 		rw.werr <- err
-		log.Info("protoRW.WriteMsg(), wstart 2")
+		//log.Info("protoRW.WriteMsg(), wstart 2")
 		// Report write status back to Peer.run. It will initiate
 		// shutdown if the error is non-nil and unblock the next write
 		// otherwise. The calling protocol code should exit for errors
@@ -473,7 +473,7 @@ func (rw *protoRW) ReadMsg() (Msg, error) {
 	select {
 	case msg := <-rw.in:
 		msg.Code -= rw.offset
-		log.Info("protoRW.ReadMsg()", "code", msg.Code)
+		//log.Info("protoRW.ReadMsg()", "code", msg.Code)
 		return msg, nil
 	case <-rw.closed:
 		return Msg{}, io.EOF
