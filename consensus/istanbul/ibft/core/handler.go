@@ -17,6 +17,8 @@
 package core
 
 import (
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
@@ -264,4 +266,8 @@ func (c *core) handleTimeoutMsg() {
 
 func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
 	return c.onlineProofs
+}
+
+func (c *core) GetOnlineProofsMu() *sync.Mutex {
+	return c.onlineProofsMu
 }

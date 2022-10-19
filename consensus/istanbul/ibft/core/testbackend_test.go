@@ -72,6 +72,9 @@ func (self *testSystemBackend) EventMux() *event.TypeMux {
 	return self.events
 }
 
+func (self *testSystemBackend) GetCore() istanbul.Core {
+	return nil
+}
 func (self *testSystemBackend) Send(message []byte, code uint64, target common.Address) error {
 	testLogger.Info("enqueuing a message...", "address", self.Address())
 	self.sentMsgs = append(self.sentMsgs, message)
@@ -178,7 +181,7 @@ func (sb *testSystemBackend) StartQBFTConsensus() error {
 	return nil
 }
 
-func (sb *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorInfo) {
+func (sb *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
 	return
 }
 

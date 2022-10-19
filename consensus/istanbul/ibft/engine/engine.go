@@ -309,12 +309,14 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	var onlineValidators []common.Address
 	ibftCore := e.backend.GetCore()
 	if ibftCore != nil {
+		ibftCore.GetOnlineProofsMu().Lock()
 		vals := ibftCore.GetOnlineValidators()
 		if _, ok := vals[header.Number.Uint64()]; ok {
 			for _, v := range vals[header.Number.Uint64()].Validators {
 				onlineValidators = append(onlineValidators, v.Address)
 			}
 		}
+		ibftCore.GetOnlineProofsMu().Unlock()
 	}
 
 	for _, v := range onlineValidators {
