@@ -1617,10 +1617,10 @@ func (w *worker) GossipOnlineProof() error {
 	// 	return errors.New("GossipOnlineProof : Failed to prepare header for mining")
 	// }
 
-	//err := w.makeCurrent(parent, header)
-	// if err != nil {
-	// 	return errors.New("GossipOnlineProof : Failed to create mining context")
-	// }
+	err := w.makeCurrent(parent, header)
+	if err != nil {
+		return errors.New("GossipOnlineProof : Failed to create mining context")
+	}
 
 	// receipts := copyReceipts(w.current.receipts)
 	s := w.current.state.Copy()

@@ -64,6 +64,8 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 }
 
 func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator) error {
+	c.onlineProofsMu.Lock()
+	defer c.onlineProofsMu.Unlock()
 	var onlineProof *istanbul.OnlineProof
 	err := msg.Decode(&onlineProof)
 	if err != nil {

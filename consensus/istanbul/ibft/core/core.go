@@ -55,6 +55,7 @@ func New(backend istanbul.Backend, config *istanbul.Config) *core {
 		pendingRequestsMu:               new(sync.Mutex),
 		consensusTimestamp:              time.Time{},
 		pendindingOnlineProofRequestsMu: new(sync.Mutex),
+		onlineProofsMu:                  new(sync.Mutex),
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -78,6 +79,7 @@ func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(co
 		pendingRequestsMu:               new(sync.Mutex),
 		consensusTimestamp:              time.Time{},
 		pendindingOnlineProofRequestsMu: new(sync.Mutex),
+		onlineProofsMu:                  new(sync.Mutex),
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -122,7 +124,8 @@ type core struct {
 	pendindingOnlineProofRequestsMu *sync.Mutex
 
 	// Temporary storage of online data collected at each altitude
-	onlineProofs map[uint64]*types.OnlineValidatorList
+	onlineProofs   map[uint64]*types.OnlineValidatorList
+	onlineProofsMu *sync.Mutex
 
 	consensusTimestamp time.Time
 }
@@ -280,6 +283,7 @@ func (c *core) startNewRound(round *big.Int) {
 			return
 		}
 		onlineValidators := new(types.OnlineValidatorList)
+		c.onlineProofsMu.Lock()
 		if c.onlineProofs == nil {
 			c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
 		}
@@ -287,6 +291,7 @@ func (c *core) startNewRound(round *big.Int) {
 		if c.onlineProofs[newView.Sequence.Uint64()-2] != nil {
 			delete(c.onlineProofs, newView.Sequence.Uint64()-2)
 		}
+		c.onlineProofsMu.Unlock()
 	}
 
 	// If new round is 0, then check if qbftConsensus needs to be enabled
@@ -442,6 +447,8 @@ func (c *core) RoundInfo() (roundInfo []string) {
 }
 
 func (c *core) OnlineProofSize(height *big.Int) int {
+	c.onlineProofsMu.Lock()
+	defer c.onlineProofsMu.Unlock()
 	onlineProofs := c.onlineProofs[height.Uint64()]
 	return len(onlineProofs.Validators)
 }
