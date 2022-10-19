@@ -632,7 +632,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 
 		case <-w.exitCh:
-			log.Info("newWorkLoop : exitCh", "no", w.current.header.Number.Uint64()+1)
 			return
 		}
 	}
