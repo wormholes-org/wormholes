@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -76,7 +77,29 @@ type SimulatedBackend struct {
 // and uses a simulated blockchain for testing purposes.
 // A simulated backend always uses chainID 1337.
 func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
-	genesis := core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: gasLimit, Alloc: alloc}
+	//genesis := core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: gasLimit, Alloc: alloc}
+	genesis := core.Genesis{
+		Config:       params.AllEthashProtocolChanges,
+		Nonce:        0,
+		ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
+		GasLimit:     gasLimit,
+		Difficulty:   big.NewInt(1),
+		Alloc:        decodePreWormholesInfo(simAllocData),
+		Stake:        decodePreWormholesInfo(simStakeData),
+		Validator:    decodePreWormholesInfoV2(simValidatorData_v2),
+		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
+		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+		Timestamp:    0,
+		Dir:          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
+		InjectNumber: 4096,
+		StartIndex:   big.NewInt(0),
+		Royalty:      100,
+		Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
+	}
+	for k, v := range alloc {
+		genesis.Alloc[k] = v
+	}
 	genesis.MustCommit(database)
 	blockchain, _ := core.NewBlockChain(database, nil, genesis.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
 
@@ -881,4 +904,74 @@ func nullSubscription() event.Subscription {
 		<-quit
 		return nil
 	})
+}
+
+func decodePreWormholesInfo(data string) core.GenesisAlloc {
+	ga := make(core.GenesisAlloc)
+
+	accountInfos := strings.Split(data, ",")
+	for _, accountInfo := range accountInfos {
+		index := strings.Index(accountInfo, ":")
+		if index > 0 {
+			acc := string([]byte(accountInfo)[:index])
+			balance := string([]byte(accountInfo)[index+1:])
+			bigBalance := big.NewInt(0)
+			if strings.HasPrefix(balance, "0x") ||
+				strings.HasPrefix(balance, "0X") {
+				balance = string([]byte(balance)[2:])
+				bigBalance, _ = new(big.Int).SetString(balance, 16)
+			} else {
+				bigBalance, _ = new(big.Int).SetString(balance, 16)
+			}
+
+			genesisAcc := core.GenesisAccount{
+				Balance: bigBalance,
+			}
+			ga[common.HexToAddress(acc)] = genesisAcc
+		}
+	}
+
+	for a, g := range ga {
+		log.Info("v1", "address", a.String())
+		log.Info("v1", "balance", g.Balance.String())
+		log.Info("v1", "proxy", g.Proxy)
+	}
+
+	return ga
+}
+
+func decodePreWormholesInfoV2(data string) core.GenesisAlloc {
+	ga := make(core.GenesisAlloc)
+
+	accountInfos := strings.Split(data, ",")
+	for _, accountInfo := range accountInfos {
+		strs := strings.Split(accountInfo, ":")
+		if len(strs) > 0 {
+			acc := strs[0]
+			balance := strs[1]
+			proxy := strs[2]
+			bigBalance := big.NewInt(0)
+			if strings.HasPrefix(balance, "0x") ||
+				strings.HasPrefix(balance, "0X") {
+				balance = string([]byte(balance)[2:])
+				bigBalance, _ = new(big.Int).SetString(balance, 16)
+			} else {
+				bigBalance, _ = new(big.Int).SetString(balance, 16)
+			}
+
+			genesisAcc := core.GenesisAccount{
+				Balance: bigBalance,
+				Proxy:   proxy,
+			}
+			ga[common.HexToAddress(acc)] = genesisAcc
+		}
+	}
+
+	for a, g := range ga {
+		log.Info("v2", "address", a.String())
+		log.Info("v2", "g.balance", g.Balance.String())
+		log.Info("v2", "proxy", g.Proxy)
+	}
+
+	return ga
 }
