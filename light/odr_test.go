@@ -278,8 +278,13 @@ func testChainOdr(t *testing.T, protocol int, fn odrTestFn) {
 			Royalty:      100,
 			Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
 		}
-		genesis = gspec.MustCommit(sdb)
 	)
+	alloc := core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}}
+	for k, v := range alloc {
+		gspec.Alloc[k] = v
+	}
+	var genesis = gspec.MustCommit(sdb)
+
 	gspec.MustCommit(ldb)
 	// Assemble the test environment
 	blockchain, _ := core.NewBlockChain(sdb, nil, params.TestChainConfig, ethash.NewFullFaker(), vm.Config{}, nil, nil)
