@@ -65,6 +65,8 @@ func TestNodeIterator(t *testing.T) {
 		}
 		genesis = gspec.MustCommit(fulldb)
 	)
+	gspec.Alloc[testBankAddress] = core.GenesisAccount{Balance: testBankFunds}
+
 	gspec.MustCommit(lightdb)
 	blockchain, _ := core.NewBlockChain(fulldb, nil, params.TestChainConfig, ethash.NewFullFaker(), vm.Config{}, nil, nil)
 	gchain, _ := core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), fulldb, 4, testChainGen)
