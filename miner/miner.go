@@ -257,3 +257,7 @@ func (miner *Miner) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscript
 func (miner *Miner) GetCertify() *Certify {
 	return miner.worker.cerytify
 }
+
+func (miner *Miner) GetWorker() *worker {
+	return miner.worker
+}

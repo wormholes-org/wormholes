@@ -487,13 +487,14 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				//log.Info("signatureResultCh", "receiveValidatorsSum:", rs, "w.TargetSize()", w.targetSize(), "len(rs.validators):", len(w.cerytify.validators), "data:", w.cerytify.validators, "header.Number", w.current.header.Number.Uint64()+1, "w.cacheHeight", w.cacheHeight, "w.cerytify.msgHeight", w.cerytify.msgHeight)
-				if rs.Cmp(w.targetSize()) > 0 {
-					//log.Info("Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-					if w.isEmpty && w.cacheHeight.Cmp(w.cerytify.msgHeight) == 0 {
-						//log.Info("start produce empty block", "time", time.Now())
-						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), w.cerytify.validators); err != nil {
-							log.Error("commitEmptyWork error", "err", err)
+				//log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
+					//log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
+						//log.Info("emptyLoop.start produce empty block", "time", time.Now())
+						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()
+						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
+							log.Error("emptyLoop.commitEmptyWork error", "err", err)
 						} else {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
@@ -594,6 +595,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// higher priced transactions. Disable this overhead for pending blocks.
 			if w.isRunning() {
 				log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+				w.GossipOnlineProof()
 				commit(false, commitInterruptResubmit)
 			}
 			//log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1, "w.isRunning", w.isRunning())
@@ -889,6 +891,12 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//	}
 		//}
+		frozenAccounts, err := w.chain.ReadFrozenAccounts(parent.Header())
+		if err != nil {
+			return err
+		}
+		state.FrozenAccounts = frozenAccounts
+
 	} else {
 		mintDeep = new(types.MintDeep)
 		//mintDeep.OfficialMint = big.NewInt(1)
@@ -905,6 +913,10 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		//exchangeList = &types.SNFTExchangeList{
 		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//}
+
+		frozenAccounts := core.GetInitFrozenAccounts(core.FrozenAccounts)
+		state.FrozenAccounts = frozenAccounts
+
 	}
 	state.MintDeep = mintDeep
 	//state.SNFTExchangePool = exchangeList
@@ -994,6 +1006,12 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//	}
 		//}
+		frozenAccounts, err := w.chain.ReadFrozenAccounts(parent.Header())
+		if err != nil {
+			return err
+		}
+		state.FrozenAccounts = frozenAccounts
+
 	} else {
 		mintDeep = new(types.MintDeep)
 		//mintDeep.OfficialMint = big.NewInt(1)
@@ -1010,6 +1028,10 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		//exchangeList = &types.SNFTExchangeList{
 		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//}
+
+		frozenAccounts := core.GetInitFrozenAccounts(core.FrozenAccounts)
+		state.FrozenAccounts = frozenAccounts
+
 	}
 	state.MintDeep = mintDeep
 	//state.SNFTExchangePool = exchangeList
@@ -1595,10 +1617,10 @@ func (w *worker) GossipOnlineProof() error {
 	// 	return errors.New("GossipOnlineProof : Failed to prepare header for mining")
 	// }
 
-	//err := w.makeCurrent(parent, header)
-	// if err != nil {
-	// 	return errors.New("GossipOnlineProof : Failed to create mining context")
-	// }
+	err := w.makeCurrent(parent, header)
+	if err != nil {
+		return errors.New("GossipOnlineProof : Failed to create mining context")
+	}
 
 	// receipts := copyReceipts(w.current.receipts)
 	s := w.current.state.Copy()

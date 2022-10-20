@@ -189,6 +189,10 @@ web3._extend({
 			name: 'stopWS',
 			call: 'admin_stopWS'
 		}),
+		new web3._extend.Method({
+			name: 'printRoutingTable',
+			call: 'admin_printRoutingTable',
+		}),
 	],
 	properties: [
 		new web3._extend.Property({

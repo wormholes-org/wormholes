@@ -10,3 +10,7 @@ type FrozenAccount struct {
 	Amount       *big.Int
 	UnfrozenTime uint64
 }
+
+type FrozenAccountList struct {
+	FrozenAccounts []*FrozenAccount
+}

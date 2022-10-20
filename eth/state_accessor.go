@@ -171,6 +171,12 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//	}
 		//}
+		frozenAccounts, err := eth.blockchain.ReadFrozenAccounts(parent.Header())
+		if err != nil {
+			return nil, vm.BlockContext{}, nil, err
+		}
+		statedb.FrozenAccounts = frozenAccounts
+
 	} else {
 		mintDeep = new(types.MintDeep)
 		//mintDeep.OfficialMint = big.NewInt(1)
@@ -187,6 +193,10 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		//exchangeList = &types.SNFTExchangeList{
 		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//}
+
+		frozenAccounts := core.GetInitFrozenAccounts(core.FrozenAccounts)
+		statedb.FrozenAccounts = frozenAccounts
+
 	}
 	statedb.MintDeep = mintDeep
 	//statedb.SNFTExchangePool = exchangeList

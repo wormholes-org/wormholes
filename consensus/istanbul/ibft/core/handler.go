@@ -17,6 +17,8 @@
 package core
 
 import (
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
@@ -24,6 +26,18 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
+
+type OnlineValidator struct {
+	addr common.Address
+}
+
+func (c *OnlineValidator) String() string {
+	return c.addr.Hex()
+}
+
+func (c *OnlineValidator) Address() common.Address {
+	return c.addr
+}
 
 // Start implements core.Engine.Start
 func (c *core) Start() error {
@@ -92,6 +106,10 @@ func (c *core) handleEvents() {
 				return
 			}
 
+			if c.valSet == nil {
+				continue
+			}
+
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
 			case istanbul.RequestEvent:
@@ -107,6 +125,7 @@ func (c *core) handleEvents() {
 				o := &istanbul.OnlineProofRequest{
 					Proposal:   ev.Proposal,
 					RandomHash: ev.RandomHash,
+					Version:    ev.Version,
 				}
 				err := c.handleOnlineProofRequest(o)
 				if err == istanbulcommon.ErrFutureMessage {
@@ -161,12 +180,22 @@ func (c *core) handleMsg(payload []byte) error {
 	// Decode message and check its signature
 	msg := new(ibfttypes.Message)
 	if err := msg.FromPayload(payload, c.validateFn); err != nil {
+		if msg.Code == ibfttypes.MsgOnlineProof {
+			if ok, _ := c.validateExistFn(msg.Address); ok {
+				curAddress := OnlineValidator{}
+				curAddress.addr = msg.Address
+				return c.handleOnlineProof(msg, &curAddress)
+			} else {
+				log.Info("handleMsg MsgOnlineProof validator not exist", "addr", msg.Address)
+			}
+		}
 		logger.Error("Failed to decode message from payload", "err", err)
 		return err
 	}
 
 	// Only accept message if the address is valid
 	_, src := c.valSet.GetByAddress(msg.Address)
+
 	if src == nil {
 		logger.Error("Invalid address in message", "msg", msg)
 		return istanbul.ErrUnauthorizedAddress
@@ -237,4 +266,8 @@ func (c *core) handleTimeoutMsg() {
 
 func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
 	return c.onlineProofs
+}
+
+func (c *core) GetOnlineProofsMu() *sync.Mutex {
+	return c.onlineProofsMu
 }

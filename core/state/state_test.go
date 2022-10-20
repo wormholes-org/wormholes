@@ -59,7 +59,7 @@ func TestDump(t *testing.T) {
 	// check that DumpToCollector contains the state objects that are in trie
 	got := string(s.state.Dump(nil))
 	want := `{
-    "root": "71edff0130dd2385947095001c73d9e28d862fc286fca2b922ca6f6f3cddfdd2",
+    "root": "2186bd3ef8a744acd3a7ce71d8b48bb0691ce1b96038f41aa47077ecef28fa13",
     "accounts": {
         "0x0000000000000000000000000000000000000001": {
             "balance": "22",

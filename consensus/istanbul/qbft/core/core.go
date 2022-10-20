@@ -289,3 +289,7 @@ func (c *core) RoundInfo() []string {
 func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
 	return nil
 }
+
+func (c *core) GetOnlineProofsMu() *sync.Mutex {
+	return nil
+}

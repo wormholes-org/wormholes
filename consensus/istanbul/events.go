@@ -36,4 +36,5 @@ type FinalCommittedEvent struct {
 type OnlineProofEvent struct {
 	Proposal   Proposal
 	RandomHash common.Hash
+	Version    string
 }
