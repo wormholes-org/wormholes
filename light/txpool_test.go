@@ -110,6 +110,7 @@ func TestTxPool(t *testing.T) {
 		}
 		genesis = gspec.MustCommit(sdb)
 	)
+	gspec.Alloc[testBankAddress] = core.GenesisAccount{Balance: testBankFunds}
 	gspec.MustCommit(ldb)
 	// Assemble the test environment
 	blockchain, _ := core.NewBlockChain(sdb, nil, params.TestChainConfig, ethash.NewFullFaker(), vm.Config{}, nil, nil)
