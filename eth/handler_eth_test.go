@@ -48,6 +48,10 @@ type testEthHandler struct {
 	txBroadcasts    event.Feed
 }
 
+func (h *testEthHandler) HandleWorkerMsg(msg eth.Decoder, peer *eth.Peer) error {
+	return nil
+}
+
 //func (h *testEthHandler) HandleWorkerMsg(msg eth.Decoder, peer *eth.Peer) error {
 //	//TODO implement me
 //	panic("implement me")
