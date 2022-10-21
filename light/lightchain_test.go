@@ -232,6 +232,10 @@ func newCanonical(n int) (ethdb.Database, *LightChain, error) {
 		Royalty:      100,
 		Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
 	}
+	alloc := core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}}
+	for k, v := range alloc {
+		gspec.Alloc[k] = v
+	}
 	genesis := gspec.MustCommit(db)
 	blockchain, _ := NewLightChain(&dummyOdr{db: db, indexerConfig: TestClientIndexerConfig}, gspec.Config, ethash.NewFaker(), nil)
 
@@ -270,6 +274,10 @@ func newTestLightChain() *LightChain {
 		StartIndex:   big.NewInt(0),
 		Royalty:      100,
 		Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
+	}
+	alloc := core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}}
+	for k, v := range alloc {
+		gspec.Alloc[k] = v
 	}
 	gspec.MustCommit(db)
 	lc, err := NewLightChain(&dummyOdr{db: db}, gspec.Config, ethash.NewFullFaker(), nil)
