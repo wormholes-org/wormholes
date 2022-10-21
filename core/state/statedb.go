@@ -3120,7 +3120,7 @@ func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount, blocknumber *
 			}
 		}
 		if deleteFlag {
-			if blocknumber.Uint64() < 88000 {
+			if blocknumber.Uint64() < 140000 {
 				var tempFrozenAccounts types.FrozenAccountList
 				for _, acc := range s.FrozenAccounts.FrozenAccounts {
 					if acc.Account != frozenInfo.Account {
