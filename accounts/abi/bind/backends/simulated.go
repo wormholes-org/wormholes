@@ -84,9 +84,9 @@ func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.Genesis
 		ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
 		GasLimit:     gasLimit,
 		Difficulty:   big.NewInt(1),
-		Alloc:        decodePreWormholesInfo(simAllocData),
-		Stake:        decodePreWormholesInfo(simStakeData),
-		Validator:    decodePreWormholesInfoV2(simValidatorData_v2),
+		Alloc:        DecodePreWormholesInfo(SimAllocData),
+		Stake:        DecodePreWormholesInfo(SimStakeData),
+		Validator:    DecodePreWormholesInfoV2(SimValidatorData_v2),
 		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
 		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
@@ -906,7 +906,7 @@ func nullSubscription() event.Subscription {
 	})
 }
 
-func decodePreWormholesInfo(data string) core.GenesisAlloc {
+func DecodePreWormholesInfo(data string) core.GenesisAlloc {
 	ga := make(core.GenesisAlloc)
 
 	accountInfos := strings.Split(data, ",")
@@ -940,7 +940,7 @@ func decodePreWormholesInfo(data string) core.GenesisAlloc {
 	return ga
 }
 
-func decodePreWormholesInfoV2(data string) core.GenesisAlloc {
+func DecodePreWormholesInfoV2(data string) core.GenesisAlloc {
 	ga := make(core.GenesisAlloc)
 
 	accountInfos := strings.Split(data, ",")
