@@ -420,9 +420,9 @@ func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance *big
 		Nonce:        0,
 		ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
 		Difficulty:   big.NewInt(1),
-		Alloc:        DecodePreWormholesInfo(testnetAllocData),
-		Stake:        DecodePreWormholesInfo(testnetStakeData),
-		Validator:    DecodePreWormholesInfoV2(testnetValidatorData_v2),
+		Alloc:        decodePreWormholesInfo(testnetAllocData),
+		Stake:        decodePreWormholesInfo(testnetStakeData),
+		Validator:    decodePreWormholesInfoV2(testnetValidatorData_v2),
 		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
 		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
@@ -529,7 +529,7 @@ func decodePrealloc(data string) GenesisAlloc {
 	return ga
 }
 
-func DecodePreWormholesInfo(data string) GenesisAlloc {
+func decodePreWormholesInfo(data string) GenesisAlloc {
 	ga := make(GenesisAlloc)
 
 	accountInfos := strings.Split(data, ",")
@@ -563,7 +563,7 @@ func DecodePreWormholesInfo(data string) GenesisAlloc {
 	return ga
 }
 
-func DecodePreWormholesInfoV2(data string) GenesisAlloc {
+func decodePreWormholesInfoV2(data string) GenesisAlloc {
 	ga := make(GenesisAlloc)
 
 	accountInfos := strings.Split(data, ",")
@@ -607,9 +607,9 @@ func DefaultTestNetGenesisBlock() *Genesis {
 		ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
 		GasLimit:     8000000,
 		Difficulty:   big.NewInt(1),
-		Alloc:        DecodePreWormholesInfo(testnetAllocData),
-		Stake:        DecodePreWormholesInfo(testnetStakeData),
-		Validator:    DecodePreWormholesInfoV2(testnetValidatorData_v2),
+		Alloc:        decodePreWormholesInfo(testnetAllocData),
+		Stake:        decodePreWormholesInfo(testnetStakeData),
+		Validator:    decodePreWormholesInfoV2(testnetValidatorData_v2),
 		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
 		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
@@ -630,9 +630,9 @@ func DefaultDevNetGenesisBlock() *Genesis {
 		ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
 		GasLimit:     3758096384,
 		Difficulty:   big.NewInt(1),
-		Alloc:        DecodePreWormholesInfo(devnetAllocData),
-		Stake:        DecodePreWormholesInfo(devnetStakeData),
-		Validator:    DecodePreWormholesInfoV2(devnetValidatorData_v2),
+		Alloc:        decodePreWormholesInfo(devnetAllocData),
+		Stake:        decodePreWormholesInfo(devnetStakeData),
+		Validator:    decodePreWormholesInfoV2(devnetValidatorData_v2),
 		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
 		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
@@ -652,9 +652,9 @@ func DefaultUnitGenesisBlock() *Genesis {
 		ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
 		GasLimit:     8000000,
 		Difficulty:   big.NewInt(1),
-		Alloc:        DecodePreWormholesInfo(testnetAllocData),
-		Stake:        DecodePreWormholesInfo(testnetStakeData),
-		Validator:    DecodePreWormholesInfoV2(testnetValidatorData_v2),
+		Alloc:        decodePreWormholesInfo(testnetAllocData),
+		Stake:        decodePreWormholesInfo(testnetStakeData),
+		Validator:    decodePreWormholesInfoV2(testnetValidatorData_v2),
 		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
 		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
