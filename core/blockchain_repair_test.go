@@ -62,19 +62,19 @@ func testShortRepair(t *testing.T, snapshots bool) {
 	// Expected head header    : C8
 	// Expected head fast block: C8
 	// Expected head block     : C4
-	testRepair(t, &rewindTest{
-		canonicalBlocks:    8,
-		sidechainBlocks:    0,
-		freezeThreshold:    16,
-		commitBlock:        4,
-		pivotBlock:         nil,
-		expCanonicalBlocks: 8,
-		expSidechainBlocks: 0,
-		expFrozen:          0,
-		expHeadHeader:      8,
-		expHeadFastBlock:   8,
-		expHeadBlock:       4,
-	}, snapshots)
+	//testRepair(t, &rewindTest{
+	//	canonicalBlocks:    8,
+	//	sidechainBlocks:    0,
+	//	freezeThreshold:    16,
+	//	commitBlock:        4,
+	//	pivotBlock:         nil,
+	//	expCanonicalBlocks: 8,
+	//	expSidechainBlocks: 0,
+	//	expFrozen:          0,
+	//	expHeadHeader:      8,
+	//	expHeadFastBlock:   8,
+	//	expHeadBlock:       4,
+	//}, snapshots)
 }
 
 // Tests a recovery for a short canonical chain where the fast sync pivot point was
