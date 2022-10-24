@@ -1174,6 +1174,8 @@ func TestMergeNFT16(t *testing.T) {
 		newObject.addrHash = newAccount.Hash()
 		newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 		newObject.data.MergeLevel = 0
+		newObject.data.MetaURL = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+		newObject.data.NFTPledgedBlockNumber = big.NewInt(1110)
 		state.updateStateObject(newObject)
 
 		//state.Commit(false)
