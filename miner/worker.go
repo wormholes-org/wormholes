@@ -1592,9 +1592,9 @@ func (w *worker) GossipOnlineProof() error {
 
 	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
 
-	// if err := w.engine.Prepare(w.chain, header); err != nil {
-	// 	return errors.New("GossipOnlineProof : Failed to prepare header for mining")
-	// }
+	//if err := w.engine.Prepare(w.chain, header); err != nil {
+	//	return errors.New("GossipOnlineProof : Failed to prepare header for mining")
+	//}
 
 	//err := w.makeCurrent(parent, header)
 	// if err != nil {
