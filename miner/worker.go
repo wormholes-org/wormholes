@@ -166,6 +166,7 @@ type worker struct {
 
 	current      *environment
 	emptycurrent *environment
+	proofcurrent *environment
 	localUncles  map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
 	remoteUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
 	unconfirmed  *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
@@ -1617,14 +1618,14 @@ func (w *worker) GossipOnlineProof() error {
 	// 	return errors.New("GossipOnlineProof : Failed to prepare header for mining")
 	// }
 
-	err := w.makeCurrent(parent, header)
+	err := w.makeProofCurrent(parent, header)
 	if err != nil {
 		return errors.New("GossipOnlineProof : Failed to create mining context")
 	}
 
 	// receipts := copyReceipts(w.current.receipts)
-	s := w.current.state.Copy()
-	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.current.header, s, w.current.txs, nil, nil)
+	s := w.proofcurrent.state.Copy()
+	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.proofcurrent.header, s, w.proofcurrent.txs, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -1646,4 +1647,117 @@ func IntToBytes(n int) []byte {
 	bytebuf := bytes.NewBuffer([]byte{})
 	binary.Write(bytebuf, binary.BigEndian, data)
 	return bytebuf.Bytes()
+}
+
+func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) error {
+	// Retrieve the parent state to execute on top and start a prefetcher for
+	// the miner to speed block sealing up a bit
+	state, err := w.chain.StateAt(parent.Root())
+	if err != nil {
+		return err
+	}
+	state.StartPrefetcher("miner")
+
+	var mintDeep *types.MintDeep
+	//var exchangeList *types.SNFTExchangeList
+	if parent.NumberU64() > 0 {
+		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
+		if err != nil {
+			log.Error("Failed get mintdeep ", "err", err)
+			return err
+		}
+		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
+		//if exchangeList == nil {
+		//	exchangeList = &types.SNFTExchangeList{
+		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//	}
+		//}
+		frozenAccounts, err := w.chain.ReadFrozenAccounts(parent.Header())
+		if err != nil {
+			return err
+		}
+		state.FrozenAccounts = frozenAccounts
+
+	} else {
+		mintDeep = new(types.MintDeep)
+		//mintDeep.OfficialMint = big.NewInt(1)
+		//
+		//mintDeep.UserMint = big.NewInt(0)
+		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
+		mintDeep.UserMint = big.NewInt(1)
+
+		mintDeep.OfficialMint = big.NewInt(0)
+		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
+
+		//exchangeList = &types.SNFTExchangeList{
+		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
+		//}
+
+		frozenAccounts := core.GetInitFrozenAccounts(core.FrozenAccounts)
+		state.FrozenAccounts = frozenAccounts
+
+	}
+	state.MintDeep = mintDeep
+	//state.SNFTExchangePool = exchangeList
+
+	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
+	state.OfficialNFTPool = officialNFTList
+	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
+		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
+	}
+
+	var nominatedOfficialNFT *types.NominatedOfficialNFT
+	if parent.NumberU64() > 0 {
+		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
+		if err != nil {
+			state.NominatedOfficialNFT = nil
+		} else {
+			state.NominatedOfficialNFT = nominatedOfficialNFT
+		}
+	} else {
+		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
+		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
+		nominatedOfficialNFT.Number = 4096
+		nominatedOfficialNFT.Royalty = 100
+		nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		nominatedOfficialNFT.Address = common.Address{}
+		state.NominatedOfficialNFT = nominatedOfficialNFT
+	}
+
+	vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	if err != nil {
+		log.Error("makeProofCurrent : invalid validator list", "no", header.Number, "err", err)
+		return err
+	}
+	state.ValidatorPool = vallist.Validators
+
+	env := &environment{
+		signer:    types.MakeSigner(w.chainConfig, header.Number),
+		state:     state,
+		ancestors: mapset.NewSet(),
+		family:    mapset.NewSet(),
+		uncles:    mapset.NewSet(),
+		header:    header,
+	}
+	// when 08 is processed ancestors contain 07 (quick block)
+	for _, ancestor := range w.chain.GetBlocksFromHash(parent.Hash(), 7) {
+		for _, uncle := range ancestor.Uncles() {
+			env.family.Add(uncle.Hash())
+		}
+		env.family.Add(ancestor.Hash())
+		env.ancestors.Add(ancestor.Hash())
+	}
+	// Keep track of transactions which return errors so they can be removed
+	env.tcount = 0
+
+	// Swap out the old work with the new one, terminating any leftover prefetcher
+	// processes in the mean time and starting a new one.
+	if w.proofcurrent != nil && w.proofcurrent.state != nil {
+		w.proofcurrent.state.StopPrefetcher()
+	}
+	w.proofcurrent = env
+	return nil
 }
