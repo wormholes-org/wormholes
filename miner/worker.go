@@ -1553,50 +1553,50 @@ func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }
 
-func (w *worker) CommitOnlineProofBlock() error {
-	if w.onlineValidators != nil && w.onlineValidators.Height != nil &&
-		w.onlineValidators.Height.Uint64() == w.chain.CurrentHeader().Number.Uint64()+1 &&
-		len(w.onlineValidators.Validators) > 6 {
-		log.Info("CommitOnlineProofBlock: ready exit", "no", w.chain.CurrentHeader().Number.Uint64()+1)
-		return nil
-	}
+// func (w *worker) CommitOnlineProofBlock() error {
+// 	if w.onlineValidators != nil && w.onlineValidators.Height != nil &&
+// 		w.onlineValidators.Height.Uint64() == w.chain.CurrentHeader().Number.Uint64()+1 &&
+// 		len(w.onlineValidators.Validators) > 6 {
+// 		log.Info("CommitOnlineProofBlock: ready exit", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+// 		return nil
+// 	}
 
-	log.Info("CommitOnlineProofBlock : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
+// 	log.Info("CommitOnlineProofBlock : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
 
-	parent := w.chain.CurrentBlock()
+// 	parent := w.chain.CurrentBlock()
 
-	num := parent.Number()
-	header := &types.Header{
-		ParentHash: parent.Hash(),
-		Number:     num.Add(num, common.Big1),
-		GasLimit:   21000,
-		Extra:      w.extra,
-		Time:       10000,
-	}
+// 	num := parent.Number()
+// 	header := &types.Header{
+// 		ParentHash: parent.Hash(),
+// 		Number:     num.Add(num, common.Big1),
+// 		GasLimit:   21000,
+// 		Extra:      w.extra,
+// 		Time:       10000,
+// 	}
 
-	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
+// 	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
 
-	if err := w.engine.Prepare(w.chain, header); err != nil {
-		return errors.New("CommitOnlineProofBlock : Failed to prepare header for mining")
-	}
+// 	if err := w.engine.Prepare(w.chain, header); err != nil {
+// 		return errors.New("CommitOnlineProofBlock : Failed to prepare header for mining")
+// 	}
 
-	err := w.makeCurrent(parent, header)
-	if err != nil {
-		return errors.New("CommitOnlineProofBlock : Failed to create mining context")
-	}
+// 	err := w.makeCurrent(parent, header)
+// 	if err != nil {
+// 		return errors.New("CommitOnlineProofBlock : Failed to create mining context")
+// 	}
 
-	receipts := copyReceipts(w.current.receipts)
-	s := w.current.state.Copy()
-	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.current.header, s, w.current.txs, nil, receipts)
-	if err != nil {
-		return err
-	}
-	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, w.onlineCh)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+// 	receipts := copyReceipts(w.current.receipts)
+// 	s := w.current.state.Copy()
+// 	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.current.header, s, w.current.txs, nil, receipts)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	err = w.engine.SealOnlineProofBlk(w.chain, block, w.notifyBlockCh, w.onlineCh)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func (w *worker) GossipOnlineProof() error {
 	log.Info("GossipOnlineProof : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
