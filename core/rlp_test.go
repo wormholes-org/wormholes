@@ -199,3 +199,40 @@ func BenchmarkHashing(b *testing.B) {
 		b.Fatalf("hash wrong, got %x exp %x", got, exp)
 	}
 }
+
+type RLPTestDataA struct {
+	valA int
+	valB int
+	valC string
+}
+
+type RLPTestDataB struct {
+	valA int
+	valB int
+	valC string
+	valD string
+}
+
+func TestRLPStructure(t *testing.T) {
+	var rawDat = RLPTestDataA{
+		valA: 1,
+		valB: 2,
+		valC: "hello",
+	}
+	t.Log("rawDat:")
+	t.Log(rawDat.valA)
+	t.Log(rawDat.valB)
+	t.Log(rawDat.valC)
+	var rlpBytes, err = rlp.EncodeToBytes(rawDat)
+	if err != nil {
+		t.Log(err)
+	}
+
+	var rcvDat RLPTestDataB
+	rlp.DecodeBytes(rlpBytes, &rcvDat)
+	t.Log("rcvDat:")
+	t.Log(rcvDat.valA)
+	t.Log(rcvDat.valB)
+	t.Log(rcvDat.valC)
+	t.Log(rcvDat.valD)
+}

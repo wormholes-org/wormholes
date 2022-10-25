@@ -30,6 +30,9 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 		Version:    request.Version,
 	}
 
+	if request.Version != "" {
+		log.Info("msgVers", c.address.Hex(), request.Version)
+	}
 	// sign data total byte: 8 + 32
 	buffer := new(buffer.Buffer)
 	buffer.AppendUint((curView.Sequence.Uint64()))
