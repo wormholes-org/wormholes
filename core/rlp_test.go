@@ -227,6 +227,7 @@ func TestRLPStructure(t *testing.T) {
 	if err != nil {
 		t.Log(err)
 	}
+	t.Log(rlpBytes)
 
 	var rcvDat RLPTestDataB
 	rlp.DecodeBytes(rlpBytes, &rcvDat)
