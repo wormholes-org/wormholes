@@ -237,3 +237,29 @@ func TestRLPStructure(t *testing.T) {
 	t.Log(rcvDat.valC)
 	t.Log(rcvDat.valD)
 }
+
+func TestRLPStructure2(t *testing.T) {
+	var rawDat = RLPTestDataB{
+		valA: 1,
+		valB: 2,
+		valC: "hello",
+		valD: "world",
+	}
+	t.Log("rawDat:")
+	t.Log(rawDat.valA)
+	t.Log(rawDat.valB)
+	t.Log(rawDat.valC)
+	t.Log(rawDat.valD)
+	var rlpBytes, err = rlp.EncodeToBytes(rawDat)
+	if err != nil {
+		t.Log(err)
+	}
+	t.Log(rlpBytes)
+
+	var rcvDat RLPTestDataA
+	rlp.DecodeBytes(rlpBytes, &rcvDat)
+	t.Log("rcvDat:")
+	t.Log(rcvDat.valA)
+	t.Log(rcvDat.valB)
+	t.Log(rcvDat.valC)
+}
