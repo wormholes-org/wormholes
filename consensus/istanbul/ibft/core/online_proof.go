@@ -21,17 +21,16 @@ func (c *core) sendOnlineProof(request *istanbul.OnlineProofRequest) {
 		"round", c.current.round,
 		"self", c.address.Hex(),
 	)
-
+	log.Info("nixMsg")
+	if request.Version != "" {
+		log.Info("msgVers", c.address.Hex(), request.Version)
+	}
 	curView := c.currentView()
 	onlineProof := &istanbul.OnlineProof{
 		View:       curView,
 		Proposal:   request.Proposal,
 		RandomHash: request.RandomHash,
 		Version:    request.Version,
-	}
-
-	if request.Version != "" {
-		log.Info("msgVers", c.address.Hex(), request.Version)
 	}
 	// sign data total byte: 8 + 32
 	buffer := new(buffer.Buffer)
