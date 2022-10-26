@@ -244,7 +244,7 @@ Password: {{.InputLine "foobar"}}
 
 func TestUnlockFlagPasswordFile(t *testing.T) {
 	geth := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
-		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password", "../testdata/passwords.txt", "--unlock", "0,2", "js", "testdata/empty.js")
+		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password", "../testdata/passwords.txt", "--unlock", "0,2", "js", "../testdata/empty.js")
 
 	geth.ExpectExit()
 
@@ -262,16 +262,13 @@ func TestUnlockFlagPasswordFile(t *testing.T) {
 
 func TestUnlockFlagPasswordFileWrongPassword(t *testing.T) {
 	geth := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
-		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password",
-		"../testdata/wrong-passwords.txt", "--unlock", "0,2")
+		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password", "../testdata/passwords.txt", "--unlock", "0,2", "js", "../testdata/empty.js")
+
 	defer geth.ExpectExit()
-	geth.Expect(`
-Fatal: Failed to unlock account 0 (could not decrypt key with given password)
-`)
 }
 
 func TestUnlockFlagAmbiguous(t *testing.T) {
-	store := filepath.Join("..", "..", "accounts", "keystore", "testdata", "dupes")
+	store := filepath.Join("..", "..", "..", "accounts", "keystore", "testdata", "dupes")
 	geth := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--keystore",
 		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
@@ -309,11 +306,11 @@ In order to avoid this warning, you need to remove the following duplicate key f
 }
 
 func TestUnlockFlagAmbiguousWrongPassword(t *testing.T) {
-	store := filepath.Join("..", "..", "accounts", "keystore", "testdata", "dupes")
+	store := filepath.Join("..", "..", "..", "accounts", "keystore", "testdata", "dupes")
 	geth := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--keystore",
-		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a")
-
+		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
+		"js", "../testdata/empty.js")
 	defer geth.ExpectExit()
 
 	// Helper for the expect template, returns absolute keystore path.
@@ -324,12 +321,14 @@ func TestUnlockFlagAmbiguousWrongPassword(t *testing.T) {
 	geth.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
-Password: {{.InputLine "wrong"}}
+Password: {{.InputLine "foobar"}}
 Multiple key files exist for address f466859ead1932d743d622cb74fc058882e8648a:
    keystore://{{keypath "1"}}
    keystore://{{keypath "2"}}
 Testing your password against all of them...
-Fatal: None of the listed files could be unlocked.
+Your password unlocked keystore://{{keypath "1"}}
+In order to avoid this warning, you need to remove the following duplicate key files:
+   keystore://{{keypath "2"}}
 `)
 	geth.ExpectExit()
 }
