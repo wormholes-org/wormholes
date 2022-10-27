@@ -1,14 +1,14 @@
 ---
-name: Report a bug
-about: Something with go-ethereum is not working as expected
+name: Report a question
+about: Something with go-wormholes is not working as expected
 title: ''
-labels: 'type:bug'
+labels: 'type:question'
 assignees: ''
 ---
 
 #### System information
 
-Geth version: `geth version`
+Wormholes version: `wormholes version`
 OS & Version: Windows/Linux/OSX
 Commit hash : (if `develop`)
 
