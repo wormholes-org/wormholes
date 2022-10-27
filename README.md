@@ -116,7 +116,7 @@ you have experience with the terminal, the manual setup steps should be easy to 
 avoiding processing the entire history of the Wormholes Chain network, which is very CPU intensive.
 
 - Start up***Wormholes's*** built-in interactive JavaScript,(via the trailing ***console*** subcommand) through which you can interact using ***web3***
-  [methods](https://learnblockchain.cn/docs/web3.js/getting-started.html)(note: the ***web3*** version bundled within ***Wormholes*** is very old, and
+  [methods](https://web3js.readthedocs.io/en/v1.2.9/)(note: the ***web3*** version bundled within ***Wormholes*** is very old, and
   not up to date with official docs), as well as ***Wormholes's*** own [management APIs](https://www.wormholes.com/docs/management/) .
   This tool is optional and if you leave it out you can always attach to an already running ``Wormholes`` instance with ***Wormholes attach*** .
 
