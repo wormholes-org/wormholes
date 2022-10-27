@@ -1,6 +1,6 @@
 ---
 name: Report a question
-about: Something with go-wormholes is not working as expected
+about: Something is unclear
 title: ''
 labels: 'type:question'
 assignees: ''
