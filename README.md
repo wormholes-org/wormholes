@@ -46,78 +46,62 @@ Before installing the client, please ensure your computer has enough resources t
 
 ## Spin-up Your Own Wormholes Node
 
-Running your node benefits you a lot, including opening more possibilities, and helping to support the ecosystem. This page will guide you through spinning
-up your node and taking part in validating Wormholes transactions.
+Participate in the Wormholes blockchain public testnet, jointly support and maintain the Wormholes network ecosystem, and you can obtain corresponding
+benefits. 
 
-The actual client setup can be done by using the automatic launcher or manually.For ordinary users, we recommend you use a startup script, which guides you through the installation and automates the client setup process. However,
-if you have experience with the terminal, the manual setup steps should be easy to follow.
+This tutorial will guide you to deploy Wormholes nodes and participate in verifying the security and reliability of the Wormholes network. Choose the 
+software tools and deployment methods you are familiar with to maintain your own nodes.
 
 ### Docker Clients Setup
 
-#### Install docker
+### Preparation
 
-You must ensure that docker has been installed. If it is not, please install docker first. For details, please refer to the [Rookie Tutorial](https://www.runoob.com/docker/ubuntu-docker-install.html). Or ignore it if already installed.
+- Install wget. 
 
-#### Prepare the JavaScript
+  Please go to the [wget website](https://www.gnu.org/software/wget/) to download and install it. If you are using Linux system, you can also 
+install it using the `apt-get install wget` command. If you are using MacOS system, you can also install it using the `brew install wget` command.
 
-Taking the Linux system as an example, the script Wormholes_install.sh to run the node can be named accordingly.
+- Install Docker.
 
-```
-#!/bin/bash
-#check docker cmd
-which docker >/dev/null 2>&1
-if  [ $? -ne 0 ] ; then
-     echo "docker not found, please install first!"
-     echo "ubuntu:sudo apt install docker.io -y"
-     echo "centos:yum install  -y docker-ce "
-     echo "fedora:sudo dnf  install -y docker-ce"
-     exit
-fi
-#check docker service
-docker ps > /dev/null 2>&1
-if [ $? -ne 0 ] ; then
+  For the installation and use of Docker, please refer to the [Docker Official Documentation](https://docs.docker.com/engine/install/).
 
-     echo "docker service is not running! you can use command start it:"
-     echo "sudo service docker start"
-     exit
-fi
+### Process for deploying nodes for the first time
 
-docker stop wormholes > /dev/null 2>&1
-docker rm wormholes > /dev/null 2>&1
-docker rmi wormholestech/wormholes:v1 > /dev/null 2>&1
+1. Execute the following command to start launching the node.
 
-if [ -d /wm/.wormholes/keystore ]; then
-   read -p "Whether to clear the Wormholes blockchain data history, if yes, press the “y” button, and if not, click “enter.”：" xyz
-   if [ "$xyz" = 'y' ]; then
-         rm -rf /wm/.wormholes
-              read -p "Enter your private key：" ky
-   else
-         echo "Do not clear"
-   fi
-else
-   read -p "Please import your private key：" ky
-fi
+   ```
+   wget -c https://docker.wormholes.com/wormholes_install.sh && sudo bash wormholes_install.sh
+   ```
+   When prompted as shown below, you need to Enter the root user password and press Enter.
+   ![图片](https://user-images.githubusercontent.com/107660058/198200822-a44d06ed-2aa6-4467-ad6f-fcf8d47a459f.png)
 
-mkdir -p /wm/.wormholes/wormholes
-if [ -n "$ky" ]; then
-   echo $ky > /wm/.wormholes/wormholes/nodekey
-fi
+2. When the figure is displayed below, enter the private key and press Enter.
+   ![图片](https://user-images.githubusercontent.com/107660058/198200865-8d1d2736-f836-4a5e-aec7-331e56003757.png)
 
-docker run -id -e KEY=$ky  -p 30303:30303 -p 8545:8545 -v /wm/.wormholes:/wm/.wormholes --name wormholes wormholestech/wormholes:v1
+3. When the figure is displayed below, the node has deployed successfully.
+   ![图片](https://user-images.githubusercontent.com/107660058/198200917-8500b4cb-733e-4743-ae27-3f4b619a7e97.png)
+   
+4. Conduct the command as follows, check whether the Wormholes container is normally running or not and if it Shows UP, which means yes.
+   `sudo docker ps -a`
+   ![图片](https://user-images.githubusercontent.com/107660058/198201002-79cf8c82-84b5-49a8-88f8-0a7ee8a4299d.png)
 
-echo "Your private key is:"
-sleep 6
-docker exec -it wormholes /usr/bin/cat /wm/.wormholes/wormholes/nodekey
-```
+### Upgrade the process of node
 
-#### Run the node
+1. Conduct the command as follows and restart the node.
+   ```
+   wget -c https://docker.wormholes.com/wormholes_install.sh && sudo bash wormholes_install.sh
+   ```
+   The notification of whether to delete the previous data or not will show in the launch process. Enter “Y” to delete.
+   ![图片](https://user-images.githubusercontent.com/107660058/198201461-a0aa2aa0-7429-4952-93cd-0e6ea935baf1.png)
 
-When using the script to start the node, you must enter the private key of the account used for pledge prepared earlierWhen using the script to start the
-node, you must enter the private key of the account used for pledge prepared earlier.
+2. Input “y” and press “Enter”. It will show the image as follow.
+   ![图片](https://user-images.githubusercontent.com/107660058/198201508-76c50169-45da-4707-9200-ae2e5de5288d.png)
 
-``` 
-bash ./wormholes_install.sh 
-```
+
+3. Conduct the command as follows, check whether the Wormholes container is normally running or not and if it Shows “UP,” which means yes.
+   `sudo docker ps -a`
+   ![图片](https://user-images.githubusercontent.com/107660058/198201548-fbfaf5e4-cbdb-43b6-ab9e-f134ad8615c7.png)
+
 
 ### Manual clients setup
 
