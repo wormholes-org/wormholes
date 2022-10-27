@@ -1,9 +1,30 @@
 ---
-name: Ask a question
+name: Report a question
 about: Something is unclear
 title: ''
-labels: 'type:docs'
+labels: 'type:question'
 assignees: ''
 ---
 
-This should only be used in very rare cases e.g. if you are not 100% sure if something is a bug or asking a question that leads to improving the documentation. For general questions please use [discord](https://discord.gg/nthXNEv) or the Ethereum stack exchange at https://ethereum.stackexchange.com.
+#### System information
+
+Wormholes version: `wormholes version`
+OS & Version: Windows/Linux/OSX
+Commit hash : (if `develop`)
+
+#### Expected behaviour
+
+
+#### Actual behaviour
+
+
+#### Steps to reproduce the behaviour
+
+
+#### Backtrace
+
+````
+[backtrace]
+````
+
+When submitting logs: please submit them as text and not screenshots.
