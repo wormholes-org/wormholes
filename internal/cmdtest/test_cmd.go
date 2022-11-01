@@ -175,6 +175,17 @@ func (tt *TestCmd) ExpectRegexp(regex string) (*regexp.Regexp, []string) {
 // ExpectExit expects the child process to exit within 5s without
 // printing any additional text on stdout.
 func (tt *TestCmd) ExpectExit() {
+	// var output []byte
+	// tt.withKillTimeout(func() {
+	// 	output, _ = ioutil.ReadAll(tt.stdout)
+	// })
+	// tt.WaitExit()
+	// if tt.Cleanup != nil {
+	// 	tt.Cleanup()
+	// }
+	// if len(output) > 0 {
+	// 	tt.Errorf("Unmatched stdout text:\n%s", output)
+	// }
 	var output []byte
 	tt.withKillTimeout(func() {
 		output, _ = ioutil.ReadAll(tt.stdout)
@@ -183,8 +194,34 @@ func (tt *TestCmd) ExpectExit() {
 	if tt.Cleanup != nil {
 		tt.Cleanup()
 	}
-	if len(output) > 0 {
-		tt.Errorf("Unmatched stdout text:\n%s", output)
+
+	strOutput := string(output)
+	splitOutputs := strings.Split(strOutput, "\n")
+	deleteOutputs := make([]string, 0)
+	//for i, line := range splitOutputs {
+	// strings.Trim(splitOutputs[i], "\n")
+	// tt.Log("line= ", line)
+	//}
+	for _, line := range splitOutputs {
+		if strings.HasPrefix(line, "INFO") || line == "" {
+			deleteOutputs = append(deleteOutputs, line)
+		}
+	}
+
+	for _, line := range deleteOutputs {
+		for i, line2 := range splitOutputs {
+			if line == line2 {
+				splitOutputs = append(splitOutputs[:i], splitOutputs[i+1:]...)
+				break
+			}
+		}
+	}
+
+	//if len(output) > 0 {
+	// tt.Errorf("Unmatched stdout text:\n%s", output)
+	//}
+	if len(splitOutputs) > 0 {
+		tt.Errorf("Unmatched stdout text:\n%d", len(splitOutputs))
 	}
 }
 

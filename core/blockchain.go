@@ -2619,6 +2619,10 @@ func (bc *BlockChain) GetTdByHash(hash common.Hash) *big.Int {
 // caching it if found.
 func (bc *BlockChain) GetHeader(hash common.Hash, number uint64) *types.Header {
 	// Blockchain might have cached the whole block, only if not go to headerchain
+	if bc == nil {
+		return nil
+	}
+
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block).Header()
 	}

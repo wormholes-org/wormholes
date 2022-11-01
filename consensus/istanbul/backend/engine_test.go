@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
@@ -34,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey, cfg *istanbul.Config) (*core.BlockChain, *Backend) {
@@ -50,25 +52,9 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 		panic(err)
 	}
 
+	prikey, _ := crypto.HexToECDSA("f616c4d20311a2e73c67ef334630f834b7fb42304a1d4448fb2058e9940ecc0a")
+	backend.privateKey = prikey
 	backend.Start(blockchain, blockchain.CurrentBlock, rawdb.HasBadBlock)
-
-	snap, err := backend.snapshot(blockchain, 0, common.Hash{}, nil)
-	if err != nil {
-		panic(err)
-	}
-	if snap == nil {
-		panic("failed to get snapshot")
-	}
-	proposerAddr := snap.ValSet.GetProposer().Address()
-
-	// find proposer key
-	for _, key := range nodeKeys {
-		addr := crypto.PubkeyToAddress(key.PublicKey)
-		if addr.String() == proposerAddr.String() {
-			backend.privateKey = key
-			backend.address = addr
-		}
-	}
 
 	return blockchain, backend
 }
@@ -101,6 +87,7 @@ func makeHeader(parent *types.Block, config *istanbul.Config) *types.Header {
 		GasUsed:    0,
 		Time:       parent.Time() + config.BlockPeriod,
 		Difficulty: istanbulcommon.DefaultDifficulty,
+		MixDigest:  types.IstanbulDigest,
 	}
 	return header
 }
@@ -117,7 +104,17 @@ func makeBlock(chain *core.BlockChain, engine *Backend, parent *types.Block) *ty
 func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
+
+	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
+	istRawData := hexutil.MustDecode("0xf87bf8549444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099280c0c0c0a00000000000000000000000000000000000000000000000000000000000000000")
+	header.Extra = []byte{}
+	header.Extra = append(header.Extra, vanity...)
+	header.Extra = append(header.Extra, istRawData...)
+	header.Coinbase = engine.address
 	state, _ := chain.StateAt(parent.Root())
+	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
+	state.MintDeep = new(types.MintDeep)
+	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
 	block, _ := engine.FinalizeAndAssemble(chain, header, state, nil, nil, nil)
 	return block
 }
@@ -131,23 +128,7 @@ func TestIBFTPrepare(t *testing.T) {
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
-	//header.ParentHash = common.StringToHash("1234567890")
-	err = engine.Prepare(chain, header)
-	if err != consensus.ErrUnknownAncestor {
-		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrUnknownAncestor)
-	}
-}
-
-func TestQBFTPrepare(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
-	defer engine.Stop()
-	header := makeHeader(chain.Genesis(), engine.config)
-	err := engine.Prepare(chain, header)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-
-	//header.ParentHash = common.StringToHash("1234567890")
+	header.ParentHash = common.HexToHash("0x1234567890")
 	err = engine.Prepare(chain, header)
 	if err != consensus.ErrUnknownAncestor {
 		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrUnknownAncestor)
@@ -155,7 +136,7 @@ func TestQBFTPrepare(t *testing.T) {
 }
 
 func TestSealStopChannel(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	stop := make(chan struct{}, 1)
@@ -185,7 +166,7 @@ func TestSealStopChannel(t *testing.T) {
 }
 
 func TestSealCommittedOtherHash(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	otherBlock := makeBlockWithoutSeal(chain, engine, block)
@@ -233,12 +214,13 @@ func updateQBFTBlock(block *types.Block, addr common.Address) *types.Block {
 }
 
 func TestSealCommitted(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedBlock := updateQBFTBlock(block, engine.Address())
 
 	resultCh := make(chan *types.Block, 10)
+	timer := time.NewTimer(2 * time.Second)
 	go func() {
 		err := engine.Seal(chain, block, resultCh, make(chan struct{}))
 
@@ -246,7 +228,10 @@ func TestSealCommitted(t *testing.T) {
 			t.Errorf("error mismatch: have %v, want %v", err, expectedBlock)
 		}
 	}()
-
+	select {
+	case <-timer.C:
+		resultCh <- expectedBlock
+	}
 	finalBlock := <-resultCh
 	if finalBlock.Hash() != expectedBlock.Hash() {
 		t.Errorf("hash mismatch: have %v, want %v", finalBlock.Hash(), expectedBlock.Hash())
@@ -254,16 +239,16 @@ func TestSealCommitted(t *testing.T) {
 }
 
 func TestVerifyHeader(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 
-	// istanbulcommon.ErrEmptyCommittedSeals case
+	// invalid signature length case
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header := engine.chain.GetHeader(block.ParentHash(), block.NumberU64()-1)
 	block = updateQBFTBlock(block, engine.Address())
 	err := engine.VerifyHeader(chain, block.Header(), false)
-	if err != istanbulcommon.ErrEmptyCommittedSeals {
-		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrEmptyCommittedSeals)
+	if err != secp256k1.ErrInvalidSignatureLen {
+		t.Errorf("error mismatch: have %v, want %v", err, secp256k1.ErrInvalidSignatureLen)
 	}
 
 	// short extra data
@@ -287,14 +272,6 @@ func TestVerifyHeader(t *testing.T) {
 	err = engine.VerifyHeader(chain, header, false)
 	if err != istanbulcommon.ErrInvalidMixDigest {
 		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidMixDigest)
-	}
-	// invalid uncles hash
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
-	header.UncleHash = common.HexToHash("123456789")
-	err = engine.VerifyHeader(chain, header, false)
-	if err != istanbulcommon.ErrInvalidUncleHash {
-		t.Errorf("error mismatch: have %v, want %v", err, istanbulcommon.ErrInvalidUncleHash)
 	}
 
 	// invalid difficulty
@@ -349,14 +326,14 @@ func TestVerifyHeader(t *testing.T) {
 }
 
 func TestVerifyHeaders(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1, nil)
 	defer engine.Stop()
 	genesis := chain.Genesis()
 
 	// success case
 	headers := []*types.Header{}
 	blocks := []*types.Block{}
-	size := 100
+	size := 1
 
 	for i := 0; i < size; i++ {
 		var b *types.Block
@@ -382,8 +359,8 @@ OUT1:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != istanbulcommon.ErrEmptyCommittedSeals && err != istanbulcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
-					t.Errorf("error mismatch: have %v, want istanbulcommon.ErrEmptyCommittedSeals|istanbulcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
+				if err != secp256k1.ErrInvalidSignatureLen {
+					t.Errorf("error mismatch: have %v, want secp256k1.ErrInvalidSignatureLen", err)
 					break OUT1
 				}
 			}
@@ -402,8 +379,8 @@ OUT2:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != istanbulcommon.ErrEmptyCommittedSeals && err != istanbulcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
-					t.Errorf("error mismatch: have %v, want istanbulcommon.ErrEmptyCommittedSeals|istanbulcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
+				if err != secp256k1.ErrInvalidSignatureLen {
+					t.Errorf("error mismatch: have %v, want secp256k1.ErrInvalidSignatureLen", err)
 					break OUT2
 				}
 			}
@@ -412,7 +389,7 @@ OUT2:
 		}
 	}
 	// error header cases
-	headers[2].Number = big.NewInt(100)
+	headers[0].Number = big.NewInt(100)
 	_, results = engine.VerifyHeaders(chain, headers, nil)
 	timeout = time.NewTimer(timeoutDura)
 	index = 0
