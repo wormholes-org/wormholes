@@ -1331,3 +1331,19 @@ func (s *stateObject) setPledgedNFTInfo(pledgedflag bool, blocknumber *big.Int) 
 	s.data.PledgedFlag = pledgedflag
 	s.data.NFTPledgedBlockNumber = blocknumber
 }
+
+func (s *stateObject) SetExtra(extra []byte) {
+	oldExtra := extraChange{
+		account: &s.address,
+		//prev:    s.data.Extra,
+	}
+	oldExtra.prev = make([]byte, 0)
+	oldExtra.prev = append(oldExtra.prev, s.data.Extra...)
+	s.db.journal.append(oldExtra)
+
+	s.setExtra(extra)
+}
+
+func (s *stateObject) setExtra(extra []byte) {
+	s.data.Extra = extra
+}

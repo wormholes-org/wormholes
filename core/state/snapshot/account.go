@@ -153,7 +153,7 @@ func SlimAccount(nonce uint64,
 	if !bytes.Equal(codehash, emptyCode[:]) {
 		slim.CodeHash = codehash
 	}
-	slim.Extra = extra
+	slim.Extra = extra[:]
 
 	return slim
 }

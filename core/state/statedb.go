@@ -3148,3 +3148,29 @@ func (s *StateDB) GetFrozenAccounts() *types.FrozenAccountList {
 
 	return &tempFrozenAccounts
 }
+
+// AddValidatorCoefficient adds amount to the ValidatorCoefficient associated with addr.
+func (s *StateDB) AddValidatorCoefficient(addr common.Address, coe uint8) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.AddCoefficient(coe)
+	}
+}
+
+// SubValidatorCoefficient subtracts amount from the ValidatorCoefficient associated with addr.
+func (s *StateDB) SubValidatorCoefficient(addr common.Address, coe uint8) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SubCoefficient(coe)
+	}
+}
+
+// GetValidatorCoefficient retrieves the ValidatorCoefficient from the given address or 0 if object not found
+func (s *StateDB) GetValidatorCoefficient(addr common.Address) uint8 {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		coe := stateObject.Coefficient()
+		return coe
+	}
+	return 0
+}
