@@ -155,7 +155,7 @@ func TestCopy(t *testing.T) {
 	orig.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	orig.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	orig.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	orig.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	orig.FrozenAccounts = new(types.FrozenAccountList)
 	orig.MintDeep = new(types.MintDeep)
 	orig.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 
@@ -490,7 +490,7 @@ func TestTouchDelete(t *testing.T) {
 	s.state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	s.state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	s.state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	s.state.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	s.state.FrozenAccounts = new(types.FrozenAccountList)
 	s.state.MintDeep = new(types.MintDeep)
 	s.state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 
@@ -511,7 +511,7 @@ func TestCopyOfCopy(t *testing.T) {
 	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	state.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	state.FrozenAccounts = new(types.FrozenAccountList)
 	state.MintDeep = new(types.MintDeep)
 	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	addr := common.HexToAddress("aaaa")
@@ -535,7 +535,7 @@ func TestCopyCommitCopy(t *testing.T) {
 	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	state.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	state.FrozenAccounts = new(types.FrozenAccountList)
 	state.MintDeep = new(types.MintDeep)
 	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	// Create an account and check if the retrieved balance is correct
@@ -613,7 +613,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	state.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	state.FrozenAccounts = new(types.FrozenAccountList)
 	state.MintDeep = new(types.MintDeep)
 	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	// Create an account and check if the retrieved balance is correct
@@ -1153,7 +1153,7 @@ func TestMergeNFT16(t *testing.T) {
 	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	state.FrozenAccounts = make([]*types.FrozenAccount, 0)
+	state.FrozenAccounts = new(types.FrozenAccountList)
 	state.MintDeep = new(types.MintDeep)
 	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
