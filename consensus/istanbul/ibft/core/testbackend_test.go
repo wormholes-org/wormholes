@@ -54,10 +54,6 @@ func (self *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.Onli
 	return
 }
 
-func (self *testSystemBackend) GetCore() istanbul.Core {
-	return nil
-}
-
 type testCommittedMsgs struct {
 	commitProposal istanbul.Proposal
 	committedSeals [][]byte
@@ -187,10 +183,6 @@ func (sb *testSystemBackend) IsQBFTConsensusAt(*big.Int) bool {
 
 func (sb *testSystemBackend) StartQBFTConsensus() error {
 	return nil
-}
-
-func (sb *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
-	return
 }
 
 //
