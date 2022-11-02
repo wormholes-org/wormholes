@@ -295,6 +295,7 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 		log.Info("caver|ToBlock|validator", "addr", addr, "amount", account.Balance.String())
 		proxy := common.HexToAddress(account.Proxy)
 		statedb.PledgeToken(addr, account.Balance, proxy, big.NewInt(0))
+		statedb.AddValidatorCoefficient(addr, VALIDATOR_COEFFICIENT)
 	}
 
 	root := statedb.IntermediateRoot(false)

@@ -33,6 +33,8 @@ import (
 
 var emptyCodeHash = crypto.Keccak256(nil)
 
+const VALIDATOR_COEFFICIENT = 70
+
 type Code []byte
 
 func (c Code) String() string {
@@ -1173,10 +1175,10 @@ func (s *stateObject) setCoefficient(coe uint8) {
 func (s *stateObject) AddCoefficient(coe uint8) {
 	var sum uint8
 	preSum := s.Coefficient() + coe
-	if preSum <= 70 {
+	if preSum <= VALIDATOR_COEFFICIENT {
 		sum = preSum
 	} else {
-		sum = 70
+		sum = VALIDATOR_COEFFICIENT
 	}
 	s.SetCoefficient(sum)
 }
