@@ -161,6 +161,75 @@ func (vl *ValidatorList) CalculateAddressRange(address common.Address, stakeAmt 
 	return
 }
 
+func (vl *ValidatorList) CalculateAddressRangeV2(address common.Address, stakeAmt, weight *big.Int) {
+	addrNo := address.Hash().Big()
+	totalAmt := vl.TotalStakeBalance()
+	minValue := big.NewInt(0)
+	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
+
+	// stakeAmt / totalStakeAmt * maxValue * weight / 10
+	rangeLength := big.NewInt(0).Mul(big.NewInt(0).Div(big.NewInt(0).Mul(weight, big.NewInt(0).Mul(stakeAmt, maxValue)), totalAmt), big.NewInt(10))
+
+	if rangeLength.Cmp(maxValue) > 0 {
+		addrRange := []*big.Int{minValue, maxValue}
+		vl.AddAddrRange(address, addrRange)
+	}
+
+	if big.NewInt(0).Add(addrNo, rangeLength).Cmp(maxValue) < 0 {
+		addrRange := []*big.Int{addrNo, big.NewInt(0).Add(addrNo, rangeLength)}
+		vl.AddAddrRange(address, addrRange)
+	} else {
+		modValue := big.NewInt(0).Mod(big.NewInt(0).Add(addrNo, rangeLength), maxValue)
+		addrRange := []*big.Int{addrNo, maxValue, minValue, modValue}
+		vl.AddAddrRange(address, addrRange)
+	}
+	return
+}
+
+// ValidatorByDistanceAndWeight Query K validators closest to random numbers based on distance and pledge amount
+func (vl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, randomHash common.Hash) []common.Address {
+	// The maximum value of address to big Int
+	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
+
+	// Record the weight corresponding to the address
+	addrToWeightMap := make(map[*big.Int]*big.Int, 0)
+
+	// Hash to 160-bit address
+	r1 := randomHash[12:]
+	x := common.BytesToAddress(r1).Hash().Big()
+
+	for _, v := range addr {
+		sub1 := big.NewInt(0)
+		sub2 := big.NewInt(0)
+
+		// The obtained sub1 and sub2 are two distance values, which need to be taken from the smallest
+		sub1 = sub1.Sub(v, x)
+		sub1 = sub1.Abs(sub1)
+		sub2 = sub2.Sub(maxValue, sub1)
+		if sub1.Cmp(sub2) < 0 {
+			a := new(big.Int).Mul(sub1, vl.StakeBalance(common.BigToAddress(v)))
+			w := new(big.Int).Div(a, vl.TotalStakeBalance())
+			addrToWeightMap[v] = w
+		} else {
+			a := new(big.Int).Mul(sub2, vl.StakeBalance(common.BigToAddress(v)))
+			w := new(big.Int).Div(a, vl.TotalStakeBalance())
+			addrToWeightMap[v] = w
+		}
+	}
+
+	sortMap := rankByWordCount(addrToWeightMap)
+	res := make([]common.Address, 0)
+
+	for i := 0; i < sortMap.Len(); i++ {
+		if i < k {
+			res = append(res, common.BigToAddress(sortMap[i].Key))
+		} else {
+			break
+		}
+	}
+	return res
+}
+
 func (vl *ValidatorList) ValidatorByDistance(addr []*big.Int, k int, randomHash common.Hash) []common.Address {
 	// The maximum value of address to big Int
 	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()

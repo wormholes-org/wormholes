@@ -59,6 +59,36 @@ func TestCalculateAddressRange2(t *testing.T) {
 	}
 }
 
+func TestCalculateAddressRangeV2(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+	var validators []*Validator
+
+	addrs := []common.Address{
+		common.HexToAddress("0x958f3938ad79F307F136D8A773abbA2F7AD5f987"),
+		common.HexToAddress("0xBe84e65CAf40E4612399E08B3bBceAc8b9C0717F"),
+		common.HexToAddress("0xEB9580f1a77070b910b68267C125EC930496bF93"),
+		common.HexToAddress("0x8D45abABa0Eaa51C6c54233bd4551fa68501626D"),
+		common.HexToAddress("0x9bC63Bee6dDA01AaF84C7f2f67aFaCe072f9200C"),
+		common.HexToAddress("0x1955748fbCf6Ed7d0D7cDc6E73FcCEA7acA5111D"),
+		common.HexToAddress("0xaC2BE8274500F1f9752742e72EDfF09d48cdf6b7"),
+		common.HexToAddress("0x0e26F837F0fba43e8CE4AAa171d44Cd9DED5f163"),
+		common.HexToAddress("0xD8391F18b848D3A4b3f8c3027a302F6144cC696E"),
+		common.HexToAddress("0x0f811d75DA3B5A2aB4005805866Bb0bfb316d785"),
+	}
+	for i := 0; i < 10; i++ {
+		validators = append(validators, NewValidator(addrs[i], big.NewInt(rand.Int63()), common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRangeV2(vl.Addr, validatorList.StakeBalance(vl.Addr), big.NewInt(15))
+	}
+
+	//---------------------------------------------//
+	for _, v := range validatorList.Validators {
+		fmt.Println("address---", v.Addr, "|---weight", v.Weight)
+	}
+}
+
 func TestCollectValidators(t *testing.T) {
 	var count int
 	for i := 0; i < 1000; i++ {

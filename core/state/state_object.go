@@ -33,6 +33,8 @@ import (
 
 var emptyCodeHash = crypto.Keccak256(nil)
 
+const VALIDATOR_COEFFICIENT = 70
+
 type Code []byte
 
 func (c Code) String() string {
@@ -138,6 +140,7 @@ type Account struct {
 	BlockNumber      *big.Int
 	ExchangerBalance *big.Int
 	VoteWeight       *big.Int
+	Coefficient      uint8
 	// The ratio that exchanger get.
 	FeeRate       uint32
 	ExchangerName string
@@ -149,6 +152,7 @@ type Account struct {
 	// Indicates the reward method chosen by the miner
 	//RewardFlag uint8 // 0:SNFT 1:ERB default:1
 	AccountNFT
+	Extra []byte
 }
 
 // *** modify to support nft transaction 20211215 begin ***
@@ -1152,6 +1156,44 @@ func (s *stateObject) VoteWeight() *big.Int {
 	return s.data.VoteWeight
 }
 
+func (s *stateObject) Coefficient() uint8 {
+	return s.data.Coefficient
+}
+
+func (s *stateObject) SetCoefficient(coe uint8) {
+	s.db.journal.append(coefficientChange{
+		account: &s.address,
+		prev:    s.data.Coefficient,
+	})
+	s.setCoefficient(coe)
+}
+
+func (s *stateObject) setCoefficient(coe uint8) {
+	s.data.Coefficient = coe
+}
+
+func (s *stateObject) AddCoefficient(coe uint8) {
+	var sum uint8
+	preSum := s.Coefficient() + coe
+	if preSum <= VALIDATOR_COEFFICIENT {
+		sum = preSum
+	} else {
+		sum = VALIDATOR_COEFFICIENT
+	}
+	s.SetCoefficient(sum)
+}
+
+func (s *stateObject) SubCoefficient(coe uint8) {
+	var result uint8
+	preSub := s.Coefficient() - coe
+	if preSub >= 10 {
+		result = preSub
+	} else {
+		result = 10
+	}
+	s.SetCoefficient(result)
+}
+
 // AddVoteWeight adds amount to s's vote weight.
 // It is used to add funds to the destination account of a vote.
 func (s *stateObject) AddVoteWeight(amount *big.Int) {
@@ -1290,4 +1332,20 @@ func (s *stateObject) SetPledgedNFTInfo(pledgedflag bool, blocknumber *big.Int) 
 func (s *stateObject) setPledgedNFTInfo(pledgedflag bool, blocknumber *big.Int) {
 	s.data.PledgedFlag = pledgedflag
 	s.data.NFTPledgedBlockNumber = blocknumber
+}
+
+func (s *stateObject) SetExtra(extra []byte) {
+	oldExtra := extraChange{
+		account: &s.address,
+		//prev:    s.data.Extra,
+	}
+	oldExtra.prev = make([]byte, 0)
+	oldExtra.prev = append(oldExtra.prev, s.data.Extra...)
+	s.db.journal.append(oldExtra)
+
+	s.setExtra(extra)
+}
+
+func (s *stateObject) setExtra(extra []byte) {
+	s.data.Extra = extra
 }

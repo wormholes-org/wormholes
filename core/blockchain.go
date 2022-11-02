@@ -1634,7 +1634,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 
 	// Recalculate the weight, which needs to be calculated after the list is determined
 	for _, account := range validatorPool.Validators {
-		validatorPool.CalculateAddressRange(account.Addr, account.Balance)
+		coefficient := state.GetValidatorCoefficient(account.Addr)
+		validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
 
 	bc.WriteValidatorPool(block.Header(), validatorPool)
@@ -2817,6 +2818,41 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	for i, validator := range elevenValidator.Validators {
 		log.Info("Random11ValidatorFromPool, elevenValidator", "address", validator.Addr.String(),
 			"amount", validator.Balance, "proxy", validator.Proxy.String(), "blocknumber", header.Number.Uint64(), "i", i)
+	}
+	return elevenValidator, nil
+}
+
+func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*types.ValidatorList, error) {
+	if header == nil {
+		log.Error("Random11ValidatorWithOutProxy: header is nil", "no", bc.CurrentHeader().Number.Uint64())
+		return nil, errors.New("err Random11ValidatorFromPool invalid header")
+	}
+	validatorList, err := bc.ReadValidatorPool(header)
+	if err != nil {
+		log.Error("Random11ValidatorWithOutProxy: ReadValidatorPool", "err", err, "no", bc.CurrentHeader().Number.Uint64())
+		return nil, err
+	}
+
+	// Obtain random landing points according to the surrounding chain algorithm
+	randomHash := GetRandomDrop(validatorList, header)
+	if randomHash == (common.Hash{}) {
+		log.Error("Random11ValidatorWithOutProxy : invalid random hash", "no", bc.CurrentHeader().Number.Uint64())
+		return nil, err
+	}
+	log.Info("Random11ValidatorWithOutProxy : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
+	validators := validatorList.RandomValidatorV2(11, randomHash)
+	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
+		log.Warn("Random11ValidatorWithOutProxy", "len(validatorList.Validators)", len(validatorList.Validators),
+			"len(validators)", len(validators))
+	}
+	log.Info("random 11 addr", "len", len(validators))
+	for i, validator := range validators {
+		log.Info("Random11ValidatorWithOutProxy", "RandomValidatorV2 11 address", validator.String(),
+			"blocknumber", header.Number.Uint64(), "i", i)
+	}
+	elevenValidator := new(types.ValidatorList)
+	for _, addr := range validators {
+		elevenValidator.AddValidator(addr, validatorList.StakeBalance(addr), common.Address{})
 	}
 	return elevenValidator, nil
 }
