@@ -95,6 +95,28 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 		errored := false
 		for i, header := range headers {
 			if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+				all, readeorrer := sb.chain.(*core.BlockChain).ReadValidatorPool(sb.chain.CurrentHeader())
+				if readeorrer != nil {
+					log.Info("VerifyHeadersAndcreaderr", "data:", readeorrer)
+					continue
+				}
+
+				istanbulExtra, checkerr := types.ExtractIstanbulExtra(header)
+				if checkerr != nil {
+					log.Info("VerifyHeadersAndcheckerr", "data:", checkerr)
+					continue
+				}
+				validators := istanbulExtra.Validators
+				log.Info("VerifyHeadersAndcheckerr", "validators", validators)
+				var total = big.NewInt(0)
+				for _, v := range validators {
+					balance := all.StakeBalance(v)
+					total.Add(total, balance)
+				}
+				if total.Cmp(all.TargetSize()) < 0 {
+					continue
+				}
+
 				var err error
 				err = nil
 				select {
