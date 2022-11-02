@@ -454,7 +454,11 @@ func (w *worker) emptyLoop() {
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
 				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
-				//w.stop()
+
+				//modification on 20221102 start
+				w.stop()
+				time.Sleep(30 * time.Second)
+				//modification on 20221102 end
 
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				if err != nil {
@@ -563,6 +567,13 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
 				w.emptyTimer.Reset(120 * time.Second)
+
+				// modification on 20221102 start
+				if !w.isRunning() {
+					w.start()
+				}
+				// modification on 20221102 end
+				
 			}
 			log.Info("w.chainHeadCh: start commit block", "no", head.Block.NumberU64())
 

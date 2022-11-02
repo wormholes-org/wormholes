@@ -422,7 +422,12 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 		return consensus.ErrUnknownAncestor
 	}
 	// use the same difficulty for all blocks
-	header.Difficulty = istanbulcommon.DefaultDifficulty
+
+	// modification on 20221102 start
+	//header.Difficulty = istanbulcommon.DefaultDifficulty
+	header.Difficulty = big.NewInt(24)
+	// modification on 20221102 end
+	
 	// add validators in snapshot to extraData's validators section
 	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil)
 	if err != nil {
