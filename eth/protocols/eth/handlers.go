@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/consensus"
+	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 
@@ -305,6 +306,14 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 	if hash := types.DeriveSha(ann.Block.Transactions(), trie.NewStackTrie(nil)); hash != ann.Block.TxHash() {
 		log.Warn("Propagated block has invalid body", "have", hash, "exp", ann.Block.TxHash())
 		return nil // TODO(karalabe): return error eventually, but wait a few releases
+	}
+	if ann.Block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && ann.Block.Number().Cmp(common.Big0) > 0 {
+		istanbulExtra, err := types.ExtractIstanbulExtra(ann.Block.Header())
+		if err != nil {
+			return istanbulcommon.ErrInvalidExtraDataFormat
+		}
+		validators := istanbulExtra.Validators
+		log.Info("validators", "--------:", validators)
 	}
 	ann.Block.ReceivedAt = msg.Time()
 	ann.Block.ReceivedFrom = peer
