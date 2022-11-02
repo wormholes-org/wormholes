@@ -480,6 +480,26 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		return
 	}
 
+	if c, ok := chain.(*core.BlockChain); ok {
+		// empty block  reduce 0.1weight and normal block add 0.5weight
+		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		if err != nil {
+			log.Error("Finalize : invalid validators", err.Error())
+			return
+		}
+		if header.Coinbase == (common.Address{}) {
+			// reduce 0.1 weight
+			for _, v := range random11Validators.Validators {
+				state.SubValidatorCoefficient(v.Address(), 1)
+			}
+		} else {
+			// add 0.5 weight
+			for _, v := range random11Validators.Validators {
+				state.AddValidatorCoefficient(v.Addr, 5)
+			}
+		}
+	}
+
 	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 	for _, addr := range istanbulExtra.ValidatorAddr {
 		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
@@ -498,20 +518,30 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	// ibftCore := e.backend.GetCore()
-	// if ibftCore != nil {
-	// 	onlineValidators := ibftCore.GetOnlineValidators()
-	// 	if _, ok := onlineValidators[header.Number.Uint64()]; ok {
-	// 		for _, v := range onlineValidators[header.Number.Uint64()].Validators {
-	// 			log.Info("FinalizeAndAssemble: onlineValidators", "no", header.Number, "onlineValidators", v.Address.Hex())
-	// 		}
-	// 	}
-	// }
-
 	// Prepare reward address
 	istanbulExtra, err := types.ExtractIstanbulExtra(header)
 	if err != nil {
 		return nil, err
+	}
+
+	if c, ok := chain.(*core.BlockChain); ok {
+		// empty block  reduce 0.1weight and normal block add 0.5weight
+		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		if err != nil {
+			log.Error("FinalizeAndAssemble : invalid validators", err.Error())
+			return nil, err
+		}
+		if header.Coinbase == (common.Address{}) {
+			// reduce 0.1 weight
+			for _, v := range random11Validators.Validators {
+				state.SubValidatorCoefficient(v.Address(), 1)
+			}
+		} else {
+			// add 0.5 weight
+			for _, v := range random11Validators.Validators {
+				state.AddValidatorCoefficient(v.Addr, 5)
+			}
+		}
 	}
 
 	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())

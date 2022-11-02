@@ -376,7 +376,7 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	}
 	// Recalculate the weight, which needs to be calculated after the list is determined
 	for addr, account := range g.Validator {
-		validatorList.CalculateAddressRange(addr, account.Balance)
+		validatorList.CalculateAddressRangeV2(addr, account.Balance, big.NewInt(int64((VALIDATOR_COEFFICIENT))))
 	}
 
 	for _, v := range validatorList.Validators {
