@@ -118,7 +118,7 @@ func (miner *Miner) update() {
 	miner.doneEmptyTimer = time.NewTimer(0)
 	defer miner.doneEmptyTimer.Stop()
 	<-miner.doneEmptyTimer.C // discard the initial tick
-	miner.doneEmptyTimer.Reset(2 * time.Second)
+	miner.doneEmptyTimer.Reset(1 * time.Second)
 
 	shouldStart := false
 	canStart := true
@@ -213,13 +213,19 @@ func (miner *Miner) update() {
 			miner.worker.close()
 			return
 		case <-miner.doneEmptyTimer.C:
+			miner.doneEmptyTimer.Reset(1 * time.Second)
 			if miner.worker.chain.CurrentHeader().Number.Cmp(miner.emptyBlockNumber) >= 0 {
 				log.Info("mining empty block done")
 				canStart = true
 				if shouldStart {
 					miner.SetEtherbase(miner.coinbase)
 					miner.worker.start()
+					miner.doneEmptyTimer.Stop()
 				}
+			}
+
+			if miner.Mining() {
+				miner.doneEmptyTimer.Stop()
 			}
 		}
 	}
