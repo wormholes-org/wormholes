@@ -396,6 +396,12 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 	return time.Duration(int64(next))
 }
 
+type StartEmptyBlockEvent struct {
+	BlockNumber *big.Int
+}
+
+//type DoneEmptyBlockEvent struct{}
+
 func (w *worker) emptyLoop() {
 
 	w.emptyTimer = time.NewTimer(0)
@@ -456,8 +462,18 @@ func (w *worker) emptyLoop() {
 				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 
 				//modification on 20221102 start
-				w.stop()
-				time.Sleep(30 * time.Second)
+				//w.stop()
+				EmptyEvent := StartEmptyBlockEvent{
+					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
+				}
+				w.mux.Post(EmptyEvent)
+				time.Sleep(10 * time.Second)
+				if w.isRunning() {
+					w.isEmpty = false
+					w.emptyTimestamp = time.Now().Unix()
+					w.emptyTimer.Reset(120 * time.Second)
+					continue
+				}
 				//modification on 20221102 end
 
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
@@ -563,17 +579,15 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
 			if w.cacheHeight.Cmp(head.Block.Number()) <= 0 {
+				// modification on 20221102 start
+				//if w.isEmpty {
+				//	w.mux.Post(DoneEmptyBlockEvent{})
+				//}
+				// modification on 20221102 end
 				log.Info("w.chainHeadCh: reset empty timer", "no", head.Block.NumberU64())
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
 				w.emptyTimer.Reset(120 * time.Second)
-
-				// modification on 20221102 start
-				if !w.isRunning() {
-					w.start()
-				}
-				// modification on 20221102 end
-				
 			}
 			log.Info("w.chainHeadCh: start commit block", "no", head.Block.NumberU64())
 

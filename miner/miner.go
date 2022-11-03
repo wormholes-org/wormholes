@@ -71,6 +71,9 @@ type Miner struct {
 	startCh     chan common.Address
 	stopCh      chan struct{}
 	broadcaster Broadcaster
+
+	doneEmptyTimer   *time.Timer
+	emptyBlockNumber *big.Int
 }
 
 func (miner *Miner) SetBroadcaster(broadcaster Broadcaster) {
@@ -102,15 +105,27 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 // the loop is exited. This to prevent a major security vuln where external parties can DOS you with blocks
 // and halt your mining operation for as long as the DOS continues.
 func (miner *Miner) update() {
-	events := miner.mux.Subscribe(downloader.StartEvent{}, downloader.DoneEvent{}, downloader.FailedEvent{})
+	events := miner.mux.Subscribe(downloader.StartEvent{},
+		downloader.DoneEvent{},
+		downloader.FailedEvent{},
+		StartEmptyBlockEvent{})
 	defer func() {
 		if !events.Closed() {
 			events.Unsubscribe()
 		}
 	}()
 
+	miner.doneEmptyTimer = time.NewTimer(0)
+	defer miner.doneEmptyTimer.Stop()
+	<-miner.doneEmptyTimer.C // discard the initial tick
+	miner.doneEmptyTimer.Reset(2 * time.Second)
+
 	shouldStart := false
 	canStart := true
+
+	emptyFlag := false
+	downloaderFlag := false
+
 	dlEventCh := events.Chan()
 	for {
 		select {
@@ -125,12 +140,19 @@ func (miner *Miner) update() {
 				log.Info("downloader start")
 				wasMining := miner.Mining()
 				miner.worker.stop()
+				if miner.worker.isEmpty {
+					miner.worker.isEmpty = false
+				}
+
 				canStart = false
 				if wasMining {
 					// Resume mining after sync was finished
 					shouldStart = true
 					log.Info("Mining aborted due to sync")
 				}
+				emptyFlag = false
+				downloaderFlag = true
+
 			case downloader.FailedEvent:
 				log.Info("downloader failed")
 				canStart = true
@@ -147,6 +169,33 @@ func (miner *Miner) update() {
 				}
 				// Stop reacting to downloader events
 				events.Unsubscribe()
+
+			case StartEmptyBlockEvent:
+				log.Info("Empty block start")
+				wasMining := miner.Mining()
+				miner.worker.stop()
+				canStart = false
+				if wasMining {
+					// Resume mining after sync was finished
+					shouldStart = true
+					log.Info("Normal block mining aborted due to mine empty")
+				}
+				emptyEvent := ev.Data.(StartEmptyBlockEvent)
+				if miner.emptyBlockNumber == nil ||
+					miner.emptyBlockNumber.Cmp(emptyEvent.BlockNumber) < 0 {
+					miner.emptyBlockNumber = new(big.Int).Set(emptyEvent.BlockNumber)
+				}
+				emptyFlag = true
+				downloaderFlag = false
+				//case DoneEmptyBlockEvent:
+				//	log.Info("mining empty block done")
+				//	canStart = true
+				//	if shouldStart {
+				//		miner.SetEtherbase(miner.coinbase)
+				//		miner.worker.start()
+				//	}
+				//	// Stop reacting to empty block events
+				//	events.Unsubscribe()
 			}
 		case addr := <-miner.startCh:
 			miner.SetEtherbase(addr)
@@ -161,6 +210,18 @@ func (miner *Miner) update() {
 		case <-miner.exitCh:
 			miner.worker.close()
 			return
+		case <-miner.doneEmptyTimer.C:
+			if !miner.Mining() &&
+				miner.worker.chain.CurrentHeader().Number.Cmp(miner.emptyBlockNumber) >= 0 &&
+				emptyFlag &&
+				!downloaderFlag {
+				log.Info("mining empty block done")
+				canStart = true
+				if shouldStart {
+					miner.SetEtherbase(miner.coinbase)
+					miner.worker.start()
+				}
+			}
 		}
 	}
 }
