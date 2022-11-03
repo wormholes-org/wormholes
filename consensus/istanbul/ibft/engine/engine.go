@@ -488,14 +488,14 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			return
 		}
 		if header.Coinbase == (common.Address{}) {
-			// reduce 0.1 weight
+			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
-				state.SubValidatorCoefficient(v.Address(), 1)
+				state.SubValidatorCoefficient(v.Address(), 10)
 			}
 		} else {
-			// add 0.5 weight
+			// add 2 weight
 			for _, v := range random11Validators.Validators {
-				state.AddValidatorCoefficient(v.Addr, 5)
+				state.AddValidatorCoefficient(v.Addr, 20)
 			}
 		}
 	}
@@ -532,14 +532,14 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 			return nil, err
 		}
 		if header.Coinbase == (common.Address{}) {
-			// reduce 0.1 weight
+			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
-				state.SubValidatorCoefficient(v.Address(), 1)
+				state.SubValidatorCoefficient(v.Address(), 10)
 			}
 		} else {
-			// add 0.5 weight
+			// add 2 weight
 			for _, v := range random11Validators.Validators {
-				state.AddValidatorCoefficient(v.Addr, 5)
+				state.AddValidatorCoefficient(v.Addr, 20)
 			}
 		}
 	}
