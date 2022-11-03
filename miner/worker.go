@@ -212,6 +212,7 @@ type worker struct {
 	emptyHandleFlag bool
 	cacheHeight     *big.Int
 	emptyTimer      *time.Timer
+	resetEmptyCh    chan struct{}
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
@@ -421,6 +422,11 @@ func (w *worker) emptyLoop() {
 
 	for {
 		select {
+		case <-w.resetEmptyCh:
+			w.isEmpty = false
+			w.emptyTimestamp = time.Now().Unix()
+			w.emptyTimer.Reset(120 * time.Second)
+
 		case <-checkTimer.C:
 			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
@@ -432,6 +438,7 @@ func (w *worker) emptyLoop() {
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
 				w.emptyTimer.Reset(120 * time.Second)
+				//w.resetEmptyCh <- struct{}{}
 			}
 
 		case <-w.emptyTimer.C:
@@ -472,6 +479,7 @@ func (w *worker) emptyLoop() {
 					w.isEmpty = false
 					w.emptyTimestamp = time.Now().Unix()
 					w.emptyTimer.Reset(120 * time.Second)
+					//w.resetEmptyCh <- struct{}{}
 					continue
 				}
 				//modification on 20221102 end
@@ -520,6 +528,7 @@ func (w *worker) emptyLoop() {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
 							w.emptyTimer.Reset(120 * time.Second)
+							//w.resetEmptyCh <- struct{}{}
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}
@@ -585,9 +594,10 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				//}
 				// modification on 20221102 end
 				log.Info("w.chainHeadCh: reset empty timer", "no", head.Block.NumberU64())
-				w.isEmpty = false
-				w.emptyTimestamp = time.Now().Unix()
-				w.emptyTimer.Reset(120 * time.Second)
+				//w.isEmpty = false
+				//w.emptyTimestamp = time.Now().Unix()
+				//w.emptyTimer.Reset(120 * time.Second)
+				w.resetEmptyCh <- struct{}{}
 			}
 			log.Info("w.chainHeadCh: start commit block", "no", head.Block.NumberU64())
 

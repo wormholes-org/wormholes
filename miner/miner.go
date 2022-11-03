@@ -123,9 +123,6 @@ func (miner *Miner) update() {
 	shouldStart := false
 	canStart := true
 
-	emptyFlag := false
-	downloaderFlag := false
-
 	dlEventCh := events.Chan()
 	for {
 		select {
@@ -141,7 +138,11 @@ func (miner *Miner) update() {
 				wasMining := miner.Mining()
 				miner.worker.stop()
 				if miner.worker.isEmpty {
-					miner.worker.isEmpty = false
+					//miner.worker.isEmpty = false
+					//miner.worker.emptyTimestamp = time.Now().Unix()
+					//miner.worker.emptyTimer.Reset(120 * time.Second)
+					miner.worker.resetEmptyCh <- struct{}{}
+					miner.doneEmptyTimer.Stop()
 				}
 
 				canStart = false
@@ -150,8 +151,6 @@ func (miner *Miner) update() {
 					shouldStart = true
 					log.Info("Mining aborted due to sync")
 				}
-				emptyFlag = false
-				downloaderFlag = true
 
 			case downloader.FailedEvent:
 				log.Info("downloader failed")
@@ -172,6 +171,10 @@ func (miner *Miner) update() {
 
 			case StartEmptyBlockEvent:
 				log.Info("Empty block start")
+				emptyEvent := ev.Data.(StartEmptyBlockEvent)
+				if emptyEvent.BlockNumber.Uint64() != miner.worker.chain.CurrentHeader().Number.Uint64()+1 {
+					continue
+				}
 				wasMining := miner.Mining()
 				miner.worker.stop()
 				canStart = false
@@ -180,13 +183,12 @@ func (miner *Miner) update() {
 					shouldStart = true
 					log.Info("Normal block mining aborted due to mine empty")
 				}
-				emptyEvent := ev.Data.(StartEmptyBlockEvent)
+
 				if miner.emptyBlockNumber == nil ||
 					miner.emptyBlockNumber.Cmp(emptyEvent.BlockNumber) < 0 {
 					miner.emptyBlockNumber = new(big.Int).Set(emptyEvent.BlockNumber)
 				}
-				emptyFlag = true
-				downloaderFlag = false
+				miner.doneEmptyTimer.Reset(1 * time.Second)
 				//case DoneEmptyBlockEvent:
 				//	log.Info("mining empty block done")
 				//	canStart = true
@@ -211,10 +213,7 @@ func (miner *Miner) update() {
 			miner.worker.close()
 			return
 		case <-miner.doneEmptyTimer.C:
-			if !miner.Mining() &&
-				miner.worker.chain.CurrentHeader().Number.Cmp(miner.emptyBlockNumber) >= 0 &&
-				emptyFlag &&
-				!downloaderFlag {
+			if miner.worker.chain.CurrentHeader().Number.Cmp(miner.emptyBlockNumber) >= 0 {
 				log.Info("mining empty block done")
 				canStart = true
 				if shouldStart {
