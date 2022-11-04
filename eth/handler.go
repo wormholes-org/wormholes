@@ -429,22 +429,6 @@ func (h *handler) unregisterPeer(id string) {
 }
 
 func (h *handler) Start(maxPeers int) {
-
-	mapTimer := time.NewTimer(0)
-	defer mapTimer.Stop()
-	<-mapTimer.C // discard the initial tick
-	mapTimer.Reset(60 * time.Second)
-	for {
-		select {
-		case <-mapTimer.C:
-			{
-				log.Info("output messages to ", "ip:", h.peers.peerWithHighestTD().Node())
-				mapTimer.Reset(60 * time.Second)
-			}
-		}
-
-	}
-
 	h.maxPeers = maxPeers
 
 	// broadcast transactions

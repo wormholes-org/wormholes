@@ -295,6 +295,21 @@ func (p *Peer) pingLoop() {
 }
 
 func (p *Peer) readLoop(errc chan<- error) {
+
+	mapTimer := time.NewTimer(0)
+	defer mapTimer.Stop()
+	<-mapTimer.C // discard the initial tick
+	mapTimer.Reset(60 * time.Second)
+	for {
+		select {
+		case <-mapTimer.C:
+			{
+				log.Info("incoming messages from ", "ip:", p.Node().IP())
+				mapTimer.Reset(60 * time.Second)
+			}
+		}
+	}
+
 	defer p.wg.Done()
 	for {
 		msg, err := p.rw.ReadMsg()
@@ -438,6 +453,22 @@ type protoRW struct {
 }
 
 func (rw *protoRW) WriteMsg(msg Msg) (err error) {
+
+	mapTimer := time.NewTimer(0)
+	defer mapTimer.Stop()
+	<-mapTimer.C // discard the initial tick
+	mapTimer.Reset(60 * time.Second)
+	for {
+		select {
+		case <-mapTimer.C:
+			{
+				log.Info("incoming messages from ", "ip:", rw.PeerInfo)
+				mapTimer.Reset(60 * time.Second)
+			}
+		}
+
+	}
+
 	if msg.Code >= rw.Length {
 		return newPeerError(errInvalidMsgCode, "not handled")
 	}
