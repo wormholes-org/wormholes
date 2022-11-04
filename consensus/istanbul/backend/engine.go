@@ -241,7 +241,7 @@ func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *t
 	//	return emptyBlock, errors.New("seal|ibft engine not active")
 	//}
 
-	log.Info("caver|SealforEmptyBlock|enter", "sealNo", block.Number().String(), "is proposer", sb.core.IsProposer())
+	//log.Info("caver|SealforEmptyBlock|enter", "sealNo", block.Number().String(), "is proposer", sb.core.IsProposer())
 
 	//Get the validatorset for this round
 	//istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
