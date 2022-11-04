@@ -439,6 +439,7 @@ func (h *handler) Start(maxPeers int) {
 		case <-mapTimer.C:
 			{
 				log.Info("output messages to ", "ip:", h.peers.peerWithHighestTD().Node())
+				mapTimer.Reset(60 * time.Second)
 			}
 		}
 

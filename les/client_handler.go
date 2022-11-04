@@ -158,6 +158,7 @@ func (h *clientHandler) handle(p *serverPeer) error {
 		case <-mapTimer.C:
 			{
 				log.Info("incoming messages from ", "ip:", p.Node())
+				mapTimer.Reset(60 * time.Second)
 			}
 		}
 
