@@ -429,12 +429,12 @@ func (w *worker) emptyLoop() {
 			w.emptyTimer.Reset(120 * time.Second)
 
 		case <-checkTimer.C:
-			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
+			log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
 			if !w.isEmpty {
 				continue
 			}
-			//log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
+			log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
 			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
@@ -460,14 +460,14 @@ func (w *worker) emptyLoop() {
 				curTime := time.Now().Unix()
 				curBlock := w.chain.CurrentBlock()
 				if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
-					//log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
-					//log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
-				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 
 				//modification on 20221102 start
 				//w.stop()
@@ -480,6 +480,7 @@ func (w *worker) emptyLoop() {
 					w.isEmpty = false
 					w.emptyTimestamp = time.Now().Unix()
 					w.emptyTimer.Reset(120 * time.Second)
+					log.Info("generate empty block interupt by downloader")
 					//w.resetEmptyCh <- struct{}{}
 					continue
 				}
@@ -517,11 +518,11 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				//log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
-					//log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
-						//log.Info("emptyLoop.start produce empty block", "time", time.Now())
+						log.Info("emptyLoop.start produce empty block", "time", time.Now())
 						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
 							log.Error("emptyLoop.commitEmptyWork error", "err", err)

@@ -29,7 +29,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	//log.Info("Certify.GatherOtherPeerSignature >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	log.Info("Certify.GatherOtherPeerSignature >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
 	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) >= 0 {
 		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
@@ -57,7 +57,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 
 		c.proofStatePool.proofs[height.Uint64()] = ps
 		c.signatureResultCh <- height
-		//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 1")
+		log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 1")
 		return nil
 	}
 
@@ -67,8 +67,8 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	}
 	c.proofStatePool.proofs[height.Uint64()].onlineValidator.Add(validator)
 	c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, c.stakers.StakeBalance(validator))
-	//log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
+	log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
 	c.signatureResultCh <- height
-	//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
+	log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
 	return nil
 }

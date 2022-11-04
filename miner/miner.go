@@ -170,9 +170,12 @@ func (miner *Miner) update() {
 				events.Unsubscribe()
 
 			case StartEmptyBlockEvent:
-				log.Info("Empty block start")
 				emptyEvent := ev.Data.(StartEmptyBlockEvent)
+				log.Info("Empty block start", "generating empty block", emptyEvent.BlockNumber.Uint64())
 				if emptyEvent.BlockNumber.Uint64() != miner.worker.chain.CurrentHeader().Number.Uint64()+1 {
+					log.Info("generating empty block, blocknumber is less current block number",
+						"empty block number", emptyEvent.BlockNumber.Uint64(),
+						"current block number", miner.worker.chain.CurrentHeader().Number.Uint64())
 					continue
 				}
 				wasMining := miner.Mining()
@@ -223,7 +226,7 @@ func (miner *Miner) update() {
 				continue
 			}
 			if miner.worker.chain.CurrentHeader().Number.Cmp(miner.emptyBlockNumber) >= 0 {
-				log.Info("mining empty block done")
+				log.Info("mining empty block done", "empty block number", miner.emptyBlockNumber)
 				canStart = true
 				if shouldStart {
 					miner.SetEtherbase(miner.coinbase)
