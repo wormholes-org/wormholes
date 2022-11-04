@@ -91,11 +91,11 @@ func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.Genesis
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
 		ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
 		Timestamp:    0,
-		Dir:          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
-		InjectNumber: 4096,
+		Dir:          types.DefaultDir,
+		InjectNumber: types.DefaultNumber,
 		StartIndex:   big.NewInt(0),
-		Royalty:      100,
-		Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
+		Royalty:      types.DefaultRoyalty,
+		Creator:      types.DefaultCreator,
 	}
 	for k, v := range alloc {
 		genesis.Alloc[k] = v

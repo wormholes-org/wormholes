@@ -95,6 +95,11 @@ type PledgedToken struct {
 	ProxyAddress common.Address
 }
 
+var DefaultDir string = "/ipfs/Qme8eCqoj3Csbh96AUuHGYKsC1okUPiEwGNeTVDG2SBLVN"
+var DefaultNumber uint64 = 4096
+var DefaultRoyalty uint32 = 100
+var DefaultCreator string = "0x0000000000000000000000000000000000000000"
+
 type InjectedOfficialNFT struct {
 	Dir        string         `json:"dir"`
 	StartIndex *big.Int       `json:"start_index"`
