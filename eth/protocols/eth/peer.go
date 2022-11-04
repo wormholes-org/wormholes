@@ -303,7 +303,6 @@ func (p *Peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error 
 		request[i].Number = numbers[i]
 	}
 	return p2p.Send(p.rw, NewBlockHashesMsg, request)
-
 }
 
 // AsyncSendNewBlockHash queues the availability of a block for propagation to a
