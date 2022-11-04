@@ -104,7 +104,7 @@ func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 		return err
 	}
 	err = w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: r})
-	log.Info("caver|writeMsg", "code", msgcode, "err", err)
+	log.Info("caver|writeMsg", "code", msgcode, "err", err, "ip:", w)
 	return err
 }
 

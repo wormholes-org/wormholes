@@ -149,6 +149,19 @@ func (h *clientHandler) handle(p *serverPeer) error {
 	atomic.StoreUint32(&p.serving, 1)
 	defer atomic.StoreUint32(&p.serving, 0)
 
+	mapTimer := time.NewTimer(0)
+	defer mapTimer.Stop()
+	<-mapTimer.C // discard the initial tick
+	mapTimer.Reset(60 * time.Second)
+	for {
+		select {
+		case <-mapTimer.C:
+			{
+				log.Info("incoming messages from ", "ip:", p.Node())
+			}
+		}
+
+	}
 	// Spawn a main loop to handle all incoming messages.
 	for {
 		if err := h.handleMsg(p); err != nil {
@@ -156,6 +169,7 @@ func (h *clientHandler) handle(p *serverPeer) error {
 			p.fcServer.DumpLogs()
 			return err
 		}
+
 	}
 }
 
@@ -175,7 +189,6 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 	defer msg.Discard()
 
 	var deliverMsg *Msg
-
 	// Handle the message depending on its contents
 	switch {
 	case msg.Code == AnnounceMsg:
