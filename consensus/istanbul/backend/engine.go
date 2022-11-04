@@ -237,9 +237,9 @@ func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *t
 	var emptyBlock *types.Block
 	header := block.Header()
 
-	if sb.core == nil {
-		return emptyBlock, errors.New("seal|ibft engine not active")
-	}
+	//if sb.core == nil {
+	//	return emptyBlock, errors.New("seal|ibft engine not active")
+	//}
 
 	log.Info("caver|SealforEmptyBlock|enter", "sealNo", block.Number().String(), "is proposer", sb.core.IsProposer())
 
