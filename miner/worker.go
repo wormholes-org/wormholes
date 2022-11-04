@@ -247,6 +247,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
 		emptyTimestamp:     time.Now().Unix(),
 		emptyHandleFlag:    false,
+		resetEmptyCh:       make(chan struct{}, 1),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
