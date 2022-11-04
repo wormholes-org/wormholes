@@ -214,6 +214,14 @@ func (miner *Miner) update() {
 			return
 		case <-miner.doneEmptyTimer.C:
 			miner.doneEmptyTimer.Reset(1 * time.Second)
+			if miner.emptyBlockNumber == nil ||
+				miner == nil ||
+				miner.worker == nil ||
+				miner.worker.chain == nil ||
+				miner.worker.chain.CurrentHeader() == nil ||
+				miner.worker.chain.CurrentHeader().Number == nil {
+				continue
+			}
 			if miner.worker.chain.CurrentHeader().Number.Cmp(miner.emptyBlockNumber) >= 0 {
 				log.Info("mining empty block done")
 				canStart = true
