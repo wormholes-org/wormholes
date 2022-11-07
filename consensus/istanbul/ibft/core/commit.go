@@ -108,10 +108,32 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 
 	if c.current.Commits.Size() >= c.QuorumSize() && c.IsProposer() {
 		if c.commitHeight < commit.View.Sequence.Uint64() {
-			c.commitHeight = commit.View.Sequence.Uint64()
-			c.sendCommit()
+			if c.state.Cmp(ibfttypes.StateCommitted) < 0 {
+				// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
+				log.Info("ibftConsensus: handleCommit proposer commit",
+					"no", commit.View.Sequence,
+					"round", commit.View.Round,
+					"CommitsSize", c.current.Commits.Size(),
+					"hash", commit.Digest.Hex(),
+					"self", c.address.Hex(),
+				)
+				c.commitHeight = commit.View.Sequence.Uint64()
+				c.sendCommit()
+				c.current.LockHash()
+				c.commit()
+				return nil
+			} else {
+				log.Error("ibftConsensus: handleCommit proposer commit > StateCommitted err",
+					"no", commit.View.Sequence,
+					"round", commit.View.Round,
+					"CommitsSize", c.current.Commits.Size(),
+					"hash", commit.Digest.Hex(),
+					"self", c.address.Hex(),
+				)
+				return nil
+			}
 		} else {
-			log.Error("ibftConsensus: handleCommit ErrProposerCommitted err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+			log.Error("ibftConsensus: handleCommit ErrProposerCommitted err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex(), "height", c.commitHeight)
 			return istanbulcommon.ErrProposerCommitted
 		}
 	}
