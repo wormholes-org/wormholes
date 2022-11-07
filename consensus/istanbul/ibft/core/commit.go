@@ -138,7 +138,6 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 					"hash", commit.Digest.Hex(),
 					"self", c.address.Hex(),
 				)
-				return nil
 			}
 		} else {
 			log.Error("ibftConsensus: handleCommit ErrProposerCommitted err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex(), "height", c.commitHeight)

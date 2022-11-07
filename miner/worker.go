@@ -827,6 +827,10 @@ func (w *worker) resultLoop() {
 				log.Error("Block found but no relative pending task", "number", block.Number(), "sealhash", sealhash, "hash", hash)
 				continue
 			}
+
+			// Reorganize blocks and allocate rewards
+			blk, state := restructureBlock(block, task.state)
+
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
 				receipts = make([]*types.Receipt, len(task.receipts))
@@ -848,23 +852,53 @@ func (w *worker) resultLoop() {
 				logs = append(logs, receipt.Logs...)
 			}
 			// Commit block and state to database.
-			_, err := w.chain.WriteBlockWithState(block, receipts, logs, task.state, true)
+			_, err := w.chain.WriteBlockWithState(blk, receipts, logs, state, true)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
-			log.Info("Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
+			log.Info("Successfully sealed new block", "number", blk.Number(), "sealhash", sealhash, "hash", hash,
 				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
 			// Broadcast the block and announce chain insertion event
-			w.mux.Post(core.NewMinedBlockEvent{Block: block})
+			w.mux.Post(core.NewMinedBlockEvent{Block: blk})
 
 			// Insert the block into the set of pending ones to resultLoop for confirmations
-			w.unconfirmed.Insert(block.NumberU64(), block.Hash())
+			w.unconfirmed.Insert(blk.NumberU64(), blk.Hash())
 
 		case <-w.exitCh:
 			return
 		}
 	}
+}
+
+func restructureBlock(block *types.Block, stateDB *state.StateDB) (*types.Block, *state.StateDB) {
+	if block == nil || stateDB == nil {
+		return nil, nil
+	}
+
+	blk := deepCopyBlock(block)
+	// TODO parse validator address and exchanger address
+	state := stateDB.Copy()
+	addrs := []common.Address{
+		common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F"),
+		common.HexToAddress("0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD"),
+		common.HexToAddress("0x612DFa56DcA1F581Ed34b9c60Da86f1268Ab6349"),
+		common.HexToAddress("0x84d84e6073A06B6e784241a9B13aA824AB455326"),
+		common.HexToAddress("0x9e4d5C72569465270232ed7Af71981Ee82d08dBF"),
+		common.HexToAddress("0xa270bBDFf450EbbC2d0413026De5545864a1b6d6"),
+	}
+	log.Info("restructureBlock:reward addr")
+	state.CreateNFTByOfficial16(addrs, addrs, block.Number())
+	return blk, state
+}
+
+func deepCopyBlock(block *types.Block) *types.Block {
+	if block == nil {
+		return nil
+	}
+
+	h := types.CopyHeader(block.Header())
+	return types.NewBlock(h, block.Transactions(), block.Uncles(), nil, new(trie.Trie))
 }
 
 // makeEmptyCurrent creates a new environment for the current cycle.
