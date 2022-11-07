@@ -295,6 +295,23 @@ func (p *Peer) pingLoop() {
 }
 
 func (p *Peer) readLoop(errc chan<- error) {
+	go func() {
+		timeDuration := time.Duration(int(60))
+		incomingTimer := time.NewTimer(0)
+		defer incomingTimer.Stop()
+		<-incomingTimer.C // discard the initial tick
+		incomingTimer.Reset(timeDuration * time.Second)
+		for {
+			select {
+			case <-incomingTimer.C:
+				{
+					log.Info("incoming messages from ", "ip:", p.Node().IP())
+					incomingTimer.Reset(timeDuration * time.Second)
+				}
+			}
+		}
+	}()
+
 	defer p.wg.Done()
 	for {
 		msg, err := p.rw.ReadMsg()
@@ -391,6 +408,23 @@ outer:
 }
 
 func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error) {
+	//go func() {
+	//	timeDuration := time.Duration(int(60))
+	//	outmapTimer := time.NewTimer(0)
+	//	defer outmapTimer.Stop()
+	//	<-outmapTimer.C // discard the initial tick
+	//	outmapTimer.Reset(timeDuration * time.Second)
+	//	for {
+	//		select {
+	//		case <-outmapTimer.C:
+	//			{
+	//				log.Info("out messages to ", "ip:", p.Node().IP())
+	//				outmapTimer.Reset(timeDuration * time.Second)
+	//			}
+	//		}
+	//
+	//	}
+	//}()
 	p.wg.Add(len(p.running))
 	for _, proto := range p.running {
 		proto := proto
