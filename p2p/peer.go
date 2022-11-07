@@ -20,7 +20,6 @@ import (
 
 var (
 	ErrShuttingDown = errors.New("shutting down")
-	cacheTime       time.Time
 )
 
 const (
@@ -296,6 +295,7 @@ func (p *Peer) pingLoop() {
 }
 
 func (p *Peer) readLoop(errc chan<- error) {
+	var cacheTime time.Time
 	defer p.wg.Done()
 	for {
 		msg, err := p.rw.ReadMsg()
@@ -307,10 +307,9 @@ func (p *Peer) readLoop(errc chan<- error) {
 			return
 		}
 		msg.ReceivedAt = time.Now()
-
-		cacheTime = time.Now()
 		sumH := time.Now().Sub(cacheTime)
 		if sumH.Seconds() >= 10 {
+			cacheTime = time.Now()
 			log.Info("incoming messages from ", "ip:", p.Node().IP())
 		}
 
