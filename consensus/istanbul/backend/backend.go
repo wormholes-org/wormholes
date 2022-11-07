@@ -18,7 +18,6 @@ package backend
 
 import (
 	"crypto/ecdsa"
-	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"math/big"
 	"sync"
 	"time"
@@ -62,7 +61,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		logger:           log.New(),
 		db:               db,
 		commitCh:         make(chan *types.Block, 1),
-		proposerCh:       make(chan *ibfttypes.Message, 1),
+		proposerCh:       make(chan *types.ProposerBlock, 1),
 		recents:          recents,
 		candidates:       make(map[common.Address]bool),
 		coreStarted:      false,
@@ -102,7 +101,7 @@ type Backend struct {
 
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
-	proposerCh        chan *ibfttypes.Message
+	proposerCh        chan *types.ProposerBlock
 	proposedBlockHash common.Hash
 	sealMu            sync.Mutex
 	coreStarted       bool
@@ -130,7 +129,7 @@ func (sb *Backend) Engine() istanbul.Engine {
 	return sb.EngineForBlockNumber(nil)
 }
 
-func (sb *Backend) GetProposerCh() chan *ibfttypes.Message {
+func (sb *Backend) GetProposerCh() chan *types.ProposerBlock {
 	return sb.proposerCh
 }
 

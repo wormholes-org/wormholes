@@ -17,6 +17,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/core/types"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -119,7 +120,12 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 				)
 				c.commitHeight = commit.View.Sequence.Uint64()
 				c.commitMsg = *msg
-				c.backend.GetProposerCh() <- msg
+				curBlock := new(types.ProposerBlock)
+				curBlock.Sequence = commit.View.Sequence
+				curBlock.Round = commit.View.Round
+				curBlock.Digest = commit.Digest
+				curBlock.Commit = c.current.Commits.Values()
+				c.backend.GetProposerCh() <- curBlock
 				c.sendCommit()
 				c.current.LockHash()
 				c.commit()

@@ -17,7 +17,6 @@
 package istanbul
 
 import (
-	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"math/big"
 	"time"
 
@@ -89,5 +88,5 @@ type Backend interface {
 
 	GetCore() Core
 
-	GetProposerCh() chan *ibfttypes.Message
+	GetProposerCh() chan *types.ProposerBlock
 }

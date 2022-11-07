@@ -19,6 +19,7 @@ package types
 import (
 	"errors"
 	"io"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -40,6 +41,13 @@ var (
 
 	OnlineValidatorVanity = 632
 )
+
+type ProposerBlock struct {
+	Round    *big.Int
+	Sequence *big.Int
+	Digest   common.Hash
+	Commit   interface{}
+}
 
 // IstanbulExtra represents the legacy IBFT header extradata
 type IstanbulExtra struct {
