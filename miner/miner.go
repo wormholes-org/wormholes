@@ -71,6 +71,9 @@ type Miner struct {
 	startCh     chan common.Address
 	stopCh      chan struct{}
 	broadcaster Broadcaster
+
+	doneEmptyTimer   *time.Timer
+	emptyBlockNumber *big.Int
 }
 
 func (miner *Miner) SetBroadcaster(broadcaster Broadcaster) {
@@ -102,15 +105,24 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 // the loop is exited. This to prevent a major security vuln where external parties can DOS you with blocks
 // and halt your mining operation for as long as the DOS continues.
 func (miner *Miner) update() {
-	events := miner.mux.Subscribe(downloader.StartEvent{}, downloader.DoneEvent{}, downloader.FailedEvent{})
+	events := miner.mux.Subscribe(downloader.StartEvent{},
+		downloader.DoneEvent{},
+		downloader.FailedEvent{},
+		StartEmptyBlockEvent{})
 	defer func() {
 		if !events.Closed() {
 			events.Unsubscribe()
 		}
 	}()
 
+	miner.doneEmptyTimer = time.NewTimer(0)
+	defer miner.doneEmptyTimer.Stop()
+	<-miner.doneEmptyTimer.C // discard the initial tick
+	miner.doneEmptyTimer.Reset(1 * time.Second)
+
 	shouldStart := false
 	canStart := true
+
 	dlEventCh := events.Chan()
 	for {
 		select {
@@ -125,12 +137,21 @@ func (miner *Miner) update() {
 				log.Info("downloader start")
 				wasMining := miner.Mining()
 				miner.worker.stop()
+				if miner.worker.isEmpty {
+					//miner.worker.isEmpty = false
+					//miner.worker.emptyTimestamp = time.Now().Unix()
+					//miner.worker.emptyTimer.Reset(120 * time.Second)
+					miner.worker.resetEmptyCh <- struct{}{}
+					miner.doneEmptyTimer.Stop()
+				}
+
 				canStart = false
 				if wasMining {
 					// Resume mining after sync was finished
 					shouldStart = true
 					log.Info("Mining aborted due to sync")
 				}
+
 			case downloader.FailedEvent:
 				log.Info("downloader failed")
 				canStart = true
@@ -147,6 +168,39 @@ func (miner *Miner) update() {
 				}
 				// Stop reacting to downloader events
 				events.Unsubscribe()
+
+			case StartEmptyBlockEvent:
+				emptyEvent := ev.Data.(StartEmptyBlockEvent)
+				log.Info("Empty block start", "generating empty block", emptyEvent.BlockNumber.Uint64())
+				if emptyEvent.BlockNumber.Uint64() != miner.worker.chain.CurrentHeader().Number.Uint64()+1 {
+					log.Info("generating empty block, blocknumber is less current block number",
+						"empty block number", emptyEvent.BlockNumber.Uint64(),
+						"current block number", miner.worker.chain.CurrentHeader().Number.Uint64())
+					continue
+				}
+				wasMining := miner.Mining()
+				miner.worker.stop()
+				canStart = false
+				if wasMining {
+					// Resume mining after sync was finished
+					shouldStart = true
+					log.Info("Normal block mining aborted due to mine empty")
+				}
+
+				if miner.emptyBlockNumber == nil ||
+					miner.emptyBlockNumber.Cmp(emptyEvent.BlockNumber) < 0 {
+					miner.emptyBlockNumber = new(big.Int).Set(emptyEvent.BlockNumber)
+				}
+				miner.doneEmptyTimer.Reset(1 * time.Second)
+				//case DoneEmptyBlockEvent:
+				//	log.Info("mining empty block done")
+				//	canStart = true
+				//	if shouldStart {
+				//		miner.SetEtherbase(miner.coinbase)
+				//		miner.worker.start()
+				//	}
+				//	// Stop reacting to empty block events
+				//	events.Unsubscribe()
 			}
 		case addr := <-miner.startCh:
 			miner.SetEtherbase(addr)
@@ -161,6 +215,29 @@ func (miner *Miner) update() {
 		case <-miner.exitCh:
 			miner.worker.close()
 			return
+		case <-miner.doneEmptyTimer.C:
+			miner.doneEmptyTimer.Reset(1 * time.Second)
+			if miner.emptyBlockNumber == nil ||
+				miner == nil ||
+				miner.worker == nil ||
+				miner.worker.chain == nil ||
+				miner.worker.chain.CurrentHeader() == nil ||
+				miner.worker.chain.CurrentHeader().Number == nil {
+				continue
+			}
+			if miner.worker.chain.CurrentHeader().Number.Cmp(miner.emptyBlockNumber) >= 0 {
+				log.Info("mining empty block done", "empty block number", miner.emptyBlockNumber)
+				canStart = true
+				if shouldStart {
+					miner.SetEtherbase(miner.coinbase)
+					miner.worker.start()
+					miner.doneEmptyTimer.Stop()
+				}
+			}
+
+			if miner.Mining() {
+				miner.doneEmptyTimer.Stop()
+			}
 		}
 	}
 }

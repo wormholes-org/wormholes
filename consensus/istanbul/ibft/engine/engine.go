@@ -3,6 +3,7 @@ package ibftengine
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"math/big"
 	"time"
 
@@ -306,6 +307,12 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") &&
+		header.Number.Cmp(common.Big0) > 0 {
+		return errors.New("not a normal block")
+	}
+
 	var onlineValidators []common.Address
 	ibftCore := e.backend.GetCore()
 	if ibftCore != nil {
@@ -398,20 +405,20 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Extra = extra
 
 	// set header's timestamp
-
-	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + 120
-	} else {
-		header.Time = parent.Time + e.cfg.BlockPeriod
-		if header.Time < uint64(time.Now().Unix()) {
-			header.Time = uint64(time.Now().Unix())
-		}
+	header.Time = parent.Time + e.cfg.BlockPeriod
+	if header.Time < uint64(time.Now().Unix()) {
+		header.Time = uint64(time.Now().Unix())
 	}
 
 	return nil
 }
 
 func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+
+	if header.Coinbase != common.HexToAddress("0x0000000000000000000000000000000000000000") {
+		return errors.New("not a empty block")
+	}
+
 	header.Nonce = istanbulcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
 
@@ -422,7 +429,12 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 		return consensus.ErrUnknownAncestor
 	}
 	// use the same difficulty for all blocks
-	header.Difficulty = istanbulcommon.DefaultDifficulty
+
+	// modification on 20221102 start
+	//header.Difficulty = istanbulcommon.DefaultDifficulty
+	header.Difficulty = big.NewInt(24)
+	// modification on 20221102 end
+
 	// add validators in snapshot to extraData's validators section
 	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil)
 	if err != nil {
@@ -432,9 +444,13 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 
 	// set header's timestamp
 
-	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + e.cfg.BlockPeriod
+	if header.Number.Cmp(common.Big0) > 0 {
+		header.Time = parent.Time + 120
+		if header.Time < uint64(time.Now().Unix()) {
+			header.Time = uint64(time.Now().Unix())
+		}
 	} else {
+		header.Time = parent.Time + e.cfg.BlockPeriod
 		if header.Time < uint64(time.Now().Unix()) {
 			header.Time = uint64(time.Now().Unix())
 		}

@@ -3122,18 +3122,7 @@ func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount, blocknumber *
 			}
 		}
 		if deleteFlag {
-			if blocknumber.Uint64() < 140000 {
-				var tempFrozenAccounts types.FrozenAccountList
-				for _, acc := range s.FrozenAccounts.FrozenAccounts {
-					if acc.Account != frozenInfo.Account {
-						tempFrozenAccounts.FrozenAccounts = append(tempFrozenAccounts.FrozenAccounts, acc)
-					}
-				}
-
-				s.FrozenAccounts = &tempFrozenAccounts
-			} else {
-				s.FrozenAccounts.FrozenAccounts = append(s.FrozenAccounts.FrozenAccounts[:deleteIndex], s.FrozenAccounts.FrozenAccounts[deleteIndex+1:]...)
-			}
+			s.FrozenAccounts.FrozenAccounts = append(s.FrozenAccounts.FrozenAccounts[:deleteIndex], s.FrozenAccounts.FrozenAccounts[deleteIndex+1:]...)
 		}
 	}
 }
