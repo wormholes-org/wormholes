@@ -960,11 +960,11 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 	} else {
 		Info.Address = common.Address{}
 		Info.VoteWeight = big.NewInt(0)
-		Info.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+		Info.Dir = types.DefaultDir
 		Info.StartIndex = big.NewInt(0)
-		Info.Number = 4096
-		Info.Royalty = 100
-		Info.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		Info.Number = types.DefaultNumber
+		Info.Royalty = types.DefaultRoyalty
+		Info.Creator = types.DefaultCreator
 	}
 
 	return &Info

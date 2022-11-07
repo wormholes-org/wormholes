@@ -403,6 +403,32 @@ func TestClient_QueryMinerProxy(t *testing.T) {
 	}
 }
 
+func TestClient_Checkseller2(t *testing.T) {
+	sig := "0xed527d545020eaa71ad07fd014bcb6b80785f3f5f6a949307a5be10332f957496f5e4254011438d4567143ccb5cc44722bfb1dbf2b1bbcefb6a702de0a3852d91c"
+	Amount := "0x2386f26fc10000"
+	//10000000000000000
+	Royalty := "0x1f4"
+	MetaURL := "7b226d657461223a222f697066732f516d564178546f75574a567655454d4c52637963374c6637363632777a4c596a666f516d32675978484b7a703773222c22746f6b656e5f6964223a2233333733313636323231303837227d"
+	ExclusiveFlag := "1"
+	Exchanger := "0x5854faab0502de6b2e9b1aacb921d291bb79cc92"
+	BlockNumber := "0x626ac5"
+	sellerMsg := Amount + Royalty + MetaURL + ExclusiveFlag + Exchanger + BlockNumber
+	sigAddress, _ := recoverAddress(sellerMsg, sig)
+	log.Info("", "sigAddress", sigAddress) //0x82447f11409796641ca2133c5c8d5d04203096e227e5d591d677cc86a3c8d664
+
+}
+func TestClient_Checkbuyer(t *testing.T) {
+	sig := "0x87b8b5f8765ff954f950c3a1ccaf9f3f753ec5a94e28f4a08db7fb325246a8370c76cccb51608d0d5bbe388fa262f879e3784596ecc156368d3f5d34e3ea2e371c"
+	Amount := "0x2386f26fc10000"
+	Royalty := "0x1f4"
+	MetaURL := "7b226d657461223a222f697066732f516d564178546f75574a567655454d4c52637963374c6637363632777a4c596a666f516d32675978484b7a703773222c22746f6b656e5f6964223a2233333733313636323231303837227d"
+	ExclusiveFlag := "1"
+	Exchanger := "0x5854faab0502de6b2e9b1aacb921d291bb79cc92"
+	BlockNumber := "0x626ac5"
+	sellerMsg := Amount + Royalty + MetaURL + ExclusiveFlag + Exchanger + BlockNumber
+	sigAddress, _ := recoverAddress(sellerMsg, sig)
+	log.Info("", "sigAddress", sigAddress) //0x82447f11409796641ca2133c5c8d5d04203096e227e5d591d677cc86a3c8d664
+}
 func recoverAddress(msg string, sigStr string) (common.Address, error) {
 	if !strings.HasPrefix(sigStr, "0x") &&
 		!strings.HasPrefix(sigStr, "0X") {
