@@ -18,11 +18,12 @@ package backend
 
 import (
 	"crypto/ecdsa"
+
 	"math/big"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/rlp"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -63,6 +64,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		logger:           log.New(),
 		db:               db,
 		commitCh:         make(chan *types.Block, 1),
+		proposerCh:       make(chan *ibfttypes.Message, 1),
 		recents:          recents,
 		candidates:       make(map[common.Address]bool),
 		coreStarted:      false,
@@ -102,6 +104,7 @@ type Backend struct {
 
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
+	proposerCh        chan *ibfttypes.Message
 	proposedBlockHash common.Hash
 	sealMu            sync.Mutex
 	coreStarted       bool
@@ -127,6 +130,10 @@ type Backend struct {
 
 func (sb *Backend) Engine() istanbul.Engine {
 	return sb.EngineForBlockNumber(nil)
+}
+
+func (sb *Backend) GetProposerCh() chan *ibfttypes.Message {
+	return sb.proposerCh
 }
 
 func (sb *Backend) ValidatorExist(address common.Address) (bool, error) {
@@ -261,7 +268,6 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 			curPayload, _ := rlp.EncodeToBytes(curExtra)
 			h.Extra = append(h.Extra[:types.IstanbulExtraVanity], curPayload...)
 		*/
-		block.ReceivedFrom, _ = rlp.EncodeToBytes(sb.core.GetCommitMsg())
 		// feed block hash to Seal() and wait the Seal() result
 		sb.commitCh <- block
 		return nil

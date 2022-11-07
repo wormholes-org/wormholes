@@ -119,6 +119,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 				)
 				c.commitHeight = commit.View.Sequence.Uint64()
 				c.commitMsg = *msg
+				c.backend.GetProposerCh() <- msg
 				c.sendCommit()
 				c.current.LockHash()
 				c.commit()
