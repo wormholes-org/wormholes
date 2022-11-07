@@ -257,7 +257,8 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	}
 
 	if sb.broadcaster != nil {
-		sb.broadcaster.Enqueue(fetcherID, block)
+		//next step
+		//sb.broadcaster.Enqueue(fetcherID, block)
 	}
 
 	return nil

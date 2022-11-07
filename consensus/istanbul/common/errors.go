@@ -100,4 +100,10 @@ var (
 
 	// ErrFailedDecodeOnlineProof is returned when the ONLINE-PROOF message is malformed.
 	ErrFailedDecodeOnlineProof = errors.New("failed to decode ONLINE-PROOF message")
+
+	// ErrSmallThenQuorumSize is returned when the commit size < quorum size.
+	ErrSmallThenQuorumSize = errors.New("small than quorum size")
+
+	// ErrProposerCommitted is returned when proposer has been committed.
+	ErrProposerCommitted = errors.New("proposer has been committed")
 )

@@ -84,11 +84,6 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 		"hash", commit.Digest.Hex(),
 		"self", c.Address().Hex())
 
-	if !c.valSet.IsProposer(src.Address()) {
-		log.Error("ibftConsensus: handleCommit Decodecommit  ErrNotFromProposer err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
-		return istanbulcommon.ErrNotFromProposer
-	}
-
 	if err := c.checkMessage(ibfttypes.MsgCommit, commit.View); err != nil {
 		log.Error("ibftConsensus: handleCommit checkMessage", "no", commit.View.Sequence,
 			"round", commit.View.Round,
@@ -110,7 +105,30 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	//
 	// If we already have a proposal, we may have chance to speed up the consensus process
 	// by committing the proposal without PREPARE messages.
-	if c.current.Commits.Size() >= c.QuorumSize() && c.state.Cmp(ibfttypes.StateCommitted) < 0 {
+
+	if c.current.Commits.Size() >= c.QuorumSize() && c.IsProposer() {
+		if c.commitHeight < commit.View.Sequence.Uint64() {
+			c.commitHeight = commit.View.Sequence.Uint64()
+			c.sendCommit()
+		} else {
+			log.Error("ibftConsensus: handleCommit ErrProposerCommitted err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+			return istanbulcommon.ErrProposerCommitted
+		}
+	}
+
+	var commitseals []*ibfttypes.Message
+	if c.valSet.IsProposer(src.Address()) {
+		err = msg.Decode(&commitseals)
+		if err != nil {
+			log.Error("ibftConsensus: handleCommit DecodeRewardSeals err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+			return istanbulcommon.ErrFailedDecodeCommit
+		}
+	} else {
+		log.Error("ibftConsensus: handleCommit Decodecommit  ErrNotFromProposer err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+		return istanbulcommon.ErrNotFromProposer
+	}
+
+	if len(commitseals) >= c.QuorumSize() && c.state.Cmp(ibfttypes.StateCommitted) < 0 {
 		// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
 		log.Info("ibftConsensus: handleCommit commit",
 			"no", commit.View.Sequence,
@@ -121,6 +139,9 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 		)
 		c.current.LockHash()
 		c.commit()
+	} else {
+		log.Error("ibftConsensus: handleCommit len(commitseals) < c.QuorumSize() err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+		return istanbulcommon.ErrSmallThenQuorumSize
 	}
 
 	return nil
