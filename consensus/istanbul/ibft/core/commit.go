@@ -52,10 +52,17 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
-	c.broadcast(&ibfttypes.Message{
-		Code: ibfttypes.MsgCommit,
-		Msg:  encodedSubject,
-	})
+	if c.IsProposer() {
+		if c.current.Commits.Size() >= c.QuorumSize() {
+
+		}
+	} else {
+		c.broadcast(&ibfttypes.Message{
+			Code:       ibfttypes.MsgCommit,
+			Msg:        encodedSubject,
+			OnlineSeal: [][]byte{},
+		})
+	}
 }
 
 func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) error {

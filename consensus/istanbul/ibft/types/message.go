@@ -41,6 +41,7 @@ type Message struct {
 	Address       common.Address
 	Signature     []byte
 	CommittedSeal []byte
+	OnlineSeal    [][]byte
 }
 
 // ==============================================
