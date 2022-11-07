@@ -56,9 +56,9 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 		if c.current.Commits.Size() >= c.QuorumSize() {
 			encodedCommitSeals, _ := ibfttypes.Encode(c.current.Commits.Values())
 			c.broadcast(&ibfttypes.Message{
-				Code:          ibfttypes.MsgCommit,
-				Msg:           encodedSubject,
-				CommittedSeal: encodedCommitSeals,
+				Code:               ibfttypes.MsgCommit,
+				Msg:                encodedSubject,
+				ProposerCommitSeal: encodedCommitSeals,
 			})
 		}
 	} else {
@@ -108,10 +108,31 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 
 	if c.current.Commits.Size() >= c.QuorumSize() && c.IsProposer() {
 		if c.commitHeight < commit.View.Sequence.Uint64() {
-			c.commitHeight = commit.View.Sequence.Uint64()
-			c.sendCommit()
+			if c.state.Cmp(ibfttypes.StateCommitted) < 0 {
+				// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
+				log.Info("ibftConsensus: handleCommit proposer commit",
+					"no", commit.View.Sequence,
+					"round", commit.View.Round,
+					"CommitsSize", c.current.Commits.Size(),
+					"hash", commit.Digest.Hex(),
+					"self", c.address.Hex(),
+				)
+				c.commitHeight = commit.View.Sequence.Uint64()
+				c.sendCommit()
+				c.current.LockHash()
+				c.commit()
+				return nil
+			} else {
+				log.Info("ibftConsensus: handleCommit proposer commit > StateCommitted",
+					"no", commit.View.Sequence,
+					"round", commit.View.Round,
+					"CommitsSize", c.current.Commits.Size(),
+					"hash", commit.Digest.Hex(),
+					"self", c.address.Hex(),
+				)
+			}
 		} else {
-			log.Error("ibftConsensus: handleCommit ErrProposerCommitted err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+			log.Error("ibftConsensus: handleCommit ErrProposerCommitted err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex(), "commitHeight", c.commitHeight)
 			return istanbulcommon.ErrProposerCommitted
 		}
 	}
@@ -120,8 +141,10 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	if c.valSet.IsProposer(src.Address()) {
 		err = msg.DecodeCommitlist(&commitseals)
 		if err != nil {
-			log.Error("ibftConsensus: handleCommit DecodeRewardSeals err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+			log.Error("ibftConsensus: handleCommit DecodeRewardSeals err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex(), "err", err.Error())
 			return istanbulcommon.ErrFailedDecodeCommit
+		} else {
+			log.Info("ibftConsensus: handleCommit DecodeRewardSeals ok")
 		}
 	} else {
 		log.Error("ibftConsensus: handleCommit Decodecommit  ErrNotFromProposer err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())

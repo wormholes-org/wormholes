@@ -36,11 +36,12 @@ const (
 )
 
 type Message struct {
-	Code          uint64
-	Msg           []byte
-	Address       common.Address
-	Signature     []byte
-	CommittedSeal []byte
+	Code               uint64
+	Msg                []byte
+	Address            common.Address
+	Signature          []byte
+	CommittedSeal      []byte
+	ProposerCommitSeal []byte
 }
 
 // ==============================================
@@ -49,23 +50,24 @@ type Message struct {
 
 // EncodeRLP serializes m into the Ethereum RLP format.
 func (m *Message) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal})
+	return rlp.Encode(w, []interface{}{m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.ProposerCommitSeal})
 }
 
 // DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
 func (m *Message) DecodeRLP(s *rlp.Stream) error {
 	var msg struct {
-		Code          uint64
-		Msg           []byte
-		Address       common.Address
-		Signature     []byte
-		CommittedSeal []byte
+		Code               uint64
+		Msg                []byte
+		Address            common.Address
+		Signature          []byte
+		CommittedSeal      []byte
+		ProposerCommitSeal []byte
 	}
 
 	if err := s.Decode(&msg); err != nil {
 		return err
 	}
-	m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal = msg.Code, msg.Msg, msg.Address, msg.Signature, msg.CommittedSeal
+	m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.ProposerCommitSeal = msg.Code, msg.Msg, msg.Address, msg.Signature, msg.CommittedSeal, msg.ProposerCommitSeal
 	return nil
 }
 
@@ -105,11 +107,12 @@ func (m *Message) Payload() ([]byte, error) {
 
 func (m *Message) PayloadNoSig() ([]byte, error) {
 	return rlp.EncodeToBytes(&Message{
-		Code:          m.Code,
-		Msg:           m.Msg,
-		Address:       m.Address,
-		Signature:     []byte{},
-		CommittedSeal: m.CommittedSeal,
+		Code:               m.Code,
+		Msg:                m.Msg,
+		Address:            m.Address,
+		Signature:          []byte{},
+		CommittedSeal:      m.CommittedSeal,
+		ProposerCommitSeal: m.ProposerCommitSeal,
 	})
 }
 
@@ -119,7 +122,7 @@ func (m *Message) Decode(val interface{}) error {
 
 //Get out the commit list
 func (m *Message) DecodeCommitlist(val interface{}) error {
-	return rlp.DecodeBytes(m.CommittedSeal, val)
+	return rlp.DecodeBytes(m.ProposerCommitSeal, val)
 }
 
 func (m *Message) String() string {
