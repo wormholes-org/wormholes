@@ -307,9 +307,8 @@ func (p *Peer) readLoop(errc chan<- error) {
 			return
 		}
 		msg.ReceivedAt = time.Now()
-		
+
 		cacheTime = time.Now()
-		time.Sleep(time.Second * 10)
 		sumH := time.Now().Sub(cacheTime)
 		if sumH.Seconds() >= 10 {
 			log.Info("incoming messages from ", "ip:", p.Node().IP())
