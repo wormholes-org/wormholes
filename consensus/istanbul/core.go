@@ -1,6 +1,7 @@
 package istanbul
 
 import (
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -24,4 +25,5 @@ type Core interface {
 
 	GetOnlineValidators() map[uint64]*types.OnlineValidatorList
 	GetOnlineProofsMu() *sync.Mutex
+	GetCommitMsg() ibfttypes.Message
 }

@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 	"sync"
 	"time"
@@ -252,7 +253,13 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	//log.Info("caver|Commit|commitCh", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 	if sb.proposedBlockHash == block.Hash() {
 		log.Info("caver|Commit|commitCh", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
-
+		/*
+			curExtra, _ := types.ExtractIstanbulExtra(h)
+			curExtra.OnlineSeal, _ = rlp.EncodeToBytes(sb.core.GetCommitMsg())
+			curPayload, _ := rlp.EncodeToBytes(curExtra)
+			h.Extra = append(h.Extra[:types.IstanbulExtraVanity], curPayload...)
+		*/
+		block.ReceivedFrom, _ = rlp.EncodeToBytes(sb.core.GetCommitMsg())
 		// feed block hash to Seal() and wait the Seal() result
 		sb.commitCh <- block
 		return nil

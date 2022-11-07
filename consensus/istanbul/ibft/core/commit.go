@@ -118,6 +118,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 					"self", c.address.Hex(),
 				)
 				c.commitHeight = commit.View.Sequence.Uint64()
+				c.commitMsg = *msg
 				c.sendCommit()
 				c.current.LockHash()
 				c.commit()
