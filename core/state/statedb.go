@@ -2398,14 +2398,14 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		//s.SNFTExchangePool.SNFTExchanges = append(s.SNFTExchangePool.SNFTExchanges, &nftExchange)
 
 		emptyAddress := common.Address{}
-		creator := nftStateObject.GetCreator()
-		creatorObj := s.GetOrNewStateObject(creator)
+		//creator := nftStateObject.GetCreator()
+		//creatorObj := s.GetOrNewStateObject(creator)
 		initAmount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel(), nftStateObject.GetMergeNumber())
 		amount := GetExchangAmount(nftaddress, initAmount)
 
-		if creator != emptyAddress && creatorObj != nil {
-			creatorObj.AddBalance(big.NewInt(0).Div(amount, big.NewInt(10)))
-		}
+		//if creator != emptyAddress && creatorObj != nil {
+		//	creatorObj.AddBalance(big.NewInt(0).Div(amount, big.NewInt(10)))
+		//}
 		mergeLevel := nftStateObject.GetNFTMergeLevel()
 		nftStateObject.CleanNFT()
 		stateObject.AddBalance(amount)
