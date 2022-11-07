@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -249,20 +251,25 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	// -- if success, the ChainHeadEvent event will be broadcasted, try to build
 	//    the next block and the previous Seal() will be stopped.
 	// -- otherwise, a error will be returned and a round change event will be fired.
+
+	//log.Info("caver|Commit|commitCh", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 	if sb.proposedBlockHash == block.Hash() {
 		log.Info("caver|Commit|commitCh", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
-
+		/*
+			curExtra, _ := types.ExtractIstanbulExtra(h)
+			curExtra.OnlineSeal, _ = rlp.EncodeToBytes(sb.core.GetCommitMsg())
+			curPayload, _ := rlp.EncodeToBytes(curExtra)
+			h.Extra = append(h.Extra[:types.IstanbulExtraVanity], curPayload...)
+		*/
+		block.ReceivedFrom, _ = rlp.EncodeToBytes(sb.core.GetCommitMsg())
 		// feed block hash to Seal() and wait the Seal() result
 		sb.commitCh <- block
 		return nil
 	} else {
 		log.Info("caver|Commit|commitCh err", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
-
 	}
-
 	if sb.broadcaster != nil {
 		log.Info("caver|Commit|Enqueue", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
-
 		//next step
 		//sb.broadcaster.Enqueue(fetcherID, block)
 	}

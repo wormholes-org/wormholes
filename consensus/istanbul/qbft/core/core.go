@@ -17,6 +17,7 @@
 package core
 
 import (
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"math"
 	"math/big"
 	"sync"
@@ -90,6 +91,11 @@ type core struct {
 	pendingRequestsMu *sync.Mutex
 
 	consensusTimestamp time.Time
+}
+
+func (c *core) GetCommitMsg() ibfttypes.Message {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (c *core) currentView() *istanbul.View {

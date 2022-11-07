@@ -118,12 +118,13 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 					"self", c.address.Hex(),
 				)
 				c.commitHeight = commit.View.Sequence.Uint64()
+				c.commitMsg = *msg
 				c.sendCommit()
 				c.current.LockHash()
 				c.commit()
 				return nil
 			} else {
-				log.Info("ibftConsensus: handleCommit proposer commit > StateCommitted",
+				log.Error("ibftConsensus: handleCommit proposer commit > StateCommitted err",
 					"no", commit.View.Sequence,
 					"round", commit.View.Round,
 					"CommitsSize", c.current.Commits.Size(),
@@ -132,7 +133,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 				)
 			}
 		} else {
-			log.Error("ibftConsensus: handleCommit ErrProposerCommitted err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex(), "commitHeight", c.commitHeight)
+			log.Error("ibftConsensus: handleCommit ErrProposerCommitted err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex(), "height", c.commitHeight)
 			return istanbulcommon.ErrProposerCommitted
 		}
 	}

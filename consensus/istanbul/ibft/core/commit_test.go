@@ -249,11 +249,11 @@ OUTER:
 			validator := r0.valSet.GetByIndex(uint64(i))
 			m, _ := ibfttypes.Encode(v.engine.current.Subject())
 			if err := r0.handleCommit(&ibfttypes.Message{
-				Code:          ibfttypes.MsgCommit,
-				Msg:           m,
-				Address:       validator.Address(),
-				Signature:     []byte{},
-				CommittedSeal: encodedCommitSeals, // small hack
+				Code:               ibfttypes.MsgCommit,
+				Msg:                m,
+				Address:            validator.Address(),
+				Signature:          []byte{},
+				ProposerCommitSeal: encodedCommitSeals, // small hack
 			}, validator); err != nil {
 				if err != test.expectedErr {
 					t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
