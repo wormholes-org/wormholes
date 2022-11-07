@@ -18,6 +18,7 @@ package backend
 
 import (
 	"errors"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"math/big"
 	"time"
 
@@ -339,12 +340,17 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		go sb.EventMux().Post(istanbul.RequestEvent{
 			Proposal: block,
 		})
+		proposerCommitData := new(ibfttypes.Message)
 		for {
+
 			select {
+			case proposerCommit := <-sb.proposerCh:
+				proposerCommitData = proposerCommit
 			case result := <-sb.commitCh:
 				// if the block hash and the hash from channel are the same,
 				// return the result. Otherwise, keep waiting the next hash.
 				if result != nil && block.Hash() == result.Hash() {
+					result.ReceivedFrom = proposerCommitData
 					results <- result
 					return
 				}
