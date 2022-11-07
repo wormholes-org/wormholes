@@ -54,13 +54,17 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 	}
 	if c.IsProposer() {
 		if c.current.Commits.Size() >= c.QuorumSize() {
-
+			encodedCommitSeals, _ := ibfttypes.Encode(c.current.Commits.Values())
+			c.broadcast(&ibfttypes.Message{
+				Code:          ibfttypes.MsgCommit,
+				Msg:           encodedSubject,
+				CommittedSeal: encodedCommitSeals,
+			})
 		}
 	} else {
 		c.broadcast(&ibfttypes.Message{
-			Code:       ibfttypes.MsgCommit,
-			Msg:        encodedSubject,
-			OnlineSeal: [][]byte{},
+			Code: ibfttypes.MsgCommit,
+			Msg:  encodedSubject,
 		})
 	}
 }
@@ -79,6 +83,11 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 		"from", src.Address().Hex(),
 		"hash", commit.Digest.Hex(),
 		"self", c.Address().Hex())
+
+	if !c.valSet.IsProposer(src.Address()) {
+		log.Error("ibftConsensus: handleCommit Decodecommit  ErrNotFromProposer err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+		return istanbulcommon.ErrNotFromProposer
+	}
 
 	if err := c.checkMessage(ibfttypes.MsgCommit, commit.View); err != nil {
 		log.Error("ibftConsensus: handleCommit checkMessage", "no", commit.View.Sequence,
