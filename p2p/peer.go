@@ -295,6 +295,10 @@ func (p *Peer) pingLoop() {
 }
 
 func (p *Peer) readLoop(errc chan<- error) {
+	go func() {
+		log.Info("incoming messages from ", "ip:", p.Node().IP())
+	}()
+
 	defer p.wg.Done()
 	for {
 		msg, err := p.rw.ReadMsg()
