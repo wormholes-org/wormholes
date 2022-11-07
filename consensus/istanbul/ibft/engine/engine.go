@@ -306,22 +306,22 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
-	var onlineValidators []common.Address
-	ibftCore := e.backend.GetCore()
-	if ibftCore != nil {
-		ibftCore.GetOnlineProofsMu().Lock()
-		vals := ibftCore.GetOnlineValidators()
-		if _, ok := vals[header.Number.Uint64()]; ok {
-			for _, v := range vals[header.Number.Uint64()].Validators {
-				onlineValidators = append(onlineValidators, v.Address)
-			}
-		}
-		ibftCore.GetOnlineProofsMu().Unlock()
-	}
+	// var onlineValidators []common.Address
+	// ibftCore := e.backend.GetCore()
+	// if ibftCore != nil {
+	// 	ibftCore.GetOnlineProofsMu().Lock()
+	// 	vals := ibftCore.GetOnlineValidators()
+	// 	if _, ok := vals[header.Number.Uint64()]; ok {
+	// 		for _, v := range vals[header.Number.Uint64()].Validators {
+	// 			onlineValidators = append(onlineValidators, v.Address)
+	// 		}
+	// 	}
+	// 	ibftCore.GetOnlineProofsMu().Unlock()
+	// }
 
-	for _, v := range onlineValidators {
-		log.Info("Prepare: onlineValidators", "no", header.Number, "onlineValidators", v)
-	}
+	// for _, v := range onlineValidators {
+	// 	log.Info("Prepare: onlineValidators", "no", header.Number, "onlineValidators", v)
+	// }
 
 	header.Nonce = istanbulcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
@@ -336,7 +336,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	// use the same difficulty for all blocks
 	header.Difficulty = istanbulcommon.DefaultDifficulty
 	var (
-		validatorAddr []common.Address
+		//validatorAddr []common.Address
 		exchangerAddr []common.Address
 		addrBigInt    []*big.Int
 	)
@@ -361,37 +361,37 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		// // reward to miner
 		// validatorAddr = append(validatorAddr, header.Coinbase)
 
-		rewardToValidators, err := PickRewardValidators(c, onlineValidators)
-		if err != nil {
-			return err
-		}
-		validatorAddr = append(validatorAddr, rewardToValidators...)
+		// rewardToValidators, err := PickRewardValidators(c, onlineValidators)
+		// if err != nil {
+		// 	return err
+		// }
+		// validatorAddr = append(validatorAddr, rewardToValidators...)
 
 		//new&update  at 20220523
-		validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
-		if err != nil {
-			log.Error("Prepare : validator pool err", err, err)
-			return err
-		}
-		if validatorPool != nil && len(validatorPool.Validators) > 0 {
-			//k:proxy,v:validator
-			mp := make(map[string]*types.Validator, 0)
-			for _, v := range validatorPool.Validators {
-				if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
-					mp[v.Proxy.String()] = v
-				}
-			}
+		// validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
+		// if err != nil {
+		// 	log.Error("Prepare : validator pool err", err, err)
+		// 	return err
+		// }
+		// if validatorPool != nil && len(validatorPool.Validators) > 0 {
+		// 	//k:proxy,v:validator
+		// 	mp := make(map[string]*types.Validator, 0)
+		// 	for _, v := range validatorPool.Validators {
+		// 		if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
+		// 			mp[v.Proxy.String()] = v
+		// 		}
+		// 	}
 
-			//If the reward address is on a proxy account, it will be restored to a pledge account
-			for index, a := range validatorAddr {
-				if v, ok := mp[a.String()]; ok {
-					validatorAddr[index] = v.Addr
-				}
-			}
-		}
+		// 	//If the reward address is on a proxy account, it will be restored to a pledge account
+		// 	for index, a := range validatorAddr {
+		// 		if v, ok := mp[a.String()]; ok {
+		// 			validatorAddr[index] = v.Addr
+		// 		}
+		// 	}
+		// }
 	}
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr)
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, nil)
 	if err != nil {
 		return err
 	}
@@ -552,7 +552,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	// for _, addr := range istanbulExtra.ExchangerAddr {
 	// 	log.Info("CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 	// }
-	// state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+	// state.CreateNFTByOfficial16(nil, istanbulExtra.ExchangerAddr, header.Number)
 
 	// log.Info("CreateNFTByOfficial16 end", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 

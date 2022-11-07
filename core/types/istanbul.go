@@ -82,12 +82,11 @@ func (ist *IstanbulExtra) DecodeRLP(s *rlp.Stream) error {
 		ExchangerAddr []common.Address
 		ValidatorAddr []common.Address
 		RandomHash    common.Hash
-		OnlineSeal    []byte
 	}
 	if err := s.Decode(&istanbulExtra); err != nil {
 		return err
 	}
-	ist.Validators, ist.Seal, ist.CommittedSeal, ist.ExchangerAddr, ist.ValidatorAddr, ist.RandomHash, ist.OnlineSeal = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr, istanbulExtra.RandomHash, istanbulExtra.OnlineSeal
+	ist.Validators, ist.Seal, ist.CommittedSeal, ist.ExchangerAddr, ist.ValidatorAddr, ist.RandomHash = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr, istanbulExtra.RandomHash
 	return nil
 }
 

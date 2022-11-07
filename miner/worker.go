@@ -33,6 +33,7 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -829,7 +830,11 @@ func (w *worker) resultLoop() {
 			}
 
 			// Reorganize blocks and allocate rewards
-			blk, state := restructureBlock(block, task.state)
+			blk, state, err1 := restructureBlock(block, task.state)
+			if err1 != nil {
+				log.Error("result loop restructureBlock err", "err", err1.Error())
+				continue
+			}
 
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
@@ -871,25 +876,38 @@ func (w *worker) resultLoop() {
 	}
 }
 
-func restructureBlock(block *types.Block, stateDB *state.StateDB) (*types.Block, *state.StateDB) {
+func restructureBlock(block *types.Block, stateDB *state.StateDB) (*types.Block, *state.StateDB, error) {
 	if block == nil || stateDB == nil {
-		return nil, nil
+		log.Error("block is nil or statedb is nil ")
+		return nil, nil, nil
 	}
 
+	var onlineAddrs []common.Address
 	blk := deepCopyBlock(block)
-	// TODO parse validator address and exchanger address
-	state := stateDB.Copy()
-	addrs := []common.Address{
-		common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F"),
-		common.HexToAddress("0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD"),
-		common.HexToAddress("0x612DFa56DcA1F581Ed34b9c60Da86f1268Ab6349"),
-		common.HexToAddress("0x84d84e6073A06B6e784241a9B13aA824AB455326"),
-		common.HexToAddress("0x9e4d5C72569465270232ed7Af71981Ee82d08dBF"),
-		common.HexToAddress("0xa270bBDFf450EbbC2d0413026De5545864a1b6d6"),
+	commitData := block.ReceivedFrom
+	if c, ok := commitData.(*types.ProposerBlock); ok {
+		if s, ok := c.Commit.([]*ibfttypes.Message); ok {
+			for _, v := range s {
+				log.Info("online validator", "addr", v.Address.Hex())
+				onlineAddrs = append(onlineAddrs, v.Address)
+				if len(onlineAddrs) == 7 {
+					break
+				}
+			}
+		}
 	}
-	log.Info("restructureBlock:reward addr")
-	state.CreateNFTByOfficial16(addrs, addrs, block.Number())
-	return blk, state
+	// get staker
+	istanbulExtra, err := types.ExtractIstanbulExtra(block.Header())
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, v := range istanbulExtra.ExchangerAddr {
+		log.Info("staker addr", "addr", v.Hex())
+	}
+
+	state := stateDB.Copy()
+	state.CreateNFTByOfficial16(onlineAddrs, istanbulExtra.ExchangerAddr, block.Number())
+	return blk, state, nil
 }
 
 func deepCopyBlock(block *types.Block) *types.Block {
