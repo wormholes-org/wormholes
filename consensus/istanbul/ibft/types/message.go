@@ -117,6 +117,11 @@ func (m *Message) Decode(val interface{}) error {
 	return rlp.DecodeBytes(m.Msg, val)
 }
 
+//Get out the commit list
+func (m *Message) DecodeCommitlist(val interface{}) error {
+	return rlp.DecodeBytes(m.CommittedSeal, val)
+}
+
 func (m *Message) String() string {
 	return fmt.Sprintf("{Code: %v, Address: %v}", m.Code, m.Address.String())
 }

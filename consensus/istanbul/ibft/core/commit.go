@@ -118,7 +118,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 
 	var commitseals []*ibfttypes.Message
 	if c.valSet.IsProposer(src.Address()) {
-		err = msg.Decode(&commitseals)
+		err = msg.DecodeCommitlist(&commitseals)
 		if err != nil {
 			log.Error("ibftConsensus: handleCommit DecodeRewardSeals err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
 			return istanbulcommon.ErrFailedDecodeCommit
