@@ -36,11 +36,12 @@ const (
 )
 
 type Message struct {
-	Code          uint64
-	Msg           []byte
-	Address       common.Address
-	Signature     []byte
-	CommittedSeal []byte
+	Code               uint64
+	Msg                []byte
+	Address            common.Address
+	Signature          []byte
+	CommittedSeal      []byte
+	ProposerCommitSeal []byte
 }
 
 // ==============================================
@@ -119,7 +120,7 @@ func (m *Message) Decode(val interface{}) error {
 
 //Get out the commit list
 func (m *Message) DecodeCommitlist(val interface{}) error {
-	return rlp.DecodeBytes(m.CommittedSeal, val)
+	return rlp.DecodeBytes(m.ProposerCommitSeal, val)
 }
 
 func (m *Message) String() string {

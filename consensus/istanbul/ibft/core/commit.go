@@ -56,9 +56,9 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 		if c.current.Commits.Size() >= c.QuorumSize() {
 			encodedCommitSeals, _ := ibfttypes.Encode(c.current.Commits.Values())
 			c.broadcast(&ibfttypes.Message{
-				Code:          ibfttypes.MsgCommit,
-				Msg:           encodedSubject,
-				CommittedSeal: encodedCommitSeals,
+				Code:               ibfttypes.MsgCommit,
+				Msg:                encodedSubject,
+				ProposerCommitSeal: encodedCommitSeals,
 			})
 		}
 	} else {
@@ -120,8 +120,10 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	if c.valSet.IsProposer(src.Address()) {
 		err = msg.DecodeCommitlist(&commitseals)
 		if err != nil {
-			log.Error("ibftConsensus: handleCommit DecodeRewardSeals err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+			log.Error("ibftConsensus: handleCommit DecodeRewardSeals err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex(), "err", err.Error())
 			return istanbulcommon.ErrFailedDecodeCommit
+		} else {
+			log.Info("ibftConsensus: handleCommit DecodeRewardSeals ok")
 		}
 	} else {
 		log.Error("ibftConsensus: handleCommit Decodecommit  ErrNotFromProposer err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
