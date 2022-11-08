@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -879,31 +880,53 @@ func (w *worker) resultLoop() {
 func restructureBlock(block *types.Block, stateDB *state.StateDB) (*types.Block, *state.StateDB, error) {
 	if block == nil || stateDB == nil {
 		log.Error("block is nil or statedb is nil ")
-		return nil, nil, nil
+		return nil, nil, errors.New("block is nil or statedb is nil")
 	}
 
-	var onlineAddrs []common.Address
-	blk := deepCopyBlock(block)
-	commitData := block.ReceivedFrom
-	if c, ok := commitData.(*types.ProposerBlock); ok {
-		if s, ok := c.Commit.([]*ibfttypes.Message); ok {
-			for _, v := range s {
-				log.Info("online validator", "addr", v.Address.Hex())
-				onlineAddrs = append(onlineAddrs, v.Address)
-				if len(onlineAddrs) == 7 {
-					break
-				}
+	var (
+		onlineAddrs     []common.Address
+		tempProposerBlk *types.ProposerBlock
+		msgs            []*ibfttypes.Message
+	)
+
+	if c, ok := block.ReceivedFrom.(*types.ProposerBlock); ok {
+		tempProposerBlk = c
+		err := rlp.DecodeBytes(c.Commit, &msgs)
+		if err != nil {
+			log.Error("failed rlp decode commit msgs", "err", err.Error())
+			return nil, nil, err
+		}
+		for _, v := range msgs {
+			log.Info("online validator", "addr", v.Address.Hex())
+			onlineAddrs = append(onlineAddrs, v.Address)
+			if len(onlineAddrs) == 7 {
+				break
 			}
 		}
 	}
+
 	// get staker
 	istanbulExtra, err := types.ExtractIstanbulExtra(block.Header())
 	if err != nil {
+		log.Error("failed extract IstanbulExtra", "err", err.Error())
 		return nil, nil, err
 	}
-	for _, v := range istanbulExtra.ExchangerAddr {
-		log.Info("staker addr", "addr", v.Hex())
+	// Online data stored in extra
+	payload, err := rlp.EncodeToBytes(tempProposerBlk)
+	if err != nil {
+		log.Error("failed rlp encode onlineSeal", "err", err.Error())
+		return nil, nil, err
 	}
+
+	istanbulExtra.OnlineSeal = payload
+	extraPayload, err := rlp.EncodeToBytes(istanbulExtra)
+	if err != nil {
+		log.Error("failed rlp encode istanbulExtra", "err", err)
+		return nil, nil, err
+	}
+
+	blk := deepCopyBlock(block)
+	blk.Header().Extra = append(blk.Header().Extra[:types.IstanbulExtraVanity], extraPayload...)
 
 	state := stateDB.Copy()
 	state.CreateNFTByOfficial16(onlineAddrs, istanbulExtra.ExchangerAddr, block.Number())
