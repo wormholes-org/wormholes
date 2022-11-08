@@ -62,6 +62,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		db:               db,
 		commitCh:         make(chan *types.Block, 1),
 		proposerCh:       make(chan *types.ProposerBlock, 1),
+		enqueueCh:        make(chan *types.Block, 1),
 		recents:          recents,
 		candidates:       make(map[common.Address]bool),
 		coreStarted:      false,
@@ -102,6 +103,7 @@ type Backend struct {
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
 	proposerCh        chan *types.ProposerBlock
+	enqueueCh         chan *types.Block
 	proposedBlockHash common.Hash
 	sealMu            sync.Mutex
 	coreStarted       bool
@@ -275,6 +277,7 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 		log.Info("caver|Commit|Enqueue", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 		//next step
 		//sb.broadcaster.Enqueue(fetcherID, block)
+		sb.enqueueCh <- block
 	}
 
 	return nil
