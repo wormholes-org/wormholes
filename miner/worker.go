@@ -813,7 +813,7 @@ func (w *worker) resultLoop() {
 			if block == nil {
 				continue
 			}
-			if block.Header() == nil {
+			if !block.HasHeader() {
 				//enqueueBlock := block.ReceivedFrom.(*types.Block)
 				//w.miner.(*Miner).broadcaster.Enqueue("istanbul", block.ReceivedFrom.(*types.Block))
 			}

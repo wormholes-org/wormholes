@@ -328,6 +328,7 @@ func (b *Block) BaseFee() *big.Int {
 }
 
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
+func (b *Block) HasHeader() bool { return b.header != nil }
 
 // Body returns the non-header content of the block.
 func (b *Block) Body() *Body { return &Body{b.transactions, b.uncles} }
