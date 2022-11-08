@@ -53,6 +53,9 @@ type testSystemBackend struct {
 func (self *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
 	return
 }
+func (sb *testSystemBackend) GetProposerCh() chan *types.ProposerBlock {
+	return nil
+}
 
 type testCommittedMsgs struct {
 	commitProposal istanbul.Proposal

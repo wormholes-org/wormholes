@@ -19,11 +19,13 @@ package core
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
@@ -245,6 +247,22 @@ OUTER:
 		r0 := v0.engine
 		pps, _ := GetMessageSetWithPreprepare()
 		encodedCommitSeals, _ := ibfttypes.Encode(pps.Values())
+
+		curBlock := new(types.ProposerBlock)
+		curBlock1 := new(types.ProposerBlock)
+		curBlock.Round = big.NewInt(100)
+		curBlock.Commit, _ = ibfttypes.Encode(pps.Values())
+		cur, _ := rlp.EncodeToBytes(curBlock)
+		err := rlp.DecodeBytes(cur, curBlock1)
+		if err == nil {
+			fmt.Println(curBlock1.Round)
+			t.Errorf("decode ok")
+		} else {
+			t.Errorf("decode fail")
+		}
+		var val []*ibfttypes.Message
+		rlp.DecodeBytes(curBlock1.Commit, &val)
+
 		for i, v := range test.system.backends {
 			validator := r0.valSet.GetByIndex(uint64(i))
 			m, _ := ibfttypes.Encode(v.engine.current.Subject())
@@ -303,6 +321,7 @@ OUTER:
 			t.Errorf("block should be locked")
 		}
 	}
+
 }
 
 func TestHandleCommit(t *testing.T) {

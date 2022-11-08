@@ -46,7 +46,7 @@ type ProposerBlock struct {
 	Round    *big.Int
 	Sequence *big.Int
 	Digest   common.Hash
-	Commit   interface{}
+	Commit   []byte
 }
 
 // IstanbulExtra represents the legacy IBFT header extradata

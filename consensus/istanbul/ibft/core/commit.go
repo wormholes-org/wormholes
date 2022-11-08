@@ -124,7 +124,9 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 				curBlock.Sequence = commit.View.Sequence
 				curBlock.Round = commit.View.Round
 				curBlock.Digest = commit.Digest
-				curBlock.Commit = c.current.Commits.Values()
+
+				//curBlock.Commit = c.current.Commits.Values()
+				curBlock.Commit, _ = ibfttypes.Encode(c.current.Commits.Values())
 				c.backend.GetProposerCh() <- curBlock
 				c.sendCommit()
 				c.current.LockHash()
