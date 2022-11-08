@@ -347,6 +347,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 				proposerCommitData = proposerCommit
 			case enqueueBlock := <-sb.enqueueCh:
 				if enqueueBlock != nil {
+					enqueueBlock.ReceivedFrom = proposerCommitData
 					curBlock := new(types.Block)
 					curBlock.ReceivedFrom = enqueueBlock
 					results <- curBlock

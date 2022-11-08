@@ -814,7 +814,8 @@ func (w *worker) resultLoop() {
 				continue
 			}
 			if block.Header() == nil {
-				w.miner.(*Miner).broadcaster.Enqueue("istanbul", block.ReceivedFrom.(*types.Block))
+				//enqueueBlock := block.ReceivedFrom.(*types.Block)
+				//w.miner.(*Miner).broadcaster.Enqueue("istanbul", block.ReceivedFrom.(*types.Block))
 			}
 			// Short circuit when receiving duplicate result caused by resubmitting.
 			if w.chain.HasBlock(block.Hash(), block.NumberU64()) {
