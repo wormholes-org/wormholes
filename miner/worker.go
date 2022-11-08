@@ -837,6 +837,12 @@ func (w *worker) resultLoop() {
 				continue
 			}
 
+			// notify fetcher test successful
+			// if miner, ok := w.miner.(*Miner); ok {
+			// 	log.Info("worker call blockFetcher", "no", blk.NumberU64(), "hash", blk.Hash())
+			// 	miner.broadcaster.Enqueue("istanbul", blk)
+			// }
+
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
 				receipts = make([]*types.Receipt, len(task.receipts))

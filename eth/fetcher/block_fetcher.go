@@ -259,6 +259,7 @@ func (f *BlockFetcher) Notify(peer string, hash common.Hash, number uint64, time
 
 // Enqueue tries to fill gaps the fetcher's future import queue.
 func (f *BlockFetcher) Enqueue(peer string, block *types.Block) error {
+	log.Info("block fetcher", "peer", peer, "no", block.NumberU64(), "hash", block.Hash())
 	op := &blockOrHeaderInject{
 		origin: peer,
 		block:  block,

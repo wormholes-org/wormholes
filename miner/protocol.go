@@ -2,11 +2,14 @@ package miner
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
 )
 
 type Broadcaster interface {
 	FindPeerSet(targets map[common.Address]bool) map[common.Address]Peer
+	// Enqueue add a block into fetcher queue
+	Enqueue(id string, block *types.Block)
 }
 
 type Handler interface {
