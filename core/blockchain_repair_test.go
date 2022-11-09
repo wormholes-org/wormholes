@@ -1779,7 +1779,7 @@ func testRepair(t *testing.T, tt *rewindTest, snapshots bool) {
 			GasLimit:     10000000,
 			Difficulty:   big.NewInt(1),
 			Alloc:        DecodePreWormholesInfo(SimAllocData),
-			Stake:        DecodePreWormholesInfo(SimStakeData),
+			Stake:        DecodePreWormholesInfoV3(SimStakeData),
 			Validator:    DecodePreWormholesInfoV2(SimValidatorData_v2),
 			Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 			Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
