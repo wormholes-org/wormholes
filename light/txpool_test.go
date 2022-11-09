@@ -97,7 +97,7 @@ func TestTxPool(t *testing.T) {
 			BaseFee:      big.NewInt(params.InitialBaseFee),
 			Difficulty:   big.NewInt(1),
 			Alloc:        decodePreWormholesInfo(simAllocData),
-			Stake:        decodePreWormholesInfo(simStakeData),
+			Stake:        decodePreWormholesInfoV3(simStakeData),
 			Validator:    decodePreWormholesInfoV2(simValidatorData_v2),
 			Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 			Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),

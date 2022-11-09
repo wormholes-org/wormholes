@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -81,21 +82,21 @@ const simValidatorData_v2 = "" +
 	"0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09:0xed2b525841adfc00000:0x0000000000000000000000000000000000000000"
 
 const simStakeData = "" +
-	"0x68B14e0F18C3EE322d3e613fF63B87E56D86Df60:0xf2dc7d47f15600000," +
-	"0xeEF79493F62dA884389312d16669455A7E0045c1:0xf2dc7d47f15600000," +
-	"0xa5999Cc1DEC36a632dF735064Dc75eF6af0E7389:0xf2dc7d47f15600000," +
-	"0x63d913dfDB75C7B09a1465Fe77B8Ec167793096b:0xf2dc7d47f15600000," +
-	"0xF50f73B83721c108E8868C5A2706c5b194A0FDB1:0xf2dc7d47f15600000," +
-	"0xB000811Aff6e891f8c0F1aa07f43C1976D4c3076:0xf2dc7d47f15600000," +
-	"0x257F3c6749a0690d39c6FBCd2DceB3fB464f0F94:0xf2dc7d47f15600000," +
-	"0x43ee5cB067F29B920CC44d5d5367BCEb162B4d9E:0xf2dc7d47f15600000," +
-	"0x85D3FDA364564c365870233E5aD6B611F2227846:0xf2dc7d47f15600000," +
-	"0xDc807D83d864490C6EEDAC9C9C071E9AAeD8E7d7:0xf2dc7d47f15600000," +
-	"0xFA623BCC71BE5C3aBacfe875E64ef97F91B7b110:0xf2dc7d47f15600000," +
-	"0xb17fAe1710f80Eb9a39732862B0058077F338B21:0xf2dc7d47f15600000," +
-	"0x86FFd3e5a6D310Fcb4668582eA6d0cfC1c35da49:0xf2dc7d47f15600000," +
-	"0x6bB0599bC9c5406d405a8a797F8849dB463462D0:0xf2dc7d47f15600000," +
-	"0x765C83dbA2712582C5461b2145f054d4F85a3080:0xf2dc7d47f15600000"
+	"0x68B14e0F18C3EE322d3e613fF63B87E56D86Df60:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0xeEF79493F62dA884389312d16669455A7E0045c1:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0xa5999Cc1DEC36a632dF735064Dc75eF6af0E7389:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0x63d913dfDB75C7B09a1465Fe77B8Ec167793096b:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0xF50f73B83721c108E8868C5A2706c5b194A0FDB1:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0xB000811Aff6e891f8c0F1aa07f43C1976D4c3076:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0x257F3c6749a0690d39c6FBCd2DceB3fB464f0F94:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0x43ee5cB067F29B920CC44d5d5367BCEb162B4d9E:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0x85D3FDA364564c365870233E5aD6B611F2227846:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0xDc807D83d864490C6EEDAC9C9C071E9AAeD8E7d7:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0xFA623BCC71BE5C3aBacfe875E64ef97F91B7b110:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0xb17fAe1710f80Eb9a39732862B0058077F338B21:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0x86FFd3e5a6D310Fcb4668582eA6d0cfC1c35da49:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0x6bB0599bC9c5406d405a8a797F8849dB463462D0:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com," +
+	"0x765C83dbA2712582C5461b2145f054d4F85a3080:0xf2dc7d47f15600000:250:exchanger:www.wormholesexchanger.com"
 
 const simAllocData = "" +
 	"0x091DBBa95B26793515cc9aCB9bEb5124c479f27F:0xd3c21bcecceda1000000," +
@@ -228,6 +229,37 @@ func decodePreWormholesInfoV2(data string) core.GenesisAlloc {
 
 	return ga
 }
+
+func decodePreWormholesInfoV3(data string) core.GenesisAlloc {
+	ga := make(core.GenesisAlloc)
+
+	accountInfos := strings.Split(data, ",")
+	for _, accountInfo := range accountInfos {
+		accInfo := strings.Split(accountInfo, ":")
+		acc := accInfo[0]
+		balance := accInfo[1]
+		bigBalance := big.NewInt(0)
+		if strings.HasPrefix(balance, "0x") ||
+			strings.HasPrefix(balance, "0X") {
+			balance = string([]byte(balance)[2:])
+			bigBalance, _ = new(big.Int).SetString(balance, 16)
+		} else {
+			bigBalance, _ = new(big.Int).SetString(balance, 16)
+		}
+		freerate, _ := strconv.Atoi(accInfo[2])
+
+		genesisAcc := core.GenesisAccount{
+			Balance:       bigBalance,
+			FeeRate:       uint64(freerate),
+			ExchangerName: accInfo[3],
+			ExchangerUrl:  accInfo[4],
+		}
+		ga[common.HexToAddress(acc)] = genesisAcc
+	}
+
+	return ga
+}
+
 func TestToFilterArg(t *testing.T) {
 	blockHashErr := fmt.Errorf("cannot specify both BlockHash and FromBlock/ToBlock")
 	addresses := []common.Address{
@@ -548,7 +580,7 @@ func generateTestChain() (*core.Genesis, []*types.Block) {
 		GasLimit:     10000000,
 		Difficulty:   big.NewInt(1),
 		Alloc:        decodePreWormholesInfo(simAllocData),
-		Stake:        decodePreWormholesInfo(simStakeData),
+		Stake:        decodePreWormholesInfoV3(simStakeData),
 		Validator:    decodePreWormholesInfoV2(simValidatorData_v2),
 		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),

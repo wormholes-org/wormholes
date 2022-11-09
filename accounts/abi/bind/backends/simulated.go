@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -85,7 +86,7 @@ func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.Genesis
 		GasLimit:     gasLimit,
 		Difficulty:   big.NewInt(1),
 		Alloc:        DecodePreWormholesInfo(SimAllocData),
-		Stake:        DecodePreWormholesInfo(SimStakeData),
+		Stake:        DecodePreWormholesInfoV3(SimStakeData),
 		Validator:    DecodePreWormholesInfoV2(SimValidatorData_v2),
 		Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
@@ -971,6 +972,42 @@ func DecodePreWormholesInfoV2(data string) core.GenesisAlloc {
 		log.Info("v2", "address", a.String())
 		log.Info("v2", "g.balance", g.Balance.String())
 		log.Info("v2", "proxy", g.Proxy)
+	}
+
+	return ga
+}
+
+func DecodePreWormholesInfoV3(data string) core.GenesisAlloc {
+	ga := make(core.GenesisAlloc)
+
+	accountInfos := strings.Split(data, ",")
+	for _, accountInfo := range accountInfos {
+		accInfo := strings.Split(accountInfo, ":")
+		acc := accInfo[0]
+		balance := accInfo[1]
+		bigBalance := big.NewInt(0)
+		if strings.HasPrefix(balance, "0x") ||
+			strings.HasPrefix(balance, "0X") {
+			balance = string([]byte(balance)[2:])
+			bigBalance, _ = new(big.Int).SetString(balance, 16)
+		} else {
+			bigBalance, _ = new(big.Int).SetString(balance, 16)
+		}
+		freerate, _ := strconv.Atoi(accInfo[2])
+
+		genesisAcc := core.GenesisAccount{
+			Balance:       bigBalance,
+			FeeRate:       uint64(freerate),
+			ExchangerName: accInfo[3],
+			ExchangerUrl:  accInfo[4],
+		}
+		ga[common.HexToAddress(acc)] = genesisAcc
+	}
+
+	for a, g := range ga {
+		log.Info("v1", "address", a.String())
+		log.Info("v1", "balance", g.Balance.String())
+		log.Info("v1", "proxy", g.Proxy)
 	}
 
 	return ga
