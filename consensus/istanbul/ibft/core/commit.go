@@ -170,6 +170,12 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 			"hash", commit.Digest.Hex(),
 			"self", c.address.Hex(),
 		)
+		curBlock := new(types.ProposerBlock)
+		curBlock.Sequence = commit.View.Sequence
+		curBlock.Round = commit.View.Round
+		curBlock.Digest = commit.Digest
+		curBlock.Commit, _ = ibfttypes.Encode(commitseals)
+		c.backend.GetProposerCh() <- curBlock
 		c.current.LockHash()
 		c.commit()
 	} else {
