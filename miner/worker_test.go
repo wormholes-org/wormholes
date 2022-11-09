@@ -546,3 +546,8 @@ func TestIntTobytes(t *testing.T) {
 	bytes := IntToBytes(1200000)
 	fmt.Println("bytes====", bytes)
 }
+
+func TestExtraChange(t *testing.T) {
+	h := types.Header{Extra: []byte{00000001}}
+
+}

@@ -20,12 +20,13 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"math/big"
 	"reflect"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -319,6 +320,9 @@ func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
 func (b *Block) ReceiptHash() common.Hash { return b.header.ReceiptHash }
 func (b *Block) UncleHash() common.Hash   { return b.header.UncleHash }
 func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
+func (b *Block) SetExtra(extra []byte) {
+	b.header.Extra = extra
+}
 
 func (b *Block) BaseFee() *big.Int {
 	if b.header.BaseFee == nil {

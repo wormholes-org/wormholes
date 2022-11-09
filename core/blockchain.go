@@ -2183,6 +2183,8 @@ func allocateRewards(block *types.Block, stateDB *state.StateDB) (*state.StateDB
 		return nil, err
 	}
 	log.Info("allocateRewards istanbulExtra info",
+		"hash", block.Hash(),
+		"no", block.NumberU64(),
 		"exchanger addr", istanbulExtra.ExchangerAddr,
 		"onlineseal", istanbulExtra.OnlineSeal,
 		"CommittedSeal", istanbulExtra.CommittedSeal,

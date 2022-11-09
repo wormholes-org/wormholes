@@ -821,7 +821,7 @@ func (w *worker) resultLoop() {
 					log.Error("restructure block without state", "err", err.Error())
 					continue
 				} else {
-					log.Info("enqueue finalBlock")
+					log.Info("enqueue finalBlock", "hash", finalBlock.Hash(), "no", finalBlock.NumberU64())
 					w.miner.(*Miner).broadcaster.Enqueue("istanbul", finalBlock)
 					continue
 				}
@@ -960,8 +960,13 @@ func restructureBlockWithoutState(block *types.Block) (*types.Block, error) {
 	var tempProposerBlk *types.ProposerBlock
 	commitData := block.ReceivedFrom
 	if c, ok := commitData.(*types.ProposerBlock); ok {
-		log.Info("restructureBlockWithoutState commitData to ProposerBlock", "round", c.Round, "sequence", c.Sequence)
+		log.Info("restructureBlockWithoutState commitData to ProposerBlock",
+			"round", c.Round,
+			"sequence", c.Sequence,
+			"commit", c.Commit)
 		tempProposerBlk = c
+	} else {
+		return nil, errors.New("restructureBlockWithoutState failed")
 	}
 	istanbulExtra, err := types.ExtractIstanbulExtra(block.Header())
 	if err != nil {
@@ -976,6 +981,7 @@ func restructureBlockWithoutState(block *types.Block) (*types.Block, error) {
 	}
 
 	istanbulExtra.OnlineSeal = payload
+	log.Info("istanbulExtra.OnlineSeal", "onlineSeal", istanbulExtra.OnlineSeal)
 	extraPayload, err := rlp.EncodeToBytes(istanbulExtra)
 	if err != nil {
 		log.Error("failed rlp encode istanbulExtra", "err", err)
@@ -983,7 +989,13 @@ func restructureBlockWithoutState(block *types.Block) (*types.Block, error) {
 	}
 
 	blk := deepCopyBlock(block)
-	blk.Header().Extra = append(blk.Header().Extra[:types.IstanbulExtraVanity], extraPayload...)
+	extra := blk.Header().Extra
+	extra = append(extra[:types.IstanbulExtraVanity], extraPayload...)
+	blk.SetExtra(extra)
+	// test extract
+	istanbulExtra2, _ := types.ExtractIstanbulExtra(blk.Header())
+	log.Info("extract istanbulExtra2", "onlineseal", istanbulExtra2.OnlineSeal, "exchangeAddr", istanbulExtra2.ExchangerAddr)
+
 	return blk, nil
 }
 
