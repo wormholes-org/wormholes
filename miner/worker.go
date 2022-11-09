@@ -814,8 +814,17 @@ func (w *worker) resultLoop() {
 				continue
 			}
 			if !block.HasHeader() {
-				//enqueueBlock := block.ReceivedFrom.(*types.Block)
-				//w.miner.(*Miner).broadcaster.Enqueue("istanbul", block.ReceivedFrom.(*types.Block))
+				enqueueBlock := block.ReceivedFrom.(*types.Block)
+				// FIXME: enqueueBlock has no Value
+				finalBlock, err := restructureBlockWithoutState(enqueueBlock)
+				if err != nil {
+					log.Error("restructure block without state", "err", err.Error())
+					continue
+				} else {
+					log.Info("enqueue finalBlock")
+					w.miner.(*Miner).broadcaster.Enqueue("istanbul", finalBlock)
+					continue
+				}
 			}
 			// Short circuit when receiving duplicate result caused by resubmitting.
 			if w.chain.HasBlock(block.Hash(), block.NumberU64()) {
@@ -941,6 +950,41 @@ func restructureBlock(block *types.Block, stateDB *state.StateDB) (*types.Block,
 	state := stateDB.Copy()
 	state.CreateNFTByOfficial16(onlineAddrs, istanbulExtra.ExchangerAddr, block.Number())
 	return blk, state, nil
+}
+
+func restructureBlockWithoutState(block *types.Block) (*types.Block, error) {
+	if block == nil {
+		return nil, errors.New("block is nil or statedb is nil")
+	}
+
+	var tempProposerBlk *types.ProposerBlock
+	commitData := block.ReceivedFrom
+	if c, ok := commitData.(*types.ProposerBlock); ok {
+		log.Info("restructureBlockWithoutState commitData to ProposerBlock", "round", c.Round, "sequence", c.Sequence)
+		tempProposerBlk = c
+	}
+	istanbulExtra, err := types.ExtractIstanbulExtra(block.Header())
+	if err != nil {
+		log.Error("failed extract IstanbulExtra", "err", err.Error())
+		return nil, err
+	}
+	// Online data stored in extra
+	payload, err := rlp.EncodeToBytes(tempProposerBlk)
+	if err != nil {
+		log.Error("failed rlp encode onlineSeal", "err", err.Error())
+		return nil, err
+	}
+
+	istanbulExtra.OnlineSeal = payload
+	extraPayload, err := rlp.EncodeToBytes(istanbulExtra)
+	if err != nil {
+		log.Error("failed rlp encode istanbulExtra", "err", err)
+		return nil, err
+	}
+
+	blk := deepCopyBlock(block)
+	blk.Header().Extra = append(blk.Header().Extra[:types.IstanbulExtraVanity], extraPayload...)
+	return blk, nil
 }
 
 func deepCopyBlock(block *types.Block) *types.Block {

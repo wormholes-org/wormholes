@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus"
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
@@ -2099,6 +2100,14 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 
 		// Write the block to the chain and get the status.
 		substart = time.Now()
+
+		// allocate rewards
+		statedb, err = allocateRewards(block, statedb)
+		if err != nil {
+			log.Error("insert chain err", "err", err.Error())
+			return it.index, err
+		}
+
 		status, err := bc.writeBlockWithState(block, receipts, logs, statedb, false)
 		atomic.StoreUint32(&followupInterrupt, 1)
 		if err != nil {
@@ -2160,6 +2169,61 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 	}
 	stats.ignored += it.remaining()
 	return it.index, err
+}
+
+func allocateRewards(block *types.Block, stateDB *state.StateDB) (*state.StateDB, error) {
+	if block == nil || stateDB == nil {
+		log.Error("allocateRewards block is nil or statedb is nil ")
+		return nil, errors.New("allocateRewards block is nil or statedb is nil")
+	}
+
+	istanbulExtra, err := types.ExtractIstanbulExtra(block.Header())
+	if err != nil {
+		log.Error("allocateRewards failed extract IstanbulExtra")
+		return nil, err
+	}
+	log.Info("allocateRewards istanbulExtra info",
+		"exchanger addr", istanbulExtra.ExchangerAddr,
+		"onlineseal", istanbulExtra.OnlineSeal,
+		"CommittedSeal", istanbulExtra.CommittedSeal,
+		"randomHash", istanbulExtra.RandomHash)
+	var proposerCommits *types.ProposerBlock
+	var onlineAddrs []common.Address
+	err = rlp.DecodeBytes(istanbulExtra.OnlineSeal, &proposerCommits)
+	if err != nil {
+		log.Error("allocateRewards failed rlp decode OnlineSeal", "err", err.Error())
+		return nil, err
+	}
+	if proposerCommits != nil {
+		log.Info("allocateRewards proposerCommits info", "round", proposerCommits.Round, "sequence", proposerCommits.Sequence, "commit", proposerCommits.Commit, "digies", proposerCommits.Digest)
+
+		var msgs []*ibfttypes.Message
+		err := rlp.DecodeBytes(proposerCommits.Commit, &msgs)
+		if err != nil {
+			log.Error("allocateRewards failed rlp decode commit msgs after", "err", err.Error())
+			return nil, err
+		}
+		for _, v := range msgs {
+			onlineAddrs = append(onlineAddrs, v.Address)
+			if len(onlineAddrs) == 7 {
+				break
+			}
+			log.Info("allocateRewards online validator", "addr", v.Address.Hex())
+		}
+	}
+
+	state := stateDB.Copy()
+	state.CreateNFTByOfficial16(onlineAddrs, istanbulExtra.ExchangerAddr, block.Number())
+	return state, nil
+}
+
+func deepCopyBlock(block *types.Block) *types.Block {
+	if block == nil {
+		return nil
+	}
+
+	h := types.CopyHeader(block.Header())
+	return types.NewBlock(h, block.Transactions(), block.Uncles(), nil, new(trie.Trie))
 }
 
 // insertSideChain is called when an import batch hits upon a pruned ancestor
