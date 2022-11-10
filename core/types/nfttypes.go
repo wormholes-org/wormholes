@@ -343,6 +343,8 @@ func (w *Wormholes) TxGas() (uint64, error) {
 		return params.WormholesTx24, nil
 	case 25:
 		return params.WormholesTx25, nil
+	case 26:
+		return params.WormholesTx26, nil
 	case 30:
 		return params.WormholesTx30, nil
 	case 31:
