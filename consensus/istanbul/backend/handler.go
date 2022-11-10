@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"reflect"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -70,6 +71,12 @@ func (sb *Backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
+
+	if key, now := addr.Hex()+sb.address.Hex(), time.Now(); now.Sub(lastMsgTime[key]) > 5*time.Second {
+		lastMsgTime[key] = now
+		sb.logger.Debug("consensus message receive", "sender", addr, "receiver", "code", msg.Code)
+	}
+
 	if _, ok := qbfttypes.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {
 		if !sb.coreStarted {
 			sb.logger.Info("caver|HandleMsg|ErrStoppedEngine", "!sb.coreStarted", !sb.coreStarted)

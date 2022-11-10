@@ -174,6 +174,8 @@ func (sb *Backend) Broadcast(valSet istanbul.ValidatorSet, code uint64, payload 
 	return nil
 }
 
+var lastMsgTime = map[string]time.Time{}
+
 func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
@@ -203,6 +205,11 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
+
+			if key, now := sb.address.Hex()+addr.Hex(), time.Now(); now.Sub(lastMsgTime[key]) > 5*time.Second {
+				lastMsgTime[key] = now
+				sb.logger.Debug("consensus message send", "sender", sb.address, "receiver", addr, "code", code)
+			}
 
 			if sb.IsQBFTConsensus() {
 				var outboundCode uint64 = istanbulMsg
