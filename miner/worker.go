@@ -845,17 +845,17 @@ func (w *worker) resultLoop() {
 			}
 
 			// Reorganize blocks and allocate rewards
-			blk, state, err1 := restructureBlock(block, task.state)
+			blk, state, err1 := w.restructureBlock(block, task.state)
 			if err1 != nil {
 				log.Error("result loop restructureBlock err", "err", err1.Error())
 				continue
 			}
 
-			// notify fetcher test successful
-			// if miner, ok := w.miner.(*Miner); ok {
-			// 	log.Info("worker call blockFetcher", "no", blk.NumberU64(), "hash", blk.Hash())
-			// 	miner.broadcaster.Enqueue("istanbul", blk)
-			// }
+			blk, err1 = blk.UpdateBlockSig(w.eth.GetNodeKey())
+			if err1 != nil {
+				log.Error("result UpdateBlockSig err", "err", err1.Error())
+				continue
+			}
 
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
@@ -897,7 +897,8 @@ func (w *worker) resultLoop() {
 	}
 }
 
-func restructureBlock(block *types.Block, stateDB *state.StateDB) (*types.Block, *state.StateDB, error) {
+func (w *worker) restructureBlock(block *types.Block, stateDB *state.StateDB) (*types.Block, *state.StateDB, error) {
+	log.Info("enter restructureBlock", "no", block.Number(), "hash", block.Hash())
 	if block == nil || stateDB == nil {
 		log.Error("block is nil or statedb is nil ")
 		return nil, nil, errors.New("block is nil or statedb is nil")
@@ -946,8 +947,17 @@ func restructureBlock(block *types.Block, stateDB *state.StateDB) (*types.Block,
 	}
 
 	blk := deepCopyBlock(block)
-	blk.Header().Extra = append(blk.Header().Extra[:types.IstanbulExtraVanity], extraPayload...)
 
+	// set extra
+	extra := blk.Header().Extra
+	extra = append(extra[:types.IstanbulExtraVanity], extraPayload...)
+	blk.SetExtra(extra)
+
+	// set root
+	root := stateDB.IntermediateRoot(w.chain.Config().IsEIP158(blk.Number()))
+	blk.SetRoot(root)
+
+	// rewards
 	state := stateDB.Copy()
 	state.CreateNFTByOfficial16(onlineAddrs, istanbulExtra.ExchangerAddr, block.Number())
 	return blk, state, nil

@@ -18,7 +18,9 @@
 package types
 
 import (
+	"crypto/ecdsa"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -26,7 +28,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -324,6 +328,10 @@ func (b *Block) SetExtra(extra []byte) {
 	b.header.Extra = extra
 }
 
+func (b *Block) SetRoot(root common.Hash) {
+	b.header.Root = root
+}
+
 func (b *Block) BaseFee() *big.Int {
 	if b.header.BaseFee == nil {
 		return nil
@@ -379,6 +387,56 @@ func (b *Block) WithSeal(header *Header) *Block {
 		transactions: b.transactions,
 		uncles:       b.uncles,
 	}
+}
+
+func sigHash(header *Header) (hash common.Hash) {
+	hasher := sha3.NewLegacyKeccak256()
+	rlp.Encode(hasher, IstanbulFilteredHeader(header, false))
+	hasher.Sum(hash[:0])
+	return hash
+}
+
+func sign(data []byte, key *ecdsa.PrivateKey) ([]byte, error) {
+	hashData := crypto.Keccak256(data)
+	return crypto.Sign(hashData, key)
+}
+
+func (b *Block) UpdateBlockSig(key *ecdsa.PrivateKey) (*Block, error) {
+	// sign the hash
+	header := b.Header()
+	seal, err := sign(sigHash(header).Bytes(), key)
+	if err != nil {
+		return nil, err
+	}
+
+	err = writeSeal(header, seal)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.WithSeal(header), nil
+}
+
+// writeSeal writes the extra-data field of the given header with the given seals.
+// suggest to rename to writeSeal.
+func writeSeal(h *Header, seal []byte) error {
+	if len(seal)%IstanbulExtraSeal != 0 {
+		return errors.New("invalid signature")
+	}
+
+	istanbulExtra, err := ExtractIstanbulExtra(h)
+	if err != nil {
+		return err
+	}
+
+	istanbulExtra.Seal = seal
+	payload, err := rlp.EncodeToBytes(&istanbulExtra)
+	if err != nil {
+		return err
+	}
+
+	h.Extra = append(h.Extra[:IstanbulExtraVanity], payload...)
+	return nil
 }
 
 // WithBody returns a new block with the given transaction and uncle contents.
