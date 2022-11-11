@@ -151,11 +151,11 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 				if err != nil {
 					return err
 				}
-				blk, err = blk.UpdateBlockSig(c.backend.GetPirvateKey())
+				deepBlk, err = deepBlk.UpdateBlockSig(c.backend.GetPirvateKey())
 				if err != nil {
 					return err
 				}
-				c.finaleBlock, err = ibfttypes.Encode(blk)
+				c.finaleBlock, err = ibfttypes.Encode(deepBlk)
 				if err != nil {
 					return err
 				}
