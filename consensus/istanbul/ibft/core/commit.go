@@ -17,8 +17,13 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/core/types"
+	"errors"
 	"reflect"
+
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -127,6 +132,22 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 
 				//curBlock.Commit = c.current.Commits.Values()
 				curBlock.Commit, _ = ibfttypes.Encode(c.current.Commits.Values())
+
+				// get online validators
+				var onlineValidators []common.Address
+				for _, v := range c.current.Commits.Values() {
+					onlineValidators = append(onlineValidators, v.Address)
+				}
+
+				// assert block
+				blk, _ := c.current.Proposal().(*types.Block)
+
+				// assert task state
+				state, _ := blk.ReceivedFrom.(state.StateDB)
+				scopy := state.Copy()
+				deepBlk := deepCopyBlock(blk)
+				c.restructureBlock(deepBlk, scopy, curBlock)
+
 				c.backend.GetProposerCh() <- curBlock
 				c.sendCommit()
 				c.current.LockHash()
@@ -210,4 +231,77 @@ func (c *core) acceptCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	}
 
 	return nil
+}
+
+func (c *core) restructureBlock(block *types.Block, stateDB *state.StateDB, proposerBlock *types.ProposerBlock) (*types.Block, *state.StateDB, error) {
+	log.Info("enter restructureBlock", "no", block.Number(), "hash", block.Hash())
+	if block == nil || stateDB == nil {
+		log.Error("block is nil or statedb is nil ")
+		return nil, nil, errors.New("block is nil or statedb is nil")
+	}
+
+	var (
+		onlineAddrs     []common.Address
+		tempProposerBlk *types.ProposerBlock
+		msgs            []*ibfttypes.Message
+	)
+
+	tempProposerBlk = proposerBlock
+	err := rlp.DecodeBytes(proposerBlock.Commit, &msgs)
+	if err != nil {
+		log.Error("failed rlp decode commit msgs", "err", err.Error())
+		return nil, nil, err
+	}
+	for _, v := range msgs {
+		log.Info("online validator", "addr", v.Address.Hex())
+		onlineAddrs = append(onlineAddrs, v.Address)
+		if len(onlineAddrs) == 7 {
+			break
+		}
+	}
+
+	// get staker
+	istanbulExtra, err := types.ExtractIstanbulExtra(block.Header())
+	if err != nil {
+		log.Error("failed extract IstanbulExtra", "err", err.Error())
+		return nil, nil, err
+	}
+	// Online data stored in extra
+	payload, err := rlp.EncodeToBytes(tempProposerBlk)
+	if err != nil {
+		log.Error("failed rlp encode onlineSeal", "err", err.Error())
+		return nil, nil, err
+	}
+
+	istanbulExtra.OnlineSeal = payload
+	extraPayload, err := rlp.EncodeToBytes(istanbulExtra)
+	if err != nil {
+		log.Error("failed rlp encode istanbulExtra", "err", err)
+		return nil, nil, err
+	}
+
+	blk := deepCopyBlock(block)
+
+	// set extra
+	extra := blk.Header().Extra
+	extra = append(extra[:types.IstanbulExtraVanity], extraPayload...)
+	blk.SetExtra(extra)
+
+	// set root
+	root := stateDB.IntermediateRoot(true)
+	blk.SetRoot(root)
+
+	// // rewards
+	state := stateDB.Copy()
+	// state.CreateNFTByOfficial16(onlineAddrs, istanbulExtra.ExchangerAddr, block.Number())
+	return blk, state, nil
+}
+
+func deepCopyBlock(block *types.Block) *types.Block {
+	if block == nil {
+		return nil
+	}
+
+	h := types.CopyHeader(block.Header())
+	return types.NewBlock(h, block.Transactions(), block.Uncles(), nil, new(trie.Trie))
 }
