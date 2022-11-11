@@ -278,6 +278,7 @@ func (w *Wormholes) CheckFormat() error {
 		}
 
 	case 25:
+	case 26:
 	case 30:
 	case 31:
 	default:
