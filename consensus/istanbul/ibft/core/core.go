@@ -82,6 +82,7 @@ func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(co
 		onlineProofsMu:                  new(sync.Mutex),
 		commitHeight:                    0,
 		commitMsg:                       ibfttypes.Message{},
+		finaleBlock:                     []byte{},
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -132,6 +133,7 @@ type core struct {
 	consensusTimestamp time.Time
 	commitHeight       uint64
 	commitMsg          ibfttypes.Message
+	finaleBlock        []byte
 }
 
 func (c *core) GetCommitMsg() ibfttypes.Message {

@@ -42,6 +42,7 @@ type Message struct {
 	Signature          []byte
 	CommittedSeal      []byte
 	ProposerCommitSeal []byte
+	FinaleBlock        []byte
 }
 
 // ==============================================
@@ -50,7 +51,7 @@ type Message struct {
 
 // EncodeRLP serializes m into the Ethereum RLP format.
 func (m *Message) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.ProposerCommitSeal})
+	return rlp.Encode(w, []interface{}{m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.ProposerCommitSeal, m.FinaleBlock})
 }
 
 // DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
@@ -62,12 +63,13 @@ func (m *Message) DecodeRLP(s *rlp.Stream) error {
 		Signature          []byte
 		CommittedSeal      []byte
 		ProposerCommitSeal []byte
+		FinaleBlock        []byte
 	}
 
 	if err := s.Decode(&msg); err != nil {
 		return err
 	}
-	m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.ProposerCommitSeal = msg.Code, msg.Msg, msg.Address, msg.Signature, msg.CommittedSeal, msg.ProposerCommitSeal
+	m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.ProposerCommitSeal, m.FinaleBlock = msg.Code, msg.Msg, msg.Address, msg.Signature, msg.CommittedSeal, msg.ProposerCommitSeal, msg.FinaleBlock
 	return nil
 }
 
@@ -113,6 +115,7 @@ func (m *Message) PayloadNoSig() ([]byte, error) {
 		Signature:          []byte{},
 		CommittedSeal:      m.CommittedSeal,
 		ProposerCommitSeal: m.ProposerCommitSeal,
+		FinaleBlock:        m.FinaleBlock,
 	})
 }
 
@@ -123,6 +126,10 @@ func (m *Message) Decode(val interface{}) error {
 //Get out the commit list
 func (m *Message) DecodeCommitlist(val interface{}) error {
 	return rlp.DecodeBytes(m.ProposerCommitSeal, val)
+}
+
+func (m *Message) DecodeFinalBlock(val interface{}) error {
+	return rlp.DecodeBytes(m.FinaleBlock, val)
 }
 
 func (m *Message) String() string {

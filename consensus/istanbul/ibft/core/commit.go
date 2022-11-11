@@ -65,6 +65,7 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 				Code:               ibfttypes.MsgCommit,
 				Msg:                encodedSubject,
 				ProposerCommitSeal: encodedCommitSeals,
+				FinaleBlock:        c.finaleBlock,
 			})
 		}
 	} else {
@@ -146,8 +147,18 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 				state, _ := blk.ReceivedFrom.(state.StateDB)
 				scopy := state.Copy()
 				deepBlk := deepCopyBlock(blk)
-				c.restructureBlock(deepBlk, scopy, curBlock)
-
+				deepBlk, _, err = c.restructureBlock(deepBlk, scopy, curBlock)
+				if err != nil {
+					return err
+				}
+				blk, err = blk.UpdateBlockSig(c.backend.GetPirvateKey())
+				if err != nil {
+					return err
+				}
+				c.finaleBlock, err = ibfttypes.Encode(blk)
+				if err != nil {
+					return err
+				}
 				c.backend.GetProposerCh() <- curBlock
 				c.sendCommit()
 				c.current.LockHash()
@@ -191,6 +202,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 			"CommitsSize", c.current.Commits.Size(),
 			"hash", commit.Digest.Hex(),
 			"self", c.address.Hex(),
+			"finalBlock", msg.FinaleBlock,
 		)
 		curBlock := new(types.ProposerBlock)
 		curBlock.Sequence = commit.View.Sequence
