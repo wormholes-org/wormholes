@@ -819,6 +819,8 @@ func (w *worker) resultLoop() {
 				continue
 			}
 			if !block.HasHeader() {
+				finalBlock := block.ReceivedFrom.(*types.Block)
+				w.miner.(*Miner).broadcaster.Enqueue("istanbul", finalBlock)
 				// enqueueBlock := block.ReceivedFrom.(*types.Block)
 				// // FIXME: enqueueBlock has no Value
 				// finalBlock, err := restructureBlockWithoutState(enqueueBlock)

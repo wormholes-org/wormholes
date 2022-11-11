@@ -33,6 +33,8 @@ type Backend interface {
 	GetPirvateKey() *ecdsa.PrivateKey
 	GetProposerBlock() *types.Block
 	GetProposerState() *state.StateDB
+	SetFinalBlock(pBlock *types.Block)
+	GetFinalBlock() *types.Block
 	// Address returns the owner's address
 	Address() common.Address
 

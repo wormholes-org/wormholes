@@ -85,6 +85,7 @@ type Backend struct {
 
 	proposerBlock *types.Block
 	proposerState *state.StateDB
+	finaleBlock   *types.Block
 
 	privateKey *ecdsa.PrivateKey
 	address    common.Address
@@ -133,6 +134,14 @@ type Backend struct {
 
 func (sb *Backend) Engine() istanbul.Engine {
 	return sb.EngineForBlockNumber(nil)
+}
+
+func (sb *Backend) SetFinalBlock(pBlock *types.Block) {
+	sb.finaleBlock = pBlock
+}
+
+func (sb *Backend) GetFinalBlock() *types.Block {
+	return sb.finaleBlock
 }
 
 func (sb *Backend) GetProposerBlock() *types.Block {

@@ -196,6 +196,19 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 
 	if len(commitseals) >= c.QuorumSize() && c.state.Cmp(ibfttypes.StateCommitted) < 0 {
 		// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
+		curBlock := new(types.ProposerBlock)
+		curBlock.Sequence = commit.View.Sequence
+		curBlock.Round = commit.View.Round
+		curBlock.Digest = commit.Digest
+		curBlock.Commit, _ = ibfttypes.Encode(commitseals)
+		c.backend.GetProposerCh() <- curBlock
+		c.current.LockHash()
+		c.finaleBlock = msg.FinaleBlock
+		var fBlock *types.Block
+		err = msg.DecodeFinalBlock(&fBlock)
+		if err != nil {
+			return err
+		}
 		log.Info("ibftConsensus: handleCommit commit",
 			"no", commit.View.Sequence,
 			"round", commit.View.Round,
@@ -204,13 +217,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 			"self", c.address.Hex(),
 			"finalBlock", msg.FinaleBlock,
 		)
-		curBlock := new(types.ProposerBlock)
-		curBlock.Sequence = commit.View.Sequence
-		curBlock.Round = commit.View.Round
-		curBlock.Digest = commit.Digest
-		curBlock.Commit, _ = ibfttypes.Encode(commitseals)
-		c.backend.GetProposerCh() <- curBlock
-		c.current.LockHash()
+		c.backend.SetFinalBlock(fBlock)
 		c.commit()
 	} else {
 		log.Error("ibftConsensus: handleCommit len(commitseals) < c.QuorumSize() err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
