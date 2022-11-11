@@ -68,7 +68,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	if header.Number.Cmp(big.NewInt(0)) == 0 {
 		genesis := chain.GetHeaderByNumber(0)
 		if err := sb.EngineForBlockNumber(big.NewInt(0)).VerifyHeader(chain, genesis, nil, nil); err != nil {
-			sb.logger.Error("caver|verifyHeader|invalid genesis block", "err", err, "hash", genesis.Hash())
+			sb.logger.Error("verifyHeader : invalid genesis block", "err", err, "hash", genesis.Hash())
 			return err
 		}
 	} else {
@@ -131,6 +131,9 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 				err = consensus.ErrUnknownAncestor
 			} else {
 				err = sb.verifyHeader(chain, header, headers[:i])
+				if err != nil {
+					log.Error("VerifyHeaders err", "err", err.Error())
+				}
 			}
 
 			if err != nil {

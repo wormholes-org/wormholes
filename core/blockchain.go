@@ -2102,11 +2102,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		substart = time.Now()
 
 		// allocate rewards
-		statedb, err = allocateRewards(block, statedb)
-		if err != nil {
-			log.Error("insert chain err", "err", err.Error())
-			return it.index, err
-		}
+		// statedb, err = allocateRewards(block, statedb)
+		// if err != nil {
+		// 	log.Error("insert chain err", "err", err.Error())
+		// 	return it.index, err
+		// }
 
 		status, err := bc.writeBlockWithState(block, receipts, logs, statedb, false)
 		atomic.StoreUint32(&followupInterrupt, 1)

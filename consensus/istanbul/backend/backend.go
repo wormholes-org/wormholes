@@ -258,23 +258,17 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	//    the next block and the previous Seal() will be stopped.
 	// -- otherwise, a error will be returned and a round change event will be fired.
 
-	//log.Info("caver|Commit|commitCh", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
+	log.Info("before proposedBlockHash info", "no", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
+	if sb.proposedBlockHash == (common.Hash{}) {
+		return nil
+	}
 	if sb.proposedBlockHash == block.Hash() {
-		log.Info("caver|Commit|commitCh", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
-		/*
-			curExtra, _ := types.ExtractIstanbulExtra(h)
-			curExtra.OnlineSeal, _ = rlp.EncodeToBytes(sb.core.GetCommitMsg())
-			curPayload, _ := rlp.EncodeToBytes(curExtra)
-			h.Extra = append(h.Extra[:types.IstanbulExtraVanity], curPayload...)
-		*/
-		// feed block hash to Seal() and wait the Seal() result
+		log.Info("proposer proposedBlockHash", "no", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 		sb.commitCh <- block
 		return nil
-	} else {
-		log.Info("caver|Commit|commitCh err", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 	}
 	if sb.broadcaster != nil {
-		log.Info("caver|Commit|Enqueue", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
+		log.Info("validator enqueue block", "no", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 		//next step
 		//sb.broadcaster.Enqueue(fetcherID, block)
 		sb.enqueueCh <- block

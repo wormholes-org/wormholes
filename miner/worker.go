@@ -814,17 +814,18 @@ func (w *worker) resultLoop() {
 				continue
 			}
 			if !block.HasHeader() {
-				enqueueBlock := block.ReceivedFrom.(*types.Block)
-				// FIXME: enqueueBlock has no Value
-				finalBlock, err := restructureBlockWithoutState(enqueueBlock)
-				if err != nil {
-					log.Error("restructure block without state", "err", err.Error())
-					continue
-				} else {
-					log.Info("enqueue finalBlock", "hash", finalBlock.Hash(), "no", finalBlock.NumberU64())
-					w.miner.(*Miner).broadcaster.Enqueue("istanbul", finalBlock)
-					continue
-				}
+				// enqueueBlock := block.ReceivedFrom.(*types.Block)
+				// // FIXME: enqueueBlock has no Value
+				// finalBlock, err := restructureBlockWithoutState(enqueueBlock)
+				// if err != nil {
+				// 	log.Error("restructure block without state", "err", err.Error())
+				// 	continue
+				// } else {
+				// 	log.Info("enqueue finalBlock", "hash", finalBlock.Hash(), "no", finalBlock.NumberU64())
+				// 	w.miner.(*Miner).broadcaster.Enqueue("istanbul", finalBlock)
+				// 	continue
+				// }
+				continue
 			}
 			// Short circuit when receiving duplicate result caused by resubmitting.
 			if w.chain.HasBlock(block.Hash(), block.NumberU64()) {
