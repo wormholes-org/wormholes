@@ -17,6 +17,7 @@
 package backend
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"math/big"
 	"time"
@@ -42,6 +43,10 @@ const (
 	inmemoryPeers      = 40
 	inmemoryMessages   = 1024
 )
+
+func (sb *Backend) GetPirvateKey() *ecdsa.PrivateKey {
+	return sb.privateKey
+}
 
 // Author retrieves the Ethereum address of the account that minted the given
 // block, which may be different from the header's coinbase if a consensus

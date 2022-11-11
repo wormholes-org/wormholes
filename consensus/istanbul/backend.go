@@ -17,6 +17,7 @@
 package istanbul
 
 import (
+	"crypto/ecdsa"
 	"math/big"
 	"time"
 
@@ -27,6 +28,9 @@ import (
 
 // Backend provides application specific functions for Istanbul core
 type Backend interface {
+	// GetPirvateKey returns the node private key
+	GetPirvateKey() *ecdsa.PrivateKey
+
 	// Address returns the owner's address
 	Address() common.Address
 
