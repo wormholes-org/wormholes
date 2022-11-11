@@ -751,10 +751,11 @@ func (w *worker) mainLoop() {
 // push them to consensus engine.
 func (w *worker) taskLoop() {
 	var (
-		stopCh chan struct{}
-		prev   common.Hash
+		stopCh     chan struct{}
+		prev       common.Hash
+		prevHeight uint64
 	)
-
+	prevHeight = 0
 	// interrupt aborts the in-flight sealing task.
 	interrupt := func() {
 		if stopCh != nil {
@@ -780,9 +781,12 @@ func (w *worker) taskLoop() {
 			if sealHash == prev {
 				continue
 			}
+			if prevHeight >= task.block.NumberU64() {
+				continue
+			}
 			// Interrupt previous sealing operation
 			interrupt()
-			stopCh, prev = make(chan struct{}), sealHash
+			stopCh, prev, prevHeight = make(chan struct{}), sealHash, task.block.NumberU64()
 
 			if w.skipSealHook != nil && w.skipSealHook(task) {
 				continue
