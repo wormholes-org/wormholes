@@ -295,7 +295,7 @@ func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *t
 func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
-
+	sb.proposerState = block.ReceivedFrom.(*state.StateDB)
 	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Uint64() > 0 {
 		log.Error("Seal : coinbase error", "err", "coinbase is 0")
 		return errors.New("coinbase is 0")
@@ -320,6 +320,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	if err != nil {
 		return err
 	}
+	sb.proposerBlock = block
 
 	delay := time.Until(time.Unix(int64(block.Header().Time), 0))
 

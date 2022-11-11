@@ -141,10 +141,10 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 				}
 
 				// assert block
-				blk, _ := c.current.Proposal().(*types.Block)
+				blk := c.backend.GetProposerBlock()
 
 				// assert task state
-				state, _ := blk.ReceivedFrom.(state.StateDB)
+				state := c.backend.GetProposerState()
 				scopy := state.Copy()
 				deepBlk := deepCopyBlock(blk)
 				deepBlk, _, err = c.restructureBlock(deepBlk, scopy, curBlock)

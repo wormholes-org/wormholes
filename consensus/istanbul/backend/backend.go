@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/core/state"
 	"math/big"
 	"sync"
 	"time"
@@ -82,6 +83,9 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 type Backend struct {
 	config *istanbul.Config
 
+	proposerBlock *types.Block
+	proposerState *state.StateDB
+
 	privateKey *ecdsa.PrivateKey
 	address    common.Address
 
@@ -129,6 +133,14 @@ type Backend struct {
 
 func (sb *Backend) Engine() istanbul.Engine {
 	return sb.EngineForBlockNumber(nil)
+}
+
+func (sb *Backend) GetProposerBlock() *types.Block {
+	return sb.proposerBlock
+}
+
+func (sb *Backend) GetProposerState() *state.StateDB {
+	return sb.proposerState
 }
 
 func (sb *Backend) GetProposerCh() chan *types.ProposerBlock {

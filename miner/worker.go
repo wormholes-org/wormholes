@@ -794,7 +794,7 @@ func (w *worker) taskLoop() {
 			w.pendingMu.Lock()
 			w.pendingTasks[sealHash] = task
 			w.pendingMu.Unlock()
-			task.block.ReceivedFrom = task.state
+			task.block.ReceivedFrom = task.state.Copy()
 			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
 				log.Warn("Block sealing failed", "err", err, "no", task.block.NumberU64(), "hash", task.block.Hash())
 			}

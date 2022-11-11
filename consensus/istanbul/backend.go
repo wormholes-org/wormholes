@@ -18,6 +18,7 @@ package istanbul
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/core/state"
 	"math/big"
 	"time"
 
@@ -30,7 +31,8 @@ import (
 type Backend interface {
 	// GetPirvateKey returns the node private key
 	GetPirvateKey() *ecdsa.PrivateKey
-
+	GetProposerBlock() *types.Block
+	GetProposerState() *state.StateDB
 	// Address returns the owner's address
 	Address() common.Address
 
