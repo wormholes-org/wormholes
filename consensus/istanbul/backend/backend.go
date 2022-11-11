@@ -291,8 +291,9 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	if sb.broadcaster != nil {
 		log.Info("validator enqueue block", "no", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 		//next step
-		//sb.broadcaster.Enqueue(fetcherID, block)
-		sb.enqueueCh <- block
+		log.Info("validator enqueue final block", "no", sb.finaleBlock.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", sb.finaleBlock.Hash().Hex())
+		sb.broadcaster.Enqueue(fetcherID, sb.finaleBlock)
+		//sb.enqueueCh <- block
 	}
 
 	return nil
