@@ -526,6 +526,7 @@ func (f *BlockFetcher) loop() {
 					// If the delivered header does not match the promised number, drop the announcer
 					if header.Number.Uint64() != announce.number {
 						log.Trace("Invalid block number fetched", "peer", announce.origin, "hash", header.Hash(), "announced", announce.number, "provided", header.Number)
+						log.Info("Invalid block number fetched")
 						f.dropPeer(announce.origin)
 						f.forgetHash(hash)
 						continue
@@ -766,6 +767,7 @@ func (f *BlockFetcher) importHeaders(peer string, header *types.Header) {
 		// Validate the header and if something went wrong, drop the peer
 		if err := f.verifyHeader(header); err != nil && err != consensus.ErrFutureBlock {
 			log.Debug("Propagated header verification failed", "peer", peer, "number", header.Number, "hash", hash, "err", err)
+			log.Info("Propagated header verification failed", "no", header.Number)
 			f.dropPeer(peer)
 			return
 		}
@@ -810,6 +812,7 @@ func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 
 		default:
 			// Something went very wrong, drop the peer
+			log.Info("Propagated block verification failed", "number", block.Number(), "hash", hash)
 			log.Debug("Propagated block verification failed", "peer", peer, "number", block.Number(), "hash", hash, "err", err)
 			f.dropPeer(peer)
 			return
