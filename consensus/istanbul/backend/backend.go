@@ -290,22 +290,22 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	if sb.proposedBlockHash == block.Hash() {
 		log.Info("proposer proposedBlockHash", "no", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 		sb.commitCh <- block
-		//return nil
+		return nil
 	}
-	/*
-		if sb.broadcaster != nil {
+	if sb.broadcaster != nil {
 
-			if sb.finaleBlock == nil {
-				log.Error("validator enqueue final block is nil")
-				return istanbulcommon.ErrEmptyBlock
-			}
-
-			log.Info("validator enqueue block", "no", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
-			//next step
-			log.Info("validator enqueue final block", "no", sb.finaleBlock.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", sb.finaleBlock.Hash().Hex())
-			sb.broadcaster.Enqueue(fetcherID, sb.finaleBlock)
+		if sb.finaleBlock == nil {
+			log.Error("validator enqueue final block is nil")
+			return istanbulcommon.ErrEmptyBlock
 		}
-	*/
+
+		log.Info("validator enqueue block", "no", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
+		//next step
+		log.Info("validator enqueue final block", "no", sb.finaleBlock.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", sb.finaleBlock.Hash().Hex())
+		sb.broadcaster.Enqueue(fetcherID, sb.finaleBlock)
+		//sb.enqueueCh <- block
+	}
+
 	return nil
 }
 
