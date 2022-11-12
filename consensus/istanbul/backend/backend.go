@@ -63,7 +63,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		db:               db,
 		commitCh:         make(chan *types.Block, 1),
 		proposerCh:       make(chan *types.ProposerBlock, 1),
-		enqueueCh:        make(chan *types.Block, 1),
+		enqueueCh:        make(chan *types.Block, 0),
 		recents:          recents,
 		candidates:       make(map[common.Address]bool),
 		coreStarted:      false,
@@ -154,6 +154,10 @@ func (sb *Backend) GetProposerState() *state.StateDB {
 
 func (sb *Backend) GetProposerCh() chan *types.ProposerBlock {
 	return sb.proposerCh
+}
+
+func (sb *Backend) GetEnqueueCh() chan *types.Block {
+	return sb.enqueueCh
 }
 
 func (sb *Backend) ValidatorExist(address common.Address) (bool, error) {
@@ -289,6 +293,12 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 		return nil
 	}
 	if sb.broadcaster != nil {
+
+		if sb.finaleBlock == nil {
+			log.Error("validator enqueue final block is nil")
+			return istanbulcommon.ErrEmptyBlock
+		}
+
 		log.Info("validator enqueue block", "no", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 		//next step
 		log.Info("validator enqueue final block", "no", sb.finaleBlock.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", sb.finaleBlock.Hash().Hex())

@@ -354,16 +354,19 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 			select {
 			case proposerCommit := <-sb.proposerCh:
 				proposerCommitData = proposerCommit
-			case enqueueBlock := <-sb.enqueueCh:
-				if enqueueBlock != nil {
-					//enqueueBlock.ReceivedFrom = proposerCommitData
-					log.Info("sb.enqueueCh", "round", proposerCommitData.Round, "sequence", proposerCommitData.Sequence)
-					curBlock := new(types.Block)
-					//curBlock.ReceivedFrom = enqueueBlock
-					curBlock.ReceivedFrom = sb.finaleBlock
-					results <- curBlock
-					return
-				}
+			case sb.finaleBlock = <-sb.enqueueCh:
+				continue
+				/*
+					if enqueueBlock != nil {
+						//enqueueBlock.ReceivedFrom = proposerCommitData
+						log.Info("sb.enqueueCh", "round", proposerCommitData.Round, "sequence", proposerCommitData.Sequence)
+						curBlock := new(types.Block)
+						//curBlock.ReceivedFrom = enqueueBlock
+						curBlock.ReceivedFrom = sb.finaleBlock
+						results <- curBlock
+						return
+					}
+				*/
 			case result := <-sb.commitCh:
 				// if the block hash and the hash from channel are the same,
 				// return the result. Otherwise, keep waiting the next hash.

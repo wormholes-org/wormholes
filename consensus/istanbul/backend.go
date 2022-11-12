@@ -97,4 +97,6 @@ type Backend interface {
 	GetCore() Core
 
 	GetProposerCh() chan *types.ProposerBlock
+
+	GetEnqueueCh() chan *types.Block
 }

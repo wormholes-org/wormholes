@@ -217,7 +217,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 			"self", c.address.Hex(),
 			"finalBlock", msg.FinaleBlock,
 		)
-		c.backend.SetFinalBlock(fBlock)
+		c.backend.GetEnqueueCh() <- fBlock
 		c.commit()
 	} else {
 		log.Error("ibftConsensus: handleCommit len(commitseals) < c.QuorumSize() err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
