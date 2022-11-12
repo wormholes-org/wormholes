@@ -211,6 +211,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 		var fBlock *types.Block
 		err = msg.DecodeFinalBlock(&fBlock)
 		if err != nil {
+			log.Error("ibftConsensus: handleCommit commit final block is nil", "no", commit.View.Sequence, "round", commit.View.Round, "self", c.address.Hex())
 			return err
 		}
 		log.Info("ibftConsensus: handleCommit commit",
