@@ -34,6 +34,10 @@ import (
 
 func (c *core) sendCommit() {
 	sub := c.current.Subject()
+	if c.backend.GetFinalHeight() >= sub.View.Sequence.Uint64() {
+		return
+	}
+	c.backend.SetFinalHeight(sub.View.Sequence.Uint64())
 	log.Info("ibftConsensus: sendCommit",
 		"no", sub.View.Sequence.Uint64(),
 		"round", sub.View.Round.String(),

@@ -70,6 +70,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
 		notifyBlockCh:    make(chan *types.OnlineValidatorList, 1),
+		finaleHeight:     0,
 	}
 
 	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
@@ -86,6 +87,7 @@ type Backend struct {
 	proposerBlock *types.Block
 	proposerState *state.StateDB
 	finaleBlock   *types.Block
+	finaleHeight  uint64
 
 	privateKey *ecdsa.PrivateKey
 	address    common.Address
@@ -158,6 +160,14 @@ func (sb *Backend) GetProposerCh() chan *types.ProposerBlock {
 
 func (sb *Backend) GetEnqueueCh() chan *types.Block {
 	return sb.enqueueCh
+}
+
+func (sb *Backend) SetFinalHeight(pHeight uint64) {
+	sb.finaleHeight = pHeight
+}
+
+func (sb *Backend) GetFinalHeight() uint64 {
+	return sb.finaleHeight
 }
 
 func (sb *Backend) ValidatorExist(address common.Address) (bool, error) {

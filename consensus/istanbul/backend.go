@@ -35,6 +35,8 @@ type Backend interface {
 	GetProposerState() *state.StateDB
 	SetFinalBlock(pBlock *types.Block)
 	GetFinalBlock() *types.Block
+	GetFinalHeight() uint64
+	SetFinalHeight(pHeight uint64)
 	// Address returns the owner's address
 	Address() common.Address
 
