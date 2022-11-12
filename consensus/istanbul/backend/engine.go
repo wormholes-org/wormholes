@@ -349,13 +349,18 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 			Proposal: block,
 		})
 		proposerCommitData := new(types.ProposerBlock)
+		var engineFinalBlock *types.Block
 		for {
 
 			select {
 			case proposerCommit := <-sb.proposerCh:
 				proposerCommitData = proposerCommit
-			case sb.finaleBlock = <-sb.enqueueCh:
-				continue
+			case engineFinalBlock = <-sb.enqueueCh:
+				if sb.broadcaster != nil {
+					log.Info("validator engine final block", "no", engineFinalBlock.Number().Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", engineFinalBlock.Hash().Hex())
+					sb.broadcaster.Enqueue(fetcherID, engineFinalBlock)
+					return
+				}
 				/*
 					if enqueueBlock != nil {
 						//enqueueBlock.ReceivedFrom = proposerCommitData
