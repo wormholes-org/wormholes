@@ -31,7 +31,11 @@ import (
 func (c *core) sendPreprepare(request *istanbul.Request) {
 	logger := c.logger.New("state", c.state)
 	// If I'm the proposer and I have the same sequence with the proposal
-
+	if c.backend.GetFinalHeight() >= request.Proposal.Number().Uint64() {
+		log.Info("ibftConsensus: not sendPreprepare final height >= proposal number", "round", c.current.round.Uint64(), "isproposer", c.IsProposer(), "slef", c.address.Hex(),
+			"no", request.Proposal.Number().Uint64(), "finalHeight", c.backend.GetFinalHeight())
+		return
+	}
 	log.Info("ibftConsensus: sendPreprepare",
 		"no", request.Proposal.Number(), "no", c.current.sequence,
 		"round", c.current.round.Uint64(), "isproposer", c.IsProposer(), "slef", c.address.Hex())
