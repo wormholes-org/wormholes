@@ -88,7 +88,7 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 		return 0, istanbulcommon.ErrEmptyBlock
 	} else {
 		// verify the header of proposed block
-		err := e.VerifyHeader(chain, block.Header(), nil, validators)
+		err := e.VerifyProposalHeader(chain, block.Header(), nil, validators)
 		if err == nil || err == istanbulcommon.ErrEmptyCommittedSeals {
 			// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
 			return 0, nil
@@ -98,6 +98,78 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 		return 0, err
 	}
 
+}
+
+func (e *Engine) VerifyProposalHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
+	return e.verifyProposalHeader(chain, header, parents, validators)
+}
+func (e *Engine) verifyProposalHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
+	if header.Number == nil {
+		return istanbulcommon.ErrUnknownBlock
+	}
+
+	// Don't waste time checking blocks from the future (adjusting for allowed threshold)
+	adjustedTimeNow := time.Now().Add(time.Duration(e.cfg.AllowedFutureBlockTime) * time.Second).Unix()
+	if header.Time > uint64(adjustedTimeNow) {
+		return consensus.ErrFutureBlock
+	}
+
+	if _, err := types.ExtractIstanbulExtra(header); err != nil {
+		return istanbulcommon.ErrInvalidExtraDataFormat
+	}
+
+	if header.Nonce != (istanbulcommon.EmptyBlockNonce) && !bytes.Equal(header.Nonce[:], nonceAuthVote) && !bytes.Equal(header.Nonce[:], nonceDropVote) {
+		return istanbulcommon.ErrInvalidNonce
+	}
+
+	// Ensure that the mix digest is zero as we don't have fork protection currently
+	if header.MixDigest != types.IstanbulDigest {
+		return istanbulcommon.ErrInvalidMixDigest
+	}
+
+	// Ensure that the block doesn't contain any uncles which are meaningless in Istanbul
+	// if header.UncleHash != nilUncleHash {
+	// 	return istanbulcommon.ErrInvalidUncleHash
+	// }
+
+	// Ensure that the block's difficulty is meaningful (may not be correct at this point)
+	if header.Difficulty == nil || header.Difficulty.Cmp(istanbulcommon.DefaultDifficulty) != 0 {
+		return istanbulcommon.ErrInvalidDifficulty
+	}
+
+	return e.verifyProposalCascadingFields(chain, header, validators, parents)
+}
+
+func (e *Engine) verifyProposalCascadingFields(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet, parents []*types.Header) error {
+	// The genesis block is the always valid dead-end
+	number := header.Number.Uint64()
+	if number == 0 {
+		return nil
+	}
+
+	// Check parent
+	var parent *types.Header
+	if len(parents) > 0 {
+		parent = parents[len(parents)-1]
+	} else {
+		parent = chain.GetHeader(header.ParentHash, number-1)
+	}
+
+	// Ensure that the block's parent has right number and hash
+	if parent == nil || parent.Number.Uint64() != number-1 || parent.Hash() != header.ParentHash {
+		return consensus.ErrUnknownAncestor
+	}
+
+	// Ensure that the block's timestamp isn't too close to it's parent
+	if parent.Time+e.cfg.BlockPeriod > header.Time {
+		return istanbulcommon.ErrInvalidTimestamp
+	}
+
+	// Verify signer
+	if err := e.verifySigner(chain, header, parents, validators); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
