@@ -133,10 +133,14 @@ func (c *core) handleEvents() {
 				}
 
 			case istanbul.MessageEvent:
-				//If it is a normal node or not the validator of this round, gossip message directly
-				if err := c.handleMsg(ev.Payload); err == nil {
+				index, _ := c.valSet.GetByAddress(c.backend.Address())
+				if index < 0 {
+					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
+				} else if err := c.handleMsg(ev.Payload); err == nil {
 					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
 				}
+				//If it is a normal node or not the validator of this round, gossip message directly
+
 			case backlogEvent:
 				// No need to check signature for internal messages
 				if err := c.handleCheckedMsg(ev.msg, ev.src); err == nil {
