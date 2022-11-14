@@ -18,10 +18,11 @@ package backend
 
 import (
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/core/state"
 	"math/big"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/state"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -254,7 +255,7 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 				}
 				go p.SendQBFTConsensus(outboundCode, payload)
 			} else {
-				log.Info("carver|Gossip|istanbulMsg", "chain.current.no", sb.chain.CurrentHeader().Number.String(), "code", code)
+				//log.Info("carver|Gossip|istanbulMsg", "chain.current.no", sb.chain.CurrentHeader().Number.String(), "code", code)
 				go p.SendConsensus(istanbulMsg, payload)
 			}
 		}

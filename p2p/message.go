@@ -20,11 +20,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"io/ioutil"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -104,7 +105,7 @@ func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 		return err
 	}
 	err = w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: r})
-	log.Info("caver|writeMsg", "code", msgcode, "err", err)
+	//log.Info("caver|writeMsg", "code", msgcode, "err", err)
 	return err
 }
 
