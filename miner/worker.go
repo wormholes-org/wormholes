@@ -569,7 +569,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.chainHeadCh: start commit block", "no", head.Block.NumberU64())
 
 			if w.isRunning() {
-				//w.GossipOnlineProof()
+				w.GossipOnlineProof()
 				w.emptyTimestamp = time.Now().Unix()
 			}
 
@@ -598,7 +598,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// higher priced transactions. Disable this overhead for pending blocks.
 			if w.isRunning() {
 				log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
-				//w.GossipOnlineProof()
+				w.GossipOnlineProof()
 				commit(false, commitInterruptResubmit)
 			}
 			//log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1, "w.isRunning", w.isRunning())
