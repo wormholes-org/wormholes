@@ -159,7 +159,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 				if err != nil {
 					return err
 				}
-				c.finaleBlock, err = ibfttypes.Encode(deepBlk)
+				c.finaleBlock, err = ibfttypes.Encode(deepBlk.Header())
 				if err != nil {
 					return err
 				}
@@ -208,8 +208,8 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 		c.backend.GetProposerCh() <- curBlock
 		c.current.LockHash()
 		c.finaleBlock = msg.FinaleBlock
-		var fBlock *types.Block
-		err = msg.DecodeFinalBlock(&fBlock)
+		var fHeader *types.Header
+		err = msg.DecodeFinalBlock(&fHeader)
 		if err != nil {
 			log.Error("ibftConsensus: handleCommit commit final block is nil", "no", commit.View.Sequence, "round", commit.View.Round, "self", c.address.Hex())
 			return err
@@ -222,7 +222,9 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 			"self", c.address.Hex(),
 			"finalBlock", msg.FinaleBlock,
 		)
-		c.backend.GetEnqueueCh() <- fBlock
+		oldBlock := c.backend.GetProposerBlock()
+		newBlock := oldBlock.WithSeal(fHeader)
+		c.backend.GetEnqueueCh() <- newBlock
 		c.commit()
 	} else {
 		log.Error("ibftConsensus: handleCommit len(commitseals) < c.QuorumSize() err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())

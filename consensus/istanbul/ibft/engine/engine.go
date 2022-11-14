@@ -619,25 +619,25 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 	// 	return
 	// }
 
-	// if c, ok := chain.(*core.BlockChain); ok {
-	// 	// empty block  reduce 0.1weight and normal block add 0.5weight
-	// 	random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
-	// 	if err != nil {
-	// 		log.Error("Finalize : invalid validators", err.Error())
-	// 		return
-	// 	}
-	// 	if header.Coinbase == (common.Address{}) {
-	// 		// reduce 1 weight
-	// 		for _, v := range random11Validators.Validators {
-	// 			state.SubValidatorCoefficient(v.Address(), 10)
-	// 		}
-	// 	} else {
-	// 		// add 2 weight
-	// 		for _, v := range random11Validators.Validators {
-	// 			state.AddValidatorCoefficient(v.Addr, 20)
-	// 		}
-	// 	}
-	// }
+	if c, ok := chain.(*core.BlockChain); ok {
+		// empty block  reduce 0.1weight and normal block add 0.5weight
+		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		if err != nil {
+			log.Error("Finalize : invalid validators", err.Error())
+			return
+		}
+		if header.Coinbase == (common.Address{}) {
+			// reduce 1 weight
+			for _, v := range random11Validators.Validators {
+				state.SubValidatorCoefficient(v.Address(), 10)
+			}
+		} else {
+			// add 2 weight
+			for _, v := range random11Validators.Validators {
+				state.AddValidatorCoefficient(v.Addr, 20)
+			}
+		}
+	}
 
 	// log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 	// for _, addr := range istanbulExtra.ValidatorAddr {
@@ -663,25 +663,25 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	// 	return nil, err
 	// }
 
-	// if c, ok := chain.(*core.BlockChain); ok {
-	// 	// empty block  reduce 0.1weight and normal block add 0.5weight
-	// 	random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
-	// 	if err != nil {
-	// 		log.Error("FinalizeAndAssemble : invalid validators", err.Error())
-	// 		return nil, err
-	// 	}
-	// 	if header.Coinbase == (common.Address{}) {
-	// 		// reduce 1 weight
-	// 		for _, v := range random11Validators.Validators {
-	// 			state.SubValidatorCoefficient(v.Address(), 10)
-	// 		}
-	// 	} else {
-	// 		// add 2 weight
-	// 		for _, v := range random11Validators.Validators {
-	// 			state.AddValidatorCoefficient(v.Addr, 20)
-	// 		}
-	// 	}
-	// }
+	if c, ok := chain.(*core.BlockChain); ok {
+		// empty block  reduce 0.1weight and normal block add 0.5weight
+		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		if err != nil {
+			log.Error("FinalizeAndAssemble : invalid validators", err.Error())
+			return nil, err
+		}
+		if header.Coinbase == (common.Address{}) {
+			// reduce 1 weight
+			for _, v := range random11Validators.Validators {
+				state.SubValidatorCoefficient(v.Address(), 10)
+			}
+		} else {
+			// add 2 weight
+			for _, v := range random11Validators.Validators {
+				state.AddValidatorCoefficient(v.Addr, 20)
+			}
+		}
+	}
 
 	// log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 	// for _, addr := range istanbulExtra.ValidatorAddr {

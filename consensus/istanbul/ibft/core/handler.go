@@ -247,8 +247,11 @@ func (c *core) handleTimeoutMsg() {
 	// If we're not waiting for round change yet, we can try to catch up
 	// the max round with F+1 round change message. We only need to catch up
 	// if the max round is larger than current round.
+	if c.valSet == nil {
+		return
+	}
 	if !c.waitingForRoundChange {
-		maxRound := c.roundChangeSet.MaxRound(c.valSet.F() + 1)
+		maxRound := c.roundChangeSet.MaxRound(c.valSet.Copy().F() + 1)
 		if maxRound != nil && maxRound.Cmp(c.current.Round()) > 0 {
 			log.Info("ibftConsensus: handleTimeoutMsg  c.sendRoundChange(maxRound)", "no", c.current.Sequence().String(), "round", c.current.Round(), "self", c.address.Hex())
 			c.sendRoundChange(maxRound)
