@@ -36,9 +36,7 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			"no", request.Proposal.Number().Uint64(), "finalHeight", c.backend.GetFinalHeight())
 		return
 	}
-	log.Info("ibftConsensus: sendPreprepare",
-		"no", request.Proposal.Number(), "no", c.current.sequence,
-		"round", c.current.round.Uint64(), "isproposer", c.IsProposer(), "slef", c.address.Hex())
+
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
 		preprepare, err := ibfttypes.Encode(&istanbul.Preprepare{
@@ -54,6 +52,7 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			"round", curView.Round,
 			"author", c.address.Hex(),
 			"hash", request.Proposal.Hash().Hex(),
+			"isproposer", c.IsProposer(),
 			"self", c.address.Hex())
 		c.broadcast(&ibfttypes.Message{
 			Code: ibfttypes.MsgPreprepare,
