@@ -369,7 +369,7 @@ func (e *Engine) verifyOnlineSeals(chain consensus.ChainHeaderReader, header *ty
 	}
 	onlineSeal := extra.OnlineSeal
 
-	log.Info("verifyOnlineSeals onlineSeal", "no", header.Number, "hash", header.Hash(), "coinbase", header.Coinbase, "onlineSeal", onlineSeal)
+	//log.Info("verifyOnlineSeals onlineSeal", "no", header.Number, "hash", header.Hash(), "coinbase", header.Coinbase, "onlineSeal", onlineSeal)
 	var commitSeals *types.ProposerBlock
 	var committers []common.Address
 	err2 := rlp.DecodeBytes(onlineSeal, &commitSeals)
@@ -378,7 +378,7 @@ func (e *Engine) verifyOnlineSeals(chain consensus.ChainHeaderReader, header *ty
 		return nil
 	}
 	if commitSeals != nil {
-		log.Info("verifyOnlineSeals commitSeals info", "round", commitSeals.Round, "sequence", commitSeals.Sequence, "commit", commitSeals.Commit, "digies", commitSeals.Digest)
+		//log.Info("verifyOnlineSeals commitSeals info", "round", commitSeals.Round, "sequence", commitSeals.Sequence, "commit", commitSeals.Commit, "digies", commitSeals.Digest)
 
 		var msgs []*ibfttypes.Message
 		err := rlp.DecodeBytes(commitSeals.Commit, &msgs)

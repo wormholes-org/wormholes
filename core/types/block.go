@@ -116,7 +116,6 @@ func (h *Header) Hash() common.Hash {
 		log.Info("MixDigest", "time", time.Now().Unix())
 		// Seal is reserved in extra-data. To prove block is signed by the proposer.
 		if istanbulHeader := FilteredHeader(h); istanbulHeader != nil {
-			log.Info("istanbulHeader", "time", time.Now().Unix(), "Extra", h.Extra, "rlpHash(istanbulHeader):", rlpHash(istanbulHeader))
 			return rlpHash(istanbulHeader)
 		}
 	}
