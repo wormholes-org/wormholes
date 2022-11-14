@@ -218,14 +218,10 @@ func handleMessage(backend Backend, peer *Peer) error {
 	// Read the next message from the remote peer, and ensure it's fully consumed
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
-		log.Error("handleMsg err", "err", err.Error())
-		return nil
-		//return err
+		return err
 	}
 	if msg.Size > maxMessageSize {
-		log.Error("handleMsg max size", "err", errMsgTooLarge.Error())
-		return nil
-		//return fmt.Errorf("%w: %v > %v", errMsgTooLarge, msg.Size, maxMessageSize)
+		return fmt.Errorf("%w: %v > %v", errMsgTooLarge, msg.Size, maxMessageSize)
 	}
 	defer msg.Discard()
 
