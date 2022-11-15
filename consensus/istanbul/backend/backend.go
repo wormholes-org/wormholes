@@ -208,7 +208,7 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			sb.recentMessages.Add(addr, m)
 
 			miniredis.GetLogCh() <- map[string]interface{}{
-				fmt.Sprintf("t %v", time.Now().UTC().UnixNano()): sb.address.Hex()+" "+addr.Hex(),
+				sb.address.Hex()+" "+addr.Hex(): fmt.Sprintf("t %v", time.Now().UTC().UnixNano()),
 			}
 
 			if sb.IsQBFTConsensus() {

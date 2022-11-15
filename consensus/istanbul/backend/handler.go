@@ -75,7 +75,7 @@ func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	defer sb.coreMu.Unlock()
 
 	miniredis.GetLogCh() <- map[string]interface{}{
-		fmt.Sprintf("t %v",time.Now().UTC().UnixNano()): addr.Hex()+" "+sb.address.Hex(),
+		addr.Hex()+" "+sb.address.Hex(): fmt.Sprintf("t %v",time.Now().UTC().UnixNano()),
 	}
 
 	if _, ok := qbfttypes.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {
