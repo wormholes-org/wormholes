@@ -25,6 +25,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -357,6 +358,8 @@ func (w *worker) start() {
 func (w *worker) stop() {
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
 		istanbul.Stop()
+	}else{
+		fmt.Println("======================",ok)
 	}
 	atomic.StoreInt32(&w.running, 0)
 }

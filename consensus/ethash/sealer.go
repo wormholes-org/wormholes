@@ -470,3 +470,7 @@ func (ethash *Ethash) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, 
 	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
 }
+
+func (ethash *Ethash) ConsensusInfo() map[string]interface{} {
+	return nil
+}

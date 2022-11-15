@@ -360,7 +360,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 // APIs returns the RPC APIs this consensus engine provides.
 func (sb *Backend) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	return []rpc.API{{
-		Namespace: "istanbul",
+		Namespace: "dre",
 		Version:   "1.0",
 		Service:   &API{chain: chain, backend: sb},
 		Public:    true,
@@ -792,3 +792,17 @@ func (sb *Backend) GossipOnlineProof(chain consensus.ChainHeaderReader, block *t
 func (sb *Backend) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	return sb.EngineForBlockNumber(header.Number).FinalizeOnlineProofBlk(chain, header, state, txs, uncles, receipts)
 }
+
+func (sb *Backend) ConsensusInfo() map[string]interface{} {
+	ibftCore := sb.GetCore()
+	if ibftCore != nil {
+		data := ibftCore.ConsensusInfo()
+		if len(data)>0 {
+			return <- data
+		}else{
+			return nil
+		}
+	}
+	return nil
+}
+

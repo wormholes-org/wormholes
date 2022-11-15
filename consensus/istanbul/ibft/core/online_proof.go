@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
@@ -81,7 +80,19 @@ func (c *core) handleOnlineProof(msg *ibfttypes.Message, src istanbul.Validator)
 	} else {
 		return errors.New("This address is already online")
 	}
-
+/*
+	consensusData := ConsensusData{
+		Height: c.currentView().Sequence.String(),
+		OnlineValidators: map[common.Address]OnlineValidatorDetail{
+			c.address: {
+			strconv.FormatInt(time.Now().UnixNano()/1e6, 10),
+			onlineValidators.Size(),
+			onlineValidators.Validators,
+			},
+		},
+	}
+	c.SaveData(consensusData)
+	*/
 	//c.onlineProofs[c.current.sequence.Uint64()] = tempMessageSet
 	log.Info("ibftConsensus: onlineProofs",
 		"no", c.currentView().Sequence,

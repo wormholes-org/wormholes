@@ -186,28 +186,29 @@ func (list *InjectedOfficialNFTList) MaxIndex() *big.Int {
 // Wormholes struct for handling NFT transactions
 type Wormholes struct {
 	Type         uint8  `json:"type"`
-	NFTAddress   string `json:"nft_address"`
-	ProxyAddress string `json:"proxy_address"`
-	ProxySign    string `json:"proxy_sign"`
-	Exchanger    string `json:"exchanger"`
-	Royalty      uint32 `json:"royalty"`
-	MetaURL      string `json:"meta_url"`
+	NFTAddress   string `json:"nft_address,omitempty"`
+	ProxyAddress string `json:"proxy_address,omitempty"`
+	ProxySign    string `json:"proxy_sign,omitempty"`
+	Exchanger    string `json:"exchanger,omitempty"`
+	Royalty      uint32 `json:"royalty,omitempty"`
+	MetaURL      string `json:"meta_url,omitempty"`
 	//ApproveAddress string		`json:"approve_address"`
-	FeeRate       uint32           `json:"fee_rate"`
-	Name          string           `json:"name"`
-	Url           string           `json:"url"`
-	Dir           string           `json:"dir"`
-	StartIndex    string           `json:"start_index"`
-	Number        uint64           `json:"number"`
-	Buyer         Payload          `json:"buyer"`
-	Seller1       Payload          `json:"seller1"`
-	Seller2       MintSellPayload  `json:"seller2"`
-	ExchangerAuth ExchangerPayload `json:"exchanger_auth"`
-	Creator       string           `json:"creator"`
-	Version       string           `json:"version"`
-	RewardFlag    uint8            `json:"reward_flag"`
+	FeeRate       uint32           `json:"fee_rate,omitempty"`
+	Name          string           `json:"name,omitempty"`
+	Url           string           `json:"url,omitempty"`
+	Dir           string           `json:"dir,omitempty"`
+	StartIndex    string           `json:"start_index,omitempty"`
+	Number        uint64           `json:"number,omitempty"`
+	Buyer         Payload          `json:"buyer,omitempty"`
+	Seller1       Payload          `json:"seller1,omitempty"`
+	Seller2       MintSellPayload  `json:"seller2,omitempty"`
+	ExchangerAuth ExchangerPayload `json:"exchanger_auth,omitempty"`
+	Creator       string           `json:"creator,omitempty"`
+	Version       string           `json:"version,omitempty"`
+	RewardFlag    uint8            `json:"reward_flag,omitempty"`
 }
 
+const WormholesVersion = "v0.0.1"
 //var PattenAddr = "^0[xX][0-9a-fA-F]{40}$"
 //var PattenHex = "^[0-9a-fA-F]+$"
 func (w *Wormholes) CheckFormat() error {
