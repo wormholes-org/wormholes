@@ -781,9 +781,11 @@ func (w *worker) taskLoop() {
 			if sealHash == prev {
 				continue
 			}
-			if w.prevHeight >= task.block.NumberU64() {
-				continue
-			}
+			/*
+				if w.prevHeight >= task.block.NumberU64() {
+					continue
+				}
+			*/
 			// Interrupt previous sealing operation
 			interrupt()
 			stopCh, prev, w.prevHeight = make(chan struct{}), sealHash, task.block.NumberU64()
