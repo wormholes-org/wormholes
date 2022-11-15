@@ -17,11 +17,12 @@
 package core
 
 import (
-	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"math"
 	"math/big"
 	"sync"
 	"time"
+
+	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -289,13 +290,5 @@ func PrepareCommittedSeal(header *types.Header, round uint32) []byte {
 }
 
 func (c *core) RoundInfo() []string {
-	return nil
-}
-
-func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
-	return nil
-}
-
-func (c *core) GetOnlineProofsMu() *sync.Mutex {
 	return nil
 }

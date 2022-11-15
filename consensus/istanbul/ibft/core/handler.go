@@ -17,13 +17,10 @@
 package core
 
 import (
-	"sync"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -121,16 +118,6 @@ func (c *core) handleEvents() {
 				if err == istanbulcommon.ErrFutureMessage {
 					c.storeRequestMsg(r)
 				}
-			case istanbul.OnlineProofEvent:
-				o := &istanbul.OnlineProofRequest{
-					Proposal:   ev.Proposal,
-					RandomHash: ev.RandomHash,
-					Version:    ev.Version,
-				}
-				err := c.handleOnlineProofRequest(o)
-				if err == istanbulcommon.ErrFutureMessage {
-					c.storeOnlineProofRequestMsg(o)
-				}
 
 			case istanbul.MessageEvent:
 				index, _ := c.valSet.GetByAddress(c.backend.Address())
@@ -184,15 +171,6 @@ func (c *core) handleMsg(payload []byte) error {
 	// Decode message and check its signature
 	msg := new(ibfttypes.Message)
 	if err := msg.FromPayload(payload, c.validateFn); err != nil {
-		if msg.Code == ibfttypes.MsgOnlineProof {
-			if ok, _ := c.validateExistFn(msg.Address); ok {
-				curAddress := OnlineValidator{}
-				curAddress.addr = msg.Address
-				return c.handleOnlineProof(msg, &curAddress)
-			} else {
-				log.Info("handleMsg MsgOnlineProof validator not exist", "addr", msg.Address)
-			}
-		}
 		logger.Error("Failed to decode message from payload", "err", err)
 		return err
 	}
@@ -221,9 +199,6 @@ func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) 
 	}
 
 	switch msg.Code {
-	case ibfttypes.MsgOnlineProof:
-		err := c.handleOnlineProof(msg, src)
-		return testBacklog(err)
 	case ibfttypes.MsgPreprepare:
 		err := c.handlePreprepare(msg, src)
 		return testBacklog(err)
@@ -269,12 +244,4 @@ func (c *core) handleTimeoutMsg() {
 			"no", c.currentView().Sequence, "round", c.currentView().Round.String(), "self", c.address.Hex())
 		c.sendNextRoundChange()
 	}
-}
-
-func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
-	return c.onlineProofs
-}
-
-func (c *core) GetOnlineProofsMu() *sync.Mutex {
-	return c.onlineProofsMu
 }

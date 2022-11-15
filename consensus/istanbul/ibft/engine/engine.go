@@ -445,23 +445,6 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
-	// var onlineValidators []common.Address
-	// ibftCore := e.backend.GetCore()
-	// if ibftCore != nil {
-	// 	ibftCore.GetOnlineProofsMu().Lock()
-	// 	vals := ibftCore.GetOnlineValidators()
-	// 	if _, ok := vals[header.Number.Uint64()]; ok {
-	// 		for _, v := range vals[header.Number.Uint64()].Validators {
-	// 			onlineValidators = append(onlineValidators, v.Address)
-	// 		}
-	// 	}
-	// 	ibftCore.GetOnlineProofsMu().Unlock()
-	// }
-
-	// for _, v := range onlineValidators {
-	// 	log.Info("Prepare: onlineValidators", "no", header.Number, "onlineValidators", v)
-	// }
-
 	header.Nonce = istanbulcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
 

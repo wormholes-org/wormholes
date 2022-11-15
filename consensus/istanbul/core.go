@@ -2,10 +2,8 @@ package istanbul
 
 import (
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Core interface {
@@ -22,8 +20,5 @@ type Core interface {
 	IsCurrentProposal(blockHash common.Hash) bool
 
 	RoundInfo() []string
-
-	GetOnlineValidators() map[uint64]*types.OnlineValidatorList
-	GetOnlineProofsMu() *sync.Mutex
 	GetCommitMsg() ibfttypes.Message
 }
