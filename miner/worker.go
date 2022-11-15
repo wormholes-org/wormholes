@@ -781,11 +781,10 @@ func (w *worker) taskLoop() {
 			if sealHash == prev {
 				continue
 			}
-			/*
-				if w.prevHeight >= task.block.NumberU64() {
-					continue
-				}
-			*/
+
+			if w.prevHeight >= task.block.NumberU64() {
+				continue
+			}
 			// Interrupt previous sealing operation
 			interrupt()
 			stopCh, prev, w.prevHeight = make(chan struct{}), sealHash, task.block.NumberU64()
@@ -1600,19 +1599,22 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	commitUncles(w.localUncles)
 	commitUncles(w.remoteUncles)
 
-	// Create an empty block based on temporary copied state for
-	// sealing in advance without waiting block execution finished.
-	if !noempty && atomic.LoadUint32(&w.noempty) == 0 {
-		//deep, err := w.chain.ReadOfficialNFTPool(w.chain.CurrentHeader())
-		//fmt.Println("deep", deep, "err", err)
-		w.commit(uncles, nil, false, tstart)
-	}
-	// Fill the block with all available pending transactions.
 	pending, err := w.eth.TxPool().Pending(true)
 	if err != nil {
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return
 	}
+	// Create an empty block based on temporary copied state for
+	// sealing in advance without waiting block execution finished.
+	if !noempty && atomic.LoadUint32(&w.noempty) == 0 {
+		//deep, err := w.chain.ReadOfficialNFTPool(w.chain.CurrentHeader())
+		//fmt.Println("deep", deep, "err", err)
+		if len(pending) == 0 {
+			w.commit(uncles, nil, false, tstart)
+		}
+	}
+	// Fill the block with all available pending transactions.
+
 	// Short circuit if there is no available pending transactions.
 	// But if we disable empty precommit already, ignore it. Since
 	// empty block is necessary to keep the liveness of the network.
