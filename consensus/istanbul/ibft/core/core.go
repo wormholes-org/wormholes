@@ -307,7 +307,7 @@ func (c *core) startNewRound(round *big.Int) {
 		}
 		roundChange = true
 	} else {
-		log.Warn("ibf`tConsensus: New sequence should be larger than current sequence", "no", lastProposal.Number().Int64()+1, "self", c.address.Hex())
+		log.Warn("ibftConsensus: New sequence should be larger than current sequence", "no", lastProposal.Number().Int64()+1, "self", c.address.Hex())
 		return
 	}
 
