@@ -77,6 +77,9 @@ var (
 	// maximum allowance of the current block.
 	ErrGasLimit = errors.New("exceeds block gas limit")
 
+	// ErrZeroGas is returned if a transaction's with zero gas.
+	ErrZeroGas = errors.New("0 gas transaction")
+
 	// ErrNegativeValue is a sanity error to ensure no one is able to specify a
 	// transaction with a negative value.
 	ErrNegativeValue = errors.New("negative value")
@@ -586,6 +589,11 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// transactions but may occur if you create a transaction using the RPC.
 	if tx.Value().Sign() < 0 {
 		return ErrNegativeValue
+	}
+	// Ensure the transaction no zero gas.
+	if tx.Gas() <= 0 {
+		log.Trace("0 gas")
+		return ErrZeroGas
 	}
 	// Ensure the transaction doesn't exceed the current block limit gas.
 	if pool.currentMaxGas < tx.Gas() {
