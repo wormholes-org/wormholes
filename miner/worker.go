@@ -569,6 +569,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.chainHeadCh: start commit block", "no", head.Block.NumberU64())
 
 			if w.isRunning() {
+				//w.GossipOnlineProof()
 				w.emptyTimestamp = time.Now().Unix()
 			}
 
@@ -597,6 +598,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// higher priced transactions. Disable this overhead for pending blocks.
 			if w.isRunning() {
 				log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+				//w.GossipOnlineProof()
 				commit(false, commitInterruptResubmit)
 			}
 			//log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1, "w.isRunning", w.isRunning())
@@ -1709,6 +1711,42 @@ func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }
 
+func (w *worker) GossipOnlineProof() error {
+	log.Info("GossipOnlineProof : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
+
+	parent := w.chain.CurrentBlock()
+
+	num := parent.Number()
+	header := &types.Header{
+		ParentHash: parent.Hash(),
+		Number:     num.Add(num, common.Big1),
+		GasLimit:   21000,
+		Extra:      w.extra,
+		Time:       10000,
+	}
+
+	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
+
+	//if err := w.engine.Prepare(w.chain, header); err != nil {
+	//	return errors.New("GossipOnlineProof : Failed to prepare header for mining")
+	//}
+
+	err := w.makeProofCurrent(parent, header)
+	if err != nil {
+		return errors.New("GossipOnlineProof : Failed to create mining context")
+	}
+
+	// receipts := copyReceipts(w.current.receipts)
+	s := w.proofcurrent.state.Copy()
+	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.proofcurrent.header, s, w.proofcurrent.txs, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	w.engine.GossipOnlineProof(w.chain, block)
+
+	return nil
+}
 func (w *worker) targetSize() *big.Int {
 	return w.cerytify.stakers.TargetSize()
 }
