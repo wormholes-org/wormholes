@@ -18,6 +18,7 @@ package core
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -28,11 +29,29 @@ import (
 
 func (c *core) sendCommit() {
 	sub := c.current.Subject()
+	consensusData := ConsensusData{
+		Height: sub.View.Sequence.String(),
+		Rounds: map[int64]RoundInfo{
+			sub.View.Round.Int64(): {
+				Method:     "sendCommit",
+				Timestamp:  time.Now().UnixNano(),
+				Sender:     c.address,
+				Sequence:   sub.View.Sequence.Uint64(),
+				Round:      sub.View.Round.Int64(),
+				Hash:       sub.Digest,
+				Miner:	    c.valSet.GetProposer().Address(),
+				Error:      nil,
+				IsProposal: c.IsProposer(),
+			},
+		},
+	}
+	c.SaveData(consensusData)
 	log.Info("ibftConsensus: sendCommit",
 		"no", sub.View.Sequence.Uint64(),
 		"round", sub.View.Round.String(),
 		"hash", sub.Digest.Hex(),
 		"self", c.Address().Hex())
+
 	c.broadcastCommit(sub)
 }
 
@@ -62,6 +81,26 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	// Decode COMMIT message
 	var commit *istanbul.Subject
 	err := msg.Decode(&commit)
+	roundInfo := RoundInfo{
+		Method:     "handleCommit",
+		Timestamp:  time.Now().UnixNano(),
+		Sender:	    src.Address(),
+		Receiver:   c.address,
+		Sequence:   commit.View.Sequence.Uint64(),
+		Round:      commit.View.Round.Int64(),
+		Hash:       commit.Digest,
+		Miner:	    c.valSet.GetProposer().Address(),
+		Error:	    err,
+		IsProposal: c.IsProposer(),
+	}
+
+	consensusData := ConsensusData{
+		Height: commit.View.Sequence.String(),
+		Rounds: map[int64]RoundInfo{
+			commit.View.Round.Int64(): roundInfo,
+		},
+	}
+	c.SaveData(consensusData)
 	if err != nil {
 		log.Error("ibftConsensus: handleCommit Decodecommit  err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
 		return istanbulcommon.ErrFailedDecodeCommit
@@ -73,18 +112,36 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 		"hash", commit.Digest.Hex(),
 		"self", c.Address().Hex())
 
-	if err := c.checkMessage(ibfttypes.MsgCommit, commit.View); err != nil {
+	err = c.checkMessage(ibfttypes.MsgCommit, commit.View)
+	roundInfo.Method = "handleCommit checkMessage"
+	roundInfo.Timestamp = time.Now().UnixNano()
+	roundInfo.Error = err
+	consensusData.Rounds = map[int64]RoundInfo{
+                        commit.View.Round.Int64(): roundInfo,
+                }
+	c.SaveData(consensusData)
+	if err != nil {
 		log.Error("ibftConsensus: handleCommit checkMessage", "no", commit.View.Sequence,
 			"round", commit.View.Round,
 			"who", c.address.Hex(),
 			"hash", commit.Digest.Hex(),
 			"self", c.address.Hex(),
 			"err", err.Error())
+
 		return err
 	}
 
-	if err := c.verifyCommit(commit, src); err != nil {
+	err = c.verifyCommit(commit, src)
+	roundInfo.Method = "handleCommit verify"
+        roundInfo.Timestamp = time.Now().UnixNano()
+        roundInfo.Error = err
+	consensusData.Rounds = map[int64]RoundInfo{
+                        commit.View.Round.Int64(): roundInfo,
+                }
+        c.SaveData(consensusData)
+	if err != nil {
 		log.Error("ibftConsensus: handleCommit verifyCommit", "no", commit.View.Sequence, "round", commit.View.Round, "self", c.address.Hex(), "hash", commit.Digest.Hex(), "err", err.Error())
+
 		return err
 	}
 
@@ -104,6 +161,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 			"self", c.address.Hex(),
 		)
 		c.current.LockHash()
+
 		c.commit()
 	}
 

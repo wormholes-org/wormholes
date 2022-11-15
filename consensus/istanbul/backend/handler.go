@@ -23,7 +23,9 @@ import (
 	"math/big"
 	"reflect"
 	"time"
+	"fmt"
 
+	"github.com/ethereum/go-ethereum/miniredis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -72,9 +74,8 @@ func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 
-	if key, now := addr.Hex()+sb.address.Hex(), time.Now(); now.Sub(lastMsgTime[key]) > 5*time.Second {
-		lastMsgTime[key] = now
-		sb.logger.Debug("consensus message receive", "sender", addr, "receiver", "code", msg.Code)
+	miniredis.GetLogCh() <- map[string]interface{}{
+		fmt.Sprintf("t %v",time.Now().UTC().UnixNano()): addr.Hex()+" "+sb.address.Hex(),
 	}
 
 	if _, ok := qbfttypes.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {

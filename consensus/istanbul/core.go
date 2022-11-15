@@ -22,6 +22,8 @@ type Core interface {
 
 	RoundInfo() []string
 
+	ConsensusInfo() chan map[string]interface{}
+
 	GetOnlineValidators() map[uint64]*types.OnlineValidatorList
 	GetOnlineProofsMu() *sync.Mutex
 }
