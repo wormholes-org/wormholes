@@ -214,9 +214,6 @@ type worker struct {
 	emptyHandleFlag bool
 	cacheHeight     *big.Int
 	emptyTimer      *time.Timer
-
-	//seal data
-	prevHeight uint64
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
@@ -251,7 +248,6 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
 		emptyTimestamp:     time.Now().Unix(),
 		emptyHandleFlag:    false,
-		prevHeight:         eth.BlockChain().CurrentBlock().NumberU64(),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -753,9 +749,11 @@ func (w *worker) mainLoop() {
 // push them to consensus engine.
 func (w *worker) taskLoop() {
 	var (
-		stopCh chan struct{}
-		prev   common.Hash
+		stopCh     chan struct{}
+		prev       common.Hash
+		prevHeight uint64
 	)
+	prevHeight = 0
 	// interrupt aborts the in-flight sealing task.
 	interrupt := func() {
 		if stopCh != nil {
@@ -781,12 +779,12 @@ func (w *worker) taskLoop() {
 			if sealHash == prev {
 				continue
 			}
-			if w.prevHeight >= task.block.NumberU64() {
+			if prevHeight >= task.block.NumberU64() {
 				continue
 			}
 			// Interrupt previous sealing operation
 			interrupt()
-			stopCh, prev, w.prevHeight = make(chan struct{}), sealHash, task.block.NumberU64()
+			stopCh, prev, prevHeight = make(chan struct{}), sealHash, task.block.NumberU64()
 
 			if w.skipSealHook != nil && w.skipSealHook(task) {
 				continue
@@ -1522,9 +1520,6 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		GasLimit:   core.CalcGasLimit(parent.GasLimit(), w.config.GasCeil),
 		Extra:      w.extra,
 		Time:       uint64(timestamp),
-	}
-	if header.Number.Uint64() <= w.prevHeight {
-		return
 	}
 	// Set baseFee and GasLimit if we are on an EIP-1559 chain
 	if w.chainConfig.IsLondon(header.Number) {
