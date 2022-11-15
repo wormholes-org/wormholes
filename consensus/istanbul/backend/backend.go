@@ -21,7 +21,9 @@ import (
 	"math/big"
 	"sync"
 	"time"
+	"fmt"
 
+	"github.com/ethereum/go-ethereum/miniredis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -174,6 +176,7 @@ func (sb *Backend) Broadcast(valSet istanbul.ValidatorSet, code uint64, payload 
 	return nil
 }
 
+
 func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
@@ -203,6 +206,10 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
+
+			miniredis.GetLogCh() <- map[string]interface{}{
+				sb.address.Hex()+" "+addr.Hex(): fmt.Sprintf("t %v", time.Now().UTC().UnixNano()),
+			}
 
 			if sb.IsQBFTConsensus() {
 				var outboundCode uint64 = istanbulMsg

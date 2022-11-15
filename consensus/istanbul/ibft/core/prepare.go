@@ -17,6 +17,7 @@
 package core
 
 import (
+	"time"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -30,6 +31,23 @@ func (c *core) sendPrepare() {
 
 	sub := c.current.Subject()
 	encodedSubject, err := ibfttypes.Encode(sub)
+	consensusData := ConsensusData{
+		Height: sub.View.Sequence.String(),
+		Rounds: map[int64]RoundInfo{
+			sub.View.Round.Int64(): {
+				Method:     "sendPrepare",
+				Timestamp:  time.Now().UnixNano(),
+				Sender:     c.address,
+				Sequence:   sub.View.Sequence.Uint64(),
+				Round:      sub.View.Round.Int64(),
+				Hash:       sub.Digest,
+				Miner:	    c.valSet.GetProposer().Address(),
+				Error:      err,
+				IsProposal: c.IsProposer(),
+			},
+		},
+	}
+	c.SaveData(consensusData)
 	if err != nil {
 		logger.Error("Failed to encode", "subject", sub)
 		return
@@ -40,6 +58,7 @@ func (c *core) sendPrepare() {
 		"round", sub.View.Round.String(),
 		"hash", sub.Digest.Hex(),
 		"self", c.Address().Hex())
+
 	c.broadcast(&ibfttypes.Message{
 		Code: ibfttypes.MsgPrepare,
 		Msg:  encodedSubject,
@@ -50,6 +69,26 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 	// Decode PREPARE message
 	var prepare *istanbul.Subject
 	err := msg.Decode(&prepare)
+	roundInfo := RoundInfo{
+		Method:     "handlePrepare",
+		Timestamp:  time.Now().UnixNano(),
+		Sender:	    src.Address(),
+		Receiver:   c.address,
+		Sequence:   prepare.View.Sequence.Uint64(),
+		Round:      prepare.View.Round.Int64(),
+		Hash:       prepare.Digest,
+		Miner:      c.valSet.GetProposer().Address(),
+		Error:	    err,
+		IsProposal: c.IsProposer(),
+	}
+
+	consensusData := ConsensusData{
+		Height: prepare.View.Sequence.String(),
+		Rounds: map[int64]RoundInfo{
+			prepare.View.Round.Int64(): roundInfo,
+		},
+	}
+	c.SaveData(consensusData)
 	if err != nil {
 		return istanbulcommon.ErrFailedDecodePrepare
 	}
@@ -60,7 +99,15 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 		"hash", prepare.Digest.Hex(),
 		"slef", c.address.Hex())
 
-	if err := c.checkMessage(ibfttypes.MsgPrepare, prepare.View); err != nil {
+	err = c.checkMessage(ibfttypes.MsgPrepare, prepare.View)
+	roundInfo.Method = "HandlePrepare checkMessage"
+	roundInfo.Timestamp = time.Now().UnixNano()
+	roundInfo.Error = err
+	consensusData.Rounds = map[int64]RoundInfo{
+                        prepare.View.Round.Int64(): roundInfo,
+                }
+	c.SaveData(consensusData)
+	if err != nil {
 		log.Error("ibftConsensus: handlePrepare checkMessage",
 			"no", prepare.View.Sequence,
 			"round", prepare.View.Round,
@@ -68,18 +115,28 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 			"hash", prepare.Digest.Hex(),
 			"self", c.address.Hex(),
 			"err", err.Error())
+
 		return err
 	}
 
 	// If it is locked, it can only process on the locked block.
 	// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepared state.
-	if err := c.verifyPrepare(prepare, src); err != nil {
+	err = c.verifyPrepare(prepare, src)
+	roundInfo.Method = "handlePrepare verify"
+	roundInfo.Timestamp = time.Now().UnixNano()
+	roundInfo.Error = err
+	consensusData.Rounds = map[int64]RoundInfo{
+                        prepare.View.Round.Int64(): roundInfo,
+                }
+	c.SaveData(consensusData)
+	if err != nil {
 		log.Info("ibftConsensus: handlePrepare verifyPrepare",
 			"no", prepare.View.Sequence,
 			"round", prepare.View.Round.String(),
 			"hash", prepare.Digest.Hex(),
 			"self", c.address.Hex(),
 			"err", err)
+
 		return err
 	}
 
@@ -97,6 +154,7 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 			"hash", prepare.Digest.Hex(),
 			"self", c.address.Hex(),
 		)
+
 		c.sendCommit()
 	}
 

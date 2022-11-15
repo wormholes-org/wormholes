@@ -44,6 +44,7 @@ type Account struct {
 	BlockNumber      *big.Int
 	ExchangerBalance *big.Int
 	VoteWeight       *big.Int
+	Coefficient      uint8
 	// The ratio that exchanger get.
 	FeeRate       uint32
 	ExchangerName string
@@ -55,6 +56,7 @@ type Account struct {
 	// Indicates the reward method chosen by the miner
 	//RewardFlag uint8 // 0:SNFT 1:ERB default:0
 	AccountNFT
+	Extra []byte
 }
 type AccountNFT struct {
 	//Account
@@ -88,11 +90,13 @@ func SlimAccount(nonce uint64,
 	blocknumber *big.Int,
 	exchangerbalance *big.Int,
 	voteweight *big.Int,
+	coefficient uint8,
 	feerate uint32,
 	exchangername string,
 	exchangerurl string,
 	approveaddresslist []common.Address,
 	nftbalance uint64,
+	extra []byte,
 	name string,
 	symbol string,
 	//price *big.Int,
@@ -117,6 +121,7 @@ func SlimAccount(nonce uint64,
 		BlockNumber:        blocknumber,
 		ExchangerBalance:   exchangerbalance,
 		VoteWeight:         voteweight,
+		Coefficient:        coefficient,
 		FeeRate:            feerate,
 		ExchangerName:      exchangername,
 		ExchangerURL:       exchangerurl,
@@ -148,6 +153,8 @@ func SlimAccount(nonce uint64,
 	if !bytes.Equal(codehash, emptyCode[:]) {
 		slim.CodeHash = codehash
 	}
+	slim.Extra = extra[:]
+
 	return slim
 }
 
@@ -165,11 +172,13 @@ func SlimAccountRLP(nonce uint64,
 	blocknumber *big.Int,
 	exchangerbalance *big.Int,
 	voteweight *big.Int,
+	coefficient uint8,
 	feerate uint32,
 	exchangername string,
 	exchangerurl string,
 	approveaddresslist []common.Address,
 	nftbalance uint64,
+	extra []byte,
 	name string,
 	symbol string,
 	//price *big.Int,
@@ -194,11 +203,13 @@ func SlimAccountRLP(nonce uint64,
 		blocknumber,
 		exchangerbalance,
 		voteweight,
+		coefficient,
 		feerate,
 		exchangername,
 		exchangerurl,
 		approveaddresslist,
 		nftbalance,
+		extra,
 		name,
 		symbol,
 		//price,

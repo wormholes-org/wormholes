@@ -65,12 +65,6 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 }
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
-	// Assemble the voting snapshot
-	//snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents)
-	//if err != nil {
-	//	return err
-	//}
-
 	if header.Number.Cmp(big.NewInt(0)) == 0 {
 		genesis := chain.GetHeaderByNumber(0)
 		if err := sb.EngineForBlockNumber(big.NewInt(0)).VerifyHeader(chain, genesis, nil, nil); err != nil {
@@ -79,10 +73,9 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		}
 	} else {
 		// Get the validatorset for this round
-		istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
-		if err1 != nil {
-			log.Info("caver|verifyHeader|ExtractIstanbulExtra", "no", header.Number, "err", err1.Error())
-			return err1
+		istanbulExtra, err := types.ExtractIstanbulExtra(header)
+		if err != nil {
+			return istanbulcommon.ErrInvalidExtraDataFormat
 		}
 		validators := istanbulExtra.Validators
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
@@ -102,6 +95,28 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 		errored := false
 		for i, header := range headers {
 			if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+				all, readeorrer := sb.chain.(*core.BlockChain).ReadValidatorPool(sb.chain.CurrentHeader())
+				if readeorrer != nil {
+					log.Info("VerifyHeadersAndcreaderr", "data:", readeorrer)
+					continue
+				}
+
+				istanbulExtra, checkerr := types.ExtractIstanbulExtra(header)
+				if checkerr != nil {
+					log.Info("VerifyHeadersAndcheckerr", "data:", checkerr)
+					continue
+				}
+				validators := istanbulExtra.Validators
+				log.Info("VerifyHeadersAndcheckerr", "validators", validators)
+				var total = big.NewInt(0)
+				for _, v := range validators {
+					balance := all.StakeBalance(v)
+					total.Add(total, balance)
+				}
+				if total.Cmp(all.TargetSize()) < 0 {
+					continue
+				}
+
 				var err error
 				err = nil
 				select {
@@ -244,11 +259,11 @@ func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *t
 	var emptyBlock *types.Block
 	header := block.Header()
 
-	if sb.core == nil {
-		return emptyBlock, errors.New("seal|ibft engine not active")
-	}
+	//if sb.core == nil {
+	//	return emptyBlock, errors.New("seal|ibft engine not active")
+	//}
 
-	log.Info("caver|SealforEmptyBlock|enter", "sealNo", block.Number().String(), "is proposer", sb.core.IsProposer())
+	//log.Info("caver|SealforEmptyBlock|enter", "sealNo", block.Number().String(), "is proposer", sb.core.IsProposer())
 
 	//Get the validatorset for this round
 	//istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
@@ -345,7 +360,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 // APIs returns the RPC APIs this consensus engine provides.
 func (sb *Backend) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	return []rpc.API{{
-		Namespace: "istanbul",
+		Namespace: "dre",
 		Version:   "1.0",
 		Service:   &API{chain: chain, backend: sb},
 		Public:    true,
@@ -777,3 +792,17 @@ func (sb *Backend) GossipOnlineProof(chain consensus.ChainHeaderReader, block *t
 func (sb *Backend) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	return sb.EngineForBlockNumber(header.Number).FinalizeOnlineProofBlk(chain, header, state, txs, uncles, receipts)
 }
+
+func (sb *Backend) ConsensusInfo() map[string]interface{} {
+	ibftCore := sb.GetCore()
+	if ibftCore != nil {
+		data := ibftCore.ConsensusInfo()
+		if len(data)>0 {
+			return <- data
+		}else{
+			return nil
+		}
+	}
+	return nil
+}
+

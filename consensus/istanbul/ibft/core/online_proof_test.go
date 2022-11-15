@@ -55,7 +55,7 @@ func TestExtractOnlineProof(t *testing.T) {
 
 	var onlineProofDec *istanbul.OnlineProof
 
-	err := rlp.DecodeBytes(payload, onlineProofDec)
+	err := rlp.DecodeBytes(payload, &onlineProofDec)
 	if err != nil {
 		fmt.Println("DecodeBytes err", "=======err:   ", err)
 	}

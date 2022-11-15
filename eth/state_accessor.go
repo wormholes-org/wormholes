@@ -217,11 +217,11 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		}
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+		nominatedOfficialNFT.Dir = types.DefaultDir
 		nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.OfficialNFTPool.MaxIndex())
-		nominatedOfficialNFT.Number = 4096
-		nominatedOfficialNFT.Royalty = 100
-		nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		nominatedOfficialNFT.Number = types.DefaultNumber
+		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
+		nominatedOfficialNFT.Creator = types.DefaultCreator
 		nominatedOfficialNFT.Address = common.Address{}
 		statedb.NominatedOfficialNFT = nominatedOfficialNFT
 	}

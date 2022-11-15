@@ -638,6 +638,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			BlockNumber      *big.Int
 			ExchangerBalance *big.Int
 			VoteWeight       *big.Int
+			Coefficient      uint8
 			// The ratio that exchanger get.
 			FeeRate       uint32
 			ExchangerName string
@@ -649,6 +650,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			//RewardFlag uint8
 			AccountNFT
 			//Owner common.Address
+			Extra []byte
 		}
 		if err := rlp.DecodeBytes(val, &acc); err != nil {
 			log.Crit("Invalid account encountered during snapshot creation", "err", err)
@@ -676,11 +678,13 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 					acc.BlockNumber,
 					acc.ExchangerBalance,
 					acc.VoteWeight,
+					acc.Coefficient,
 					acc.FeeRate,
 					acc.ExchangerName,
 					acc.ExchangerURL,
 					acc.ApproveAddressList,
 					acc.NFTBalance,
+					acc.Extra,
 					acc.Name,
 					acc.Symbol,
 					//acc.Price,

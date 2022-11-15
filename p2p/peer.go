@@ -295,6 +295,7 @@ func (p *Peer) pingLoop() {
 }
 
 func (p *Peer) readLoop(errc chan<- error) {
+	var cacheTime time.Time
 	defer p.wg.Done()
 	for {
 		msg, err := p.rw.ReadMsg()
@@ -306,6 +307,12 @@ func (p *Peer) readLoop(errc chan<- error) {
 			return
 		}
 		msg.ReceivedAt = time.Now()
+		sumH := time.Now().Sub(cacheTime)
+		if sumH.Seconds() >= 10 {
+			cacheTime = time.Now()
+			log.Info("incoming messages from ", "ip:", p.Node().IP())
+		}
+
 		if err = p.handle(msg); err != nil {
 			if msg.Code == 17 {
 				log.Info("caver|handleMsg|17", "msgCode", msg.Code, "err", err)
@@ -391,6 +398,23 @@ outer:
 }
 
 func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error) {
+	//go func() {
+	//	timeDuration := time.Duration(int(60))
+	//	outmapTimer := time.NewTimer(0)
+	//	defer outmapTimer.Stop()
+	//	<-outmapTimer.C // discard the initial tick
+	//	outmapTimer.Reset(timeDuration * time.Second)
+	//	for {
+	//		select {
+	//		case <-outmapTimer.C:
+	//			{
+	//				log.Info("out messages to ", "ip:", p.Node().IP())
+	//				outmapTimer.Reset(timeDuration * time.Second)
+	//			}
+	//		}
+	//
+	//	}
+	//}()
 	p.wg.Add(len(p.running))
 	for _, proto := range p.running {
 		proto := proto
@@ -443,7 +467,7 @@ func (rw *protoRW) WriteMsg(msg Msg) (err error) {
 	}
 	msg.meterCap = rw.cap()
 	msg.meterCode = msg.Code
-
+	log.Info("out messages to ", "ip:", rw.PeerInfo)
 	//log.Info("protoRW.WriteMsg()", "msg.Code", msg.Code, "proto.offset", rw.offset)
 
 	msg.Code += rw.offset

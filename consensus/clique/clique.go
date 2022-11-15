@@ -776,3 +776,7 @@ func (c *Clique) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *ty
 func (ethash *Clique) GossipOnlineProof(chain consensus.ChainHeaderReader, block *types.Block) error {
 	return nil
 }
+
+func (c *Clique) ConsensusInfo() map[string]interface{} {
+	return nil
+}

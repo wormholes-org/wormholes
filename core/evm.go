@@ -39,6 +39,8 @@ var ErrNotMatchAddress = errors.New("recovered address not match exchanger owner
 const InjectRewardRate = 1000 // InjectRewardRate is 10%
 var InjectRewardAddress = common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 
+const VALIDATOR_COEFFICIENT = 70
+
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
@@ -134,12 +136,13 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		NextIndex:                          NextIndex,
 		VoteOfficialNFTByApprovedExchanger: VoteOfficialNFTByApprovedExchanger,
 		//ChangeRewardFlag:                   ChangeRewardFlag,
-		PledgeNFT:                PledgeNFT,
-		CancelPledgedNFT:         CancelPledgedNFT,
-		GetMergeNumber:           GetMergeNumber,
-		GetPledgedFlag:           GetPledgedFlag,
-		GetNFTPledgedBlockNumber: GetNFTPledgedBlockNumber,
-		UnfrozenAccount:          UnfrozenAccount,
+		PledgeNFT:                   PledgeNFT,
+		CancelPledgedNFT:            CancelPledgedNFT,
+		GetMergeNumber:              GetMergeNumber,
+		GetPledgedFlag:              GetPledgedFlag,
+		GetNFTPledgedBlockNumber:    GetNFTPledgedBlockNumber,
+		UnfrozenAccount:             UnfrozenAccount,
+		RecoverValidatorCoefficient: RecoverValidatorCoefficient,
 	}
 }
 
@@ -1944,4 +1947,27 @@ func GetNFTPledgedBlockNumber(db vm.StateDB, nftaddress common.Address) *big.Int
 
 func UnfrozenAccount(db vm.StateDB, frozenInfo *types.FrozenAccount, blocknumber *big.Int) {
 	db.UnfrozenAccount(frozenInfo, blocknumber)
+}
+
+func RecoverValidatorCoefficient(db vm.StateDB, address common.Address) error {
+	balance := db.GetPledgedBalance(address)
+	if balance.Cmp(big.NewInt(0)) <= 0 {
+		return errors.New("not a validator")
+	}
+	coe := db.GetValidatorCoefficient(address)
+	if coe == 0 {
+		return errors.New("Get validator coefficient error")
+	}
+	needRecoverCoe := VALIDATOR_COEFFICIENT - coe
+	if needRecoverCoe > 0 {
+		recoverAmount := new(big.Int).Mul(big.NewInt(int64(needRecoverCoe)), big.NewInt(100000000000000000))
+		if db.GetBalance(address).Cmp(recoverAmount) < 0 {
+			return errors.New("insufficient balance for transfer")
+		}
+		db.SubBalance(address, recoverAmount)
+		db.AddBalance(common.HexToAddress("0x0000000000000000000000000000000000000000"), recoverAmount)
+		db.AddValidatorCoefficient(address, needRecoverCoe)
+	}
+
+	return nil
 }

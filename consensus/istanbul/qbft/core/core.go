@@ -293,3 +293,7 @@ func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
 func (c *core) GetOnlineProofsMu() *sync.Mutex {
 	return nil
 }
+
+func (c *core) ConsensusInfo() chan map[string]interface{} {
+	return nil
+}

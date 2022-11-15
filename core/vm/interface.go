@@ -124,6 +124,9 @@ type StateDB interface {
 	ElectNominatedOfficialNFT()
 	SubVoteWeight(common.Address, *big.Int)
 	AddVoteWeight(common.Address, *big.Int)
+	AddValidatorCoefficient(common.Address, uint8)
+	SubValidatorCoefficient(common.Address, uint8)
+	GetValidatorCoefficient(common.Address) uint8
 	NextIndex() *big.Int
 	PledgeNFT(common.Address, *big.Int)
 	CancelPledgedNFT(common.Address)

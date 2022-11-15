@@ -140,6 +140,8 @@ type Engine interface {
 
 	FinalizeOnlineProofBlk(chain ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 		uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error)
+
+	ConsensusInfo() map[string]interface{}
 }
 
 // Handler should be implemented is the consensus needs to handle and send peer's message

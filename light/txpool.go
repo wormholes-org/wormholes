@@ -498,7 +498,7 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 				return core.ErrInsufficientFunds
 			}
 			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-			Erb100 := big.NewInt(280)
+			Erb100 := big.NewInt(700)
 			Erb100.Mul(Erb100, baseErb)
 			if currentState.GetExchangerBalance(from).Cmp(new(big.Int).Add(tx.Value(), Erb100)) < 0 {
 				return core.ErrInsufficientFunds

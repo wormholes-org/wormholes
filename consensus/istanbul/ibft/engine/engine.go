@@ -3,6 +3,7 @@ package ibftengine
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"math/big"
 	"time"
 
@@ -306,6 +307,12 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") &&
+		header.Number.Cmp(common.Big0) > 0 {
+		return errors.New("not a normal block")
+	}
+
 	var onlineValidators []common.Address
 	ibftCore := e.backend.GetCore()
 	if ibftCore != nil {
@@ -398,20 +405,20 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Extra = extra
 
 	// set header's timestamp
-
-	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + 120
-	} else {
-		header.Time = parent.Time + e.cfg.BlockPeriod
-		if header.Time < uint64(time.Now().Unix()) {
-			header.Time = uint64(time.Now().Unix())
-		}
+	header.Time = parent.Time + e.cfg.BlockPeriod
+	if header.Time < uint64(time.Now().Unix()) {
+		header.Time = uint64(time.Now().Unix())
 	}
 
 	return nil
 }
 
 func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+
+	if header.Coinbase != common.HexToAddress("0x0000000000000000000000000000000000000000") {
+		return errors.New("not a empty block")
+	}
+
 	header.Nonce = istanbulcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
 
@@ -422,7 +429,12 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 		return consensus.ErrUnknownAncestor
 	}
 	// use the same difficulty for all blocks
-	header.Difficulty = istanbulcommon.DefaultDifficulty
+
+	// modification on 20221102 start
+	//header.Difficulty = istanbulcommon.DefaultDifficulty
+	header.Difficulty = big.NewInt(24)
+	// modification on 20221102 end
+
 	// add validators in snapshot to extraData's validators section
 	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil)
 	if err != nil {
@@ -432,9 +444,13 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 
 	// set header's timestamp
 
-	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + e.cfg.BlockPeriod
+	if header.Number.Cmp(common.Big0) > 0 {
+		header.Time = parent.Time + 120
+		if header.Time < uint64(time.Now().Unix()) {
+			header.Time = uint64(time.Now().Unix())
+		}
 	} else {
+		header.Time = parent.Time + e.cfg.BlockPeriod
 		if header.Time < uint64(time.Now().Unix()) {
 			header.Time = uint64(time.Now().Unix())
 		}
@@ -480,6 +496,26 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		return
 	}
 
+	if c, ok := chain.(*core.BlockChain); ok {
+		// empty block  reduce 0.1weight and normal block add 0.5weight
+		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		if err != nil {
+			log.Error("Finalize : invalid validators", err.Error())
+			return
+		}
+		if header.Coinbase == (common.Address{}) {
+			// reduce 1 weight
+			for _, v := range random11Validators.Validators {
+				state.SubValidatorCoefficient(v.Address(), 10)
+			}
+		} else {
+			// add 2 weight
+			for _, v := range random11Validators.Validators {
+				state.AddValidatorCoefficient(v.Addr, 20)
+			}
+		}
+	}
+
 	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
 	for _, addr := range istanbulExtra.ValidatorAddr {
 		log.Info("CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
@@ -498,20 +534,30 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	// ibftCore := e.backend.GetCore()
-	// if ibftCore != nil {
-	// 	onlineValidators := ibftCore.GetOnlineValidators()
-	// 	if _, ok := onlineValidators[header.Number.Uint64()]; ok {
-	// 		for _, v := range onlineValidators[header.Number.Uint64()].Validators {
-	// 			log.Info("FinalizeAndAssemble: onlineValidators", "no", header.Number, "onlineValidators", v.Address.Hex())
-	// 		}
-	// 	}
-	// }
-
 	// Prepare reward address
 	istanbulExtra, err := types.ExtractIstanbulExtra(header)
 	if err != nil {
 		return nil, err
+	}
+
+	if c, ok := chain.(*core.BlockChain); ok {
+		// empty block  reduce 0.1weight and normal block add 0.5weight
+		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		if err != nil {
+			log.Error("FinalizeAndAssemble : invalid validators", err.Error())
+			return nil, err
+		}
+		if header.Coinbase == (common.Address{}) {
+			// reduce 1 weight
+			for _, v := range random11Validators.Validators {
+				state.SubValidatorCoefficient(v.Address(), 10)
+			}
+		} else {
+			// add 2 weight
+			for _, v := range random11Validators.Validators {
+				state.AddValidatorCoefficient(v.Addr, 20)
+			}
+		}
 	}
 
 	log.Info("CreateNFTByOfficial16 start", "Coinbase=", header.Coinbase.Hex(), "height", header.Number.Uint64())
