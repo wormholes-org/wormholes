@@ -82,6 +82,7 @@ func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(co
 		consensusTimestamp:              time.Time{},
 		pendindingOnlineProofRequestsMu: new(sync.Mutex),
 		onlineProofsMu:                  new(sync.Mutex),
+		commitHeight:                    0,
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -130,13 +131,14 @@ type core struct {
 	onlineProofsMu *sync.Mutex
 
 	consensusTimestamp time.Time
+	commitHeight       uint64
 }
 
 type ConsensusData struct {
-	Height           string                                       `json:"height"`
-	Validators       []common.Address                             `json:"validators,omitempty"`
-//	OnlineValidators map[common.Address]OnlineValidatorDetail     `json:"online_validators,omitempty"`
-	Rounds           map[int64]RoundInfo                          `json:"rounds,omitempty"`
+	Height     string           `json:"height"`
+	Validators []common.Address `json:"validators,omitempty"`
+	//	OnlineValidators map[common.Address]OnlineValidatorDetail     `json:"online_validators,omitempty"`
+	Rounds map[int64]RoundInfo `json:"rounds,omitempty"`
 }
 
 //type OnlineValidatorDetail struct {
@@ -155,7 +157,7 @@ type RoundInfo struct {
 	Round      int64          `json:"round,omitempty"`
 	Hash       common.Hash    `json:"hash,omitempty"`
 	Miner      common.Address `json:"miner,omitempty"`
-	Error	   error          `json:"error,omitempty"`
+	Error      error          `json:"error,omitempty"`
 	IsProposal bool           `json:"is_proposal,omitempty"`
 }
 
@@ -252,7 +254,7 @@ func (c *core) commit() {
 					Sequence:   c.currentView().Sequence.Uint64(),
 					Round:      c.currentView().Round.Int64(),
 					Hash:       proposal.Hash(),
-					Miner:	    c.valSet.GetProposer().Address(),
+					Miner:      c.valSet.GetProposer().Address(),
 					Error:      err,
 					IsProposal: c.IsProposer(),
 				},
@@ -374,11 +376,11 @@ func (c *core) startNewRound(round *big.Int) {
 
 	consensusData := ConsensusData{
 		Height:     newView.Sequence.String(),
-                Validators: c.valSet.ListAll(),
-        }
-        c.SaveData(consensusData)
+		Validators: c.valSet.ListAll(),
+	}
+	c.SaveData(consensusData)
 
-	if len(consensusInfo) > 0{
+	if len(consensusInfo) > 0 {
 		<-consensusInfo
 	}
 	data := make(map[string]interface{})
