@@ -1,7 +1,6 @@
 package miner
 
 import (
-	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"math/big"
 	"sync"
 
@@ -122,12 +121,7 @@ func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byt
 
 		m.Add(hash, true)
 		c.otherMessages.Add(addr, m)
-		to, ok := p.(*eth.Peer)
-		if ok {
-			pubKey := to.Node().Pubkey()
-			addr := crypto.PubkeyToAddress(*pubKey)
-			log.Info("send worker msg", "from", c.self.String(), "send to peer.addr", addr.String(), "empty_log")
-		}
+		log.Info("send worker msg", "from", c.self.String(), "send to peer.addr", addr.String(), "empty_log")
 		go p.SendWorkerMsg(WorkerMsg, payload)
 	}
 	return nil
