@@ -122,10 +122,12 @@ func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byt
 
 		m.Add(hash, true)
 		c.otherMessages.Add(addr, m)
-		to, _ := p.(*eth.Peer)
-		pubKey := to.Node().Pubkey()
-		addr := crypto.PubkeyToAddress(*pubKey)
-		log.Info("send worker msg", "from", c.self.String(), "send to peer.addr", addr.String(), "empty_log")
+		to, ok := p.(*eth.Peer)
+		if ok {
+			pubKey := to.Node().Pubkey()
+			addr := crypto.PubkeyToAddress(*pubKey)
+			log.Info("send worker msg", "from", c.self.String(), "send to peer.addr", addr.String(), "empty_log")
+		}
 		go p.SendWorkerMsg(WorkerMsg, payload)
 	}
 	return nil
