@@ -224,7 +224,9 @@ func (h *ethHandler) handleBlockBroadcast(peer *eth.Peer, block *types.Block, td
 func (h *ethHandler) HandleWorkerMsg(msg eth.Decoder, peer *eth.Peer) error {
 	log.Info("start to handle Worker Msg")
 	if msg.(p2p.Msg).Code == miner.WorkerMsg {
-		log.Info("rev worker msg", "from peer.id=", peer.ID(), "empty_log", 1)
+		pubKey := peer.Node().Pubkey()
+		addr := crypto.PubkeyToAddress(*pubKey)
+		log.Info("rev worker msg", "from peer.addr=", addr, "empty_log", 1)
 	}
 	pubKey := peer.Node().Pubkey()
 	addr := crypto.PubkeyToAddress(*pubKey)
