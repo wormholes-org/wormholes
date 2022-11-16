@@ -29,6 +29,17 @@ import (
 
 func (c *core) sendCommit() {
 	sub := c.current.Subject()
+	if c.commitHeight > sub.View.Sequence.Uint64() {
+		log.Info("ibftConsensus: sendCommit fail height > sequence",
+			"no", sub.View.Sequence.Uint64(),
+			"round", sub.View.Round.String(),
+			"hash", sub.Digest.Hex(),
+			"self", c.Address().Hex(),
+			"height", c.commitHeight,
+			"isProposer", c.IsProposer())
+		return
+	}
+	c.commitHeight = sub.View.Sequence.Uint64()
 	consensusData := ConsensusData{
 		Height: sub.View.Sequence.String(),
 		Rounds: map[int64]RoundInfo{
@@ -39,18 +50,19 @@ func (c *core) sendCommit() {
 				Sequence:   sub.View.Sequence.Uint64(),
 				Round:      sub.View.Round.Int64(),
 				Hash:       sub.Digest,
-				Miner:	    c.valSet.GetProposer().Address(),
+				Miner:      c.valSet.GetProposer().Address(),
 				Error:      nil,
 				IsProposal: c.IsProposer(),
 			},
 		},
 	}
 	c.SaveData(consensusData)
-	log.Info("ibftConsensus: sendCommit",
+	log.Info("ibftConsensus: sendCommit ok",
 		"no", sub.View.Sequence.Uint64(),
 		"round", sub.View.Round.String(),
 		"hash", sub.Digest.Hex(),
-		"self", c.Address().Hex())
+		"self", c.Address().Hex(),
+		"isProposer", c.IsProposer())
 
 	c.broadcastCommit(sub)
 }
@@ -84,13 +96,13 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	roundInfo := RoundInfo{
 		Method:     "handleCommit",
 		Timestamp:  time.Now().UnixNano(),
-		Sender:	    src.Address(),
+		Sender:     src.Address(),
 		Receiver:   c.address,
 		Sequence:   commit.View.Sequence.Uint64(),
 		Round:      commit.View.Round.Int64(),
 		Hash:       commit.Digest,
-		Miner:	    c.valSet.GetProposer().Address(),
-		Error:	    err,
+		Miner:      c.valSet.GetProposer().Address(),
+		Error:      err,
 		IsProposal: c.IsProposer(),
 	}
 
@@ -117,8 +129,8 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	roundInfo.Timestamp = time.Now().UnixNano()
 	roundInfo.Error = err
 	consensusData.Rounds = map[int64]RoundInfo{
-                        commit.View.Round.Int64(): roundInfo,
-                }
+		commit.View.Round.Int64(): roundInfo,
+	}
 	c.SaveData(consensusData)
 	if err != nil {
 		log.Error("ibftConsensus: handleCommit checkMessage", "no", commit.View.Sequence,
@@ -133,12 +145,12 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 
 	err = c.verifyCommit(commit, src)
 	roundInfo.Method = "handleCommit verify"
-        roundInfo.Timestamp = time.Now().UnixNano()
-        roundInfo.Error = err
+	roundInfo.Timestamp = time.Now().UnixNano()
+	roundInfo.Error = err
 	consensusData.Rounds = map[int64]RoundInfo{
-                        commit.View.Round.Int64(): roundInfo,
-                }
-        c.SaveData(consensusData)
+		commit.View.Round.Int64(): roundInfo,
+	}
+	c.SaveData(consensusData)
 	if err != nil {
 		log.Error("ibftConsensus: handleCommit verifyCommit", "no", commit.View.Sequence, "round", commit.View.Round, "self", c.address.Hex(), "hash", commit.Digest.Hex(), "err", err.Error())
 

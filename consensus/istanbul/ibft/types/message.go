@@ -31,7 +31,6 @@ const (
 	MsgPrepare
 	MsgCommit
 	MsgRoundChange
-	MsgOnlineProof
 	// msgAll
 )
 
