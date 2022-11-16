@@ -314,21 +314,21 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	var onlineValidators []common.Address
-	ibftCore := e.backend.GetCore()
-	if ibftCore != nil {
-		ibftCore.GetOnlineProofsMu().Lock()
-		vals := ibftCore.GetOnlineValidators()
-		if _, ok := vals[header.Number.Uint64()]; ok {
-			for _, v := range vals[header.Number.Uint64()].Validators {
-				onlineValidators = append(onlineValidators, v.Address)
-			}
-		}
-		ibftCore.GetOnlineProofsMu().Unlock()
-	}
+	// ibftCore := e.backend.GetCore()
+	// if ibftCore != nil {
+	// 	ibftCore.GetOnlineProofsMu().Lock()
+	// 	vals := ibftCore.GetOnlineValidators()
+	// 	if _, ok := vals[header.Number.Uint64()]; ok {
+	// 		for _, v := range vals[header.Number.Uint64()].Validators {
+	// 			onlineValidators = append(onlineValidators, v.Address)
+	// 		}
+	// 	}
+	// 	ibftCore.GetOnlineProofsMu().Unlock()
+	// }
 
-	for _, v := range onlineValidators {
-		log.Info("Prepare: onlineValidators", "no", header.Number, "onlineValidators", v)
-	}
+	// for _, v := range onlineValidators {
+	// 	log.Info("Prepare: onlineValidators", "no", header.Number, "onlineValidators", v)
+	// }
 
 	header.Nonce = istanbulcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
@@ -346,8 +346,46 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		validatorAddr []common.Address
 		exchangerAddr []common.Address
 		addrBigInt    []*big.Int
+		rewardSeals   [][]byte
 	)
 	if c, ok := chain.(*core.BlockChain); ok {
+		if header.Number.Uint64() == 1 {
+			// Block 1 does not issue any rewards
+			validatorAddr = make([]common.Address, 0)
+		} else {
+			// Get the header of the last normal block
+			preHeader, err := getPreHash(chain, header)
+			if err != nil {
+				log.Error("get preHash err", "err", err)
+				return err
+			}
+			commiters, err := e.Signers(preHeader)
+			if err != nil {
+				log.Error("commit seal err", "err", err.Error())
+				return err
+			}
+			if len(commiters) < 7 {
+				log.Error("commiters len less than 7")
+				return errors.New("commiters len less than 7")
+			}
+			for _, v := range commiters {
+				if len(onlineValidators) == 7 {
+					break
+				}
+				// reward to onlineValidtors
+				onlineValidators = append(onlineValidators, v)
+			}
+			for _, v := range onlineValidators {
+				log.Info("Prepare: onlineValidator", "addr", v.Hex())
+			}
+			// copy commitSeals to rewardSeals
+			rewardSeals, err = e.copyCommitSeals(preHeader)
+			if err != nil {
+				log.Error("copy commitSeals err", "err", err)
+				return err
+			}
+		}
+
 		// reward to openExchangers
 		//stakeList := c.ReadStakePool(c.CurrentBlock().Header())
 		stakeList := c.GetStakerPool()
@@ -397,8 +435,9 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			}
 		}
 	}
+
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr)
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals)
 	if err != nil {
 		return err
 	}
@@ -411,6 +450,36 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	return nil
+}
+
+// copy commit seal to reward seals
+func (e *Engine) copyCommitSeals(header *types.Header) ([][]byte, error) {
+	// extract istanbul extra
+	extra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return nil, err
+	}
+	rewardSeals := make([][]byte, 7)
+	for i, v := range extra.CommittedSeal {
+		if i == 7 {
+			break
+		}
+		rewardSeals[i] = make([]byte, types.IstanbulExtraSeal)
+		copy(rewardSeals[i][:], v[:])
+	}
+	return rewardSeals, nil
+}
+
+func getPreHash(chain consensus.ChainHeaderReader, header *types.Header) (*types.Header, error) {
+	preHeader := chain.GetHeaderByHash(header.ParentHash)
+	if preHeader.Coinbase == (common.Address{}) {
+		preHeader, err := getPreHash(chain, preHeader)
+		if err != nil {
+			return nil, err
+		}
+		return preHeader, nil
+	}
+	return preHeader, nil
 }
 
 func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
@@ -436,7 +505,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	// modification on 20221102 end
 
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil)
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -459,7 +528,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	return nil
 }
 
-func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address) ([]byte, error) {
+func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address, rewardSeals [][]byte) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
@@ -474,6 +543,7 @@ func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []com
 		CommittedSeal: [][]byte{},
 		ExchangerAddr: exchangerAddr,
 		ValidatorAddr: validatorAddr,
+		RewardSeal:    rewardSeals,
 	}
 
 	payload, err := rlp.EncodeToBytes(&ist)
@@ -689,6 +759,28 @@ func (e *Engine) Signers(header *types.Header) ([]common.Address, error) {
 	var addrs []common.Address
 	// 1. Get committed seals from current header
 	for _, seal := range committedSeal {
+		// 2. Get the original address by seal and parent block hash
+		addr, err := istanbulcommon.GetSignatureAddress(proposalSeal, seal)
+		if err != nil {
+			return nil, istanbulcommon.ErrInvalidSignature
+		}
+		addrs = append(addrs, addr)
+	}
+
+	return addrs, nil
+}
+
+func (e *Engine) Rewards(header *types.Header) ([]common.Address, error) {
+	extra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return []common.Address{}, err
+	}
+	rewardSeal := extra.RewardSeal
+	proposalSeal := PrepareCommittedSeal(header.Hash())
+
+	var addrs []common.Address
+	// 1. Get committed seals from current header
+	for _, seal := range rewardSeal {
 		// 2. Get the original address by seal and parent block hash
 		addr, err := istanbulcommon.GetSignatureAddress(proposalSeal, seal)
 		if err != nil {
