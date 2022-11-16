@@ -1492,24 +1492,26 @@ func (evm *EVM) HandleNFT(
 		//startIndex, _ := new(big.Int).SetString(wormholes.StartIndex[2:], 16)
 		startIndex := evm.StateDB.NextIndex()
 		var number uint64 = 4096
-		if wormholes.Royalty <= 0 {
-			log.Error("HandleNFT(), VoteOfficialNFT", "wormholes.Type", wormholes.Type,
-				"error", ErrRoyaltyNotMoreThan0, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrRoyaltyNotMoreThan0
-		}
-		if wormholes.Royalty >= 10000 {
-			log.Error("HandleNFT(), VoteOfficialNFT", "wormholes.Type", wormholes.Type,
-				"error", ErrRoyaltyNotLessthan10000, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrRoyaltyNotLessthan10000
-		}
+		var royalty uint32 = 1000 // default 10%
+		//if wormholes.Royalty <= 0 {
+		//	log.Error("HandleNFT(), VoteOfficialNFT", "wormholes.Type", wormholes.Type,
+		//		"error", ErrRoyaltyNotMoreThan0, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrRoyaltyNotMoreThan0
+		//}
+		//if wormholes.Royalty >= 10000 {
+		//	log.Error("HandleNFT(), VoteOfficialNFT", "wormholes.Type", wormholes.Type,
+		//		"error", ErrRoyaltyNotLessthan10000, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrRoyaltyNotLessthan10000
+		//}
 
 		nominatedNFT := types.NominatedOfficialNFT{
 			InjectedOfficialNFT: types.InjectedOfficialNFT{
 				Dir:        wormholes.Dir,
 				StartIndex: startIndex,
 				//Number: wormholes.Number,
-				Number:  number,
-				Royalty: wormholes.Royalty,
+				Number: number,
+				//Royalty: wormholes.Royalty,
+				Royalty: royalty,
 				Creator: wormholes.Creator,
 				Address: caller.Address(),
 			},
@@ -1522,16 +1524,16 @@ func (evm *EVM) HandleNFT(
 		log.Info("HandleNFT(), VoteOfficialNFTByApprovedExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 
-		if wormholes.Royalty <= 0 {
-			log.Error("HandleNFT(), VoteOfficialNFTByApprovedExchanger", "wormholes.Type", wormholes.Type,
-				"error", ErrRoyaltyNotMoreThan0, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrRoyaltyNotMoreThan0
-		}
-		if wormholes.Royalty >= 10000 {
-			log.Error("HandleNFT(), VoteOfficialNFTByApprovedExchanger", "wormholes.Type", wormholes.Type,
-				"error", ErrRoyaltyNotLessthan10000, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrRoyaltyNotLessthan10000
-		}
+		//if wormholes.Royalty <= 0 {
+		//	log.Error("HandleNFT(), VoteOfficialNFTByApprovedExchanger", "wormholes.Type", wormholes.Type,
+		//		"error", ErrRoyaltyNotMoreThan0, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrRoyaltyNotMoreThan0
+		//}
+		//if wormholes.Royalty >= 10000 {
+		//	log.Error("HandleNFT(), VoteOfficialNFTByApprovedExchanger", "wormholes.Type", wormholes.Type,
+		//		"error", ErrRoyaltyNotLessthan10000, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrRoyaltyNotLessthan10000
+		//}
 
 		err := evm.Context.VoteOfficialNFTByApprovedExchanger(
 			evm.StateDB,
