@@ -466,11 +466,11 @@ func (w *worker) emptyLoop() {
 					log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
-					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "empty_log")
+					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "empty_log", 1)
 				}
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
-				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers, "empty_log")
+				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers, "empty_log", 2)
 
 				//modification on 20221102 start
 				//w.stop()
@@ -523,7 +523,7 @@ func (w *worker) emptyLoop() {
 			{
 				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs, "empty_log")
 				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
-					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now(), "empty_log")
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now(), "empty_log")
 						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()

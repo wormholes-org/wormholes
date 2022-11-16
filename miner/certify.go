@@ -164,7 +164,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	if msg.Code == WorkerMsg {
 		data, hash, err := c.decode(msg)
 		log.Info("certify handleMsg", "code", msg.Code, "payload", data)
-		log.Info("certify WorkerMsg", "rev addr=", addr.String(), "empty_log")
+		log.Info("rev WorkerMsg", "empty_log", 2)
 		if err != nil {
 			return true, err
 		}
@@ -184,7 +184,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, nil
 		}
 		c.selfMessages.Add(hash, true)
-
+		log.Info("rev WorkerMsg Post MessageEvent", "empty_log", 3)
 		go c.eventMux.Post(MessageEvent{
 			Code:    msg.Code,
 			Payload: data,
