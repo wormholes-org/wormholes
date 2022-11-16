@@ -97,7 +97,7 @@ type PledgedToken struct {
 
 var DefaultDir string = "/ipfs/Qme8eCqoj3Csbh96AUuHGYKsC1okUPiEwGNeTVDG2SBLVN"
 var DefaultNumber uint64 = 4096
-var DefaultRoyalty uint32 = 100
+var DefaultRoyalty uint32 = 1000
 var DefaultCreator string = "0x0000000000000000000000000000000000000000"
 
 type InjectedOfficialNFT struct {
@@ -209,6 +209,7 @@ type Wormholes struct {
 }
 
 const WormholesVersion = "v0.0.1"
+
 //var PattenAddr = "^0[xX][0-9a-fA-F]{40}$"
 //var PattenHex = "^[0-9a-fA-F]+$"
 func (w *Wormholes) CheckFormat() error {
