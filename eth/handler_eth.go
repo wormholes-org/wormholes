@@ -19,6 +19,7 @@ package eth
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/miner"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -222,6 +223,9 @@ func (h *ethHandler) handleBlockBroadcast(peer *eth.Peer, block *types.Block, td
 
 func (h *ethHandler) HandleWorkerMsg(msg eth.Decoder, peer *eth.Peer) error {
 	log.Info("start to handle Worker Msg")
+	if msg.(p2p.Msg).Code == miner.WorkerMsg {
+		log.Info("rev worker msg", "send peer.id=", peer.ID(), "empty_log")
+	}
 	pubKey := peer.Node().Pubkey()
 	addr := crypto.PubkeyToAddress(*pubKey)
 	handled, err := h.miner.HandleMsg(addr, msg.(p2p.Msg))
