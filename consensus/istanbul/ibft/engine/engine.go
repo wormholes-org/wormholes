@@ -217,11 +217,6 @@ func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.H
 	return nil
 }
 
-func (e *Engine) verifyOnlineProof(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
-	//TODO Parse out the online validator saved in uncles
-	return nil
-}
-
 // verifyCommittedSeals checks whether every committed seal is signed by one of the parent's validators
 func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
 	number := header.Number.Uint64()
@@ -658,18 +653,6 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
-}
-
-func (e *Engine) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
-	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	state.AddBalance(common.HexToAddress("0x0000000000000000000000000000000000000001"), big.NewInt(1))
-
-	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
-	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-	//header.UncleHash = nilUncleHash
-
-	// Assemble and return the final block for sealing
-	return types.NewBlock(header, txs, uncles, receipts, new(trie.Trie)), nil
 }
 
 // Seal generates a new block for the given input block with the local miner's

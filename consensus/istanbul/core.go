@@ -1,10 +1,7 @@
 package istanbul
 
 import (
-	"sync"
-
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Core interface {
@@ -23,7 +20,4 @@ type Core interface {
 	RoundInfo() []string
 
 	ConsensusInfo() chan map[string]interface{}
-
-	GetOnlineValidators() map[uint64]*types.OnlineValidatorList
-	GetOnlineProofsMu() *sync.Mutex
 }
