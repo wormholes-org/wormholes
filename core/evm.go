@@ -1858,6 +1858,7 @@ func VoteOfficialNFTByApprovedExchanger(
 	amount *big.Int) error {
 
 	var number uint64 = 4096
+	var royalty uint32 = 1000 // default 10%
 
 	exchangerMsg := wormholes.ExchangerAuth.ExchangerOwner +
 		wormholes.ExchangerAuth.To +
@@ -1909,8 +1910,9 @@ func VoteOfficialNFTByApprovedExchanger(
 			Dir:        wormholes.Dir,
 			StartIndex: startIndex,
 			//Number: wormholes.Number,
-			Number:  number,
-			Royalty: wormholes.Royalty,
+			Number: number,
+			//Royalty: wormholes.Royalty,
+			Royalty: royalty,
 			Creator: wormholes.Creator,
 			Address: originalExchanger,
 		},
