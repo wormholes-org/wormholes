@@ -25,7 +25,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // Construct a new message set to accumulate messages for given sequence/view number.
@@ -93,10 +92,6 @@ func (ms *messageSet) Get(addr common.Address) *ibfttypes.Message {
 func (ms *messageSet) verify(msg *ibfttypes.Message) error {
 	// verify if the message comes from one of the validators
 	if _, v := ms.valSet.GetByAddress(msg.Address); v == nil {
-		if msg.Code == ibfttypes.MsgOnlineProof {
-			log.Info("verify:MsgOnlineProof", "code", msg.Code)
-			return nil
-		}
 		return istanbul.ErrUnauthorizedAddress
 	}
 

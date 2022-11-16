@@ -33,9 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
@@ -459,14 +457,6 @@ func (s *remoteSealer) submitWork(nonce types.BlockNonce, mixDigest common.Hash,
 	return false
 }
 
-func (ethash *Ethash) SealOnlineProofBlk(chain consensus.ChainHeaderReader, block *types.Block, notifyBlockCh chan *types.OnlineValidatorList, stop <-chan struct{}) error {
+func (ethash *Ethash) ConsensusInfo() map[string]interface{} {
 	return nil
-}
-func (ethash *Ethash) GossipOnlineProof(chain consensus.ChainHeaderReader, block *types.Block) error {
-	return nil
-}
-
-func (ethash *Ethash) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
-	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
 }

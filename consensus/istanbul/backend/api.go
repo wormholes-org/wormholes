@@ -271,3 +271,7 @@ func (api *API) IsValidator(blockNum *rpc.BlockNumber) (bool, error) {
 	}
 	return false, nil
 }
+
+func (api *API) ConsensusInfo() map[string]interface{} {
+	return api.backend.ConsensusInfo()
+}

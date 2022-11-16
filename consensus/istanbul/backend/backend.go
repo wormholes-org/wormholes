@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -38,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/miniredis"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -204,6 +206,10 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
 
+			miniredis.GetLogCh() <- map[string]interface{}{
+				sb.address.Hex() + " " + addr.Hex(): fmt.Sprintf("t %v", time.Now().UTC().UnixNano()),
+			}
+
 			if sb.IsQBFTConsensus() {
 				var outboundCode uint64 = istanbulMsg
 				if _, ok := qbfttypes.MessageCodes()[code]; ok {
@@ -211,7 +217,6 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 				}
 				go p.SendQBFTConsensus(outboundCode, payload)
 			} else {
-				log.Info("carver|Gossip|istanbulMsg", "chain.current.no", sb.chain.CurrentHeader().Number.String(), "code", code)
 				go p.SendConsensus(istanbulMsg, payload)
 			}
 		}

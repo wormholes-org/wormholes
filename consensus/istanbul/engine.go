@@ -29,7 +29,4 @@ type Engine interface {
 	CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int
 	WriteVote(header *types.Header, candidate common.Address, authorize bool) error
 	ReadVote(header *types.Header) (candidate common.Address, authorize bool, err error)
-
-	FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
-		uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error)
 }

@@ -17,7 +17,6 @@
 package core
 
 import (
-	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -90,7 +89,6 @@ func TestQuorumSize(t *testing.T) {
 
 	valSet := c.valSet
 	for i := 1; i <= 1000; i++ {
-		valSet.AddValidator(common.HexToAddress(fmt.Sprint(i)))
 		if 2*c.QuorumSize() <= (valSet.Size()+valSet.F()) || 2*c.QuorumSize() > (valSet.Size()+valSet.F()+2) {
 			t.Errorf("quorumSize constraint failed, expected value (2*QuorumSize > Size+F && 2*QuorumSize <= Size+F+2) to be:%v, got: %v, for size: %v", true, false, valSet.Size())
 		}
@@ -129,76 +127,4 @@ func TestNilCommittedSealWithEmptyProposal(t *testing.T) {
 	if msg.CommittedSeal != nil {
 		t.Errorf("Unexpected committed seal: %s", msg.CommittedSeal)
 	}
-}
-
-func TestOnlineProofWriteAndRead(t *testing.T) {
-	testLogger.SetHandler(elog.StdoutHandler)
-
-	N := uint64(4)
-	F := uint64(1)
-
-	sys := NewTestSystemWithBackend(N, F)
-	backend := sys.backends[0]
-	c := backend.engine
-	c.Start()
-	defer c.Stop()
-
-	onlineValidators := new(types.OnlineValidatorList)
-	if c.onlineProofs == nil {
-		c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
-	}
-	c.onlineProofs[0] = onlineValidators
-
-	// add data
-	go func() {
-		fmt.Println("excute write")
-		fmt.Println("onlineproof----", c.onlineProofs)
-		i := 0
-		for {
-			c.onlineProofsMu.Lock()
-			onlineValidators := c.onlineProofs[uint64(i)]
-			if onlineValidators != nil {
-				validator := types.NewOnlineValidator(c.current.sequence, common.HexToAddress("0x123456"), common.Hash{}, []byte{})
-				onlineValidators.Validators = append(onlineValidators.Validators, validator)
-				fmt.Println("success add data: i****", i)
-			}
-
-			i++
-			c.onlineProofsMu.Unlock()
-			time.Sleep(300 * time.Millisecond)
-		}
-	}()
-
-	// delete data
-	go func() {
-		fmt.Println("excute delete")
-		i := 0
-		for {
-			c.onlineProofsMu.Lock()
-			fmt.Println("start delete data:i-----------------", i)
-			delete(c.onlineProofs, uint64(i))
-			i++
-			c.onlineProofsMu.Unlock()
-			fmt.Println("end delete data: i------------------", i)
-			time.Sleep(500 * time.Millisecond)
-		}
-	}()
-
-	// read data 1
-	go func() {
-		fmt.Println("excute read")
-		for {
-			c.GetOnlineProofsMu().Lock()
-			fmt.Println("start to read###########")
-			onlineValidators := c.onlineProofs
-			for k, v := range onlineValidators {
-				fmt.Println("---k---", k, "---v---", v.Validators)
-			}
-			c.GetOnlineProofsMu().Unlock()
-			fmt.Println("end to read############")
-			time.Sleep(200 * time.Millisecond)
-		}
-	}()
-	time.Sleep(20 * time.Second)
-	//select {}
 }

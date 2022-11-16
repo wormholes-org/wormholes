@@ -41,10 +41,13 @@ func (vl *ValidatorList) F() int {
 	return int(math.Ceil(float64(vl.Size())/3)) - 1
 }
 func (vl *ValidatorList) Size() int {
+	if vl.Validators == nil {
+		return 0
+	}
 	return len(vl.Validators)
 }
 
-// 51% TotalStakeBalance Calculate the total amount of the stake account
+// TargetSize 51% TotalStakeBalance Calculate the total amount of the stake account
 func (vl *ValidatorList) TargetSize() *big.Int {
 	var total = big.NewInt(0)
 	for _, voter := range vl.Validators {
@@ -158,6 +161,31 @@ func (vl *ValidatorList) CalculateAddressRange(address common.Address, stakeAmt 
 	return
 }
 
+func (vl *ValidatorList) CalculateAddressRangeV2(address common.Address, stakeAmt, weight *big.Int) {
+	addrNo := address.Hash().Big()
+	totalAmt := vl.TotalStakeBalance()
+	minValue := big.NewInt(0)
+	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
+
+	// stakeAmt / totalStakeAmt * maxValue * weight / 10
+	rangeLength := big.NewInt(0).Mul(big.NewInt(0).Div(big.NewInt(0).Mul(weight, big.NewInt(0).Mul(stakeAmt, maxValue)), totalAmt), big.NewInt(10))
+
+	if rangeLength.Cmp(maxValue) > 0 {
+		addrRange := []*big.Int{minValue, maxValue}
+		vl.AddAddrRange(address, addrRange)
+	}
+
+	if big.NewInt(0).Add(addrNo, rangeLength).Cmp(maxValue) < 0 {
+		addrRange := []*big.Int{addrNo, big.NewInt(0).Add(addrNo, rangeLength)}
+		vl.AddAddrRange(address, addrRange)
+	} else {
+		modValue := big.NewInt(0).Mod(big.NewInt(0).Add(addrNo, rangeLength), maxValue)
+		addrRange := []*big.Int{addrNo, maxValue, minValue, modValue}
+		vl.AddAddrRange(address, addrRange)
+	}
+	return
+}
+
 // ValidatorByDistanceAndWeight Query K validators closest to random numbers based on distance and pledge amount
 func (vl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, randomHash common.Hash) []common.Address {
 	// The maximum value of address to big Int
@@ -202,7 +230,6 @@ func (vl *ValidatorList) ValidatorByDistanceAndWeight(addr []*big.Int, k int, ra
 	return res
 }
 
-//
 func (vl *ValidatorList) ValidatorByDistance(addr []*big.Int, k int, randomHash common.Hash) []common.Address {
 	// The maximum value of address to big Int
 	maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
@@ -266,9 +293,6 @@ func (vl *ValidatorList) RandomValidatorV2(k int, randomHash common.Hash) []comm
 
 // CollectValidators Collect the k validators closest to the drop point
 func (vl *ValidatorList) CollectValidators(randomHash common.Hash, k int) (error, []common.Address) {
-
-	// r1 := randomHash[12:]
-	// point := common.BytesToAddress(r1).Hash().Big()
 	rr := randomHash.Hex()
 	pri, err := crypto.HexToECDSA(rr[2:])
 	if err != nil {
@@ -395,11 +419,11 @@ func (vl *ValidatorList) GetByAddress(addr common.Address) int {
 	return -1
 }
 
-func (vl *ValidatorList) GetByIndex(i uint64) Validator {
+func (vl *ValidatorList) GetByIndex(i uint64) *Validator {
 	if i >= uint64(vl.Len()) {
-		return Validator{}
+		return &Validator{}
 	}
-	return *vl.Validators[i]
+	return vl.Validators[i]
 }
 
 func (vl *ValidatorList) GetValidatorByAddr(addr common.Address) *Validator {

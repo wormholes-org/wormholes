@@ -33,7 +33,7 @@ func TestVerification(t *testing.T) {
 		// For this test, the pubkey is in testdata/minisign.pub
 		// (the privkey is `minisign.sec`, if we want to expand this test. Password 'test' )
 		pub := "RWQkliYstQBOKOdtClfgC3IypIPX6TAmoEi7beZ4gyR3wsaezvqOMWsp"
-		testVerification(t, pub, "./testdata/vcheck/minisig-sigs/")
+		testVerification(t, pub, "../testdata/vcheck/minisig-sigs/")
 	})
 	// Signatures generated with `signify-openbsd`
 	t.Run("signify-openbsd", func(t *testing.T) {
@@ -41,13 +41,13 @@ func TestVerification(t *testing.T) {
 		// For this test, the pubkey is in testdata/signifykey.pub
 		// (the privkey is `signifykey.sec`, if we want to expand this test. Password 'test' )
 		pub := "RWSKLNhZb0KdATtRT7mZC/bybI3t3+Hv/O2i3ye04Dq9fnT9slpZ1a2/"
-		testVerification(t, pub, "./testdata/vcheck/signify-sigs/")
+		testVerification(t, pub, "../testdata/vcheck/signify-sigs/")
 	})
 }
 
 func testVerification(t *testing.T, pubkey, sigdir string) {
 	// Data to verify
-	data, err := ioutil.ReadFile("./testdata/vcheck/data.json")
+	data, err := ioutil.ReadFile("../testdata/vcheck/data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func versionUint(v string) int {
 
 // TestMatching can be used to check that the regexps are correct
 func TestMatching(t *testing.T) {
-	data, _ := ioutil.ReadFile("./testdata/vcheck/vulnerabilities.json")
+	data, _ := ioutil.ReadFile("../testdata/vcheck/vulnerabilities.json")
 	var vulns []vulnJson
 	if err := json.Unmarshal(data, &vulns); err != nil {
 		t.Fatal(err)

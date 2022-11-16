@@ -472,7 +472,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			}
 		case 22:
 			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-			Erb100 := big.NewInt(280)
+			Erb100 := big.NewInt(700)
 			Erb100.Mul(Erb100, baseErb)
 			if msg.Value().Sign() > 0 && !st.evm.Context.VerifyExchangerBalance(st.state, msg.From(), new(big.Int).Add(msg.Value(), Erb100)) {
 				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())

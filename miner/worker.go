@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sync"
@@ -212,6 +213,7 @@ type worker struct {
 	emptyHandleFlag bool
 	cacheHeight     *big.Int
 	emptyTimer      *time.Timer
+	resetEmptyCh    chan struct{}
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
@@ -246,6 +248,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
 		emptyTimestamp:     time.Now().Unix(),
 		emptyHandleFlag:    false,
+		resetEmptyCh:       make(chan struct{}, 1),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -355,6 +358,8 @@ func (w *worker) start() {
 func (w *worker) stop() {
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
 		istanbul.Stop()
+	} else {
+		fmt.Println("======================", ok)
 	}
 	atomic.StoreInt32(&w.running, 0)
 }
@@ -396,6 +401,12 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 	return time.Duration(int64(next))
 }
 
+type StartEmptyBlockEvent struct {
+	BlockNumber *big.Int
+}
+
+//type DoneEmptyBlockEvent struct{}
+
 func (w *worker) emptyLoop() {
 
 	w.emptyTimer = time.NewTimer(0)
@@ -415,17 +426,23 @@ func (w *worker) emptyLoop() {
 
 	for {
 		select {
+		case <-w.resetEmptyCh:
+			w.isEmpty = false
+			w.emptyTimestamp = time.Now().Unix()
+			w.emptyTimer.Reset(120 * time.Second)
+
 		case <-checkTimer.C:
-			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
+			log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
 			if !w.isEmpty {
 				continue
 			}
-			//log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
+			log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
 			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
 				w.emptyTimer.Reset(120 * time.Second)
+				//w.resetEmptyCh <- struct{}{}
 			}
 
 		case <-w.emptyTimer.C:
@@ -446,15 +463,31 @@ func (w *worker) emptyLoop() {
 				curTime := time.Now().Unix()
 				curBlock := w.chain.CurrentBlock()
 				if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
-					//log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
-					//log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
-				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+
+				//modification on 20221102 start
 				//w.stop()
+				EmptyEvent := StartEmptyBlockEvent{
+					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
+				}
+				w.mux.Post(EmptyEvent)
+				time.Sleep(10 * time.Second)
+				if w.isRunning() {
+					w.isEmpty = false
+					w.emptyTimestamp = time.Now().Unix()
+					w.emptyTimer.Reset(120 * time.Second)
+					log.Info("generate empty block interupt by downloader")
+					//w.resetEmptyCh <- struct{}{}
+					continue
+				}
+				//modification on 20221102 end
 
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				if err != nil {
@@ -488,11 +521,11 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				//log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
-					//log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
-						//log.Info("emptyLoop.start produce empty block", "time", time.Now())
+						log.Info("emptyLoop.start produce empty block", "time", time.Now())
 						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
 							log.Error("emptyLoop.commitEmptyWork error", "err", err)
@@ -500,6 +533,7 @@ func (w *worker) emptyLoop() {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
 							w.emptyTimer.Reset(120 * time.Second)
+							//w.resetEmptyCh <- struct{}{}
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}
@@ -559,15 +593,20 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			commit(false, commitInterruptNewHead)
 		case head := <-w.chainHeadCh:
 			if w.cacheHeight.Cmp(head.Block.Number()) <= 0 {
+				// modification on 20221102 start
+				//if w.isEmpty {
+				//	w.mux.Post(DoneEmptyBlockEvent{})
+				//}
+				// modification on 20221102 end
 				log.Info("w.chainHeadCh: reset empty timer", "no", head.Block.NumberU64())
-				w.isEmpty = false
-				w.emptyTimestamp = time.Now().Unix()
-				w.emptyTimer.Reset(120 * time.Second)
+				//w.isEmpty = false
+				//w.emptyTimestamp = time.Now().Unix()
+				//w.emptyTimer.Reset(120 * time.Second)
+				w.resetEmptyCh <- struct{}{}
 			}
 			log.Info("w.chainHeadCh: start commit block", "no", head.Block.NumberU64())
 
 			if w.isRunning() {
-				w.GossipOnlineProof()
 				w.emptyTimestamp = time.Now().Unix()
 			}
 
@@ -579,7 +618,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			timestamp = time.Now().Unix()
 			// Start submitting online proof blocks
 			w.onlineValidators = nil
-			//w.CommitOnlineProofBlock(*proofTimer)
 			commit(false, commitInterruptNewHead)
 
 		case onlineValidators := <-w.notifyBlockCh:
@@ -596,7 +634,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// higher priced transactions. Disable this overhead for pending blocks.
 			if w.isRunning() {
 				log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
-				w.GossipOnlineProof()
 				commit(false, commitInterruptResubmit)
 			}
 			//log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1, "w.isRunning", w.isRunning())
@@ -633,7 +670,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 
 		case <-w.exitCh:
-			log.Info("newWorkLoop : exitCh", "no", w.current.header.Number.Uint64()+1)
 			return
 		}
 	}
@@ -938,11 +974,11 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		}
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+		nominatedOfficialNFT.Dir = types.DefaultDir
 		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
-		nominatedOfficialNFT.Number = 4096
-		nominatedOfficialNFT.Royalty = 100
-		nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		nominatedOfficialNFT.Number = types.DefaultNumber
+		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
+		nominatedOfficialNFT.Creator = types.DefaultCreator
 		nominatedOfficialNFT.Address = common.Address{}
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
@@ -1053,11 +1089,11 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		}
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+		nominatedOfficialNFT.Dir = types.DefaultDir
 		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
-		nominatedOfficialNFT.Number = 4096
-		nominatedOfficialNFT.Royalty = 100
-		nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		nominatedOfficialNFT.Number = types.DefaultNumber
+		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
+		nominatedOfficialNFT.Creator = types.DefaultCreator
 		nominatedOfficialNFT.Address = common.Address{}
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
@@ -1553,42 +1589,6 @@ func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }
 
-func (w *worker) GossipOnlineProof() error {
-	log.Info("GossipOnlineProof : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
-
-	parent := w.chain.CurrentBlock()
-
-	num := parent.Number()
-	header := &types.Header{
-		ParentHash: parent.Hash(),
-		Number:     num.Add(num, common.Big1),
-		GasLimit:   21000,
-		Extra:      w.extra,
-		Time:       10000,
-	}
-
-	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
-
-	// if err := w.engine.Prepare(w.chain, header); err != nil {
-	// 	return errors.New("GossipOnlineProof : Failed to prepare header for mining")
-	// }
-
-	err := w.makeProofCurrent(parent, header)
-	if err != nil {
-		return errors.New("GossipOnlineProof : Failed to create mining context")
-	}
-
-	// receipts := copyReceipts(w.current.receipts)
-	s := w.proofcurrent.state.Copy()
-	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.proofcurrent.header, s, w.proofcurrent.txs, nil, nil)
-	if err != nil {
-		return err
-	}
-
-	w.engine.GossipOnlineProof(w.chain, block)
-
-	return nil
-}
 func (w *worker) targetSize() *big.Int {
 	return w.cerytify.stakers.TargetSize()
 }
@@ -1673,11 +1673,11 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 		}
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+		nominatedOfficialNFT.Dir = types.DefaultDir
 		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
-		nominatedOfficialNFT.Number = 4096
-		nominatedOfficialNFT.Royalty = 100
-		nominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		nominatedOfficialNFT.Number = types.DefaultNumber
+		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
+		nominatedOfficialNFT.Creator = types.DefaultCreator
 		nominatedOfficialNFT.Address = common.Address{}
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}

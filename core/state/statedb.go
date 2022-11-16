@@ -28,10 +28,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/vm"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -511,11 +509,13 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 			obj.data.BlockNumber,
 			obj.data.ExchangerBalance,
 			obj.data.VoteWeight,
+			obj.data.Coefficient,
 			obj.data.FeeRate,
 			obj.data.ExchangerName,
 			obj.data.ExchangerURL,
 			obj.data.ApproveAddressList,
 			obj.data.NFTBalance,
+			obj.data.Extra,
 			obj.data.Name,
 			obj.data.Symbol,
 			//obj.data.Price,
@@ -591,10 +591,12 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 				BlockNumber:        acc.BlockNumber,
 				ExchangerBalance:   acc.ExchangerBalance,
 				VoteWeight:         acc.VoteWeight,
+				Coefficient:        acc.Coefficient,
 				FeeRate:            acc.FeeRate,
 				ExchangerName:      acc.ExchangerName,
 				ExchangerURL:       acc.ExchangerURL,
 				NFTBalance:         acc.NFTBalance,
+				Extra:              acc.Extra,
 				//RewardFlag:         acc.RewardFlag,
 				// *** modify to support nft transaction 20211217 begin ***
 				AccountNFT: AccountNFT{
@@ -2396,14 +2398,14 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		//s.SNFTExchangePool.SNFTExchanges = append(s.SNFTExchangePool.SNFTExchanges, &nftExchange)
 
 		emptyAddress := common.Address{}
-		creator := nftStateObject.GetCreator()
-		creatorObj := s.GetOrNewStateObject(creator)
+		//creator := nftStateObject.GetCreator()
+		//creatorObj := s.GetOrNewStateObject(creator)
 		initAmount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel(), nftStateObject.GetMergeNumber())
 		amount := GetExchangAmount(nftaddress, initAmount)
 
-		if creator != emptyAddress && creatorObj != nil {
-			creatorObj.AddBalance(big.NewInt(0).Div(amount, big.NewInt(10)))
-		}
+		//if creator != emptyAddress && creatorObj != nil {
+		//	creatorObj.AddBalance(big.NewInt(0).Div(amount, big.NewInt(10)))
+		//}
 		mergeLevel := nftStateObject.GetNFTMergeLevel()
 		nftStateObject.CleanNFT()
 		stateObject.AddBalance(amount)
@@ -2538,7 +2540,7 @@ func (s *StateDB) PledgeToken(address common.Address,
 	for _, v := range s.ValidatorPool {
 		if v.Proxy != empty && v.Addr != address && v.Proxy == proxy {
 			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
-			return vm.ErrMinerProxy
+			return errors.New("cannot delegate repeatedly")
 		}
 	}
 
@@ -2572,14 +2574,14 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 	}
 	if !existAddress {
 		log.Info("MinerConsign", "err", "no repeated pledge")
-		return vm.ErrRepeatedPledge
+		return errors.New("no repeated pledge")
 	}
 
 	//Resolving duplicates is delegated
 	for _, v := range s.ValidatorPool {
 		if v.Proxy.Hex() != empty.Hex() && v.Proxy.Hex() == proxy.Hex() {
 			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
-			return vm.ErrMinerProxy
+			return errors.New("cannot delegate repeatedly")
 		}
 	}
 	if stateObject != nil {
@@ -3040,28 +3042,28 @@ func (s *StateDB) ElectNominatedOfficialNFT() {
 		s.AddBalance(s.NominatedOfficialNFT.Address, injectRewardBalance)
 
 		////s.NominatedOfficialNFT = nil
-		//s.NominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+		//s.NominatedOfficialNFT.Dir = types.DefaultDir
 		//s.NominatedOfficialNFT.StartIndex = new(big.Int).Set(s.OfficialNFTPool.MaxIndex())
-		//s.NominatedOfficialNFT.Number = 65536
-		//s.NominatedOfficialNFT.Royalty = 100
-		//s.NominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+		//s.NominatedOfficialNFT.Number = types.DefaultNumber
+		//s.NominatedOfficialNFT.Royalty = types.DefaultRoyalty
+		//s.NominatedOfficialNFT.Creator = types.DefaultCreator
 		//s.NominatedOfficialNFT.Address = common.Address{}
 	} else {
 		injectNFT := &types.InjectedOfficialNFT{
-			Dir:        "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
+			Dir:        types.DefaultDir,
 			StartIndex: new(big.Int).Set(s.OfficialNFTPool.MaxIndex()),
-			Number:     4096,
-			Royalty:    100,
-			Creator:    "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
+			Number:     types.DefaultNumber,
+			Royalty:    types.DefaultRoyalty,
+			Creator:    types.DefaultCreator,
 		}
 		s.OfficialNFTPool.InjectedOfficialNFTs = append(s.OfficialNFTPool.InjectedOfficialNFTs, injectNFT)
 	}
 
-	s.NominatedOfficialNFT.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+	s.NominatedOfficialNFT.Dir = types.DefaultDir
 	s.NominatedOfficialNFT.StartIndex = new(big.Int).Set(s.OfficialNFTPool.MaxIndex())
-	s.NominatedOfficialNFT.Number = 4096
-	s.NominatedOfficialNFT.Royalty = 100
-	s.NominatedOfficialNFT.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
+	s.NominatedOfficialNFT.Number = types.DefaultNumber
+	s.NominatedOfficialNFT.Royalty = types.DefaultRoyalty
+	s.NominatedOfficialNFT.Creator = types.DefaultCreator
 	s.NominatedOfficialNFT.Address = common.Address{}
 }
 
@@ -3120,18 +3122,7 @@ func (s *StateDB) UnfrozenAccount(frozenInfo *types.FrozenAccount, blocknumber *
 			}
 		}
 		if deleteFlag {
-			if blocknumber.Uint64() < 140000 {
-				var tempFrozenAccounts types.FrozenAccountList
-				for _, acc := range s.FrozenAccounts.FrozenAccounts {
-					if acc.Account != frozenInfo.Account {
-						tempFrozenAccounts.FrozenAccounts = append(tempFrozenAccounts.FrozenAccounts, acc)
-					}
-				}
-
-				s.FrozenAccounts = &tempFrozenAccounts
-			} else {
-				s.FrozenAccounts.FrozenAccounts = append(s.FrozenAccounts.FrozenAccounts[:deleteIndex], s.FrozenAccounts.FrozenAccounts[deleteIndex+1:]...)
-			}
+			s.FrozenAccounts.FrozenAccounts = append(s.FrozenAccounts.FrozenAccounts[:deleteIndex], s.FrozenAccounts.FrozenAccounts[deleteIndex+1:]...)
 		}
 	}
 }
@@ -3143,4 +3134,30 @@ func (s *StateDB) GetFrozenAccounts() *types.FrozenAccountList {
 	}
 
 	return &tempFrozenAccounts
+}
+
+// AddValidatorCoefficient adds amount to the ValidatorCoefficient associated with addr.
+func (s *StateDB) AddValidatorCoefficient(addr common.Address, coe uint8) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.AddCoefficient(coe)
+	}
+}
+
+// SubValidatorCoefficient subtracts amount from the ValidatorCoefficient associated with addr.
+func (s *StateDB) SubValidatorCoefficient(addr common.Address, coe uint8) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SubCoefficient(coe)
+	}
+}
+
+// GetValidatorCoefficient retrieves the ValidatorCoefficient from the given address or 0 if object not found
+func (s *StateDB) GetValidatorCoefficient(addr common.Address) uint8 {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		coe := stateObject.Coefficient()
+		return coe
+	}
+	return 0
 }

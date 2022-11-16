@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 	"testing"
 
@@ -37,12 +39,34 @@ func TestNodeIterator(t *testing.T) {
 	var (
 		fulldb  = rawdb.NewMemoryDatabase()
 		lightdb = rawdb.NewMemoryDatabase()
-		gspec   = core.Genesis{
-			Alloc:   core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+		//gspec   = core.Genesis{
+		//	Alloc:   core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
+		//	BaseFee: big.NewInt(params.InitialBaseFee),
+		//}
+		gspec = core.Genesis{
+			Config:       params.AllEthashProtocolChanges,
+			Nonce:        0,
+			ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
+			GasLimit:     10000000,
+			BaseFee:      big.NewInt(params.InitialBaseFee),
+			Difficulty:   big.NewInt(1),
+			Alloc:        decodePreWormholesInfo(simAllocData),
+			Stake:        decodePreWormholesInfoV3(simStakeData),
+			Validator:    decodePreWormholesInfoV2(simValidatorData_v2),
+			Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
+			Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
+			ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+			Timestamp:    0,
+			Dir:          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
+			InjectNumber: 4096,
+			StartIndex:   big.NewInt(0),
+			Royalty:      100,
+			Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
 		}
 		genesis = gspec.MustCommit(fulldb)
 	)
+	gspec.Alloc[testBankAddress] = core.GenesisAccount{Balance: testBankFunds}
+
 	gspec.MustCommit(lightdb)
 	blockchain, _ := core.NewBlockChain(fulldb, nil, params.TestChainConfig, ethash.NewFullFaker(), vm.Config{}, nil, nil)
 	gchain, _ := core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), fulldb, 4, testChainGen)
