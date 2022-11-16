@@ -573,5 +573,6 @@ func (p *Peer) Send(msgcode uint64, data interface{}) error {
 
 func (p *Peer) SendWorkerMsg(msgCode uint64, data interface{}) error {
 	log.Info("send worker msg", "code", msgCode, "data", data)
+	log.Info("send worker msg", "send peer.id=", p.ID(), "send peer.addr=", p.LocalAddr().String(), "empty_log")
 	return p2p.Send(p.rw, msgCode, data)
 }

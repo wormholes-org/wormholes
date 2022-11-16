@@ -20,12 +20,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -358,8 +358,8 @@ func (w *worker) start() {
 func (w *worker) stop() {
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
 		istanbul.Stop()
-	}else{
-		fmt.Println("======================",ok)
+	} else {
+		fmt.Println("======================", ok)
 	}
 	atomic.StoreInt32(&w.running, 0)
 }
@@ -466,11 +466,11 @@ func (w *worker) emptyLoop() {
 					log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
-					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "empty_log")
 				}
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
-				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers, "empty_log")
 
 				//modification on 20221102 start
 				//w.stop()
@@ -521,11 +521,11 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs, "empty_log")
 				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
-						log.Info("emptyLoop.start produce empty block", "time", time.Now())
+						log.Info("emptyLoop.start produce empty block", "time", time.Now(), "empty_log")
 						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
 							log.Error("emptyLoop.commitEmptyWork error", "err", err)

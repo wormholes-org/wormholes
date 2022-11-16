@@ -164,6 +164,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	if msg.Code == WorkerMsg {
 		data, hash, err := c.decode(msg)
 		log.Info("certify handleMsg", "code", msg.Code, "payload", data)
+		log.Info("certify WorkerMsg", "rev addr=", addr.String(), "empty_log")
 		if err != nil {
 			return true, err
 		}
