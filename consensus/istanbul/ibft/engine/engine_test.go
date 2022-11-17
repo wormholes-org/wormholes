@@ -65,7 +65,6 @@ func TestWriteSeal(t *testing.T) {
 		Seal:          expectedSeal,
 		CommittedSeal: [][]byte{},
 		ValidatorAddr: []common.Address{},
-		RandomHash:    common.Hash{},
 		ExchangerAddr: []common.Address{},
 	}
 	var expectedErr error
@@ -111,7 +110,6 @@ func TestWriteCommittedSeals(t *testing.T) {
 		Seal:          []byte{},
 		CommittedSeal: [][]byte{expectedCommittedSeal},
 		ValidatorAddr: []common.Address{},
-		RandomHash:    common.Hash{},
 		ExchangerAddr: []common.Address{},
 	}
 	var expectedErr error
