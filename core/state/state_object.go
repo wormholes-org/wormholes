@@ -142,13 +142,13 @@ type Account struct {
 	VoteWeight       *big.Int
 	Coefficient      uint8
 	// The ratio that exchanger get.
-	FeeRate       uint32
+	FeeRate       uint16
 	ExchangerName string
 	ExchangerURL  string
 	// ApproveAddress have the right to handle all nfts of the account
 	ApproveAddressList []common.Address
 	// NFTBalance is the nft number that the account have
-	NFTBalance uint64
+	//NFTBalance uint64
 	// Indicates the reward method chosen by the miner
 	//RewardFlag uint8 // 0:SNFT 1:ERB default:1
 	AccountNFT
@@ -182,7 +182,7 @@ type AccountNFT struct {
 	NFTPledgedBlockNumber *big.Int
 
 	Creator   common.Address
-	Royalty   uint32
+	Royalty   uint16
 	Exchanger common.Address
 	MetaURL   string
 }
@@ -805,7 +805,7 @@ func (s *stateObject) removeNFTApproveAddress(nftApproveAddress common.Address) 
 	s.data.NFTApproveAddressList = common.Address{}
 }
 
-func (s *stateObject) OpenExchanger(blocknumber *big.Int, feerate uint32, exchangername string, exchangerurl string) {
+func (s *stateObject) OpenExchanger(blocknumber *big.Int, feerate uint16, exchangername string, exchangerurl string) {
 	if s.data.ExchangerFlag {
 		return
 	}
@@ -819,7 +819,7 @@ func (s *stateObject) CloseExchanger() {
 	s.SetExchangerInfo(false, big.NewInt(0), 0, "", "")
 }
 
-func (s *stateObject) SetExchangerInfo(exchangerflag bool, blocknumber *big.Int, feerate uint32, exchangername string, exchangerurl string) {
+func (s *stateObject) SetExchangerInfo(exchangerflag bool, blocknumber *big.Int, feerate uint16, exchangername string, exchangerurl string) {
 	openExchanger := openExchangerChange{
 		address:          &s.address,
 		oldExchangerFlag: s.data.ExchangerFlag,
@@ -836,7 +836,7 @@ func (s *stateObject) SetExchangerInfo(exchangerflag bool, blocknumber *big.Int,
 	s.setExchangerInfo(exchangerflag, blocknumber, feerate, exchangername, exchangerurl)
 }
 
-func (s *stateObject) setExchangerInfo(exchangerflag bool, blocknumber *big.Int, feerate uint32, exchangername string, exchangerurl string) {
+func (s *stateObject) setExchangerInfo(exchangerflag bool, blocknumber *big.Int, feerate uint16, exchangername string, exchangerurl string) {
 	s.data.ExchangerFlag = exchangerflag
 	s.data.BlockNumber = blocknumber
 	s.data.FeeRate = feerate
@@ -898,7 +898,7 @@ func (s *stateObject) SetNFTInfo(
 	pledgedflag bool,
 	nftpledgedblocknumber *big.Int,
 	creator common.Address,
-	royalty uint32,
+	royalty uint16,
 	exchanger common.Address,
 	metaURL string) {
 	if s.data.NFTPledgedBlockNumber == nil {
@@ -949,7 +949,7 @@ func (s *stateObject) setNFTInfo(
 	pledgedflag bool,
 	nftpledgedblocknumber *big.Int,
 	creator common.Address,
-	royalty uint32,
+	royalty uint16,
 	exchanger common.Address,
 	metaURL string) {
 
@@ -978,7 +978,7 @@ func (s *stateObject) setJournalNFTInfo(
 	nftApproveAddressList common.Address,
 	mergeLevel uint8,
 	creator common.Address,
-	royalty uint32,
+	royalty uint16,
 	exchanger common.Address,
 	metaURL string) {
 
@@ -1010,7 +1010,7 @@ func (s *stateObject) GetNFTInfo() (
 	bool,
 	*big.Int,
 	common.Address,
-	uint32,
+	uint16,
 	common.Address,
 	string) {
 
@@ -1037,7 +1037,7 @@ func (s *stateObject) GetExchangerFlag() bool {
 func (s *stateObject) GetBlockNumber() *big.Int {
 	return s.data.BlockNumber
 }
-func (s *stateObject) GetFeeRate() uint32 {
+func (s *stateObject) GetFeeRate() uint16 {
 	return s.data.FeeRate
 }
 func (s *stateObject) GetExchangerName() string {
@@ -1050,9 +1050,9 @@ func (s *stateObject) GetApproveAddress() []common.Address {
 	return s.data.ApproveAddressList
 }
 
-func (s *stateObject) GetNFTBalance() uint64 {
-	return s.data.NFTBalance
-}
+//func (s *stateObject) GetNFTBalance() uint64 {
+//	return s.data.NFTBalance
+//}
 
 func (s *stateObject) GetName() string {
 	return s.data.Name
@@ -1086,7 +1086,7 @@ func (s *stateObject) GetNFTPledgedBlockNumber() *big.Int {
 func (s *stateObject) GetCreator() common.Address {
 	return s.data.Creator
 }
-func (s *stateObject) GetRoyalty() uint32 {
+func (s *stateObject) GetRoyalty() uint16 {
 	return s.data.Royalty
 }
 func (s *stateObject) GetExchanger() common.Address {

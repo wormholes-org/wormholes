@@ -514,7 +514,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 			obj.data.ExchangerName,
 			obj.data.ExchangerURL,
 			obj.data.ApproveAddressList,
-			obj.data.NFTBalance,
+			//obj.data.NFTBalance,
 			obj.data.Extra,
 			obj.data.Name,
 			obj.data.Symbol,
@@ -595,8 +595,8 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 				FeeRate:            acc.FeeRate,
 				ExchangerName:      acc.ExchangerName,
 				ExchangerURL:       acc.ExchangerURL,
-				NFTBalance:         acc.NFTBalance,
-				Extra:              acc.Extra,
+				//NFTBalance:         acc.NFTBalance,
+				Extra: acc.Extra,
 				//RewardFlag:         acc.RewardFlag,
 				// *** modify to support nft transaction 20211217 begin ***
 				AccountNFT: AccountNFT{
@@ -2109,7 +2109,7 @@ func (s *StateDB) IsOfficialNFT(nftAddress common.Address) bool {
 func (s *StateDB) InjectOfficialNFT(dir string,
 	startIndex *big.Int,
 	number uint64,
-	royalty uint32,
+	royalty uint16,
 	creator string) {
 	injectNFT := &types.InjectedOfficialNFT{
 		Dir:        dir,
@@ -2221,7 +2221,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	for _, owner := range exchangers {
 		nftAddr := common.Address{}
 		var metaUrl string
-		var royalty uint32
+		var royalty uint16
 		var creator string
 		//nftAddr, info, ok := s.SNFTExchangePool.PopAddress(blocknumber)
 		//if !ok {
@@ -2288,7 +2288,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 //
 func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 	owner common.Address,
-	royalty uint32,
+	royalty uint16,
 	metaurl string) (common.Address, bool) {
 	nftAddr := common.BytesToAddress(s.MintDeep.UserMint.Bytes())
 	s.CreateAccount(nftAddr)
@@ -2642,7 +2642,7 @@ func (s *StateDB) CancelPledgedToken(address common.Address, amount *big.Int) {
 func (s *StateDB) OpenExchanger(addr common.Address,
 	amount *big.Int,
 	blocknumber *big.Int,
-	feerate uint32,
+	feerate uint16,
 	exchangername string,
 	exchangerurl string) {
 	stateObject := s.GetOrNewStateObject(addr)
@@ -2738,7 +2738,7 @@ func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	bool,
 	*big.Int,
 	common.Address,
-	uint32,
+	uint16,
 	common.Address,
 	string) {
 	stateObject := s.GetOrNewStateObject(nftAddr)
@@ -2783,7 +2783,7 @@ func (s *StateDB) GetOpenExchangerTime(addr common.Address) *big.Int {
 	}
 	return common.Big0
 }
-func (s *StateDB) GetFeeRate(addr common.Address) uint32 {
+func (s *StateDB) GetFeeRate(addr common.Address) uint16 {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetFeeRate()
@@ -2812,13 +2812,13 @@ func (s *StateDB) GetApproveAddress(addr common.Address) []common.Address {
 	return []common.Address{}
 }
 
-func (s *StateDB) GetNFTBalance(addr common.Address) uint64 {
-	stateObject := s.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		return stateObject.GetNFTBalance()
-	}
-	return 0
-}
+//func (s *StateDB) GetNFTBalance(addr common.Address) uint64 {
+//	stateObject := s.GetOrNewStateObject(addr)
+//	if stateObject != nil {
+//		return stateObject.GetNFTBalance()
+//	}
+//	return 0
+//}
 
 func (s *StateDB) GetNFTName(addr common.Address) string {
 	stateObject := s.GetOrNewStateObject(addr)
@@ -2863,7 +2863,7 @@ func (s *StateDB) GetNFTCreator(addr common.Address) common.Address {
 	}
 	return common.Address{}
 }
-func (s *StateDB) GetNFTRoyalty(addr common.Address) uint32 {
+func (s *StateDB) GetNFTRoyalty(addr common.Address) uint16 {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetRoyalty()

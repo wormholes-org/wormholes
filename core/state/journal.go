@@ -160,7 +160,7 @@ type (
 		address          *common.Address
 		oldExchangerFlag bool
 		oldBlockNumber   *big.Int
-		oldFeeRate       uint32
+		oldFeeRate       uint16
 		oldExchangerName string
 		oldExchangerURL  string
 	}
@@ -176,7 +176,7 @@ type (
 		oldPledgedFlag           bool
 		oldNFTPledgedBlockNumber *big.Int
 		oldCreator               common.Address
-		oldRoyalty               uint32
+		oldRoyalty               uint16
 		oldExchanger             common.Address
 		oldMetaURL               string
 	}
