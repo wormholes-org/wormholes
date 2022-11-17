@@ -134,7 +134,7 @@ func TestCommit(t *testing.T) {
 			nil,
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			func() *types.Block {
-				chain, engine := newBlockChain(1, big.NewInt(1))
+				chain, engine := newBlockChain(1, big.NewInt(0))
 				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 				return updateQBFTBlock(block, engine.Address())
 			},
@@ -179,17 +179,80 @@ func TestCommit(t *testing.T) {
 	}
 }
 
-//func TestGetProposer(t *testing.T) {
-//	chain, engine := newBlockChain(1, big.NewInt(1))
-//	defer engine.Stop()
-//	block := makeBlock(chain, engine, chain.Genesis())
-//	chain.InsertChain(types.Blocks{block})
-//	expected := engine.GetProposer(1)
-//	actual := engine.Address()
-//	if actual != expected {
-//		t.Errorf("proposer mismatch: have %v, want %v", actual.Hex(), expected.Hex())
-//	}
-//}
+func TestGetProposer(t *testing.T) {
+	chain, engine := newBlockChain(1, big.NewInt(0))
+	defer engine.Stop()
+	block := makeBlock(chain, engine, chain.Genesis())
+	chain.InsertChain(types.Blocks{block})
+	expected := engine.GetProposer(1)
+	actual := engine.Address()
+	if actual != expected {
+		t.Errorf("proposer mismatch: have %v, want %v", actual.Hex(), expected.Hex())
+	}
+}
+
+// TestQBFTTransitionDeadlock test whether a deadlock occurs when testQBFTBlock is set to 1
+// This was fixed as part of commit 2a8310663ecafc0233758ca7883676bf568e926e
+func TestQBFTTransitionDeadlock(t *testing.T) {
+	timeout := time.After(1 * time.Minute)
+	done := make(chan bool)
+	go func() {
+		chain, engine := newBlockChain(1, big.NewInt(1))
+		defer engine.Stop()
+		// Create an insert a new block into the chain.
+		block := makeBlock(chain, engine, chain.Genesis())
+		_, err := chain.InsertChain(types.Blocks{block})
+		if err != nil {
+			t.Errorf("Error inserting block: %v", err)
+		}
+
+		if err = engine.NewChainHead(); err != nil {
+			t.Errorf("Error posting NewChainHead Event: %v", err)
+		}
+
+		if !engine.IsQBFTConsensus() {
+			t.Errorf("IsQBFTConsensus() should return true after block insertion")
+		}
+		done <- true
+	}()
+
+	select {
+	case <-timeout:
+		t.Fatal("Deadlock occurred during IBFT to QBFT transition")
+	case <-done:
+	}
+}
+
+func TestIsQBFTConsensus(t *testing.T) {
+	chain, engine := newBlockChain(1, big.NewInt(2))
+	defer engine.Stop()
+	qbftConsensus := engine.IsQBFTConsensus()
+	if qbftConsensus {
+		t.Errorf("IsQBFTConsensus() should return false")
+	}
+
+	// Create an insert a new block into the chain.
+	block := makeBlock(chain, engine, chain.Genesis())
+	_, err := chain.InsertChain(types.Blocks{block})
+	if err != nil {
+		t.Errorf("Error inserting block: %v", err)
+	}
+
+	if err = engine.NewChainHead(); err != nil {
+		t.Errorf("Error posting NewChainHead Event: %v", err)
+	}
+
+	secondBlock := makeBlock(chain, engine, block)
+	_, err = chain.InsertChain(types.Blocks{secondBlock})
+	if err != nil {
+		t.Errorf("Error inserting block: %v", err)
+	}
+
+	qbftConsensus = engine.IsQBFTConsensus()
+	if !qbftConsensus {
+		t.Errorf("IsQBFTConsensus() should return true after block insertion")
+	}
+}
 
 /**
  * SimpleBackend
@@ -239,7 +302,7 @@ func (slice Keys) Swap(i, j int) {
 }
 
 func newBackend() (b *Backend) {
-	_, b = newBlockChain(1, nil)
+	_, b = newBlockChain(1, big.NewInt(0))
 	key, _ := generatePrivateKey()
 	b.privateKey = key
 	return

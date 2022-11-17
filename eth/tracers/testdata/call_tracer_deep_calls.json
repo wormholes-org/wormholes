@@ -84,39 +84,6 @@
         }
       }
     },
-    "stake": {
-      "0x13e4acefe6a6700604929946e70e6443e4e73447": {
-        "balance": "0xcf3e0938579f000",
-        "code": "0x",
-        "nonce": "9",
-        "storage": {}
-      },
-      "0x7dc9c9730689ff0b0fd506c67db815f12d90a448": {
-        "balance": "0x0",
-        "code": "0x",
-        "nonce": "0",
-        "storage": {}
-      }
-    },
-    "validator": {
-      "0x13e4acefe6a6700604929946e70e6443e4e73447": {
-        "balance": "0xcf3e0938579f000",
-        "code": "0x",
-        "nonce": "9",
-        "storage": {}
-      },
-      "0x7dc9c9730689ff0b0fd506c67db815f12d90a448": {
-        "balance": "0x0",
-        "code": "0x",
-        "nonce": "0",
-        "storage": {}
-      }
-    },
-    "royalty":100,
-    "creator":      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
-    "inject_number": 4096,
-    "start_index":   0,
-    "dir":          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
     "config": {
       "byzantiumBlock": 1700000,
       "chainId": 3,

@@ -29,8 +29,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -73,27 +71,9 @@ func (basic *snapshotTestBasic) prepare(t *testing.T) (*BlockChain, []*types.Blo
 	}
 	// Initialize a fresh chain
 	var (
-		genesis = (&Genesis{
-			Config:       params.AllEthashProtocolChanges,
-			Nonce:        0,
-			ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
-			GasLimit:     10000000,
-			Difficulty:   big.NewInt(1),
-			Alloc:        DecodePreWormholesInfo(SimAllocData),
-			Stake:        DecodePreWormholesInfoV3(SimStakeData),
-			Validator:    DecodePreWormholesInfoV2(SimValidatorData_v2),
-			Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
-			Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
-			ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
-			Timestamp:    0,
-			Dir:          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
-			InjectNumber: 4096,
-			StartIndex:   big.NewInt(0),
-			Royalty:      100,
-			Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
-		}).MustCommit(db)
-		engine = ethash.NewFullFaker()
-		gendb  = rawdb.NewMemoryDatabase()
+		genesis = (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
+		engine  = ethash.NewFullFaker()
+		gendb   = rawdb.NewMemoryDatabase()
 
 		// Snapshot is enabled, the first snapshot is created from the Genesis.
 		// The snapshot memory allowance is 256MB, it means no snapshot flush
@@ -490,20 +470,20 @@ func TestRestartWithNewSnapshot(t *testing.T) {
 	// Expected head fast block: C8
 	// Expected head block     : C8
 	// Expected snapshot disk  : G
-	//test := &snapshotTest{
-	//	snapshotTestBasic{
-	//		chainBlocks:        8,
-	//		snapshotBlock:      0,
-	//		commitBlock:        0,
-	//		expCanonicalBlocks: 8,
-	//		expHeadHeader:      8,
-	//		expHeadFastBlock:   8,
-	//		expHeadBlock:       8,
-	//		expSnapshotBottom:  0, // Initial disk layer built from genesis
-	//	},
-	//}
-	//test.test(t)
-	//test.teardown()
+	test := &snapshotTest{
+		snapshotTestBasic{
+			chainBlocks:        8,
+			snapshotBlock:      0,
+			commitBlock:        0,
+			expCanonicalBlocks: 8,
+			expHeadHeader:      8,
+			expHeadFastBlock:   8,
+			expHeadBlock:       8,
+			expSnapshotBottom:  0, // Initial disk layer built from genesis
+		},
+	}
+	test.test(t)
+	test.teardown()
 }
 
 // Tests a Geth was crashed and restarts with a broken snapshot. In this case the
@@ -529,20 +509,20 @@ func TestNoCommitCrashWithNewSnapshot(t *testing.T) {
 	// Expected head fast block: C8
 	// Expected head block     : G
 	// Expected snapshot disk  : C4
-	//test := &crashSnapshotTest{
-	//	snapshotTestBasic{
-	//		chainBlocks:        8,
-	//		snapshotBlock:      4,
-	//		commitBlock:        0,
-	//		expCanonicalBlocks: 8,
-	//		expHeadHeader:      8,
-	//		expHeadFastBlock:   8,
-	//		expHeadBlock:       0,
-	//		expSnapshotBottom:  4, // Last committed disk layer, wait recovery
-	//	},
-	//}
-	//test.test(t)
-	//test.teardown()
+	test := &crashSnapshotTest{
+		snapshotTestBasic{
+			chainBlocks:        8,
+			snapshotBlock:      4,
+			commitBlock:        0,
+			expCanonicalBlocks: 8,
+			expHeadHeader:      8,
+			expHeadFastBlock:   8,
+			expHeadBlock:       0,
+			expSnapshotBottom:  4, // Last committed disk layer, wait recovery
+		},
+	}
+	test.test(t)
+	test.teardown()
 }
 
 // Tests a Geth was crashed and restarts with a broken snapshot. In this case the
@@ -568,20 +548,20 @@ func TestLowCommitCrashWithNewSnapshot(t *testing.T) {
 	// Expected head fast block: C8
 	// Expected head block     : C2
 	// Expected snapshot disk  : C4
-	//test := &crashSnapshotTest{
-	//	snapshotTestBasic{
-	//		chainBlocks:        8,
-	//		snapshotBlock:      4,
-	//		commitBlock:        2,
-	//		expCanonicalBlocks: 8,
-	//		expHeadHeader:      8,
-	//		expHeadFastBlock:   8,
-	//		expHeadBlock:       2,
-	//		expSnapshotBottom:  4, // Last committed disk layer, wait recovery
-	//	},
-	//}
-	//test.test(t)
-	//test.teardown()
+	test := &crashSnapshotTest{
+		snapshotTestBasic{
+			chainBlocks:        8,
+			snapshotBlock:      4,
+			commitBlock:        2,
+			expCanonicalBlocks: 8,
+			expHeadHeader:      8,
+			expHeadFastBlock:   8,
+			expHeadBlock:       2,
+			expSnapshotBottom:  4, // Last committed disk layer, wait recovery
+		},
+	}
+	test.test(t)
+	test.teardown()
 }
 
 // Tests a Geth was crashed and restarts with a broken snapshot. In this case
@@ -607,20 +587,20 @@ func TestHighCommitCrashWithNewSnapshot(t *testing.T) {
 	// Expected head fast block: C8
 	// Expected head block     : G
 	// Expected snapshot disk  : C4
-	//test := &crashSnapshotTest{
-	//	snapshotTestBasic{
-	//		chainBlocks:        8,
-	//		snapshotBlock:      4,
-	//		commitBlock:        6,
-	//		expCanonicalBlocks: 8,
-	//		expHeadHeader:      8,
-	//		expHeadFastBlock:   8,
-	//		expHeadBlock:       0,
-	//		expSnapshotBottom:  4, // Last committed disk layer, wait recovery
-	//	},
-	//}
-	//test.test(t)
-	//test.teardown()
+	test := &crashSnapshotTest{
+		snapshotTestBasic{
+			chainBlocks:        8,
+			snapshotBlock:      4,
+			commitBlock:        6,
+			expCanonicalBlocks: 8,
+			expHeadHeader:      8,
+			expHeadFastBlock:   8,
+			expHeadBlock:       0,
+			expSnapshotBottom:  4, // Last committed disk layer, wait recovery
+		},
+	}
+	test.test(t)
+	test.teardown()
 }
 
 // Tests a Geth was running with snapshot enabled. Then restarts without
@@ -644,21 +624,21 @@ func TestGappedNewSnapshot(t *testing.T) {
 	// Expected head fast block: C10
 	// Expected head block     : C10
 	// Expected snapshot disk  : C10
-	//test := &gappedSnapshotTest{
-	//	snapshotTestBasic: snapshotTestBasic{
-	//		chainBlocks:        8,
-	//		snapshotBlock:      0,
-	//		commitBlock:        0,
-	//		expCanonicalBlocks: 10,
-	//		expHeadHeader:      10,
-	//		expHeadFastBlock:   10,
-	//		expHeadBlock:       10,
-	//		expSnapshotBottom:  10, // Rebuilt snapshot from the latest HEAD
-	//	},
-	//	gapped: 2,
-	//}
-	//test.test(t)
-	//test.teardown()
+	test := &gappedSnapshotTest{
+		snapshotTestBasic: snapshotTestBasic{
+			chainBlocks:        8,
+			snapshotBlock:      0,
+			commitBlock:        0,
+			expCanonicalBlocks: 10,
+			expHeadHeader:      10,
+			expHeadFastBlock:   10,
+			expHeadBlock:       10,
+			expSnapshotBottom:  10, // Rebuilt snapshot from the latest HEAD
+		},
+		gapped: 2,
+	}
+	test.test(t)
+	test.teardown()
 }
 
 // Tests the Geth was running with snapshot enabled and resetHead is applied.
@@ -682,21 +662,21 @@ func TestSetHeadWithNewSnapshot(t *testing.T) {
 	// Expected head fast block: C4
 	// Expected head block     : C4
 	// Expected snapshot disk  : G
-	//test := &setHeadSnapshotTest{
-	//	snapshotTestBasic: snapshotTestBasic{
-	//		chainBlocks:        8,
-	//		snapshotBlock:      0,
-	//		commitBlock:        0,
-	//		expCanonicalBlocks: 4,
-	//		expHeadHeader:      4,
-	//		expHeadFastBlock:   4,
-	//		expHeadBlock:       4,
-	//		expSnapshotBottom:  0, // The initial disk layer is built from the genesis
-	//	},
-	//	setHead: 4,
-	//}
-	//test.test(t)
-	//test.teardown()
+	test := &setHeadSnapshotTest{
+		snapshotTestBasic: snapshotTestBasic{
+			chainBlocks:        8,
+			snapshotBlock:      0,
+			commitBlock:        0,
+			expCanonicalBlocks: 4,
+			expHeadHeader:      4,
+			expHeadFastBlock:   4,
+			expHeadBlock:       4,
+			expSnapshotBottom:  0, // The initial disk layer is built from the genesis
+		},
+		setHead: 4,
+	}
+	test.test(t)
+	test.teardown()
 }
 
 // Tests the Geth was running with a complete snapshot and then imports a few
@@ -720,19 +700,19 @@ func TestRecoverSnapshotFromWipingCrash(t *testing.T) {
 	// Expected head fast block: C10
 	// Expected head block     : C8
 	// Expected snapshot disk  : C10
-	//test := &wipeCrashSnapshotTest{
-	//	snapshotTestBasic: snapshotTestBasic{
-	//		chainBlocks:        8,
-	//		snapshotBlock:      4,
-	//		commitBlock:        0,
-	//		expCanonicalBlocks: 10,
-	//		expHeadHeader:      10,
-	//		expHeadFastBlock:   10,
-	//		expHeadBlock:       10,
-	//		expSnapshotBottom:  10,
-	//	},
-	//	newBlocks: 2,
-	//}
-	//test.test(t)
-	//test.teardown()
+	test := &wipeCrashSnapshotTest{
+		snapshotTestBasic: snapshotTestBasic{
+			chainBlocks:        8,
+			snapshotBlock:      4,
+			commitBlock:        0,
+			expCanonicalBlocks: 10,
+			expHeadHeader:      10,
+			expHeadFastBlock:   10,
+			expHeadBlock:       10,
+			expSnapshotBottom:  10,
+		},
+		newBlocks: 2,
+	}
+	test.test(t)
+	test.teardown()
 }

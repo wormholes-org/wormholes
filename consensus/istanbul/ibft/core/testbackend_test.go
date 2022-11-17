@@ -18,7 +18,6 @@ package core
 
 import (
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 	"time"
 
@@ -27,6 +26,7 @@ import (
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -48,10 +48,6 @@ type testSystemBackend struct {
 
 	address common.Address
 	db      ethdb.Database
-}
-
-func (self *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
-	return
 }
 
 type testCommittedMsgs struct {
@@ -185,6 +181,11 @@ func (sb *testSystemBackend) StartQBFTConsensus() error {
 	return nil
 }
 
+func (sb *testSystemBackend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList) {
+	return
+}
+
+// ==============================================
 //
 // define the struct that need to be provided for integration tests.
 

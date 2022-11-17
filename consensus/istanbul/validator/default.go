@@ -85,16 +85,6 @@ func (valSet *defaultSet) List() []istanbul.Validator {
 	return valSet.validators
 }
 
-func (valSet *defaultSet) ListAll() []common.Address {
-	var vals []common.Address
-	valSet.validatorMu.RLock()
-	defer valSet.validatorMu.RUnlock()
-	for _, val := range valSet.validators {
-		vals = append(vals, val.Address())
-	}
-	return vals
-}
-
 func (valSet *defaultSet) GetByIndex(i uint64) istanbul.Validator {
 	valSet.validatorMu.RLock()
 	defer valSet.validatorMu.RUnlock()

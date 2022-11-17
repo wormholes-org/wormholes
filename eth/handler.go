@@ -771,6 +771,7 @@ func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]
 	for _, p := range h.peers.peers {
 		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)
+		log.Info("caver|FindPeers", "addr", addr)
 		m[addr] = p
 	}
 	return m
@@ -792,6 +793,7 @@ func (h *handler) FindPeerSet(targets map[common.Address]bool) map[common.Addres
 	for _, p := range h.peers.peers {
 		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)
+		log.Info("FindPeerSet", "addr", addr)
 		m[addr] = p
 	}
 	return m

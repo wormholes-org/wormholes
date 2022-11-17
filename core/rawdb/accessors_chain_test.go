@@ -483,16 +483,16 @@ func TestAncientStorage(t *testing.T) {
 	}
 	// Use a fake hash for data retrieval, nothing should be returned.
 	fakeHash := common.BytesToHash([]byte{0x01, 0x02, 0x03})
-	if blob := ReadHeaderRLP(db, fakeHash, 1); len(blob) != 0 {
+	if blob := ReadHeaderRLP(db, fakeHash, number); len(blob) != 0 {
 		t.Fatalf("invalid header returned")
 	}
-	if blob := ReadBodyRLP(db, fakeHash, 1); len(blob) != 0 {
+	if blob := ReadBodyRLP(db, fakeHash, number); len(blob) != 0 {
 		t.Fatalf("invalid body returned")
 	}
-	if blob := ReadReceiptsRLP(db, fakeHash, 1); len(blob) != 0 {
+	if blob := ReadReceiptsRLP(db, fakeHash, number); len(blob) != 0 {
 		t.Fatalf("invalid receipts returned")
 	}
-	if blob := ReadTdRLP(db, fakeHash, 1); len(blob) != 0 {
+	if blob := ReadTdRLP(db, fakeHash, number); len(blob) != 0 {
 		t.Fatalf("invalid td returned")
 	}
 }

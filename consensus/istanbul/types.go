@@ -45,6 +45,12 @@ type Request struct {
 	Proposal Proposal
 }
 
+type OnlineProofRequest struct {
+	Proposal   Proposal
+	RandomHash common.Hash
+	Version    string
+}
+
 // View includes a round number and a sequence number.
 // Sequence is the block number we'd like to commit.
 // Each round has a number and is composed by 3 steps: preprepare, prepare and commit.
@@ -91,6 +97,37 @@ func (v *View) Cmp(y *View) int {
 		return v.Round.Cmp(y.Round)
 	}
 	return 0
+}
+
+type OnlineProof struct {
+	View       *View
+	Proposal   Proposal
+	RandomHash common.Hash
+	Signature  []byte
+	Version    string
+}
+
+// EncodeRLP serializes b into the Ethereum RLP format.
+func (o *OnlineProof) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, []interface{}{o.View, o.Proposal, o.RandomHash, o.Signature, o.Version})
+}
+
+// DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
+func (o *OnlineProof) DecodeRLP(s *rlp.Stream) error {
+	var onlineProof struct {
+		View       *View
+		Proposal   *types.Block
+		RandomHash common.Hash
+		Signature  []byte
+		Version    string
+	}
+
+	if err := s.Decode(&onlineProof); err != nil {
+		return err
+	}
+	o.View, o.Proposal, o.RandomHash, o.Signature, o.Version = onlineProof.View, onlineProof.Proposal, onlineProof.RandomHash, onlineProof.Signature, onlineProof.Version
+
+	return nil
 }
 
 type Preprepare struct {

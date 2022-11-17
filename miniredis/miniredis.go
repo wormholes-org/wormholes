@@ -1,8 +1,6 @@
 package miniredis
 
 import (
-	"encoding/json"
-	"regexp"
 	"github.com/go-redis/redis/v7"
 )
 
@@ -16,26 +14,18 @@ var (
 	//addr   = "192.168.1.243:6379"
 	addr      = "127.0.0.1:6379"
 	client    *redis.Client
-	client1    *redis.Client
-	logCh     = make(chan map[string]interface{}, 100)
+	logCh     = make(chan map[string]string, 100)
 	nodiscard = false
 	// save ip
 )
 
 func runminiredisNodiscardLog() {
 	client = redis.NewClient(&redis.Options{Addr: addr, Password: "", DB: 0})
-	client1 = redis.NewClient(&redis.Options{Addr: addr, Password: "", DB: 1})
-	reg, _ := regexp.Compile("^\\d+$")
 	for {
 		select {
 		case logMap := <-logCh:
 			for k, v := range logMap {
-				if reg.MatchString(k) {
-					data, _ := json.Marshal(v)
-					client.SAdd(k, data)
-				} else {
-					client1.SAdd(k, v)
-				}
+				LpushData(k, v)
 			}
 		}
 	}
@@ -52,11 +42,11 @@ func runminiredisDiscardLog() {
 
 // Newminiredis Create redis client
 func Newminiredis(nodiscard bool) {
-	if nodiscard {
-		go runminiredisNodiscardLog()
-	} else {
-		go runminiredisDiscardLog()
-	}
+	//if nodiscard {
+	//	go runminiredisNodiscardLog()
+	//} else {
+	//	go runminiredisDiscardLog()
+	//}
 }
 
 // GetData from redis
@@ -86,6 +76,6 @@ func SAdd(pkey string, pValue string) {
 	client.SAdd(pkey, pValue)
 }
 
-func GetLogCh() chan map[string]interface{} {
+func GetLogCh() chan map[string]string {
 	return logCh
 }

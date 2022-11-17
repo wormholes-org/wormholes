@@ -17,10 +17,13 @@
 package core
 
 import (
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -70,6 +73,9 @@ func (c *core) subscribeEvents() {
 		istanbul.MessageEvent{},
 		// internal events
 		backlogEvent{},
+
+		// onlineProof events
+		istanbul.OnlineProofEvent{},
 	)
 	c.timeoutSub = c.backend.EventMux().Subscribe(
 		timeoutEvent{},
@@ -115,16 +121,22 @@ func (c *core) handleEvents() {
 				if err == istanbulcommon.ErrFutureMessage {
 					c.storeRequestMsg(r)
 				}
-
-			case istanbul.MessageEvent:
-				i, _ := c.valSet.GetByAddress(c.address)
-				if i < 0 {
-					//If it is not the current validator, the broadcast message will not be processed
-					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
-				} else if err := c.handleMsg(ev.Payload); err == nil {
-					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
+			case istanbul.OnlineProofEvent:
+				o := &istanbul.OnlineProofRequest{
+					Proposal:   ev.Proposal,
+					RandomHash: ev.RandomHash,
+					Version:    ev.Version,
+				}
+				err := c.handleOnlineProofRequest(o)
+				if err == istanbulcommon.ErrFutureMessage {
+					c.storeOnlineProofRequestMsg(o)
 				}
 
+			case istanbul.MessageEvent:
+				//If it is a normal node or not the validator of this round, gossip message directly
+				if err := c.handleMsg(ev.Payload); err == nil {
+					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
+				}
 			case backlogEvent:
 				// No need to check signature for internal messages
 				if err := c.handleCheckedMsg(ev.msg, ev.src); err == nil {
@@ -168,6 +180,15 @@ func (c *core) handleMsg(payload []byte) error {
 	// Decode message and check its signature
 	msg := new(ibfttypes.Message)
 	if err := msg.FromPayload(payload, c.validateFn); err != nil {
+		if msg.Code == ibfttypes.MsgOnlineProof {
+			if ok, _ := c.validateExistFn(msg.Address); ok {
+				curAddress := OnlineValidator{}
+				curAddress.addr = msg.Address
+				return c.handleOnlineProof(msg, &curAddress)
+			} else {
+				log.Info("handleMsg MsgOnlineProof validator not exist", "addr", msg.Address)
+			}
+		}
 		logger.Error("Failed to decode message from payload", "err", err)
 		return err
 	}
@@ -196,6 +217,9 @@ func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) 
 	}
 
 	switch msg.Code {
+	case ibfttypes.MsgOnlineProof:
+		err := c.handleOnlineProof(msg, src)
+		return testBacklog(err)
 	case ibfttypes.MsgPreprepare:
 		err := c.handlePreprepare(msg, src)
 		return testBacklog(err)
@@ -238,4 +262,12 @@ func (c *core) handleTimeoutMsg() {
 			"no", c.currentView().Sequence, "round", c.currentView().Round.String(), "self", c.address.Hex())
 		c.sendNextRoundChange()
 	}
+}
+
+func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
+	return c.onlineProofs
+}
+
+func (c *core) GetOnlineProofsMu() *sync.Mutex {
+	return c.onlineProofsMu
 }

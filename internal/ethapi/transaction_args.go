@@ -243,9 +243,6 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (t
 	return msg, nil
 }
 
-func (args *TransactionArgs) Update(data hexutil.Bytes) {
-	args.Data = &data
-}
 // toTransaction converts the arguments to a transaction.
 // This assumes that setDefaults has been called.
 func (args *TransactionArgs) toTransaction() *types.Transaction {

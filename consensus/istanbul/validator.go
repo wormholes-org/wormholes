@@ -84,8 +84,7 @@ type ValidatorSet interface {
 	Size() int
 	// Return the validator array
 	List() []Validator
-
-	ListAll() []common.Address
+	// Get validator by index
 	GetByIndex(i uint64) Validator
 	// Get validator by given address
 	GetByAddress(addr common.Address) (int, Validator)

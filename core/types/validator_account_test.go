@@ -17,7 +17,7 @@ func TestCalculateAddressRange(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 	var validators []*Validator
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		validators = append(validators, NewValidator(RandomAddr(), big.NewInt(rand.Int63()), common.Address{}))
 	}
 	validatorList := NewValidatorList(validators)
@@ -26,9 +26,9 @@ func TestCalculateAddressRange(t *testing.T) {
 	}
 
 	//---------------------------------------------//
-	//for _, v := range validatorList.Validators {
-	//	fmt.Println("address---", v.Addr, "|---weight", v.Weight)
-	//}
+	for _, v := range validatorList.Validators {
+		fmt.Println("address---", v.Addr, "|---weight", v.Weight)
+	}
 }
 
 func TestCalculateAddressRange2(t *testing.T) {
@@ -49,6 +49,11 @@ func TestCalculateAddressRange2(t *testing.T) {
 		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
 	}
 
+	//---------------------------------------------//
+	for _, v := range validatorList.Validators {
+		fmt.Println("address---", v.Addr, "|---weight", v.Weight)
+	}
+
 	hash := randomHash()
 	err, res := validatorList.CollectValidators(hash, 11)
 	if err != nil {
@@ -59,43 +64,17 @@ func TestCalculateAddressRange2(t *testing.T) {
 	}
 }
 
-func TestCalculateAddressRangeV2(t *testing.T) {
-	rand.Seed(time.Now().Unix())
-	var validators []*Validator
-
-	addrs := []common.Address{
-		common.HexToAddress("0x958f3938ad79F307F136D8A773abbA2F7AD5f987"),
-		common.HexToAddress("0xBe84e65CAf40E4612399E08B3bBceAc8b9C0717F"),
-		common.HexToAddress("0xEB9580f1a77070b910b68267C125EC930496bF93"),
-		common.HexToAddress("0x8D45abABa0Eaa51C6c54233bd4551fa68501626D"),
-		common.HexToAddress("0x9bC63Bee6dDA01AaF84C7f2f67aFaCe072f9200C"),
-		common.HexToAddress("0x1955748fbCf6Ed7d0D7cDc6E73FcCEA7acA5111D"),
-		common.HexToAddress("0xaC2BE8274500F1f9752742e72EDfF09d48cdf6b7"),
-		common.HexToAddress("0x0e26F837F0fba43e8CE4AAa171d44Cd9DED5f163"),
-		common.HexToAddress("0xD8391F18b848D3A4b3f8c3027a302F6144cC696E"),
-		common.HexToAddress("0x0f811d75DA3B5A2aB4005805866Bb0bfb316d785"),
-	}
-	for i := 0; i < 10; i++ {
-		validators = append(validators, NewValidator(addrs[i], big.NewInt(rand.Int63()), common.Address{}))
-	}
-	validatorList := NewValidatorList(validators)
-	for _, vl := range validatorList.Validators {
-		validatorList.CalculateAddressRangeV2(vl.Addr, validatorList.StakeBalance(vl.Addr), big.NewInt(15))
-	}
-
-	//---------------------------------------------//
-	for _, v := range validatorList.Validators {
-		fmt.Println("address---", v.Addr, "|---weight", v.Weight)
-	}
-}
-
 func TestCollectValidators(t *testing.T) {
 	var count int
 	for i := 0; i < 1000; i++ {
+		//maxValue := common.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff").Hash().Big()
 		validatorList := prepareFixedValidator()
 		for _, vl := range validatorList.Validators {
 			validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
 		}
+		//for _, v := range validatorList.Validators {
+		//	fmt.Println("rangeList====", "addr===", v.Addr, "weight====", v.Weight, "maxValue====", maxValue)
+		//}
 		hash := randomHash()
 		err, res := validatorList.CollectValidators(hash, 11)
 		if err != nil {
@@ -106,6 +85,13 @@ func TestCollectValidators(t *testing.T) {
 		}
 	}
 	fmt.Println("------", count)
+
+	//random11Amt := big.NewInt(0)
+	//for i, v := range res {
+	//	fmt.Println("i===", i, "v====", v, "balance=====", validatorList.StakeBalance(v))
+	//	random11Amt.Add(random11Amt, validatorList.StakeBalance(v))
+	//}
+	//fmt.Println("11StakeAmt====", random11Amt, "totalAmt", validatorList.TotalStakeBalance(), "hash", hash.Hex())
 }
 
 func TestStability(t *testing.T) {
@@ -114,13 +100,17 @@ func TestStability(t *testing.T) {
 	for _, vl := range validatorList.Validators {
 		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
 	}
+	for i, v := range validatorList.Validators {
+		fmt.Println("=====i====", i, "====weight====", v.Weight)
+	}
 	hash := common.HexToHash("0xba84ce252cfa4ac640ddbbec2e634d544cb4aacf1880b24126d9300b9a38534d")
 	err, res := validatorList.CollectValidators(hash, 11)
 	if err != nil {
 		fmt.Println("error collect validators", err)
 	}
 	random11Amt := big.NewInt(0)
-	for _, v := range res {
+	for i, v := range res {
+		fmt.Println("i===", i, "v====", v, "balance=====", validatorList.StakeBalance(v))
 		random11Amt.Add(random11Amt, validatorList.StakeBalance(v))
 	}
 	fmt.Println("11StakeAmt====", random11Amt, "totalAmt", validatorList.TotalStakeBalance(), "hash", hash.Hex())
@@ -195,6 +185,21 @@ func RandomAddr() common.Address {
 	return crypto.PubkeyToAddress(priKey.PublicKey)
 }
 
+func TestGetAddr(t *testing.T) {
+	for i, address := range Get11Addr() {
+		fmt.Println("i====", i, "====addr===", address)
+	}
+}
+
+func Get11Addr() []common.Address {
+	var addrs []common.Address
+	for i := 0; i < 14; i++ {
+		priKey, _ := crypto.GenerateKey()
+		addrs = append(addrs, crypto.PubkeyToAddress(priKey.PublicKey))
+	}
+	return addrs
+}
+
 func TestRandomValidatorV2(t *testing.T) {
 	validatorList := prepareFixedValidator()
 	for _, vl := range validatorList.Validators {
@@ -212,7 +217,7 @@ func TestRandomValidatorV2(t *testing.T) {
 func TestProbability(t *testing.T) {
 	var count int
 	vl := MockValidatorList()
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 1000000; i++ {
 		hash := randomHash()
 		selectedValidators := vl.RandomValidatorV2(11, hash)
 
@@ -555,6 +560,9 @@ func TestValidatorAccordToDistance(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		randomHash := randomHash()
 		consensusValidator := validatorList.RandomValidatorV2(11, randomHash)
+		for _, v := range consensusValidator {
+			fmt.Println("====vvvvv====", v)
+		}
 		rewardAddr := validatorList.ValidatorByDistance(ConvertToBigInt(consensusValidator), 6, randomHash)
 		flg := false
 		for i := 0; i < len(otherMiners); i++ {
@@ -744,6 +752,7 @@ func TestExsistSevenValidatorProbability(t *testing.T) {
 		for j := 0; j < len(selfAddrs); j++ {
 			for _, v := range consensusValidator {
 				if v.Hex() == selfAddrs[j].Hex() {
+					fmt.Println("===vvvvv===", v.Hex(), "======i", i)
 					occurCount++
 					break
 				}
@@ -831,7 +840,7 @@ func TestOtherValidatorProbability(t *testing.T) {
 
 	otherAddrs := GetOtherMinerAddr()
 	var count int
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 20000; i++ {
 		randomHash := randomHash()
 		consensusValidator := validatorList.RandomValidatorV2(11, randomHash)
 
@@ -840,6 +849,7 @@ func TestOtherValidatorProbability(t *testing.T) {
 		for j := 0; j < len(otherAddrs); j++ {
 			for _, v := range consensusValidator {
 				if v.Hex() == otherAddrs[j].Hex() {
+					fmt.Println("===vvvvv===", v.Hex(), "======i", i)
 					occurCount++
 					break
 				}
@@ -922,7 +932,7 @@ func TestConsensus(t *testing.T) {
 	var count4 int
 	var count5 int
 	var count6 int
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 20000; i++ {
 		randomHash := randomHash()
 		fmt.Println(randomHash)
 		consensusValidator := validatorList.RandomValidatorV2(11, randomHash)
@@ -1133,7 +1143,7 @@ func TestMockData(t *testing.T) {
 
 	selfAddrs := GetSelfAddr()
 	var count int
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 20000; i++ {
 		randomHash := randomHash()
 		consensusValidator := validatorList.RandomValidatorV2(11, randomHash)
 
@@ -1142,6 +1152,7 @@ func TestMockData(t *testing.T) {
 		for j := 0; j < len(selfAddrs); j++ {
 			for _, v := range consensusValidator {
 				if v.Hex() == selfAddrs[j].Hex() {
+					fmt.Println("===vvvvv===", v.Hex(), "======i", i)
 					occurCount++
 					break
 				}
@@ -1155,10 +1166,18 @@ func TestMockData(t *testing.T) {
 
 }
 
+func randomHash2() common.Hash {
+	rand.Seed(time.Now().Local().UnixMicro())
+	var hash common.Hash
+	if n, err := rand.Read(hash[:]); n != common.HashLength || err != nil {
+		panic(err)
+	}
+	return hash
+}
 func TestMD5(t *testing.T) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1000; i++ {
 		hash := randomHash()
-
+		// random   addr
 		addr1 := RandomAddr()
 		addr2 := RandomAddr()
 		addr3 := RandomAddr()
@@ -1169,227 +1188,7 @@ func TestMD5(t *testing.T) {
 		buffer.WriteString(addr1.Hex())
 		buffer.WriteString(addr2.Hex())
 		buffer.WriteString(addr3.Hex())
-		_ = crypto.Keccak256Hash(buffer.Bytes())
+		res := crypto.Keccak256Hash(buffer.Bytes())
+		fmt.Println("====v====", res)
 	}
-}
-
-func TestFAndSize(t *testing.T) {
-	validators := NewValidatorList(nil)
-	if validators.F() != -1 {
-		t.Fatalf("expected -1 , but got %d", validators.F())
-	}
-	if validators.Size() != 0 {
-		t.Fatalf("expected 0 , but got %d", validators.Size())
-	}
-}
-
-func TestGetValidatorByAddr(t *testing.T) {
-	vals := MockValidator()
-	cases := []struct {
-		Name     string
-		Addr     common.Address
-		Expected common.Address
-	}{
-		{"exist addr", common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F"), common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F")},
-		{"not exist addr", common.HexToAddress("ox1"), common.Address{}},
-	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			validator := vals.GetValidatorByAddr(c.Addr)
-			if validator.Addr != c.Expected {
-				t.Fatalf("expected %s, but %s got", c.Expected, validator.Addr)
-			}
-		})
-	}
-}
-
-func TestGetValidatorByIndex(t *testing.T) {
-	vals := MockValidator()
-	cases := []struct {
-		Name     string
-		Index    uint64
-		Expected common.Address
-	}{
-		{"exist addr", 0, common.HexToAddress("0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e")},
-		{"not exist addr", 200, common.Address{}},
-	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			validator := vals.GetByIndex(c.Index)
-			if validator.Addr != c.Expected {
-				t.Fatalf("expected %s, but %s got", c.Expected, validator.Addr)
-			}
-		})
-	}
-}
-
-func TestAddValidator(t *testing.T) {
-	addrs := []common.Address{
-		common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F"),
-		common.HexToAddress("0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD"),
-	}
-
-	c := 140000
-	c2 := 70000
-
-	stakeAmt := []*big.Int{
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c2)),
-	}
-
-	var validators []*Validator
-	for i := 0; i < len(addrs); i++ {
-		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.HexToAddress("0xE2FA892CC5CC268a0cC1d924EC907C796351C645")))
-	}
-	validatorList := NewValidatorList(validators)
-
-	if len(validatorList.Validators) != 2 {
-		t.Fatalf("expected %d, but %d got", 2, len(validatorList.Validators))
-	}
-
-	if validatorList.Validators[0].Addr != common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F") {
-		t.Fatalf("expected %s,but %s got", "0x091DBBa95B26793515cc9aCB9bEb5124c479f27F", validatorList.Validators[0].Addr.Hex())
-	}
-
-	for _, v := range validatorList.Validators {
-		if v.Proxy != common.HexToAddress("0xE2FA892CC5CC268a0cC1d924EC907C796351C645") {
-			t.Fatalf("expected %s, but %s got", "0xE2FA892CC5CC268a0cC1d924EC907C796351C645", v.Proxy.Hex())
-		}
-	}
-}
-
-func TestGetByAddress(t *testing.T) {
-	addrs := []common.Address{
-		common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F"),
-		common.HexToAddress("0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD"),
-	}
-
-	c := 140000
-	c2 := 70000
-
-	stakeAmt := []*big.Int{
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c2)),
-	}
-
-	var validators []*Validator
-	for i := 0; i < len(addrs); i++ {
-		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.HexToAddress("0xE2FA892CC5CC268a0cC1d924EC907C796351C645")))
-	}
-	validatorList := NewValidatorList(validators)
-
-	cases := []struct {
-		Name     string
-		Addr     common.Address
-		Expected int
-	}{
-		{"exist addr", common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F"), 0},
-		{"not exist addr", common.HexToAddress("0x091DBBa95B267df515cc9aCB9bEb5124c479f27F"), -1},
-	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			index := validatorList.GetByAddress(c.Addr)
-
-			if index != c.Expected {
-				t.Fatalf("expected %d, but %d got", c.Expected, index)
-			}
-		})
-	}
-}
-
-// helper func ============================================================== //
-func MockValidator() *ValidatorList {
-	addrs := AddrList()
-
-	c := 140000
-	c2 := 70000
-	stakeAmt := []*big.Int{
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-		big.NewInt(int64(c)),
-
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-		big.NewInt(int64(c2)),
-	}
-
-	var validators []*Validator
-	for i := 0; i < len(addrs); i++ {
-		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
-	}
-	validatorList := NewValidatorList(validators)
-
-	for _, vl := range validatorList.Validators {
-		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
-	}
-	return validatorList
-}
-
-func GetAddr(count int) []common.Address {
-	var addrs []common.Address
-	for i := 0; i < count; i++ {
-		priKey, _ := crypto.GenerateKey()
-		addrs = append(addrs, crypto.PubkeyToAddress(priKey.PublicKey))
-	}
-	return addrs
-}
-
-func randomHash() common.Hash {
-	rand.Seed(time.Now().Local().UnixNano())
-	var hash common.Hash
-	if n, err := rand.Read(hash[:]); n != common.HashLength || err != nil {
-		fmt.Println(err)
-	}
-	return hash
 }

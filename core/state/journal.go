@@ -216,15 +216,6 @@ type (
 	//	account    *common.Address
 	//	rewardFlag uint8
 	//}
-	coefficientChange struct {
-		account *common.Address
-		prev    uint8
-	}
-
-	extraChange struct {
-		account *common.Address
-		prev    []byte
-	}
 )
 
 func (ch createObjectChange) revert(s *StateDB) {
@@ -468,21 +459,5 @@ func (ch pledgedNFTInfo) revert(s *StateDB) {
 }
 
 func (ch pledgedNFTInfo) dirtied() *common.Address {
-	return ch.account
-}
-
-func (ch coefficientChange) revert(s *StateDB) {
-	s.getStateObject(*ch.account).setCoefficient(ch.prev)
-}
-
-func (ch coefficientChange) dirtied() *common.Address {
-	return ch.account
-}
-
-func (ch extraChange) revert(s *StateDB) {
-	s.getStateObject(*ch.account).setExtra(ch.prev)
-}
-
-func (ch extraChange) dirtied() *common.Address {
 	return ch.account
 }

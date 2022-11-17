@@ -286,6 +286,10 @@ func (c *core) RoundInfo() []string {
 	return nil
 }
 
-func (c *core) ConsensusInfo() chan map[string]interface{} {
+func (c *core) GetOnlineValidators() map[uint64]*types.OnlineValidatorList {
+	return nil
+}
+
+func (c *core) GetOnlineProofsMu() *sync.Mutex {
 	return nil
 }

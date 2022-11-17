@@ -42,7 +42,7 @@ func runMinimalGeth(t *testing.T, args ...string) *testgeth {
 	// --ropsten to make the 'writing genesis to disk' faster (no accounts)
 	// --networkid=1337 to avoid cache bump
 	// --syncmode=full to avoid allocating fast sync bloom
-	allArgs := []string{"--testnet", "--networkid", "1337", "--syncmode=full", "--port", "0",
+	allArgs := []string{"--ropsten", "--networkid", "1337", "--syncmode=full", "--port", "0",
 		"--nat", "none", "--nodiscover", "--maxpeers", "0", "--cache", "64"}
 	return runGeth(t, append(allArgs, args...)...)
 }
@@ -66,17 +66,19 @@ func TestConsoleWelcome(t *testing.T) {
 	geth.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
 	// Verify the actual welcome message to the required template
-	//	geth.Expect(`
-	//◊
-	//                                          <!-- ###########f         -->
-	//                                       <!-- ##################      -->
-	//                                     <!-- ######         #######    -->
-	//                                    <!-- ####    ########   #####   -->
-	//                                   <!-- ####   ############  #####  -->
-	//                     <!-- ###########   ###  ##############   ####  -->
-	//                 <!-- #  ############### #   ##############  t###   -->
-	//`)
-	//geth.ExpectExit()
+	geth.Expect(`
+Welcome to the Geth JavaScript console!
+
+instance: Geth/v{{gethver}}/{{goos}}-{{goarch}}/{{gover}}
+coinbase: {{.Etherbase}}
+at block: 0 ({{niltime}})
+ datadir: {{.Datadir}}
+ modules: {{apis}}
+
+To exit, press ctrl-d
+> {{.InputLine "exit"}}
+`)
+	geth.ExpectExit()
 }
 
 // Tests that a console can be attached to a running node via various means.
@@ -98,24 +100,24 @@ func TestAttachWelcome(t *testing.T) {
 	p := trulyRandInt(1024, 65533) // Yeah, sometimes this will fail, sorry :P
 	httpPort = strconv.Itoa(p)
 	wsPort = strconv.Itoa(p + 1)
-	_ = runMinimalGeth(t, "--miner.etherbase", "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182",
+	geth := runMinimalGeth(t, "--miner.etherbase", "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182",
 		"--ipcpath", ipc,
 		"--http", "--http.port", httpPort,
 		"--ws", "--ws.port", wsPort)
-	//t.Run("ipc", func(t *testing.T) {
-	//	waitForEndpoint(t, ipc, 3*time.Second)
-	//	testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
-	//})
-	//t.Run("http", func(t *testing.T) {
-	//	endpoint := "http://127.0.0.1:" + httpPort
-	//	waitForEndpoint(t, endpoint, 3*time.Second)
-	//	testAttachWelcome(t, geth, endpoint, httpAPIs)
-	//})
-	//t.Run("ws", func(t *testing.T) {
-	//	endpoint := "ws://127.0.0.1:" + wsPort
-	//	waitForEndpoint(t, endpoint, 3*time.Second)
-	//	testAttachWelcome(t, geth, endpoint, httpAPIs)
-	//})
+	t.Run("ipc", func(t *testing.T) {
+		waitForEndpoint(t, ipc, 3*time.Second)
+		testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
+	})
+	t.Run("http", func(t *testing.T) {
+		endpoint := "http://127.0.0.1:" + httpPort
+		waitForEndpoint(t, endpoint, 3*time.Second)
+		testAttachWelcome(t, geth, endpoint, httpAPIs)
+	})
+	t.Run("ws", func(t *testing.T) {
+		endpoint := "ws://127.0.0.1:" + wsPort
+		waitForEndpoint(t, endpoint, 3*time.Second)
+		testAttachWelcome(t, geth, endpoint, httpAPIs)
+	})
 }
 
 func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {

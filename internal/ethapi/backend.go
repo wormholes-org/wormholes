@@ -136,11 +136,6 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Version:   "1.0",
 			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
 			Public:    false,
-		},{
-			Namespace: "erb",
-			Version:   "1.0",
-			Service:   NewPublicWormholesAPI(apiBackend, nonceLock),
-			Public:    true,
 		},
 	}
 }

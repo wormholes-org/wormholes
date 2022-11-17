@@ -17,11 +17,11 @@
 package ethtest
 
 import (
-	"github.com/ethereum/go-ethereum/log"
 	"path/filepath"
 	"strconv"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 )
@@ -134,69 +134,68 @@ func TestChain_GetHeaders(t *testing.T) {
 	}
 
 	chain, err := loadChain(chainFile, genesisFile)
-	log.Info("chain", "chain", chain)
 	if err != nil {
-		//t.Fatal(err)
+		t.Fatal(err)
 	}
 
-	//var tests = []struct {
-	//	req      GetBlockHeaders
-	//	expected BlockHeaders
-	//}{
-	//	{
-	//		req: GetBlockHeaders{
-	//			Origin: eth.HashOrNumber{
-	//				Number: uint64(2),
-	//			},
-	//			Amount:  uint64(5),
-	//			Skip:    1,
-	//			Reverse: false,
-	//		},
-	//		expected: BlockHeaders{
-	//			chain.blocks[2].Header(),
-	//			chain.blocks[4].Header(),
-	//			chain.blocks[6].Header(),
-	//			chain.blocks[8].Header(),
-	//			chain.blocks[10].Header(),
-	//		},
-	//	},
-	//	{
-	//		req: GetBlockHeaders{
-	//			Origin: eth.HashOrNumber{
-	//				Number: uint64(chain.Len() - 1),
-	//			},
-	//			Amount:  uint64(3),
-	//			Skip:    0,
-	//			Reverse: true,
-	//		},
-	//		expected: BlockHeaders{
-	//			chain.blocks[chain.Len()-1].Header(),
-	//			chain.blocks[chain.Len()-2].Header(),
-	//			chain.blocks[chain.Len()-3].Header(),
-	//		},
-	//	},
-	//	{
-	//		req: GetBlockHeaders{
-	//			Origin: eth.HashOrNumber{
-	//				Hash: chain.Head().Hash(),
-	//			},
-	//			Amount:  uint64(1),
-	//			Skip:    0,
-	//			Reverse: false,
-	//		},
-	//		expected: BlockHeaders{
-	//			chain.Head().Header(),
-	//		},
-	//	},
-	//}
-	//
-	//for i, tt := range tests {
-	//	t.Run(strconv.Itoa(i), func(t *testing.T) {
-	//		headers, err := chain.GetHeaders(tt.req)
-	//		if err != nil {
-	//			t.Fatal(err)
-	//		}
-	//		assert.Equal(t, headers, tt.expected)
-	//	})
-	//}
+	var tests = []struct {
+		req      GetBlockHeaders
+		expected BlockHeaders
+	}{
+		{
+			req: GetBlockHeaders{
+				Origin: eth.HashOrNumber{
+					Number: uint64(2),
+				},
+				Amount:  uint64(5),
+				Skip:    1,
+				Reverse: false,
+			},
+			expected: BlockHeaders{
+				chain.blocks[2].Header(),
+				chain.blocks[4].Header(),
+				chain.blocks[6].Header(),
+				chain.blocks[8].Header(),
+				chain.blocks[10].Header(),
+			},
+		},
+		{
+			req: GetBlockHeaders{
+				Origin: eth.HashOrNumber{
+					Number: uint64(chain.Len() - 1),
+				},
+				Amount:  uint64(3),
+				Skip:    0,
+				Reverse: true,
+			},
+			expected: BlockHeaders{
+				chain.blocks[chain.Len()-1].Header(),
+				chain.blocks[chain.Len()-2].Header(),
+				chain.blocks[chain.Len()-3].Header(),
+			},
+		},
+		{
+			req: GetBlockHeaders{
+				Origin: eth.HashOrNumber{
+					Hash: chain.Head().Hash(),
+				},
+				Amount:  uint64(1),
+				Skip:    0,
+				Reverse: false,
+			},
+			expected: BlockHeaders{
+				chain.Head().Header(),
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			headers, err := chain.GetHeaders(tt.req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, headers, tt.expected)
+		})
+	}
 }

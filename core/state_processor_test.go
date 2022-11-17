@@ -17,8 +17,6 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"testing"
 
@@ -76,37 +74,16 @@ func TestStateProcessorErrors(t *testing.T) {
 	}
 	{ // Tests against a 'recent' chain definition
 		var (
-			db = rawdb.NewMemoryDatabase()
-			//gspec = &Genesis{
-			//	Config: config,
-			//	Alloc: GenesisAlloc{
-			//		common.HexToAddress("0x71562b71999873DB5b286dF957af199Ec94617F7"): GenesisAccount{
-			//			Balance: big.NewInt(1000000000000000000), // 1 ether
-			//			Nonce:   0,
-			//		},
-			//	},
-			//}
+			db    = rawdb.NewMemoryDatabase()
 			gspec = &Genesis{
-				Config:       params.AllEthashProtocolChanges,
-				Nonce:        0,
-				ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
-				GasLimit:     10000000,
-				BaseFee:      big.NewInt(params.InitialBaseFee),
-				Difficulty:   big.NewInt(1),
-				Alloc:        decodePreWormholesInfo(simAllocData),
-				Stake:        decodePreWormholesInfoV3(simStakeData),
-				Validator:    decodePreWormholesInfoV2(simValidatorData_v2),
-				Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
-				Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
-				ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
-				Timestamp:    0,
-				Dir:          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
-				InjectNumber: 4096,
-				StartIndex:   big.NewInt(0),
-				Royalty:      100,
-				Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
+				Config: config,
+				Alloc: GenesisAlloc{
+					common.HexToAddress("0x71562b71999873DB5b286dF957af199Ec94617F7"): GenesisAccount{
+						Balance: big.NewInt(1000000000000000000), // 1 ether
+						Nonce:   0,
+					},
+				},
 			}
-
 			genesis       = gspec.MustCommit(db)
 			blockchain, _ = NewBlockChain(db, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
 		)
@@ -213,56 +190,34 @@ func TestStateProcessorErrors(t *testing.T) {
 				t.Fatal("block imported without errors")
 			}
 			if have, want := err.Error(), tt.want; have != want {
-				//t.Errorf("test %d:\nhave \"%v\"\nwant \"%v\"\n", i, have, want)
-				log.Info("", "", i, have, want)
+				t.Errorf("test %d:\nhave \"%v\"\nwant \"%v\"\n", i, have, want)
 			}
-
 		}
 	}
 
 	// ErrTxTypeNotSupported, For this, we need an older chain
 	{
 		var (
-			db = rawdb.NewMemoryDatabase()
-			//gspec = &Genesis{
-			//	Config: &params.ChainConfig{
-			//		ChainID:             big.NewInt(1),
-			//		HomesteadBlock:      big.NewInt(0),
-			//		EIP150Block:         big.NewInt(0),
-			//		EIP155Block:         big.NewInt(0),
-			//		EIP158Block:         big.NewInt(0),
-			//		ByzantiumBlock:      big.NewInt(0),
-			//		ConstantinopleBlock: big.NewInt(0),
-			//		PetersburgBlock:     big.NewInt(0),
-			//		IstanbulBlock:       big.NewInt(0),
-			//		MuirGlacierBlock:    big.NewInt(0),
-			//	},
-			//	Alloc: GenesisAlloc{
-			//		common.HexToAddress("0x71562b71999873DB5b286dF957af199Ec94617F7"): GenesisAccount{
-			//			Balance: big.NewInt(1000000000000000000), // 1 ether
-			//			Nonce:   0,
-			//		},
-			//	},
-			//}
+			db    = rawdb.NewMemoryDatabase()
 			gspec = &Genesis{
-				Config:       params.AllEthashProtocolChanges,
-				Nonce:        0,
-				ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
-				GasLimit:     10000000,
-				BaseFee:      big.NewInt(params.InitialBaseFee),
-				Difficulty:   big.NewInt(1),
-				Alloc:        decodePreWormholesInfo(simAllocData),
-				Stake:        decodePreWormholesInfoV3(simStakeData),
-				Validator:    decodePreWormholesInfoV2(simValidatorData_v2),
-				Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
-				Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
-				ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
-				Timestamp:    0,
-				Dir:          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
-				InjectNumber: 4096,
-				StartIndex:   big.NewInt(0),
-				Royalty:      100,
-				Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
+				Config: &params.ChainConfig{
+					ChainID:             big.NewInt(1),
+					HomesteadBlock:      big.NewInt(0),
+					EIP150Block:         big.NewInt(0),
+					EIP155Block:         big.NewInt(0),
+					EIP158Block:         big.NewInt(0),
+					ByzantiumBlock:      big.NewInt(0),
+					ConstantinopleBlock: big.NewInt(0),
+					PetersburgBlock:     big.NewInt(0),
+					IstanbulBlock:       big.NewInt(0),
+					MuirGlacierBlock:    big.NewInt(0),
+				},
+				Alloc: GenesisAlloc{
+					common.HexToAddress("0x71562b71999873DB5b286dF957af199Ec94617F7"): GenesisAccount{
+						Balance: big.NewInt(1000000000000000000), // 1 ether
+						Nonce:   0,
+					},
+				},
 			}
 			genesis       = gspec.MustCommit(db)
 			blockchain, _ = NewBlockChain(db, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
@@ -282,13 +237,10 @@ func TestStateProcessorErrors(t *testing.T) {
 			block := GenerateBadBlock(genesis, ethash.NewFaker(), tt.txs, gspec.Config)
 			_, err := blockchain.InsertChain(types.Blocks{block})
 			if err == nil {
-				//t.Fatal("block imported without errors")
-				log.Info("", "", "block imported without errors")
+				t.Fatal("block imported without errors")
 			}
-
 			if have, want := err.Error(), tt.want; have != want {
-				//t.Errorf("test %d:\nhave \"%v\"\nwant \"%v\"\n", i, have, want)
-				log.Info("", "", i, have, want)
+				t.Errorf("test %d:\nhave \"%v\"\nwant \"%v\"\n", i, have, want)
 			}
 		}
 	}
@@ -296,36 +248,16 @@ func TestStateProcessorErrors(t *testing.T) {
 	// ErrSenderNoEOA, for this we need the sender to have contract code
 	{
 		var (
-			db = rawdb.NewMemoryDatabase()
-			//gspec = &Genesis{
-			//	Config: config,
-			//	Alloc: GenesisAlloc{
-			//		common.HexToAddress("0x71562b71999873DB5b286dF957af199Ec94617F7"): GenesisAccount{
-			//			Balance: big.NewInt(1000000000000000000), // 1 ether
-			//			Nonce:   0,
-			//			Code:    common.FromHex("0xB0B0FACE"),
-			//		},
-			//	},
-			//}
+			db    = rawdb.NewMemoryDatabase()
 			gspec = &Genesis{
-				Config:       params.AllEthashProtocolChanges,
-				Nonce:        0,
-				ExtraData:    hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f90182f9013b9444d952db5dfb4cbb54443554f4bb9cbebee2194c94085abc35ed85d26c2795b64c6ffb89b68ab1c47994edfc22e9cfb4e24815c3a12e81bf10cab9ce4d26949a1711a10e3d5baa4e0ce970df6e33dc50ef099294b31b41e5ef219fb0cc9935ad914158cf8970db4494fff531a2da46d051fde4c47f042ee6322407df3f94d8861d235134ef573894529b577af28ae0e3449c949d196915f63dbdb97dea552648123655109d98a594b685eb3226d5f0d549607d2cc18672b756fd090c9483c43f6f7bb4d8e429b21ff303a16b4c99a59b059416e6ee04db765a7d3bb07966d1af025d197ac3b694033eecd45d8c8ec84516359f39b11c260a56719e9493f24e8a3162b45611ab17a62dd0c95999cda60f94f50cbaffa72cc902de3f4f1e61132d858f3361d9948b07aff2327a3b7e2876d899cafac99f7ae16b10b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
-				GasLimit:     10000000,
-				BaseFee:      big.NewInt(params.InitialBaseFee),
-				Difficulty:   big.NewInt(1),
-				Alloc:        decodePreWormholesInfo(simAllocData),
-				Stake:        decodePreWormholesInfoV3(simStakeData),
-				Validator:    decodePreWormholesInfoV2(simValidatorData_v2),
-				Coinbase:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
-				Mixhash:      common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
-				ParentHash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
-				Timestamp:    0,
-				Dir:          "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef",
-				InjectNumber: 4096,
-				StartIndex:   big.NewInt(0),
-				Royalty:      100,
-				Creator:      "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F",
+				Config: config,
+				Alloc: GenesisAlloc{
+					common.HexToAddress("0x71562b71999873DB5b286dF957af199Ec94617F7"): GenesisAccount{
+						Balance: big.NewInt(1000000000000000000), // 1 ether
+						Nonce:   0,
+						Code:    common.FromHex("0xB0B0FACE"),
+					},
+				},
 			}
 			genesis       = gspec.MustCommit(db)
 			blockchain, _ = NewBlockChain(db, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
@@ -345,12 +277,10 @@ func TestStateProcessorErrors(t *testing.T) {
 			block := GenerateBadBlock(genesis, ethash.NewFaker(), tt.txs, gspec.Config)
 			_, err := blockchain.InsertChain(types.Blocks{block})
 			if err == nil {
-				//t.Fatal("block imported without errors")
-				log.Info("", "", "block imported without errors")
+				t.Fatal("block imported without errors")
 			}
 			if have, want := err.Error(), tt.want; have != want {
-				//t.Errorf("test %d:\nhave \"%v\"\nwant \"%v\"\n", i, have, want)
-				log.Info("", "", i, have, want)
+				t.Errorf("test %d:\nhave \"%v\"\nwant \"%v\"\n", i, have, want)
 			}
 		}
 	}

@@ -19,7 +19,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/log"
 	"io/ioutil"
 	"reflect"
 	"strings"
@@ -33,13 +32,11 @@ import (
 func TestAlethSturebyConverter(t *testing.T) {
 	blob, err := ioutil.ReadFile("testdata/stureby_geth.json")
 	if err != nil {
-		//t.Fatalf("could not read file: %v", err)
-		log.Info("", "", "could not read file")
+		t.Fatalf("could not read file: %v", err)
 	}
 	var genesis core.Genesis
 	if err := json.Unmarshal(blob, &genesis); err != nil {
-		//t.Fatalf("failed parsing genesis: %v", err)
-		log.Info("", "", "failed parsing genesis")
+		t.Fatalf("failed parsing genesis: %v", err)
 	}
 	spec, err := newAlethGenesisSpec("stureby", &genesis)
 	if err != nil {
@@ -52,12 +49,10 @@ func TestAlethSturebyConverter(t *testing.T) {
 	}
 	expspec := &alethGenesisSpec{}
 	if err := json.Unmarshal(expBlob, expspec); err != nil {
-		//t.Fatalf("failed parsing genesis: %v", err)
-		log.Info("", "", "failed parsing genesis")
+		t.Fatalf("failed parsing genesis: %v", err)
 	}
 	if !reflect.DeepEqual(expspec, spec) {
-		//t.Errorf("chainspec mismatch")
-		log.Info("", "", "chainspec mismatch")
+		t.Errorf("chainspec mismatch")
 		c := spew.ConfigState{
 			DisablePointerAddresses: true,
 			SortKeys:                true,
@@ -66,8 +61,7 @@ func TestAlethSturebyConverter(t *testing.T) {
 		got := strings.Split(c.Sdump(spec), "\n")
 		for i := 0; i < len(exp) && i < len(got); i++ {
 			if exp[i] != got[i] {
-				//t.Logf("got: %v\nexp: %v\n", exp[i], got[i])
-				log.Info("exp", "got", exp[i], got[i])
+				t.Logf("got: %v\nexp: %v\n", exp[i], got[i])
 			}
 		}
 	}
@@ -96,7 +90,6 @@ func TestParitySturebyConverter(t *testing.T) {
 		t.Fatalf("could not read file: %v", err)
 	}
 	if !bytes.Equal(expBlob, enc) {
-		//t.Fatalf("chainspec mismatch")
-		log.Info("", "", "chainspec mismatch")
+		t.Fatalf("chainspec mismatch")
 	}
 }

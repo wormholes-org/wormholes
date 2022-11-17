@@ -2,6 +2,7 @@ package ipfs
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -58,100 +59,100 @@ func isErrorSimilar(e1, e2 error) bool {
 	}
 }
 
-// func TestPinMFSConfigError(t *testing.T) {
-// 	ctx := &testPinMFSContext{
-// 		ctx: context.Background(),
-// 		cfg: nil,
-// 		err: fmt.Errorf("couldn't read config"),
-// 	}
-// 	node := &testPinMFSNode{}
-// 	errCh := make(chan error)
-// 	go pinMFSOnChange(testConfigPollInterval, ctx, node, errCh)
-// 	if !isErrorSimilar(<-errCh, ctx.err) {
-// 		t.Errorf("error did not propagate")
-// 	}
-// 	if !isErrorSimilar(<-errCh, ctx.err) {
-// 		t.Errorf("error did not propagate")
-// 	}
-// }
+func TestPinMFSConfigError(t *testing.T) {
+	ctx := &testPinMFSContext{
+		ctx: context.Background(),
+		cfg: nil,
+		err: fmt.Errorf("couldn't read config"),
+	}
+	node := &testPinMFSNode{}
+	errCh := make(chan error)
+	go pinMFSOnChange(testConfigPollInterval, ctx, node, errCh)
+	if !isErrorSimilar(<-errCh, ctx.err) {
+		t.Errorf("error did not propagate")
+	}
+	if !isErrorSimilar(<-errCh, ctx.err) {
+		t.Errorf("error did not propagate")
+	}
+}
 
-// func TestPinMFSRootNodeError(t *testing.T) {
-// 	ctx := &testPinMFSContext{
-// 		ctx: context.Background(),
-// 		cfg: &config.Config{
-// 			Pinning: config.Pinning{},
-// 		},
-// 		err: nil,
-// 	}
-// 	node := &testPinMFSNode{
-// 		err: fmt.Errorf("cannot create root node"),
-// 	}
-// 	errCh := make(chan error)
-// 	go pinMFSOnChange(testConfigPollInterval, ctx, node, errCh)
-// 	if !isErrorSimilar(<-errCh, node.err) {
-// 		t.Errorf("error did not propagate")
-// 	}
-// 	if !isErrorSimilar(<-errCh, node.err) {
-// 		t.Errorf("error did not propagate")
-// 	}
-// }
+func TestPinMFSRootNodeError(t *testing.T) {
+	ctx := &testPinMFSContext{
+		ctx: context.Background(),
+		cfg: &config.Config{
+			Pinning: config.Pinning{},
+		},
+		err: nil,
+	}
+	node := &testPinMFSNode{
+		err: fmt.Errorf("cannot create root node"),
+	}
+	errCh := make(chan error)
+	go pinMFSOnChange(testConfigPollInterval, ctx, node, errCh)
+	if !isErrorSimilar(<-errCh, node.err) {
+		t.Errorf("error did not propagate")
+	}
+	if !isErrorSimilar(<-errCh, node.err) {
+		t.Errorf("error did not propagate")
+	}
+}
 
-// func TestPinMFSService(t *testing.T) {
-// 	cfg_invalid_interval := &config.Config{
-// 		Pinning: config.Pinning{
-// 			RemoteServices: map[string]config.RemotePinningService{
-// 				"disabled": {
-// 					Policies: config.RemotePinningServicePolicies{
-// 						MFS: config.RemotePinningServiceMFSPolicy{
-// 							Enable: false,
-// 						},
-// 					},
-// 				},
-// 				"invalid_interval": {
-// 					Policies: config.RemotePinningServicePolicies{
-// 						MFS: config.RemotePinningServiceMFSPolicy{
-// 							Enable:        true,
-// 							RepinInterval: "INVALID_INTERVAL",
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-// 	cfg_valid_unnamed := &config.Config{
-// 		Pinning: config.Pinning{
-// 			RemoteServices: map[string]config.RemotePinningService{
-// 				"valid_unnamed": {
-// 					Policies: config.RemotePinningServicePolicies{
-// 						MFS: config.RemotePinningServiceMFSPolicy{
-// 							Enable:        true,
-// 							PinName:       "",
-// 							RepinInterval: "2s",
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-// 	cfg_valid_named := &config.Config{
-// 		Pinning: config.Pinning{
-// 			RemoteServices: map[string]config.RemotePinningService{
-// 				"valid_named": {
-// 					Policies: config.RemotePinningServicePolicies{
-// 						MFS: config.RemotePinningServiceMFSPolicy{
-// 							Enable:        true,
-// 							PinName:       "pin_name",
-// 							RepinInterval: "2s",
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-// 	testPinMFSServiceWithError(t, cfg_invalid_interval, "remote pinning service \"invalid_interval\" has invalid MFS.RepinInterval")
-// 	testPinMFSServiceWithError(t, cfg_valid_unnamed, "error while listing remote pins: empty response from remote pinning service")
-// 	testPinMFSServiceWithError(t, cfg_valid_named, "error while listing remote pins: empty response from remote pinning service")
-// }
+func TestPinMFSService(t *testing.T) {
+	cfg_invalid_interval := &config.Config{
+		Pinning: config.Pinning{
+			RemoteServices: map[string]config.RemotePinningService{
+				"disabled": {
+					Policies: config.RemotePinningServicePolicies{
+						MFS: config.RemotePinningServiceMFSPolicy{
+							Enable: false,
+						},
+					},
+				},
+				"invalid_interval": {
+					Policies: config.RemotePinningServicePolicies{
+						MFS: config.RemotePinningServiceMFSPolicy{
+							Enable:        true,
+							RepinInterval: "INVALID_INTERVAL",
+						},
+					},
+				},
+			},
+		},
+	}
+	cfg_valid_unnamed := &config.Config{
+		Pinning: config.Pinning{
+			RemoteServices: map[string]config.RemotePinningService{
+				"valid_unnamed": {
+					Policies: config.RemotePinningServicePolicies{
+						MFS: config.RemotePinningServiceMFSPolicy{
+							Enable:        true,
+							PinName:       "",
+							RepinInterval: "2s",
+						},
+					},
+				},
+			},
+		},
+	}
+	cfg_valid_named := &config.Config{
+		Pinning: config.Pinning{
+			RemoteServices: map[string]config.RemotePinningService{
+				"valid_named": {
+					Policies: config.RemotePinningServicePolicies{
+						MFS: config.RemotePinningServiceMFSPolicy{
+							Enable:        true,
+							PinName:       "pin_name",
+							RepinInterval: "2s",
+						},
+					},
+				},
+			},
+		},
+	}
+	testPinMFSServiceWithError(t, cfg_invalid_interval, "remote pinning service \"invalid_interval\" has invalid MFS.RepinInterval")
+	testPinMFSServiceWithError(t, cfg_valid_unnamed, "error while listing remote pins: empty response from remote pinning service")
+	testPinMFSServiceWithError(t, cfg_valid_named, "error while listing remote pins: empty response from remote pinning service")
+}
 
 func testPinMFSServiceWithError(t *testing.T, cfg *config.Config, expectedErrorPrefix string) {
 	goctx, cancel := context.WithCancel(context.Background())

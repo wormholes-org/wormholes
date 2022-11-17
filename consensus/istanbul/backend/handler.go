@@ -22,10 +22,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"reflect"
-	"time"
-	"fmt"
 
-	"github.com/ethereum/go-ethereum/miniredis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -73,11 +70,6 @@ func (sb *Backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
-
-	miniredis.GetLogCh() <- map[string]interface{}{
-		addr.Hex()+" "+sb.address.Hex(): fmt.Sprintf("t %v",time.Now().UTC().UnixNano()),
-	}
-
 	if _, ok := qbfttypes.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {
 		if !sb.coreStarted {
 			sb.logger.Info("caver|HandleMsg|ErrStoppedEngine", "!sb.coreStarted", !sb.coreStarted)

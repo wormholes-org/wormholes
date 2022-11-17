@@ -148,6 +148,7 @@ func (h *clientHandler) handle(p *serverPeer) error {
 	// Mark the peer starts to be served.
 	atomic.StoreUint32(&p.serving, 1)
 	defer atomic.StoreUint32(&p.serving, 0)
+
 	// Spawn a main loop to handle all incoming messages.
 	for {
 		if err := h.handleMsg(p); err != nil {
@@ -155,7 +156,6 @@ func (h *clientHandler) handle(p *serverPeer) error {
 			p.fcServer.DumpLogs()
 			return err
 		}
-
 	}
 }
 
@@ -175,6 +175,7 @@ func (h *clientHandler) handleMsg(p *serverPeer) error {
 	defer msg.Discard()
 
 	var deliverMsg *Msg
+
 	// Handle the message depending on its contents
 	switch {
 	case msg.Code == AnnounceMsg:

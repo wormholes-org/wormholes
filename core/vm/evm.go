@@ -40,13 +40,12 @@ import (
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 
-//const CancelPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
-const CancelPledgedInterval = 3 * 24 // for test
-//const CloseExchangerInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
-const CloseExchangerInterval = 3 * 24 // for test
-//const CancelNFTPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
-const CancelNFTPledgedInterval = 3 * 24 // for test
-const VALIDATOR_COEFFICIENT = 70
+const CancelPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
+//const CancelPledgedInterval = 3 * 24 // for test
+const CloseExchangerInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
+//const CloseExchangerInterval = 3 * 24 // for test
+const CancelNFTPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
+//const CancelNFTPledgedInterval = 3 * 24 // for test
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
@@ -114,13 +113,12 @@ type (
 	NextIndexFunc                          func(db StateDB) *big.Int
 	VoteOfficialNFTByApprovedExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	//ChangeRewardFlagFunc                   func(StateDB, common.Address, uint8)
-	PledgeNFTFunc                   func(StateDB, common.Address, *big.Int)
-	CancelPledgedNFTFunc            func(StateDB, common.Address)
-	GetMergeNumberFunc              func(StateDB, common.Address) uint32
-	GetPledgedFlagFunc              func(StateDB, common.Address) bool
-	GetNFTPledgedBlockNumberFunc    func(StateDB, common.Address) *big.Int
-	UnfrozenAccountFunc             func(StateDB, *types.FrozenAccount, *big.Int)
-	RecoverValidatorCoefficientFunc func(StateDB, common.Address) error
+	PledgeNFTFunc                func(StateDB, common.Address, *big.Int)
+	CancelPledgedNFTFunc         func(StateDB, common.Address)
+	GetMergeNumberFunc           func(StateDB, common.Address) uint32
+	GetPledgedFlagFunc           func(StateDB, common.Address) bool
+	GetNFTPledgedBlockNumberFunc func(StateDB, common.Address) *big.Int
+	UnfrozenAccountFunc          func(StateDB, *types.FrozenAccount, *big.Int)
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -208,13 +206,13 @@ type BlockContext struct {
 	NextIndex                          NextIndexFunc
 	VoteOfficialNFTByApprovedExchanger VoteOfficialNFTByApprovedExchangerFunc
 	//ChangeRewardFlag                   ChangeRewardFlagFunc
-	PledgeNFT                   PledgeNFTFunc
-	CancelPledgedNFT            CancelPledgedNFTFunc
-	GetMergeNumber              GetMergeNumberFunc
-	GetPledgedFlag              GetPledgedFlagFunc
-	GetNFTPledgedBlockNumber    GetNFTPledgedBlockNumberFunc
-	UnfrozenAccount             UnfrozenAccountFunc
-	RecoverValidatorCoefficient RecoverValidatorCoefficientFunc
+	PledgeNFT                PledgeNFTFunc
+	CancelPledgedNFT         CancelPledgedNFTFunc
+	GetMergeNumber           GetMergeNumberFunc
+	GetPledgedFlag           GetPledgedFlagFunc
+	GetNFTPledgedBlockNumber GetNFTPledgedBlockNumberFunc
+	UnfrozenAccount          UnfrozenAccountFunc
+
 	// Block information
 
 	ParentHeader *types.Header
@@ -463,7 +461,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			}
 		case 22:
 			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-			Erb100 := big.NewInt(700)
+			Erb100 := big.NewInt(280)
 			Erb100.Mul(Erb100, baseErb)
 			if value.Sign() > 0 && !evm.Context.VerifyExchangerBalance(evm.StateDB, caller.Address(), new(big.Int).Add(value, Erb100)) {
 				return nil, gas, ErrInsufficientBalance
@@ -1086,7 +1084,6 @@ func (evm *EVM) HandleNFT(
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 
 	case 9: // pledge token
-		var firstTime bool = false
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
 		Erb100000 := big.NewInt(70000)
 		Erb100000.Mul(Erb100000, baseErb)
@@ -1097,7 +1094,6 @@ func (evm *EVM) HandleNFT(
 					"error", ErrNotMoreThan100000ERB, "blocknumber", evm.Context.BlockNumber.Uint64())
 				return nil, gas, ErrNotMoreThan100000ERB
 			}
-			firstTime = true
 		}
 
 		currentBlockNumber := new(big.Int).Set(evm.Context.BlockNumber)
@@ -1125,9 +1121,6 @@ func (evm *EVM) HandleNFT(
 					"blocknumber", evm.Context.BlockNumber.Uint64())
 				return nil, gas, err
 			}
-			if firstTime {
-				evm.StateDB.AddValidatorCoefficient(caller.Address(), VALIDATOR_COEFFICIENT)
-			}
 			log.Info("HandleNFT(), PledgeToken<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
 		} else {
@@ -1152,8 +1145,6 @@ func (evm *EVM) HandleNFT(
 			log.Info("HandleNFT(), CancelPledgedToken, cancel all", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
 			evm.Context.CancelPledgedToken(evm.StateDB, caller.Address(), value)
-			coe := evm.StateDB.GetValidatorCoefficient(caller.Address())
-			evm.StateDB.SubValidatorCoefficient(caller.Address(), coe)
 
 		} else {
 			// cancel partial pledged balance
@@ -1179,7 +1170,7 @@ func (evm *EVM) HandleNFT(
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 		// value must be greater than or equal to 100 ERB
 		unitErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-		if value.Cmp(new(big.Int).Mul(big.NewInt(700), unitErb)) < 0 {
+		if value.Cmp(new(big.Int).Mul(big.NewInt(280), unitErb)) < 0 {
 			log.Error("HandleNFT(), OpenExchanger", "wormholes.Type", wormholes.Type,
 				"error", ErrNotMoreThan100ERB, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, ErrNotMoreThan100ERB
@@ -1451,7 +1442,7 @@ func (evm *EVM) HandleNFT(
 			return nil, gas, ErrTooCloseForWithdraw
 		}
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-		Erb100 := big.NewInt(700)
+		Erb100 := big.NewInt(280)
 		Erb100.Mul(Erb100, baseErb)
 		if evm.Context.VerifyExchangerBalance(evm.StateDB, caller.Address(), new(big.Int).Add(value, Erb100)) {
 			log.Info("HandleNFT(), SubExchangerToken>>>>>>>>>>", "wormholes.Type", wormholes.Type,
@@ -1595,16 +1586,6 @@ func (evm *EVM) HandleNFT(
 
 		evm.Context.UnfrozenAccount(evm.StateDB, &frozenInfo, evm.Context.BlockNumber)
 		log.Info("HandleNFT(), UnfrozenAccount<<<<<<<<<<", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64())
-
-	case 26:
-		log.Info("HandleNFT(), RecoverValidatorCoefficient>>>>>>>>>>", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64())
-		err := evm.Context.RecoverValidatorCoefficient(evm.StateDB, caller.Address())
-		if err != nil {
-			return nil, gas, err
-		}
-		log.Info("HandleNFT(), RecoverValidatorCoefficient<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 
 	default:

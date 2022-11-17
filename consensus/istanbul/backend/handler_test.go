@@ -100,7 +100,7 @@ func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected message being handled successfully but got %s", err)
 	}
-	if handled {
+	if !handled {
 		t.Errorf("expected message being handled but not")
 	}
 	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
@@ -190,6 +190,6 @@ func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Blo
 	if err != nil {
 		t.Fatalf("can't read payload due to %s", err)
 	}
-	arbitraryP2PMessage := p2p.Msg{Code: 0x7, Size: uint32(size), Payload: bytes.NewReader(payload)}
+	arbitraryP2PMessage := p2p.Msg{Code: 0x07, Size: uint32(size), Payload: bytes.NewReader(payload)}
 	return arbitraryBlock, arbitraryP2PMessage
 }

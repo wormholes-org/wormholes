@@ -171,6 +171,9 @@ func TestWelcome(t *testing.T) {
 	if want := "Welcome"; !strings.Contains(output, want) {
 		t.Fatalf("console output missing welcome message: have\n%s\nwant also %s", output, want)
 	}
+	if want := fmt.Sprintf("instance: %s", testInstance); !strings.Contains(output, want) {
+		t.Fatalf("console output missing instance: have\n%s\nwant also %s", output, want)
+	}
 	if want := fmt.Sprintf("coinbase: %s", testAddress); !strings.Contains(output, want) {
 		t.Fatalf("console output missing coinbase: have\n%s\nwant also %s", output, want)
 	}

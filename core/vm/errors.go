@@ -42,7 +42,7 @@ var (
 	ErrNotExchanger                 = errors.New("not exchanger")
 	ErrWormholesFormat              = errors.New("wormholes format error, can't unmarshal")
 	ErrInsufficientExchangerBalance = errors.New("insufficient exchanger balance for transfer")
-	ErrNotMoreThan100ERB            = errors.New("not more than 700 ERB")
+	ErrNotMoreThan100ERB            = errors.New("not more than 280 ERB")
 	ErrTooCloseWithOpenExchanger    = errors.New("too close with openexchanger")
 	ErrTooCloseForWithdraw          = errors.New("too close for Withdraw")
 	ErrTooCloseToCancel             = errors.New("too close to cancel")
