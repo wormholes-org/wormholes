@@ -1656,11 +1656,24 @@ func (s *StateDB) ChangeNFTOwner(nftAddr common.Address,
 	if stateObject != nil {
 		if s.IsOfficialNFT(nftAddr) {
 			//s.SplitNFT16(nftAddr, level)
-		}
-		stateObject.ChangeNFTOwner(newOwner)
-		// merge nft automatically
-		if s.IsOfficialNFT(nftAddr) {
+			// subtract old Owner's voteweight
+			initAmount := s.calculateExchangeAmount(stateObject.GetNFTMergeLevel(), stateObject.GetMergeNumber())
+			amount := GetExchangAmount(nftAddr, initAmount)
+			oldOwnerStateObject := s.GetOrNewStateObject(stateObject.NFTOwner())
+			if oldOwnerStateObject.VoteWeight().Cmp(amount) < 0 {
+				log.Error("StateDB.ChangeNFTOwner()", "old owner's voteweight less nft's value")
+				amount.Set(oldOwnerStateObject.VoteWeight())
+			}
+
+			stateObject.ChangeNFTOwner(newOwner)
+			oldOwnerStateObject.SubVoteWeight(amount)
+			// merge nft automatically
 			s.MergeNFT16(nftAddr)
+
+			// add new Owner's voteweight
+
+		} else {
+			stateObject.ChangeNFTOwner(newOwner)
 		}
 	}
 }

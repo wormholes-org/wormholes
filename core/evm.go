@@ -623,7 +623,7 @@ func BuyNFTBySellerOrExchanger(
 	db.AddBalance(nftOwner, nftOwnerAmount)
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
-	db.AddVoteWeight(beneficiaryExchanger, amount)
+	//db.AddVoteWeight(beneficiaryExchanger, amount)
 	db.ChangeNFTOwner(nftAddress, buyer, level)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
@@ -801,7 +801,7 @@ func BuyNFTByBuyer(
 	db.AddBalance(seller, nftOwnerAmount)
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
-	db.AddVoteWeight(beneficiaryExchanger, amount)
+	//db.AddVoteWeight(beneficiaryExchanger, amount)
 	db.ChangeNFTOwner(nftAddress, caller, level)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
@@ -931,7 +931,7 @@ func BuyAndMintNFTByBuyer(
 	db.SubBalance(caller, amount)
 	db.AddBalance(seller, nftOwnerAmount)
 	//db.AddBalance(exchanger, exchangerAmount)
-	db.AddVoteWeight(exchanger, amount)
+	//db.AddVoteWeight(exchanger, amount)
 	db.ChangeNFTOwner(nftAddress, caller, 0)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
@@ -1133,7 +1133,7 @@ func BuyAndMintNFTByExchanger(
 	db.SubBalance(buyer, amount)
 	db.AddBalance(seller, nftOwnerAmount)
 	//db.AddBalance(caller, exchangerAmount)
-	db.AddVoteWeight(caller, amount)
+	//db.AddVoteWeight(caller, amount)
 	db.ChangeNFTOwner(nftAddress, buyer, 0)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
@@ -1324,7 +1324,7 @@ func BuyNFTByApproveExchanger(
 	db.AddBalance(nftOwner, nftOwnerAmount)
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
-	db.AddVoteWeight(beneficiaryExchanger, amount)
+	//db.AddVoteWeight(beneficiaryExchanger, amount)
 	db.ChangeNFTOwner(nftAddress, buyer, level)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
@@ -1581,7 +1581,7 @@ func BuyAndMintNFTByApprovedExchanger(
 	db.SubBalance(buyer, amount)
 	db.AddBalance(seller, nftOwnerAmount)
 	//db.AddBalance(originalExchanger, exchangerAmount)
-	db.AddVoteWeight(originalExchanger, amount)
+	//db.AddVoteWeight(originalExchanger, amount)
 	db.ChangeNFTOwner(nftAddress, buyer, 0)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
@@ -1806,7 +1806,7 @@ func BuyNFTByExchanger(
 	db.AddBalance(nftOwner, nftOwnerAmount)
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
-	db.AddVoteWeight(beneficiaryExchanger, amount)
+	//db.AddVoteWeight(beneficiaryExchanger, amount)
 	db.ChangeNFTOwner(sellerNftAddress, buyer, level)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
