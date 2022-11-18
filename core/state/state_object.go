@@ -139,6 +139,7 @@ type Account struct {
 	ExchangerFlag    bool
 	BlockNumber      *big.Int
 	ExchangerBalance *big.Int
+	VoteBlockNumber  *big.Int
 	VoteWeight       *big.Int
 	Coefficient      uint8
 	// The ratio that exchanger get.
@@ -1217,6 +1218,25 @@ func (s *stateObject) SubVoteWeight(amount *big.Int) {
 	s.SetVoteWeight(new(big.Int).Sub(s.VoteWeight(), amount))
 }
 
+func (s *stateObject) SetVoteBlockNumber(blocknumber *big.Int) {
+	if s.data.VoteBlockNumber == nil {
+		s.data.VoteBlockNumber = big.NewInt(0)
+	}
+	s.db.journal.append(voteBlockNumberChange{
+		account: &s.address,
+		prev:    new(big.Int).Set(s.data.VoteBlockNumber),
+	})
+	s.setVoteBlockNumber(new(big.Int).Set(blocknumber))
+}
+
+func (s *stateObject) setVoteBlockNumber(blocknumber *big.Int) {
+	s.data.VoteBlockNumber = blocknumber
+}
+
+func (s *stateObject) VoteBlockNumber() *big.Int {
+	return s.data.VoteBlockNumber
+}
+
 func (s *stateObject) SetPledgedBalance(amount *big.Int) {
 	if s.data.PledgedBalance == nil {
 		s.data.PledgedBalance = big.NewInt(0)
@@ -1240,7 +1260,7 @@ func (s *stateObject) SetPledgedBlockNumber(blocknumber *big.Int) {
 		account: &s.address,
 		prev:    new(big.Int).Set(s.data.PledgedBlockNumber),
 	})
-	s.setPledgedBlockNumber(blocknumber)
+	s.setPledgedBlockNumber(new(big.Int).Set(blocknumber))
 }
 
 func (s *stateObject) setPledgedBlockNumber(blocknumber *big.Int) {
@@ -1274,7 +1294,7 @@ func (s *stateObject) SetBlockNumber(blocknumber *big.Int) {
 		account: &s.address,
 		prev:    new(big.Int).Set(s.data.BlockNumber),
 	})
-	s.setBlockNumber(blocknumber)
+	s.setBlockNumber(new(big.Int).Set(blocknumber))
 }
 
 func (s *stateObject) setBlockNumber(blocknumber *big.Int) {

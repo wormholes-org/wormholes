@@ -1837,12 +1837,12 @@ func VerifyExchangerBalance(db vm.StateDB, addr common.Address, amount *big.Int)
 	return db.GetExchangerBalance(addr).Cmp(amount) >= 0
 }
 
-func VoteOfficialNFT(db vm.StateDB, nominatedOfficialNFT *types.NominatedOfficialNFT) {
-	db.VoteOfficialNFT(nominatedOfficialNFT)
+func VoteOfficialNFT(db vm.StateDB, nominatedOfficialNFT *types.NominatedOfficialNFT, blocknumber *big.Int) {
+	db.VoteOfficialNFT(nominatedOfficialNFT, blocknumber)
 }
 
-func ElectNominatedOfficialNFT(db vm.StateDB) {
-	db.ElectNominatedOfficialNFT()
+func ElectNominatedOfficialNFT(db vm.StateDB, blocknumber *big.Int) {
+	db.ElectNominatedOfficialNFT(blocknumber)
 }
 
 func NextIndex(db vm.StateDB) *big.Int {
@@ -1918,7 +1918,7 @@ func VoteOfficialNFTByApprovedExchanger(
 		},
 	}
 
-	db.VoteOfficialNFT(&nominatedNFT)
+	db.VoteOfficialNFT(&nominatedNFT, blocknumber)
 
 	return nil
 }

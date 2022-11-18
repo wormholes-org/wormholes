@@ -43,6 +43,7 @@ type Account struct {
 	ExchangerFlag    bool
 	BlockNumber      *big.Int
 	ExchangerBalance *big.Int
+	VoteBlockNumber  *big.Int
 	VoteWeight       *big.Int
 	Coefficient      uint8
 	// The ratio that exchanger get.
@@ -89,6 +90,7 @@ func SlimAccount(nonce uint64,
 	exchangerflag bool,
 	blocknumber *big.Int,
 	exchangerbalance *big.Int,
+	voteblocknumber *big.Int,
 	voteweight *big.Int,
 	coefficient uint8,
 	feerate uint16,
@@ -120,6 +122,7 @@ func SlimAccount(nonce uint64,
 		ExchangerFlag:      exchangerflag,
 		BlockNumber:        blocknumber,
 		ExchangerBalance:   exchangerbalance,
+		VoteBlockNumber:    voteblocknumber,
 		VoteWeight:         voteweight,
 		Coefficient:        coefficient,
 		FeeRate:            feerate,
@@ -171,6 +174,7 @@ func SlimAccountRLP(nonce uint64,
 	exchangerflag bool,
 	blocknumber *big.Int,
 	exchangerbalance *big.Int,
+	voteblocknumber *big.Int,
 	voteweight *big.Int,
 	coefficient uint8,
 	feerate uint16,
@@ -202,6 +206,7 @@ func SlimAccountRLP(nonce uint64,
 		exchangerflag,
 		blocknumber,
 		exchangerbalance,
+		voteblocknumber,
 		voteweight,
 		coefficient,
 		feerate,

@@ -637,6 +637,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			ExchangerFlag    bool
 			BlockNumber      *big.Int
 			ExchangerBalance *big.Int
+			VoteBlockNumber  *big.Int
 			VoteWeight       *big.Int
 			Coefficient      uint8
 			// The ratio that exchanger get.
@@ -677,6 +678,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 					acc.ExchangerFlag,
 					acc.BlockNumber,
 					acc.ExchangerBalance,
+					acc.VoteBlockNumber,
 					acc.VoteWeight,
 					acc.Coefficient,
 					acc.FeeRate,

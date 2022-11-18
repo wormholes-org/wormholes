@@ -508,6 +508,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 			obj.data.ExchangerFlag,
 			obj.data.BlockNumber,
 			obj.data.ExchangerBalance,
+			obj.data.VoteBlockNumber,
 			obj.data.VoteWeight,
 			obj.data.Coefficient,
 			obj.data.FeeRate,
@@ -590,6 +591,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 				ExchangerFlag:      acc.ExchangerFlag,
 				BlockNumber:        acc.BlockNumber,
 				ExchangerBalance:   acc.ExchangerBalance,
+				VoteBlockNumber:    acc.VoteBlockNumber,
 				VoteWeight:         acc.VoteWeight,
 				Coefficient:        acc.Coefficient,
 				FeeRate:            acc.FeeRate,
@@ -735,6 +737,9 @@ func (s *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	}
 	if stateObject.data.ExchangerBalance == nil {
 		stateObject.data.ExchangerBalance = big.NewInt(0)
+	}
+	if stateObject.data.VoteBlockNumber == nil {
+		stateObject.data.VoteBlockNumber = big.NewInt(0)
 	}
 	if stateObject.data.VoteWeight == nil {
 		stateObject.data.VoteWeight = big.NewInt(0)
@@ -2303,7 +2308,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	}
 
 	if s.OfficialNFTPool.RemainderNum(s.MintDeep.OfficialMint) <= 110 {
-		s.ElectNominatedOfficialNFT()
+		s.ElectNominatedOfficialNFT(blocknumber)
 	}
 }
 
@@ -3027,18 +3032,23 @@ func (s *StateDB) GetExchangerBalance(addr common.Address) *big.Int {
 	return common.Big0
 }
 
-func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialNFT) {
+func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialNFT, blocknumber *big.Int) {
 	voteWeight := big.NewInt(0)
 	nominatedWeight := big.NewInt(0)
+	voteBlockNumber := big.NewInt(0)
+	nominatedVoteBlockNumber := big.NewInt(0)
 	stateObject := s.GetOrNewStateObject(nominatedOfficialNFT.Address)
 	if stateObject != nil {
 		voteWeight = stateObject.VoteWeight()
+		voteBlockNumber = stateObject.VoteBlockNumber()
+
 	}
 	emptyAddress := common.Address{}
 	if s.NominatedOfficialNFT != nil && s.NominatedOfficialNFT.Address != emptyAddress {
 		nominatedObject := s.GetOrNewStateObject(s.NominatedOfficialNFT.Address)
 		if nominatedObject != nil {
 			nominatedWeight = nominatedObject.VoteWeight()
+			nominatedVoteBlockNumber = nominatedObject.VoteBlockNumber()
 		}
 	}
 
@@ -3048,6 +3058,17 @@ func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialN
 	if nominatedWeight == nil {
 		nominatedWeight = big.NewInt(0)
 	}
+	if voteBlockNumber == nil {
+		voteBlockNumber = big.NewInt(0)
+	}
+	if nominatedVoteBlockNumber == nil {
+		nominatedVoteBlockNumber = big.NewInt(0)
+	}
+
+	voteSubNumber := new(big.Int).Sub(blocknumber, voteBlockNumber)
+	nominatedSubNumber := new(big.Int).Sub(blocknumber, nominatedVoteBlockNumber)
+	voteWeight.Mul(voteWeight, voteSubNumber)
+	nominatedWeight.Mul(nominatedWeight, nominatedSubNumber)
 
 	if voteWeight.Cmp(nominatedWeight) > 0 {
 		tempNominatedNFT := types.NominatedOfficialNFT{}
@@ -3061,7 +3082,7 @@ func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialN
 	}
 }
 
-func (s *StateDB) ElectNominatedOfficialNFT() {
+func (s *StateDB) ElectNominatedOfficialNFT(blocknumber *big.Int) {
 	emptyAddress := common.Address{}
 	if s.NominatedOfficialNFT != nil &&
 		s.NominatedOfficialNFT.Address != emptyAddress {
@@ -3074,9 +3095,12 @@ func (s *StateDB) ElectNominatedOfficialNFT() {
 			Address:    s.NominatedOfficialNFT.Address,
 		}
 		voteWeight := s.GetVoteWeight(s.NominatedOfficialNFT.Address)
-		injectNFT.VoteWeight = new(big.Int).Set(voteWeight)
+		voteBlockNumber := s.GetVoteBlockNumber(s.NominatedOfficialNFT.Address)
+		subNumber := new(big.Int).Sub(blocknumber, voteBlockNumber)
+		injectNFT.VoteWeight = new(big.Int).Mul(voteWeight, subNumber)
 		s.OfficialNFTPool.InjectedOfficialNFTs = append(s.OfficialNFTPool.InjectedOfficialNFTs, injectNFT)
-		s.SubVoteWeight(s.NominatedOfficialNFT.Address, voteWeight)
+		//s.SubVoteWeight(s.NominatedOfficialNFT.Address, voteWeight)
+		s.SetVoteBlockNumber(s.NominatedOfficialNFT.Address, blocknumber)
 
 		InjectRewardAddress := common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 		injectRewardBalance := s.GetBalance(InjectRewardAddress)
@@ -3130,6 +3154,21 @@ func (s *StateDB) GetVoteWeight(addr common.Address) *big.Int {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		return stateObject.VoteWeight()
+	}
+	return common.Big0
+}
+
+func (s *StateDB) SetVoteBlockNumber(addr common.Address, blocknumber *big.Int) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SetVoteBlockNumber(blocknumber)
+	}
+}
+
+func (s *StateDB) GetVoteBlockNumber(addr common.Address) *big.Int {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		return stateObject.VoteBlockNumber()
 	}
 	return common.Big0
 }
