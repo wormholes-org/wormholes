@@ -1668,9 +1668,12 @@ func (s *StateDB) ChangeNFTOwner(nftAddr common.Address,
 			stateObject.ChangeNFTOwner(newOwner)
 			oldOwnerStateObject.SubVoteWeight(amount)
 			// merge nft automatically
-			s.MergeNFT16(nftAddr)
+			increaseValue, _ := s.MergeNFT16(nftAddr)
 
 			// add new Owner's voteweight
+			totalValue := new(big.Int).Add(increaseValue, amount)
+			newOwnerStateObject := s.GetOrNewStateObject(newOwner)
+			newOwnerStateObject.AddVoteWeight(totalValue)
 
 		} else {
 			stateObject.ChangeNFTOwner(newOwner)
@@ -1859,9 +1862,10 @@ func (s *StateDB) GetExistAddress(nftAddr common.Address, mergeLevel uint8) comm
 	return s.GetExistAddress(parentAddr, mergeLevel+1)
 }
 
-func (s *StateDB) MergeNFT16(nftAddr common.Address) error {
+// MergeNFT16 merge snfts and return the increase of value because of merging.
+func (s *StateDB) MergeNFT16(nftAddr common.Address) (*big.Int, error) {
 	if !s.IsCanMergeNFT16(nftAddr) {
-		return nil
+		return big.NewInt(0), nil
 	}
 	emptyAddress := common.Address{}
 
@@ -1974,9 +1978,19 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address) error {
 			metaUrl)
 	}
 	//s.updateStateObject(newMergeStateObject)
-	s.MergeNFT16(newMergedAddr)
 
-	return nil
+	// calculate the increase of value
+	mergedInitAmount := s.calculateExchangeAmount(newMergeStateObject.GetNFTMergeLevel(), mergeNumber)
+	mergedAmount := GetExchangAmount(newMergedAddr, mergedInitAmount)
+	noMergedInitAmount := s.calculateExchangeAmount(newMergeStateObject.GetNFTMergeLevel()-1, mergeNumber)
+	noMergedAmount := GetExchangAmount(newMergedAddr, noMergedInitAmount)
+	increaseValue := new(big.Int).Sub(mergedAmount, noMergedAmount)
+
+	tempValue, _ := s.MergeNFT16(newMergedAddr)
+
+	totalIncreaseValue := new(big.Int).Add(increaseValue, tempValue)
+
+	return totalIncreaseValue, nil
 }
 
 // Get the store address for a nft
@@ -2271,7 +2285,16 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 				royalty,
 				common.Address{},
 				metaUrl)
-			s.MergeNFT16(nftAddr)
+
+			initAmount := s.calculateExchangeAmount(0, 1)
+			amount := GetExchangAmount(nftAddr, initAmount)
+			increaseValue, _ := s.MergeNFT16(nftAddr)
+			totalIncreaseValue := new(big.Int).Add(increaseValue, amount)
+			ownerStateObject := s.GetOrNewStateObject(owner)
+			if ownerStateObject != nil {
+				ownerStateObject.AddVoteWeight(totalIncreaseValue)
+			}
+
 			//if !ok {
 			s.OfficialNFTPool.DeleteExpireElem(s.MintDeep.OfficialMint)
 			s.MintDeep.OfficialMint.Add(s.MintDeep.OfficialMint, big.NewInt(1))
@@ -2422,11 +2445,17 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		mergeLevel := nftStateObject.GetNFTMergeLevel()
 		nftStateObject.CleanNFT()
 		stateObject.AddBalance(amount)
+		stateObject.SubVoteWeight(amount)
 
 		//Merge SNFT
 		existNftAddress := s.GetExistAddress(nftaddress, mergeLevel)
 		if existNftAddress != emptyAddress {
-			s.MergeNFT16(existNftAddress)
+			existNftStateObject := s.GetOrNewStateObject(existNftAddress)
+			increaseValue, _ := s.MergeNFT16(existNftAddress)
+			existOwnerStateObject := s.GetOrNewStateObject(existNftStateObject.NFTOwner())
+			if existOwnerStateObject != nil {
+				existOwnerStateObject.AddVoteWeight(increaseValue)
+			}
 		}
 	}
 }
