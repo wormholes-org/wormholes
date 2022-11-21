@@ -551,7 +551,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			// Get the header of the last normal block
 			preHeader, err := getPreHash(chain, header)
 			if err != nil {
-				log.Error("Finalize get preHash err", "err", err, "preHeader", preHeader.Number, "no", header.Number, "hash", header.Hash().Hex())
+				log.Error("Finalize get preHash err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return
 			}
 			log.Info("Finalize getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
@@ -559,14 +559,14 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			// preHeader + currentRewadSeal
 			rewarders, err := e.RecoverRewards(preHeader, istanbulExtra.RewardSeal)
 			if err != nil {
-				log.Error("Finalize rewarders err", "err", err.Error(), "preHeader", preHeader.Number, "no", header.Number, "hash", header.Hash().Hex())
+				log.Error("Finalize rewarders err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return
 			}
 			for _, v := range rewarders {
-				log.Info("Finalize: onlineValidator", "addr", v.Hex(), "len", len(rewarders), "preHeader", preHeader.Number, "no", header.Number, "hash", header.Hash().Hex())
+				log.Info("Finalize: onlineValidator", "addr", v.Hex(), "len", len(rewarders), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 			}
 			if len(rewarders) < 7 {
-				log.Error("Finalize commiters len less than 7", "preHeader", preHeader.Number, "no", header.Number, "hash", header.Hash().Hex())
+				log.Error("Finalize commiters len less than 7", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return
 			}
 			for _, v := range rewarders {
