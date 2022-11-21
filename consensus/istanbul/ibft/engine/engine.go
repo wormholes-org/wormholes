@@ -335,6 +335,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				log.Error("Prepare get preHash err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return err
 			}
+			log.Info("Prepare getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 			commiters, err := e.Signers(preHeader)
 			if err != nil {
 				log.Error("Prepare commit seal err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
@@ -553,6 +554,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 				log.Error("Finalize get preHash err", "err", err, "preHeader", preHeader.Number, "no", header.Number, "hash", header.Hash().Hex())
 				return
 			}
+			log.Info("Finalize getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 			// decode rewards
 			// preHeader + currentRewadSeal
 			rewarders, err := e.RecoverRewards(preHeader, istanbulExtra.RewardSeal)
