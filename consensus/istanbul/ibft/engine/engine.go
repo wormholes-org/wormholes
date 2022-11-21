@@ -332,16 +332,16 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			// Get the header of the last normal block
 			preHeader, err := getPreHash(chain, header)
 			if err != nil {
-				log.Error("Prepare get preHash err", "err", err)
+				log.Error("Prepare get preHash err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return err
 			}
 			commiters, err := e.Signers(preHeader)
 			if err != nil {
-				log.Error("Prepare commit seal err", "err", err.Error())
+				log.Error("Prepare commit seal err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return err
 			}
 			if len(commiters) < 7 {
-				log.Error("Prepare commiters len less than 7")
+				log.Error("Prepare commiters len less than 7", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return errors.New("Prepare commiters len less than 7")
 			}
 			for _, v := range commiters {
@@ -352,12 +352,12 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				validatorAddr = append(validatorAddr, v)
 			}
 			for _, v := range validatorAddr {
-				log.Info("Prepare: onlineValidator", "addr", v.Hex(), "no", header.Number)
+				log.Info("Prepare: onlineValidator", "addr", v.Hex(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 			}
 			// copy commitSeals to rewardSeals
 			rewardSeals, err = e.copyCommitSeals(preHeader)
 			if err != nil {
-				log.Error("copy commitSeals err", "err", err)
+				log.Error("copy commitSeals err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return err
 			}
 		}
@@ -550,21 +550,21 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			// Get the header of the last normal block
 			preHeader, err := getPreHash(chain, header)
 			if err != nil {
-				log.Error("Finalize get preHash err", "err", err)
+				log.Error("Finalize get preHash err", "err", err, "preHeader", preHeader.Number, "no", header.Number, "hash", header.Hash().Hex())
 				return
 			}
 			// decode rewards
 			// preHeader + currentRewadSeal
 			rewarders, err := e.RecoverRewards(preHeader, istanbulExtra.RewardSeal)
 			if err != nil {
-				log.Error("Finalize rewarders err", "err", err.Error())
+				log.Error("Finalize rewarders err", "err", err.Error(), "preHeader", preHeader.Number, "no", header.Number, "hash", header.Hash().Hex())
 				return
 			}
 			for _, v := range rewarders {
-				log.Info("Finalize: onlineValidator", "addr", v.Hex(), "no", header.Number, "len", len(rewarders))
+				log.Info("Finalize: onlineValidator", "addr", v.Hex(), "len", len(rewarders), "preHeader", preHeader.Number, "no", header.Number, "hash", header.Hash().Hex())
 			}
 			if len(rewarders) < 7 {
-				log.Error("Finalize commiters len less than 7", "no", header.Number)
+				log.Error("Finalize commiters len less than 7", "preHeader", preHeader.Number, "no", header.Number, "hash", header.Hash().Hex())
 				return
 			}
 			for _, v := range rewarders {
