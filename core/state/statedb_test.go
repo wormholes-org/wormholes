@@ -1198,6 +1198,95 @@ func TestMergeNFT16(t *testing.T) {
 	fmt.Println(state.trie)
 }
 
+func TestMergeNFT16_2(t *testing.T) {
+	memDb := rawdb.NewMemoryDatabase()
+	db := NewDatabase(memDb)
+	state, _ := New(common.Hash{}, db, nil)
+	state.PledgedTokenPool = make([]*types.PledgedToken, 0)
+	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
+	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
+	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
+	state.FrozenAccounts = new(types.FrozenAccountList)
+	state.MintDeep = new(types.MintDeep)
+	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(0))
+	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+	for k := 0; k < 16; k++ {
+		for i := 0; i < 16; i++ {
+			bigi := big.NewInt(int64(k*16 + i))
+			bigi.Add(bigi, maskB)
+			bigiS := hex.EncodeToString(bigi.Bytes())
+			var prefix0 string
+			for j := 0; j < 40-len(bigiS); j++ {
+				prefix0 = prefix0 + "0"
+			}
+			bigiS = prefix0 + bigiS
+			newAccount := common.HexToAddress(bigiS)
+			state.CreateAccount(newAccount)
+			newObject := state.getStateObject(newAccount)
+			newObject.address = newAccount
+			newObject.addrHash = newAccount.Hash()
+			newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+			newObject.data.MergeLevel = 0
+			newObject.data.MergeNumber = 1
+			newObject.data.MetaURL = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
+			newObject.data.NFTPledgedBlockNumber = big.NewInt(1110)
+			state.updateStateObject(newObject)
+
+			//state.Commit(false)
+		}
+		bigj := big.NewInt(int64(k * 16))
+		bigj = new(big.Int).Add(bigj, maskB)
+
+		nftAddr1 := common.BigToAddress(bigj)
+		nftAddr2 := common.BigToAddress(new(big.Int).Add(bigj, big.NewInt(1)))
+		nftAccount1 := state.getStateObject(nftAddr1)
+		nftAccount2 := state.getStateObject(nftAddr2)
+		//nftAddr := common.HexToAddress("2000000000000000000000000000000003000000")
+		t.Log("")
+		t.Log("-----------------------------------------------------------")
+		t.Log("addr1 before", nftAddr1.Hex())
+		t.Log(nftAccount1.NFTOwner().Hex(), nftAccount1.GetNFTMergeLevel(),
+			nftAccount1.GetMergeNumber())
+		t.Log("addr2 before", nftAddr2.Hex())
+		t.Log(nftAccount2.NFTOwner().Hex(), nftAccount2.GetNFTMergeLevel(),
+			nftAccount2.GetMergeNumber())
+
+		increaseValue, err := state.MergeNFT16(nftAddr1)
+		t.Log("increase value", increaseValue, "err", err)
+		oldAmount := state.calculateExchangeAmount(0, 16)
+		newAmount := state.calculateExchangeAmount(1, 16)
+		aimAmount := new(big.Int).Sub(newAmount, oldAmount)
+		t.Log("aimAmount", aimAmount, "increaseValule", increaseValue)
+		if aimAmount.Cmp(increaseValue) != 0 {
+			t.Error("Error : aimAmount", aimAmount, "increaseValule", increaseValue)
+			oldAmount2 := state.calculateExchangeAmount(1, 256)
+			newAmount2 := state.calculateExchangeAmount(2, 256)
+			newAmount2.Add(newAmount2, aimAmount)
+			aimAmount2 := new(big.Int).Sub(newAmount2, oldAmount2)
+			nftAddr0 := common.HexToAddress("0x8000000000000000000000000000000000000000")
+			nftAccount0 := state.getStateObject(nftAddr0)
+			t.Log(nftAccount0.NFTOwner().Hex(), nftAccount0.GetNFTMergeLevel(),
+				nftAccount0.GetMergeNumber())
+			t.Error("Error : aimAmount2", aimAmount2, "increaseValule", increaseValue)
+		}
+
+		t.Log("addr1 after", nftAddr1.Hex())
+		t.Log(nftAccount1.NFTOwner().Hex(), nftAccount1.GetNFTMergeLevel(),
+			nftAccount1.GetMergeNumber())
+		t.Log("addr2 after", nftAddr2.Hex())
+		t.Log(nftAccount2.NFTOwner().Hex(), nftAccount2.GetNFTMergeLevel(),
+			nftAccount2.GetMergeNumber())
+		t.Log("-----------------------------------------------------------")
+		t.Log("")
+	}
+
+	// 69,376
+	// 24,320
+	// 33,536
+	// 11,520
+
+}
+
 func TestSplitNFT16(t *testing.T) {
 	memDb := rawdb.NewMemoryDatabase()
 	db := NewDatabase(memDb)
