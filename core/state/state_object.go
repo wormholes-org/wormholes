@@ -1098,11 +1098,17 @@ func (s *stateObject) GetMetaURL() string {
 }
 
 func (s *stateObject) PledgedBalance() *big.Int {
-	return s.data.PledgedBalance
+	if s.data.PledgedBalance == nil {
+		return big.NewInt(0)
+	}
+	return new(big.Int).Set(s.data.PledgedBalance)
 }
 
 func (s *stateObject) PledgedBlockNumber() *big.Int {
-	return s.data.PledgedBlockNumber
+	if s.data.PledgedBlockNumber == nil {
+		return big.NewInt(0)
+	}
+	return new(big.Int).Set(s.data.PledgedBlockNumber)
 }
 
 // AddPledgedBalance adds amount to s's pledged balance.
@@ -1130,7 +1136,10 @@ func (s *stateObject) SubPledgedBalance(amount *big.Int) {
 }
 
 func (s *stateObject) ExchangerBalance() *big.Int {
-	return s.data.ExchangerBalance
+	if s.data.ExchangerBalance == nil {
+		return big.NewInt(0)
+	}
+	return new(big.Int).Set(s.data.ExchangerBalance)
 }
 
 // AddExchangerBalance adds amount to s's exchanger balance.
@@ -1154,7 +1163,10 @@ func (s *stateObject) SubExchangerBalance(amount *big.Int) {
 }
 
 func (s *stateObject) VoteWeight() *big.Int {
-	return s.data.VoteWeight
+	if s.data.VoteWeight == nil {
+		return big.NewInt(0)
+	}
+	return new(big.Int).Set(s.data.VoteWeight)
 }
 
 func (s *stateObject) Coefficient() uint8 {
@@ -1234,7 +1246,10 @@ func (s *stateObject) setVoteBlockNumber(blocknumber *big.Int) {
 }
 
 func (s *stateObject) VoteBlockNumber() *big.Int {
-	return s.data.VoteBlockNumber
+	if s.data.VoteBlockNumber == nil {
+		return big.NewInt(0)
+	}
+	return new(big.Int).Set(s.data.VoteBlockNumber)
 }
 
 func (s *stateObject) SetPledgedBalance(amount *big.Int) {
