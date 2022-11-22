@@ -109,7 +109,7 @@ type (
 	SubExchangerBalanceFunc                func(StateDB, common.Address, *big.Int)
 	VerifyExchangerBalanceFunc             func(StateDB, common.Address, *big.Int) bool
 	GetNftAddressAndLevelFunc              func(string) (common.Address, int, error)
-	VoteOfficialNFTFunc                    func(StateDB, *types.NominatedOfficialNFT, *big.Int)
+	VoteOfficialNFTFunc                    func(StateDB, *types.NominatedOfficialNFT, *big.Int) error
 	ElectNominatedOfficialNFTFunc          func(StateDB, *big.Int)
 	NextIndexFunc                          func(db StateDB) *big.Int
 	VoteOfficialNFTByApprovedExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
@@ -1516,7 +1516,12 @@ func (evm *EVM) HandleNFT(
 				Address: caller.Address(),
 			},
 		}
-		evm.Context.VoteOfficialNFT(evm.StateDB, &nominatedNFT, evm.Context.BlockNumber)
+		err := evm.Context.VoteOfficialNFT(evm.StateDB, &nominatedNFT, evm.Context.BlockNumber)
+		if err != nil {
+			log.Error("HandleNFT(), VoteOfficialNFT", "wormholes.Type", wormholes.Type,
+				"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, err
+		}
 		log.Info("HandleNFT(), VoteOfficialNFT<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 

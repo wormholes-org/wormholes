@@ -120,7 +120,7 @@ type StateDB interface {
 	SubExchangerToken(common.Address, *big.Int)
 	SubExchangerBalance(common.Address, *big.Int)
 	GetExchangerBalance(common.Address) *big.Int
-	VoteOfficialNFT(*types.NominatedOfficialNFT, *big.Int)
+	VoteOfficialNFT(*types.NominatedOfficialNFT, *big.Int) error
 	ElectNominatedOfficialNFT(*big.Int)
 	SubVoteWeight(common.Address, *big.Int)
 	AddVoteWeight(common.Address, *big.Int)

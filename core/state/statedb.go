@@ -3032,7 +3032,7 @@ func (s *StateDB) GetExchangerBalance(addr common.Address) *big.Int {
 	return common.Big0
 }
 
-func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialNFT, blocknumber *big.Int) {
+func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialNFT, blocknumber *big.Int) error {
 	voteWeight := big.NewInt(0)
 	nominatedWeight := big.NewInt(0)
 	voteBlockNumber := big.NewInt(0)
@@ -3079,7 +3079,10 @@ func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialN
 		tempNominatedNFT.Royalty = nominatedOfficialNFT.Royalty
 		tempNominatedNFT.Creator = nominatedOfficialNFT.Creator
 		s.NominatedOfficialNFT = &tempNominatedNFT
+		return nil
 	}
+
+	return errors.New("voteweight less than previous one")
 }
 
 func (s *StateDB) ElectNominatedOfficialNFT(blocknumber *big.Int) {

@@ -1837,8 +1837,8 @@ func VerifyExchangerBalance(db vm.StateDB, addr common.Address, amount *big.Int)
 	return db.GetExchangerBalance(addr).Cmp(amount) >= 0
 }
 
-func VoteOfficialNFT(db vm.StateDB, nominatedOfficialNFT *types.NominatedOfficialNFT, blocknumber *big.Int) {
-	db.VoteOfficialNFT(nominatedOfficialNFT, blocknumber)
+func VoteOfficialNFT(db vm.StateDB, nominatedOfficialNFT *types.NominatedOfficialNFT, blocknumber *big.Int) error {
+	return db.VoteOfficialNFT(nominatedOfficialNFT, blocknumber)
 }
 
 func ElectNominatedOfficialNFT(db vm.StateDB, blocknumber *big.Int) {
@@ -1918,9 +1918,7 @@ func VoteOfficialNFTByApprovedExchanger(
 		},
 	}
 
-	db.VoteOfficialNFT(&nominatedNFT, blocknumber)
-
-	return nil
+	return db.VoteOfficialNFT(&nominatedNFT, blocknumber)
 }
 
 //func ChangeRewardFlag(db vm.StateDB, address common.Address, flag uint8) {
