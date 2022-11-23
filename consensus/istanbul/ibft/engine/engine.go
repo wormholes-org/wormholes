@@ -441,6 +441,9 @@ func (e *Engine) copyCommitSeals(header *types.Header) ([][]byte, error) {
 
 func getPreHash(chain consensus.ChainHeaderReader, header *types.Header) (*types.Header, error) {
 	preHeader := chain.GetHeaderByHash(header.ParentHash)
+	if preHeader == nil {
+		return nil, errors.New("getPreHash : invalid preHeader")
+	}
 	if preHeader.Coinbase == (common.Address{}) {
 		preHeader, err := getPreHash(chain, preHeader)
 		if err != nil {
