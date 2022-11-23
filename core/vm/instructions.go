@@ -838,8 +838,9 @@ func makeRevertRet(reason string) []byte {
 func opNBalanceOf(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	slot := scope.Stack.peek()
 	account := common.Address(slot.Bytes20())
-	balance := interpreter.evm.StateDB.GetNFTBalance(account)
-	slot.SetUint64(balance)
+	//balance := interpreter.evm.StateDB.GetNFTBalance(account)
+	//slot.SetUint64(balance)
+	var balance uint64 = 0
 	fmt.Println("nft.balanceOf()---", account.String(), balance)
 	return nil, nil
 }
@@ -943,7 +944,7 @@ func opNMint(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]by
 		length := int64(uri.SetBytes(scope.Memory.GetPtr(offset, 32)).Uint64())
 		uriStr := scope.Memory.GetCopy(offset+32, length)
 		toAddr := common.Address(to.Bytes20())
-		nftAddr, _ := interpreter.evm.StateDB.CreateNFTByUser(caller, toAddr, uint32(royalty.Uint64()), string(uriStr))
+		nftAddr, _ := interpreter.evm.StateDB.CreateNFTByUser(caller, toAddr, uint16(royalty.Uint64()), string(uriStr))
 
 		to.SetBytes(nftAddr.Bytes())
 		fmt.Println("nft.mint()---", caller.String(), toAddr.String(), royalty.Uint64(), string(uriStr), nftAddr.String())

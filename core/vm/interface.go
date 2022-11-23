@@ -81,7 +81,7 @@ type StateDB interface {
 	GetNFTOwner16(common.Address) common.Address
 	// *** modify to support nft transaction 20211215 end ***
 	//CreateNFTByOfficial([]common.Address, *big.Int)
-	CreateNFTByUser(common.Address, common.Address, uint32, string) (common.Address, bool)
+	CreateNFTByUser(common.Address, common.Address, uint16, string) (common.Address, bool)
 	ChangeApproveAddress(common.Address, common.Address)
 	CancelApproveAddress(common.Address, common.Address)
 	ChangeNFTApproveAddress(common.Address, common.Address)
@@ -91,22 +91,22 @@ type StateDB interface {
 	GetPledgedTime(common.Address) *big.Int
 	MinerConsign(common.Address, common.Address) error
 	CancelPledgedToken(common.Address, *big.Int)
-	OpenExchanger(common.Address, *big.Int, *big.Int, uint32, string, string)
+	OpenExchanger(common.Address, *big.Int, *big.Int, uint16, string, string)
 	CloseExchanger(common.Address, *big.Int)
 	GetExchangerFlag(common.Address) bool
 	GetOpenExchangerTime(common.Address) *big.Int
-	GetFeeRate(common.Address) uint32
+	GetFeeRate(common.Address) uint16
 	GetExchangerName(common.Address) string
 	GetExchangerURL(common.Address) string
 	GetApproveAddress(common.Address) []common.Address
-	GetNFTBalance(common.Address) uint64
+	//GetNFTBalance(common.Address) uint64
 	GetNFTName(common.Address) string
 	GetNFTSymbol(common.Address) string
 	//GetNFTApproveAddress(common.Address) []common.Address
 	GetNFTApproveAddress(common.Address) common.Address
 	GetNFTMergeLevel(common.Address) uint8
 	GetNFTCreator(common.Address) common.Address
-	GetNFTRoyalty(common.Address) uint32
+	GetNFTRoyalty(common.Address) uint16
 	GetNFTExchanger(common.Address) common.Address
 	GetNFTMetaURL(common.Address) string
 	IsExistNFT(common.Address) bool
@@ -114,14 +114,14 @@ type StateDB interface {
 	IsApprovedOne(common.Address, common.Address) bool
 	IsApprovedForAll(common.Address, common.Address) bool
 	GetPledgedBalance(common.Address) *big.Int
-	InjectOfficialNFT(string, *big.Int, uint64, uint32, string)
+	InjectOfficialNFT(string, *big.Int, uint64, uint16, string)
 	AddExchangerToken(common.Address, *big.Int)
 	ModifyOpenExchangerTime(common.Address, *big.Int)
 	SubExchangerToken(common.Address, *big.Int)
 	SubExchangerBalance(common.Address, *big.Int)
 	GetExchangerBalance(common.Address) *big.Int
-	VoteOfficialNFT(*types.NominatedOfficialNFT)
-	ElectNominatedOfficialNFT()
+	VoteOfficialNFT(*types.NominatedOfficialNFT, *big.Int) error
+	ElectNominatedOfficialNFT(*big.Int)
 	SubVoteWeight(common.Address, *big.Int)
 	AddVoteWeight(common.Address, *big.Int)
 	AddValidatorCoefficient(common.Address, uint8)

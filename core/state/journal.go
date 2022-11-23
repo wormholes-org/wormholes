@@ -160,7 +160,7 @@ type (
 		address          *common.Address
 		oldExchangerFlag bool
 		oldBlockNumber   *big.Int
-		oldFeeRate       uint32
+		oldFeeRate       uint16
 		oldExchangerName string
 		oldExchangerURL  string
 	}
@@ -176,7 +176,7 @@ type (
 		oldPledgedFlag           bool
 		oldNFTPledgedBlockNumber *big.Int
 		oldCreator               common.Address
-		oldRoyalty               uint32
+		oldRoyalty               uint16
 		oldExchanger             common.Address
 		oldMetaURL               string
 	}
@@ -197,6 +197,11 @@ type (
 	}
 
 	blockNumberChange struct {
+		account *common.Address
+		prev    *big.Int
+	}
+
+	voteBlockNumberChange struct {
 		account *common.Address
 		prev    *big.Int
 	}
@@ -444,6 +449,14 @@ func (ch blockNumberChange) revert(s *StateDB) {
 }
 
 func (ch blockNumberChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch voteBlockNumberChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setVoteBlockNumber(ch.prev)
+}
+
+func (ch voteBlockNumberChange) dirtied() *common.Address {
 	return ch.account
 }
 

@@ -43,16 +43,17 @@ type Account struct {
 	ExchangerFlag    bool
 	BlockNumber      *big.Int
 	ExchangerBalance *big.Int
+	VoteBlockNumber  *big.Int
 	VoteWeight       *big.Int
 	Coefficient      uint8
 	// The ratio that exchanger get.
-	FeeRate       uint32
+	FeeRate       uint16
 	ExchangerName string
 	ExchangerURL  string
 	// ApproveAddress have the right to handle all nfts of the account
 	ApproveAddressList []common.Address
 	// NFTBalance is the nft number that the account have
-	NFTBalance uint64
+	//NFTBalance uint64
 	// Indicates the reward method chosen by the miner
 	//RewardFlag uint8 // 0:SNFT 1:ERB default:0
 	AccountNFT
@@ -74,7 +75,7 @@ type AccountNFT struct {
 	NFTPledgedBlockNumber *big.Int
 
 	Creator   common.Address
-	Royalty   uint32
+	Royalty   uint16
 	Exchanger common.Address
 	MetaURL   string
 }
@@ -89,13 +90,14 @@ func SlimAccount(nonce uint64,
 	exchangerflag bool,
 	blocknumber *big.Int,
 	exchangerbalance *big.Int,
+	voteblocknumber *big.Int,
 	voteweight *big.Int,
 	coefficient uint8,
-	feerate uint32,
+	feerate uint16,
 	exchangername string,
 	exchangerurl string,
 	approveaddresslist []common.Address,
-	nftbalance uint64,
+	//nftbalance uint64,
 	extra []byte,
 	name string,
 	symbol string,
@@ -108,7 +110,7 @@ func SlimAccount(nonce uint64,
 	pledgedflag bool,
 	nftpledgedblocknumber *big.Int,
 	creator common.Address,
-	royalty uint32,
+	royalty uint16,
 	exchanger common.Address,
 	metaurl string) Account {
 	//func SlimAccount(nonce uint64, balance *big.Int, root common.Hash, codehash []byte) Account {
@@ -120,12 +122,13 @@ func SlimAccount(nonce uint64,
 		ExchangerFlag:      exchangerflag,
 		BlockNumber:        blocknumber,
 		ExchangerBalance:   exchangerbalance,
+		VoteBlockNumber:    voteblocknumber,
 		VoteWeight:         voteweight,
 		Coefficient:        coefficient,
 		FeeRate:            feerate,
 		ExchangerName:      exchangername,
 		ExchangerURL:       exchangerurl,
-		NFTBalance:         nftbalance,
+		//NFTBalance:         nftbalance,
 		AccountNFT: AccountNFT{
 			Name:   name,
 			Symbol: symbol,
@@ -171,13 +174,14 @@ func SlimAccountRLP(nonce uint64,
 	exchangerflag bool,
 	blocknumber *big.Int,
 	exchangerbalance *big.Int,
+	voteblocknumber *big.Int,
 	voteweight *big.Int,
 	coefficient uint8,
-	feerate uint32,
+	feerate uint16,
 	exchangername string,
 	exchangerurl string,
 	approveaddresslist []common.Address,
-	nftbalance uint64,
+	//nftbalance uint64,
 	extra []byte,
 	name string,
 	symbol string,
@@ -190,7 +194,7 @@ func SlimAccountRLP(nonce uint64,
 	pledgedflag bool,
 	nftpledgedblocknumber *big.Int,
 	creator common.Address,
-	royalty uint32,
+	royalty uint16,
 	exchanger common.Address,
 	metaurl string) []byte {
 	data, err := rlp.EncodeToBytes(SlimAccount(nonce,
@@ -202,13 +206,14 @@ func SlimAccountRLP(nonce uint64,
 		exchangerflag,
 		blocknumber,
 		exchangerbalance,
+		voteblocknumber,
 		voteweight,
 		coefficient,
 		feerate,
 		exchangername,
 		exchangerurl,
 		approveaddresslist,
-		nftbalance,
+		//nftbalance,
 		extra,
 		name,
 		symbol,

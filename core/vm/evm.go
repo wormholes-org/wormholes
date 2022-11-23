@@ -62,7 +62,7 @@ type (
 	// TransferNFTFunc is the signature of a TransferNFT function
 	TransferNFTFunc func(StateDB, string, common.Address) error
 	//CreateNFTByOfficialFunc     func(StateDB, []common.Address, *big.Int)
-	CreateNFTByUserFunc         func(StateDB, common.Address, common.Address, uint32, string) (common.Address, bool)
+	CreateNFTByUserFunc         func(StateDB, common.Address, common.Address, uint16, string) (common.Address, bool)
 	ChangeApproveAddressFunc    func(StateDB, common.Address, common.Address)
 	CancelApproveAddressFunc    func(StateDB, common.Address, common.Address)
 	ChangeNFTApproveAddressFunc func(StateDB, common.Address, common.Address)
@@ -72,22 +72,22 @@ type (
 	GetPledgedTimeFunc          func(StateDB, common.Address) *big.Int
 	MinerConsignFunc            func(StateDB, common.Address, *types.Wormholes) error
 	CancelPledgedTokenFunc      func(StateDB, common.Address, *big.Int)
-	OpenExchangerFunc           func(StateDB, common.Address, *big.Int, *big.Int, uint32, string, string)
+	OpenExchangerFunc           func(StateDB, common.Address, *big.Int, *big.Int, uint16, string, string)
 	CloseExchangerFunc          func(StateDB, common.Address, *big.Int)
 	GetExchangerFlagFunc        func(StateDB, common.Address) bool
 	GetOpenExchangerTimeFunc    func(StateDB, common.Address) *big.Int
-	GetFeeRateFunc              func(StateDB, common.Address) uint32
+	GetFeeRateFunc              func(StateDB, common.Address) uint16
 	GetExchangerNameFunc        func(StateDB, common.Address) string
 	GetExchangerURLFunc         func(StateDB, common.Address) string
 	GetApproveAddressFunc       func(StateDB, common.Address) []common.Address
-	GetNFTBalanceFunc           func(StateDB, common.Address) uint64
-	GetNFTNameFunc              func(StateDB, common.Address) string
-	GetNFTSymbolFunc            func(StateDB, common.Address) string
+	//GetNFTBalanceFunc           func(StateDB, common.Address) uint64
+	GetNFTNameFunc   func(StateDB, common.Address) string
+	GetNFTSymbolFunc func(StateDB, common.Address) string
 	//GetNFTApproveAddressFunc func(StateDB, common.Address) []common.Address
 	GetNFTApproveAddressFunc               func(StateDB, common.Address) common.Address
 	GetNFTMergeLevelFunc                   func(StateDB, common.Address) uint8
 	GetNFTCreatorFunc                      func(StateDB, common.Address) common.Address
-	GetNFTRoyaltyFunc                      func(StateDB, common.Address) uint32
+	GetNFTRoyaltyFunc                      func(StateDB, common.Address) uint16
 	GetNFTExchangerFunc                    func(StateDB, common.Address) common.Address
 	GetNFTMetaURLFunc                      func(StateDB, common.Address) string
 	IsExistNFTFunc                         func(StateDB, common.Address) bool
@@ -95,7 +95,7 @@ type (
 	IsApprovedOneFunc                      func(StateDB, common.Address, common.Address) bool
 	IsApprovedForAllFunc                   func(StateDB, common.Address, common.Address) bool
 	VerifyPledgedBalanceFunc               func(StateDB, common.Address, *big.Int) bool
-	InjectOfficialNFTFunc                  func(StateDB, string, *big.Int, uint64, uint32, string)
+	InjectOfficialNFTFunc                  func(StateDB, string, *big.Int, uint64, uint16, string)
 	BuyNFTBySellerOrExchangerFunc          func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	BuyNFTByBuyerFunc                      func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	BuyAndMintNFTByBuyerFunc               func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
@@ -109,8 +109,8 @@ type (
 	SubExchangerBalanceFunc                func(StateDB, common.Address, *big.Int)
 	VerifyExchangerBalanceFunc             func(StateDB, common.Address, *big.Int) bool
 	GetNftAddressAndLevelFunc              func(string) (common.Address, int, error)
-	VoteOfficialNFTFunc                    func(StateDB, *types.NominatedOfficialNFT)
-	ElectNominatedOfficialNFTFunc          func(StateDB)
+	VoteOfficialNFTFunc                    func(StateDB, *types.NominatedOfficialNFT, *big.Int) error
+	ElectNominatedOfficialNFTFunc          func(StateDB, *big.Int)
 	NextIndexFunc                          func(db StateDB) *big.Int
 	VoteOfficialNFTByApprovedExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	//ChangeRewardFlagFunc                   func(StateDB, common.Address, uint8)
@@ -157,25 +157,25 @@ type BlockContext struct {
 	TransferNFT TransferNFTFunc
 	// *** modify to support nft transaction 20211215 end ***
 	//CreateNFTByOfficial                CreateNFTByOfficialFunc
-	CreateNFTByUser                    CreateNFTByUserFunc
-	ChangeApproveAddress               ChangeApproveAddressFunc
-	CancelApproveAddress               CancelApproveAddressFunc
-	ChangeNFTApproveAddress            ChangeNFTApproveAddressFunc
-	CancelNFTApproveAddress            CancelNFTApproveAddressFunc
-	ExchangeNFTToCurrency              ExchangeNFTToCurrencyFunc
-	PledgeToken                        PledgeTokenFunc
-	GetPledgedTime                     GetPledgedTimeFunc
-	MinerConsign                       MinerConsignFunc
-	CancelPledgedToken                 CancelPledgedTokenFunc
-	OpenExchanger                      OpenExchangerFunc
-	CloseExchanger                     CloseExchangerFunc
-	GetExchangerFlag                   GetExchangerFlagFunc
-	GetOpenExchangerTime               GetOpenExchangerTimeFunc
-	GetFeeRate                         GetFeeRateFunc
-	GetExchangerName                   GetExchangerNameFunc
-	GetExchangerURL                    GetExchangerURLFunc
-	GetApproveAddress                  GetApproveAddressFunc
-	GetNFTBalance                      GetNFTBalanceFunc
+	CreateNFTByUser         CreateNFTByUserFunc
+	ChangeApproveAddress    ChangeApproveAddressFunc
+	CancelApproveAddress    CancelApproveAddressFunc
+	ChangeNFTApproveAddress ChangeNFTApproveAddressFunc
+	CancelNFTApproveAddress CancelNFTApproveAddressFunc
+	ExchangeNFTToCurrency   ExchangeNFTToCurrencyFunc
+	PledgeToken             PledgeTokenFunc
+	GetPledgedTime          GetPledgedTimeFunc
+	MinerConsign            MinerConsignFunc
+	CancelPledgedToken      CancelPledgedTokenFunc
+	OpenExchanger           OpenExchangerFunc
+	CloseExchanger          CloseExchangerFunc
+	GetExchangerFlag        GetExchangerFlagFunc
+	GetOpenExchangerTime    GetOpenExchangerTimeFunc
+	GetFeeRate              GetFeeRateFunc
+	GetExchangerName        GetExchangerNameFunc
+	GetExchangerURL         GetExchangerURLFunc
+	GetApproveAddress       GetApproveAddressFunc
+	//GetNFTBalance                      GetNFTBalanceFunc
 	GetNFTName                         GetNFTNameFunc
 	GetNFTSymbol                       GetNFTSymbolFunc
 	GetNFTApproveAddress               GetNFTApproveAddressFunc
@@ -1492,7 +1492,7 @@ func (evm *EVM) HandleNFT(
 		//startIndex, _ := new(big.Int).SetString(wormholes.StartIndex[2:], 16)
 		startIndex := evm.StateDB.NextIndex()
 		var number uint64 = 4096
-		var royalty uint32 = 1000 // default 10%
+		var royalty uint16 = 1000 // default 10%
 		//if wormholes.Royalty <= 0 {
 		//	log.Error("HandleNFT(), VoteOfficialNFT", "wormholes.Type", wormholes.Type,
 		//		"error", ErrRoyaltyNotMoreThan0, "blocknumber", evm.Context.BlockNumber.Uint64())
@@ -1516,7 +1516,12 @@ func (evm *EVM) HandleNFT(
 				Address: caller.Address(),
 			},
 		}
-		evm.Context.VoteOfficialNFT(evm.StateDB, &nominatedNFT)
+		err := evm.Context.VoteOfficialNFT(evm.StateDB, &nominatedNFT, evm.Context.BlockNumber)
+		if err != nil {
+			log.Error("HandleNFT(), VoteOfficialNFT", "wormholes.Type", wormholes.Type,
+				"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, err
+		}
 		log.Info("HandleNFT(), VoteOfficialNFT<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 

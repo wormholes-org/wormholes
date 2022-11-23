@@ -97,14 +97,14 @@ type PledgedToken struct {
 
 var DefaultDir string = "/ipfs/Qme8eCqoj3Csbh96AUuHGYKsC1okUPiEwGNeTVDG2SBLVN"
 var DefaultNumber uint64 = 4096
-var DefaultRoyalty uint32 = 1000
+var DefaultRoyalty uint16 = 1000
 var DefaultCreator string = "0x0000000000000000000000000000000000000000"
 
 type InjectedOfficialNFT struct {
 	Dir        string         `json:"dir"`
 	StartIndex *big.Int       `json:"start_index"`
 	Number     uint64         `json:"number"`
-	Royalty    uint32         `json:"royalty"`
+	Royalty    uint16         `json:"royalty"`
 	Creator    string         `json:"creator"`
 	Address    common.Address `json:"address"`
 	VoteWeight *big.Int       `json:"vote_weight"`
@@ -190,10 +190,10 @@ type Wormholes struct {
 	ProxyAddress string `json:"proxy_address,omitempty"`
 	ProxySign    string `json:"proxy_sign,omitempty"`
 	Exchanger    string `json:"exchanger,omitempty"`
-	Royalty      uint32 `json:"royalty,omitempty"`
+	Royalty      uint16 `json:"royalty,omitempty"`
 	MetaURL      string `json:"meta_url,omitempty"`
 	//ApproveAddress string		`json:"approve_address"`
-	FeeRate       uint32           `json:"fee_rate,omitempty"`
+	FeeRate       uint16           `json:"fee_rate,omitempty"`
 	Name          string           `json:"name,omitempty"`
 	Url           string           `json:"url,omitempty"`
 	Dir           string           `json:"dir,omitempty"`

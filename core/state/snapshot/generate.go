@@ -621,7 +621,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			NFTPledgedBlockNumber *big.Int
 
 			Creator   common.Address
-			Royalty   uint32
+			Royalty   uint16
 			Exchanger common.Address
 			MetaURL   string
 		}
@@ -637,16 +637,17 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			ExchangerFlag    bool
 			BlockNumber      *big.Int
 			ExchangerBalance *big.Int
+			VoteBlockNumber  *big.Int
 			VoteWeight       *big.Int
 			Coefficient      uint8
 			// The ratio that exchanger get.
-			FeeRate       uint32
+			FeeRate       uint16
 			ExchangerName string
 			ExchangerURL  string
 			// ApproveAddress have the right to handle all nfts of the account
 			ApproveAddressList []common.Address
 			// NFTBalance is the nft number that the account have
-			NFTBalance uint64
+			//NFTBalance uint64
 			//RewardFlag uint8
 			AccountNFT
 			//Owner common.Address
@@ -677,13 +678,14 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 					acc.ExchangerFlag,
 					acc.BlockNumber,
 					acc.ExchangerBalance,
+					acc.VoteBlockNumber,
 					acc.VoteWeight,
 					acc.Coefficient,
 					acc.FeeRate,
 					acc.ExchangerName,
 					acc.ExchangerURL,
 					acc.ApproveAddressList,
-					acc.NFTBalance,
+					//acc.NFTBalance,
 					acc.Extra,
 					acc.Name,
 					acc.Symbol,
