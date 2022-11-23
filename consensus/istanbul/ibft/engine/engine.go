@@ -345,7 +345,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			// Get the header of the last normal block
 			preHeader, err := getPreHash(chain, header)
 			if err != nil {
-				log.Error("Prepare get preHash err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+				log.Error("Prepare get preHash err", "err", err, "no", header.Number, "hash", header.Hash().Hex())
 				return err
 			}
 			log.Info("Prepare getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
