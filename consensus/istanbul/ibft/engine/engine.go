@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"math"
 	"math/big"
 	"time"
 
@@ -329,6 +330,18 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			// Block 1 does not issue any rewards
 			validatorAddr = make([]common.Address, 0)
 		} else {
+			// quorum Size
+			random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+			if err != nil {
+				log.Error("Prepare : invalid validators", err.Error())
+				return errors.New("Prepare: invalid validators")
+			}
+			quorumSize := e.QuorumSize(random11Validators.Len())
+			if quorumSize == 0 {
+				log.Error("Prepare invalid quorum size", "no", header.Number, "size", quorumSize)
+				return errors.New("invalid quorum size")
+			}
+			log.Info("Prepare quorum size", "no", header.Number, "size", quorumSize)
 			// Get the header of the last normal block
 			preHeader, err := getPreHash(chain, header)
 			if err != nil {
@@ -341,12 +354,12 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				log.Error("Prepare commit seal err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return err
 			}
-			if len(commiters) < 7 {
+			if len(commiters) < quorumSize {
 				log.Error("Prepare commiters len less than 7", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				return errors.New("Prepare commiters len less than 7")
 			}
 			for _, v := range commiters {
-				if len(validatorAddr) == 7 {
+				if len(validatorAddr) == quorumSize {
 					break
 				}
 				// reward to onlineValidtors
@@ -534,27 +547,32 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 				state.AddValidatorCoefficient(v.Addr, 20)
 			}
 		}
-	}
 
-	istanbulExtra, err := types.ExtractIstanbulExtra(header)
-	if err != nil {
-		return
-	}
+		istanbulExtra, err := types.ExtractIstanbulExtra(header)
+		if err != nil {
+			return
+		}
 
-	if header.Coinbase == (common.Address{}) {
-		state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+		if header.Coinbase == (common.Address{}) {
+			state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
-		/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
-		header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-		header.UncleHash = nilUncleHash
-	} else {
-		// pick 7 validator from rewardSeals
-		var validatorAddr []common.Address
-		if c, ok := chain.(*core.BlockChain); ok {
+			/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
+			header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+			header.UncleHash = nilUncleHash
+		} else {
+			// pick 7 validator from rewardSeals
+			var validatorAddr []common.Address
 			if header.Number.Uint64() == 1 {
 				// Block 1 does not issue any rewards
 				validatorAddr = make([]common.Address, 0)
 			} else {
+				// quorum Size
+				quorumSize := e.QuorumSize(random11Validators.Len())
+				if quorumSize == 0 {
+					log.Error("Finalize invalid quorum size", "no", header.Number, "size", quorumSize)
+					return
+				}
+				log.Info("Finalize quorum size", "no", header.Number, "size", quorumSize)
 				// Get the header of the last normal block
 				preHeader, err := getPreHash(chain, header)
 				if err != nil {
@@ -572,12 +590,12 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 				for _, v := range rewarders {
 					log.Info("Finalize: onlineValidator", "addr", v.Hex(), "len", len(rewarders), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 				}
-				if len(rewarders) < 7 {
+				if len(rewarders) < quorumSize {
 					log.Error("Finalize commiters len less than 7", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 					return
 				}
 				for _, v := range rewarders {
-					if len(validatorAddr) == 7 {
+					if len(validatorAddr) == quorumSize {
 						break
 					}
 					// reward to onlineValidtors
@@ -605,21 +623,20 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 					}
 				}
 			}
-		}
-		for _, addr := range validatorAddr {
-			log.Info("Finalize : CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase", header.Coinbase.Hex(), "no", header.Number.Uint64())
-		}
-		for _, addr := range istanbulExtra.ExchangerAddr {
-			log.Info("Finalize : CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase", header.Coinbase.Hex(), "no", header.Number.Uint64())
-		}
+			for _, addr := range validatorAddr {
+				log.Info("Finalize : CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase", header.Coinbase.Hex(), "no", header.Number.Uint64())
+			}
+			for _, addr := range istanbulExtra.ExchangerAddr {
+				log.Info("Finalize : CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase", header.Coinbase.Hex(), "no", header.Number.Uint64())
+			}
 
-		state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+			state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
-		/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
-		header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-		header.UncleHash = nilUncleHash
+			/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
+			header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+			header.UncleHash = nilUncleHash
+		}
 	}
-
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
@@ -867,28 +884,6 @@ func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 	return nil
 }
 
-// func WriteBenifitedAddr(h *types.Header, benifitedAddr []common.Address) error {
-// 	if len(benifitedAddr) == 0 {
-// 		return istanbulcommon.ErrInvalidBenifitedAddr
-// 	}
-
-// 	istanbulExtra, err := types.ExtractIstanbulExtra(h)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	// istanbulExtra.BeneficiaryAddr = make([]common.Address, len(benifitedAddr))
-// 	// copy(istanbulExtra.BeneficiaryAddr, benifitedAddr)
-
-// 	payload, err := rlp.EncodeToBytes(&istanbulExtra)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
-// 	return nil
-// }
-
 // PrepareCommittedSeal returns a committed seal for the given hash
 func PrepareCommittedSeal(hash common.Hash) []byte {
 	var buf bytes.Buffer
@@ -899,20 +894,6 @@ func PrepareCommittedSeal(hash common.Hash) []byte {
 
 // helper func--------------------------------//
 
-// func RecoverOnlineValidator(data []byte) ([]common.Address, error) {
-// 	if len(data) < types.OnlineValidatorVanity {
-// 		return []common.Address{}, errors.New("Online proof validator data is insufficient")
-// 	}
-
-// 	var addrs []common.Address
-// 	for i := 32; i < types.OnlineValidatorVanity; i += 100 {
-// 		//buffer := new(buffer.Buffer)
-// 		data[32:]
-
-// 	}
-
-// }
-
 func BytesToInt(bys []byte) int {
 	bytebuff := bytes.NewBuffer(bys)
 	var data int32
@@ -920,82 +901,6 @@ func BytesToInt(bys []byte) int {
 	return int(data)
 }
 
-func PickRewardValidators(chain *core.BlockChain, onlineValidators []common.Address) ([]common.Address, error) {
-	header := chain.CurrentHeader()
-	totalValidators, err := chain.ReadValidatorPool(header)
-	if err != nil {
-		log.Error("PickRewardValidators : invalid validator list", "err", err)
-		return []common.Address{}, err
-	}
-	validator11 := make(map[common.Address]bool)
-	elevenAddrs, err := chain.Random11ValidatorFromPool(header)
-	if err != nil {
-		log.Error("PickRewardValidators : invalid validator list", "err", err)
-		return []common.Address{}, err
-	}
-	online7 := make(map[common.Address]bool)
-	coinbase := chain.Coinbase()
-
-	var reward7 []common.Address
-
-	if err != nil {
-		return nil, err
-	}
-	for _, v := range elevenAddrs.Validators {
-		validator11[v.Addr] = true
-	}
-	for _, v := range onlineValidators {
-		if _, ok := validator11[v]; ok {
-			online7[v] = true
-		}
-	}
-
-	for _, v := range onlineValidators {
-		if _, ok := validator11[v]; !ok {
-			delete(online7, v)
-		}
-	}
-	final7 := make(map[common.Address]bool)
-	if len(online7) >= 7 {
-		for k, _ := range online7 {
-			final7[k] = true
-			if len(final7) >= 6 {
-				if _, ok := validator11[coinbase]; ok {
-					if _, ok1 := final7[coinbase]; !ok1 {
-						final7[coinbase] = true
-					}
-				}
-			}
-			if len(final7) >= 7 {
-				break
-			}
-		}
-	}
-
-	if len(final7) == 7 {
-		for k, _ := range final7 {
-			reward7 = append(reward7, k)
-		}
-		return reward7, nil
-	} else if len(final7) > 7 {
-		log.Error("reward7s > 7", "len", len(reward7))
-	} else {
-		log.Info("reward7s < 7", "len", len(reward7))
-	}
-	for _, v := range totalValidators.Validators {
-		if len(reward7) >= 7 {
-			break
-		}
-		if _, ok := validator11[v.Addr]; ok {
-			reward7 = append(reward7, v.Addr)
-		}
-		if _, ok := validator11[v.Proxy]; ok {
-			reward7 = append(reward7, v.Proxy)
-		}
-	}
-	if len(reward7) != 7 {
-		log.Error("reward7s != 7", "len", len(reward7))
-	}
-	log.Info("PickRewardValidators", "no", header.Number.Uint64()+1, "validators", reward7, "len", len(reward7))
-	return reward7, nil
+func (e *Engine) QuorumSize(valSize int) int {
+	return 2*(int(math.Ceil(float64(valSize)/3))-1) + 1
 }
