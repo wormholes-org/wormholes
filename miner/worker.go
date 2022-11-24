@@ -503,14 +503,14 @@ func (w *worker) emptyLoop() {
 					continue
 				}
 				time.Sleep(10 * time.Second)
-				if w.isRunning() {
-					w.isEmpty = false
-					w.emptyTimestamp = time.Now().Unix()
-					w.emptyTimer.Reset(120 * time.Second)
-					log.Info("generate empty block interupt by downloader", "w.isRunning()", w.isRunning())
-					//w.resetEmptyCh <- struct{}{}
-					continue
-				}
+				//if w.isRunning() {
+				//	w.isEmpty = false
+				//	w.emptyTimestamp = time.Now().Unix()
+				//	w.emptyTimer.Reset(120 * time.Second)
+				//	log.Info("generate empty block interupt by downloader", "w.isRunning()", w.isRunning())
+				//	//w.resetEmptyCh <- struct{}{}
+				//	continue
+				//}
 				//modification on 20221102 end
 
 				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
