@@ -1626,8 +1626,9 @@ func (w *worker) getValidatorCoefficient(address common.Address) (uint8, error) 
 	if err != nil {
 		return 0, err
 	}
-
-	coe := currentState.GetValidatorCoefficient(address)
+	validatorAddress := w.cerytify.stakers.GetValidatorAddr(address)
+	log.Info("worker.getValidatorCoefficient", "address", address.Hex(), "validator address", validatorAddress.Hex())
+	coe := currentState.GetValidatorCoefficient(validatorAddress)
 	return coe, nil
 }
 
