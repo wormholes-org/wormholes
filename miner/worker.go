@@ -452,6 +452,7 @@ func (w *worker) emptyLoop() {
 				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
+					log.Info("!w.isRunning()", "w.isRunning()", w.isRunning())
 					continue
 				}
 				if w.isEmpty {
@@ -496,13 +497,17 @@ func (w *worker) emptyLoop() {
 				EmptyEvent := StartEmptyBlockEvent{
 					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
 				}
-				w.mux.Post(EmptyEvent)
+				err = w.mux.Post(EmptyEvent)
+				if err != nil {
+					log.Error("emptyTimer.C : post empty event", "err", err)
+					continue
+				}
 				time.Sleep(10 * time.Second)
 				if w.isRunning() {
 					w.isEmpty = false
 					w.emptyTimestamp = time.Now().Unix()
 					w.emptyTimer.Reset(120 * time.Second)
-					log.Info("generate empty block interupt by downloader")
+					log.Info("generate empty block interupt by downloader", "w.isRunning()", w.isRunning())
 					//w.resetEmptyCh <- struct{}{}
 					continue
 				}
