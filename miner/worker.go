@@ -474,6 +474,23 @@ func (w *worker) emptyLoop() {
 				w.emptyCh <- struct{}{}
 				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 
+				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+				if err != nil {
+					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
+					continue
+				}
+				w.cerytify.stakers = stakers
+
+				if !w.emptyHandleFlag {
+					w.emptyHandleFlag = true
+					go w.cerytify.handleEvents()
+				}
+				//if w.cacheHeight.Cmp(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))) != 0 {
+				//	w.cerytify.validators = make([]common.Address, 0)
+				//	w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
+				//	w.cerytify.receiveValidatorsSum = big.NewInt(0)
+				//}
+
 				//modification on 20221102 start
 				//w.stop()
 				EmptyEvent := StartEmptyBlockEvent{
@@ -491,22 +508,6 @@ func (w *worker) emptyLoop() {
 				}
 				//modification on 20221102 end
 
-				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-				if err != nil {
-					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
-					continue
-				}
-				w.cerytify.stakers = stakers
-
-				if !w.emptyHandleFlag {
-					w.emptyHandleFlag = true
-					go w.cerytify.handleEvents()
-				}
-				//if w.cacheHeight.Cmp(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))) != 0 {
-				//	w.cerytify.validators = make([]common.Address, 0)
-				//	w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-				//	w.cerytify.receiveValidatorsSum = big.NewInt(0)
-				//}
 				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
 
 				totalWeightBalance, err := w.targetSizeWithWeight()
