@@ -209,46 +209,48 @@ type worker struct {
 	onlineValidators *types.OnlineValidatorList
 
 	//empty block
-	emptyTimestamp  int64
-	emptyHandleFlag bool
-	cacheHeight     *big.Int
-	emptyTimer      *time.Timer
-	resetEmptyCh    chan struct{}
+	emptyTimestamp      int64
+	emptyHandleFlag     bool
+	cacheHeight         *big.Int
+	targetWeightBalance *big.Int
+	emptyTimer          *time.Timer
+	resetEmptyCh        chan struct{}
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
 	worker := &worker{
-		config:             config,
-		chainConfig:        chainConfig,
-		engine:             engine,
-		eth:                eth,
-		mux:                mux,
-		chain:              eth.BlockChain(),
-		isLocalBlock:       isLocalBlock,
-		localUncles:        make(map[common.Hash]*types.Block),
-		remoteUncles:       make(map[common.Hash]*types.Block),
-		unconfirmed:        newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks:       make(map[common.Hash]*task),
-		txsCh:              make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:        make(chan core.ChainHeadEvent, chainHeadChanSize),
-		chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
-		newWorkCh:          make(chan *newWorkReq),
-		taskCh:             make(chan *task),
-		resultCh:           make(chan *types.Block, resultQueueSize),
-		exitCh:             make(chan struct{}),
-		startCh:            make(chan struct{}, 1),
-		onlineCh:           make(chan struct{}, 1),
-		emptyCh:            make(chan struct{}),
-		cacheHeight:        new(big.Int),
-		isEmpty:            false,
-		resubmitIntervalCh: make(chan time.Duration),
-		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
-		cerytify:           NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
-		miner:              handler,
-		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
-		emptyTimestamp:     time.Now().Unix(),
-		emptyHandleFlag:    false,
-		resetEmptyCh:       make(chan struct{}, 1),
+		config:              config,
+		chainConfig:         chainConfig,
+		engine:              engine,
+		eth:                 eth,
+		mux:                 mux,
+		chain:               eth.BlockChain(),
+		isLocalBlock:        isLocalBlock,
+		localUncles:         make(map[common.Hash]*types.Block),
+		remoteUncles:        make(map[common.Hash]*types.Block),
+		unconfirmed:         newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		pendingTasks:        make(map[common.Hash]*task),
+		txsCh:               make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:         make(chan core.ChainHeadEvent, chainHeadChanSize),
+		chainSideCh:         make(chan core.ChainSideEvent, chainSideChanSize),
+		newWorkCh:           make(chan *newWorkReq),
+		taskCh:              make(chan *task),
+		resultCh:            make(chan *types.Block, resultQueueSize),
+		exitCh:              make(chan struct{}),
+		startCh:             make(chan struct{}, 1),
+		onlineCh:            make(chan struct{}, 1),
+		emptyCh:             make(chan struct{}),
+		cacheHeight:         new(big.Int),
+		targetWeightBalance: new(big.Int),
+		isEmpty:             false,
+		resubmitIntervalCh:  make(chan time.Duration),
+		resubmitAdjustCh:    make(chan *intervalAdjust, resubmitAdjustChanSize),
+		cerytify:            NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
+		miner:               handler,
+		notifyBlockCh:       make(chan *types.OnlineValidatorList, 1),
+		emptyTimestamp:      time.Now().Unix(),
+		emptyHandleFlag:     false,
+		resetEmptyCh:        make(chan struct{}, 1),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -450,6 +452,7 @@ func (w *worker) emptyLoop() {
 				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
+					log.Info("!w.isRunning()", "w.isRunning()", w.isRunning())
 					continue
 				}
 				if w.isEmpty {
@@ -472,23 +475,6 @@ func (w *worker) emptyLoop() {
 				w.emptyCh <- struct{}{}
 				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 
-				//modification on 20221102 start
-				//w.stop()
-				EmptyEvent := StartEmptyBlockEvent{
-					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
-				}
-				w.mux.Post(EmptyEvent)
-				time.Sleep(10 * time.Second)
-				if w.isRunning() {
-					w.isEmpty = false
-					w.emptyTimestamp = time.Now().Unix()
-					w.emptyTimer.Reset(120 * time.Second)
-					log.Info("generate empty block interupt by downloader")
-					//w.resetEmptyCh <- struct{}{}
-					continue
-				}
-				//modification on 20221102 end
-
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				if err != nil {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
@@ -505,7 +491,36 @@ func (w *worker) emptyLoop() {
 				//	w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
 				//	w.cerytify.receiveValidatorsSum = big.NewInt(0)
 				//}
+
+				//modification on 20221102 start
+				//w.stop()
+				EmptyEvent := StartEmptyBlockEvent{
+					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
+				}
+				err = w.mux.Post(EmptyEvent)
+				if err != nil {
+					log.Error("emptyTimer.C : post empty event", "err", err)
+					continue
+				}
+				time.Sleep(10 * time.Second)
+				//if w.isRunning() {
+				//	w.isEmpty = false
+				//	w.emptyTimestamp = time.Now().Unix()
+				//	w.emptyTimer.Reset(120 * time.Second)
+				//	log.Info("generate empty block interupt by downloader", "w.isRunning()", w.isRunning())
+				//	//w.resetEmptyCh <- struct{}{}
+				//	continue
+				//}
+				//modification on 20221102 end
+
 				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
+
+				totalWeightBalance, err := w.targetSizeWithWeight()
+				if err != nil {
+					log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
+					continue
+				}
+				w.targetWeightBalance = totalWeightBalance
 
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
@@ -521,8 +536,9 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
-				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
+				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
+				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now())
@@ -1591,6 +1607,35 @@ func GetBFTSize(len int) int {
 
 func (w *worker) targetSize() *big.Int {
 	return w.cerytify.stakers.TargetSize()
+}
+
+func (w *worker) targetSizeWithWeight() (*big.Int, error) {
+	var total = big.NewInt(0)
+	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	var voteBalance *big.Int
+	var coe uint8
+	for _, voter := range w.cerytify.stakers.Validators {
+		coe = currentState.GetValidatorCoefficient(voter.Addr)
+		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
+		total.Add(total, voteBalance)
+	}
+	a := new(big.Int).Mul(big.NewInt(50), total)
+	b := new(big.Int).Div(a, big.NewInt(100))
+	return b, nil
+}
+
+func (w *worker) getValidatorCoefficient(address common.Address) (uint8, error) {
+	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
+	if err != nil {
+		return 0, err
+	}
+	validatorAddress := w.cerytify.stakers.GetValidatorAddr(address)
+	log.Info("worker.getValidatorCoefficient", "address", address.Hex(), "validator address", validatorAddress.Hex())
+	coe := currentState.GetValidatorCoefficient(validatorAddress)
+	return coe, nil
 }
 
 func (w *worker) getNodeAddr() common.Address {

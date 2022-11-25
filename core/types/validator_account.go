@@ -435,3 +435,13 @@ func (vl *ValidatorList) GetValidatorByAddr(addr common.Address) *Validator {
 	}
 	return &Validator{}
 }
+
+// GetValidatorAddr Returns the validator address according validator or proxy address
+func (vl *ValidatorList) GetValidatorAddr(address common.Address) common.Address {
+	for _, st := range vl.Validators {
+		if st.Addr == address || st.Proxy == address {
+			return st.Addr
+		}
+	}
+	return common.Address{}
+}

@@ -2058,6 +2058,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 		statedb.ValidatorPool = valList.Validators
 
+		emptyBlockErr := bc.VerifyEmptyBlock(block, statedb, valList)
+		if emptyBlockErr != nil {
+			log.Error("insertChain: invalid validators of empty block", "emptyBlockErr", emptyBlockErr)
+			return it.index, emptyBlockErr
+		}
+
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -2160,6 +2166,45 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 	}
 	stats.ignored += it.remaining()
 	return it.index, err
+}
+
+func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateDB, list *types.ValidatorList) error {
+	// if the block is empty block, validate it
+	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.NumberU64() > 0 {
+
+		istanbulExtra, checkerr := types.ExtractIstanbulExtra(block.Header())
+		if checkerr != nil {
+			log.Error("BlockChain.VerifyEmptyBlock()", "VerifyHeadersAndcheckerr checkerr:", checkerr)
+			return checkerr
+		}
+
+		var allWeightBalance = big.NewInt(0)
+		var voteBalance *big.Int
+		var coe uint8
+		for _, validator := range statedb.ValidatorPool {
+			coe = statedb.GetValidatorCoefficient(validator.Addr)
+			voteBalance = new(big.Int).Mul(validator.Balance, big.NewInt(int64(coe)))
+			allWeightBalance.Add(allWeightBalance, voteBalance)
+		}
+		allWeightBalance50 := new(big.Int).Mul(big.NewInt(50), allWeightBalance)
+		allWeightBalance50 = new(big.Int).Div(allWeightBalance50, big.NewInt(100))
+
+		validators := istanbulExtra.Validators
+		var blockWeightBalance = big.NewInt(0)
+		for _, v := range validators {
+			coe = statedb.GetValidatorCoefficient(list.GetValidatorAddr(v))
+			voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(coe)))
+			blockWeightBalance.Add(blockWeightBalance, voteBalance)
+		}
+		if blockWeightBalance.Cmp(allWeightBalance50) > 0 {
+			return nil
+		} else {
+			log.Error("BlockChain.VerifyEmptyBlock(), verify validators of empty block error ",
+				"blockWeightBalance", blockWeightBalance, "allWeightBalance50", allWeightBalance50)
+			return errors.New("verify validators of empty block error")
+		}
+	}
+	return nil
 }
 
 // insertSideChain is called when an import batch hits upon a pruned ancestor
