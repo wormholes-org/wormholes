@@ -20,10 +20,11 @@ package miner
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/p2p"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/p2p"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -157,6 +158,7 @@ func (miner *Miner) update() {
 				canStart = true
 				if shouldStart {
 					miner.SetEtherbase(miner.coinbase)
+					log.Info("downloader failed event", "w.isempty", miner.worker.isEmpty, "shouldStart", shouldStart, "canStart", canStart)
 					miner.worker.start()
 				}
 			case downloader.DoneEvent:
@@ -164,6 +166,8 @@ func (miner *Miner) update() {
 				canStart = true
 				if shouldStart {
 					miner.SetEtherbase(miner.coinbase)
+					canStart = false
+					log.Info("downloader done event", "w.isempty", miner.worker.isEmpty, "shouldStart", shouldStart, "canStart", canStart)
 					miner.worker.start()
 				}
 				// Stop reacting to downloader events
@@ -230,6 +234,7 @@ func (miner *Miner) update() {
 				canStart = true
 				if shouldStart {
 					miner.SetEtherbase(miner.coinbase)
+					log.Info("doneEmptyTimer.C", "w.isempty", miner.worker.isEmpty, "shouldStart", shouldStart, "canStart", canStart)
 					miner.worker.start()
 					miner.doneEmptyTimer.Stop()
 				}
