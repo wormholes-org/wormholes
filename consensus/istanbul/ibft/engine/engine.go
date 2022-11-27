@@ -140,9 +140,16 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	// }
 
 	// Ensure that the block's difficulty is meaningful (may not be correct at this point)
-	if header.Difficulty == nil || header.Difficulty.Cmp(istanbulcommon.DefaultDifficulty) != 0 {
-		return istanbulcommon.ErrInvalidDifficulty
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		if header.Difficulty == nil || header.Difficulty.Cmp(big.NewInt(24)) != 0 {
+			return istanbulcommon.ErrInvalidDifficulty
+		}
+	} else {
+		if header.Difficulty == nil || header.Difficulty.Cmp(istanbulcommon.DefaultDifficulty) != 0 {
+			return istanbulcommon.ErrInvalidDifficulty
+		}
 	}
+
 	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
 		//return istanbulcommon.ErrEmptyBlock
 		return e.verifyCascadingFields(chain, header, validators, parents)
