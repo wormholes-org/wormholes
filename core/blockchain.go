@@ -2172,6 +2172,9 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 	// if the block is empty block, validate it
 	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.NumberU64() > 0 {
 
+		if block.Difficulty().Uint64() != 24 {
+			return errors.New("invalid difficulty of empty block")
+		}
 		istanbulExtra, checkerr := types.ExtractIstanbulExtra(block.Header())
 		if checkerr != nil {
 			log.Error("BlockChain.VerifyEmptyBlock()", "VerifyHeadersAndcheckerr checkerr:", checkerr)
