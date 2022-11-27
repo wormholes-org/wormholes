@@ -128,11 +128,11 @@ type StateDB interface {
 	SubValidatorCoefficient(common.Address, uint8)
 	GetValidatorCoefficient(common.Address) uint8
 	NextIndex() *big.Int
-	PledgeNFT(common.Address, *big.Int)
-	CancelPledgedNFT(common.Address)
+	//PledgeNFT(common.Address, *big.Int)
+	//CancelPledgedNFT(common.Address)
 	GetMergeNumber(common.Address) uint32
-	GetPledgedFlag(common.Address) bool
-	GetNFTPledgedBlockNumber(common.Address) *big.Int
+	//GetPledgedFlag(common.Address) bool
+	//GetNFTPledgedBlockNumber(common.Address) *big.Int
 	UnfrozenAccount(*types.FrozenAccount, *big.Int)
 	GetFrozenAccounts() *types.FrozenAccountList
 }

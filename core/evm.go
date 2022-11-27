@@ -136,11 +136,11 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		NextIndex:                          NextIndex,
 		VoteOfficialNFTByApprovedExchanger: VoteOfficialNFTByApprovedExchanger,
 		//ChangeRewardFlag:                   ChangeRewardFlag,
-		PledgeNFT:                   PledgeNFT,
-		CancelPledgedNFT:            CancelPledgedNFT,
-		GetMergeNumber:              GetMergeNumber,
-		GetPledgedFlag:              GetPledgedFlag,
-		GetNFTPledgedBlockNumber:    GetNFTPledgedBlockNumber,
+		//PledgeNFT:                   PledgeNFT,
+		//CancelPledgedNFT:            CancelPledgedNFT,
+		GetMergeNumber: GetMergeNumber,
+		//GetPledgedFlag:              GetPledgedFlag,
+		//GetNFTPledgedBlockNumber:    GetNFTPledgedBlockNumber,
 		UnfrozenAccount:             UnfrozenAccount,
 		RecoverValidatorCoefficient: RecoverValidatorCoefficient,
 	}
@@ -251,10 +251,10 @@ func TransferNFT(db vm.StateDB, nftAddr string, newOwner common.Address) error {
 		return errors.New("not exist nft")
 	}
 
-	pledgedFlag := db.GetPledgedFlag(address)
-	if pledgedFlag {
-		return errors.New("has been pledged")
-	}
+	//pledgedFlag := db.GetPledgedFlag(address)
+	//if pledgedFlag {
+	//	return errors.New("has been pledged")
+	//}
 
 	db.ChangeNFTOwner(address, newOwner, level)
 	return nil
@@ -552,10 +552,10 @@ func BuyNFTBySellerOrExchanger(
 			"input nft level", level, "real nft level", level2)
 		return errors.New("not exist nft")
 	}
-	pledgedFlag := db.GetPledgedFlag(nftAddress)
-	if pledgedFlag {
-		return errors.New("has been pledged")
-	}
+	//pledgedFlag := db.GetPledgedFlag(nftAddress)
+	//if pledgedFlag {
+	//	return errors.New("has been pledged")
+	//}
 	buyerExchanger := common.HexToAddress(wormholes.Buyer.Exchanger)
 	nftOwner := db.GetNFTOwner16(nftAddress)
 	emptyAddress := common.Address{}
@@ -664,10 +664,10 @@ func CheckSeller1(db vm.StateDB,
 			"input nft level", level, "real nft level", level2)
 		return false
 	}
-	pledgedFlag := db.GetPledgedFlag(nftAddress)
-	if pledgedFlag {
-		return false
-	}
+	//pledgedFlag := db.GetPledgedFlag(nftAddress)
+	//if pledgedFlag {
+	//	return false
+	//}
 	nftOwner := db.GetNFTOwner16(nftAddress)
 	emptyAddress := common.Address{}
 	if nftOwner == emptyAddress {
@@ -739,10 +739,10 @@ func BuyNFTByBuyer(
 			"input nft level", level, "real nft level", level2)
 		return errors.New("not exist nft")
 	}
-	pledgedFlag := db.GetPledgedFlag(nftAddress)
-	if pledgedFlag {
-		return errors.New("has been pledged")
-	}
+	//pledgedFlag := db.GetPledgedFlag(nftAddress)
+	//if pledgedFlag {
+	//	return errors.New("has been pledged")
+	//}
 	//sellerExchanger := common.HexToAddress(wormholes.Seller1.Exchanger)
 	nftOwner := db.GetNFTOwner16(nftAddress)
 	emptyAddress := common.Address{}
@@ -1274,10 +1274,10 @@ func BuyNFTByApproveExchanger(
 			"input nft level", level, "real nft level", level2)
 		return errors.New("not exist nft")
 	}
-	pledgedFlag := db.GetPledgedFlag(nftAddress)
-	if pledgedFlag {
-		return errors.New("has been pledged")
-	}
+	//pledgedFlag := db.GetPledgedFlag(nftAddress)
+	//if pledgedFlag {
+	//	return errors.New("has been pledged")
+	//}
 	//buyerExchanger := common.HexToAddress(wormholes.Buyer.Exchanger)
 	nftOwner := db.GetNFTOwner16(nftAddress)
 	emptyAddress := common.Address{}
@@ -1746,10 +1746,10 @@ func BuyNFTByExchanger(
 			"buyerNftAddress", buyerNftAddress.String(), "sellerNftAddress", sellerNftAddress.String())
 		return errors.New("the nft address is not same from buyer and seller!")
 	}
-	pledgedFlag := db.GetPledgedFlag(buyerNftAddress)
-	if pledgedFlag {
-		return errors.New("has been pledged")
-	}
+	//pledgedFlag := db.GetPledgedFlag(buyerNftAddress)
+	//if pledgedFlag {
+	//	return errors.New("has been pledged")
+	//}
 
 	buyerExchanger := common.HexToAddress(wormholes.Buyer.Exchanger)
 	sellerExchanger := common.HexToAddress(wormholes.Seller1.Exchanger)
@@ -1925,25 +1925,25 @@ func VoteOfficialNFTByApprovedExchanger(
 //	db.ChangeRewardFlag(address, flag)
 //}
 
-func PledgeNFT(db vm.StateDB, nftaddress common.Address, blocknumber *big.Int) {
-	db.PledgeNFT(nftaddress, blocknumber)
-}
-
-func CancelPledgedNFT(db vm.StateDB, nftaddress common.Address) {
-	db.CancelPledgedNFT(nftaddress)
-}
+//func PledgeNFT(db vm.StateDB, nftaddress common.Address, blocknumber *big.Int) {
+//	db.PledgeNFT(nftaddress, blocknumber)
+//}
+//
+//func CancelPledgedNFT(db vm.StateDB, nftaddress common.Address) {
+//	db.CancelPledgedNFT(nftaddress)
+//}
 
 func GetMergeNumber(db vm.StateDB, nftaddress common.Address) uint32 {
 	return db.GetMergeNumber(nftaddress)
 }
 
-func GetPledgedFlag(db vm.StateDB, nftaddress common.Address) bool {
-	return db.GetPledgedFlag(nftaddress)
-}
-
-func GetNFTPledgedBlockNumber(db vm.StateDB, nftaddress common.Address) *big.Int {
-	return db.GetNFTPledgedBlockNumber(nftaddress)
-}
+//func GetPledgedFlag(db vm.StateDB, nftaddress common.Address) bool {
+//	return db.GetPledgedFlag(nftaddress)
+//}
+//
+//func GetNFTPledgedBlockNumber(db vm.StateDB, nftaddress common.Address) *big.Int {
+//	return db.GetNFTPledgedBlockNumber(nftaddress)
+//}
 
 func UnfrozenAccount(db vm.StateDB, frozenInfo *types.FrozenAccount, blocknumber *big.Int) {
 	db.UnfrozenAccount(frozenInfo, blocknumber)

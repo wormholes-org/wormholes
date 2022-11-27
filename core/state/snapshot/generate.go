@@ -615,10 +615,10 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			NFTApproveAddressList common.Address
 			//Auctions map[string][]common.Address
 			// MergeLevel is the level of NFT merged
-			MergeLevel            uint8
-			MergeNumber           uint32
-			PledgedFlag           bool
-			NFTPledgedBlockNumber *big.Int
+			MergeLevel  uint8
+			MergeNumber uint32
+			//PledgedFlag           bool
+			//NFTPledgedBlockNumber *big.Int
 
 			Creator   common.Address
 			Royalty   uint16
@@ -695,8 +695,8 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 					acc.NFTApproveAddressList,
 					acc.MergeLevel,
 					acc.MergeNumber,
-					acc.PledgedFlag,
-					acc.NFTPledgedBlockNumber,
+					//acc.PledgedFlag,
+					//acc.NFTPledgedBlockNumber,
 					acc.Creator,
 					acc.Royalty,
 					acc.Exchanger,

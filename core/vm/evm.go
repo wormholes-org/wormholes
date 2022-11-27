@@ -114,11 +114,11 @@ type (
 	NextIndexFunc                          func(db StateDB) *big.Int
 	VoteOfficialNFTByApprovedExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	//ChangeRewardFlagFunc                   func(StateDB, common.Address, uint8)
-	PledgeNFTFunc                   func(StateDB, common.Address, *big.Int)
-	CancelPledgedNFTFunc            func(StateDB, common.Address)
-	GetMergeNumberFunc              func(StateDB, common.Address) uint32
-	GetPledgedFlagFunc              func(StateDB, common.Address) bool
-	GetNFTPledgedBlockNumberFunc    func(StateDB, common.Address) *big.Int
+	//PledgeNFTFunc                   func(StateDB, common.Address, *big.Int)
+	//CancelPledgedNFTFunc            func(StateDB, common.Address)
+	GetMergeNumberFunc func(StateDB, common.Address) uint32
+	//GetPledgedFlagFunc              func(StateDB, common.Address) bool
+	//GetNFTPledgedBlockNumberFunc    func(StateDB, common.Address) *big.Int
 	UnfrozenAccountFunc             func(StateDB, *types.FrozenAccount, *big.Int)
 	RecoverValidatorCoefficientFunc func(StateDB, common.Address) error
 )
@@ -208,11 +208,11 @@ type BlockContext struct {
 	NextIndex                          NextIndexFunc
 	VoteOfficialNFTByApprovedExchanger VoteOfficialNFTByApprovedExchangerFunc
 	//ChangeRewardFlag                   ChangeRewardFlagFunc
-	PledgeNFT                   PledgeNFTFunc
-	CancelPledgedNFT            CancelPledgedNFTFunc
-	GetMergeNumber              GetMergeNumberFunc
-	GetPledgedFlag              GetPledgedFlagFunc
-	GetNFTPledgedBlockNumber    GetNFTPledgedBlockNumberFunc
+	//PledgeNFT                   PledgeNFTFunc
+	//CancelPledgedNFT            CancelPledgedNFTFunc
+	GetMergeNumber GetMergeNumberFunc
+	//GetPledgedFlag              GetPledgedFlagFunc
+	//GetNFTPledgedBlockNumber    GetNFTPledgedBlockNumberFunc
 	UnfrozenAccount             UnfrozenAccountFunc
 	RecoverValidatorCoefficient RecoverValidatorCoefficientFunc
 	// Block information
@@ -995,10 +995,10 @@ func (evm *EVM) HandleNFT(
 				"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, ErrNotExistNft
 		}
-		pledgedFlag := evm.Context.GetPledgedFlag(evm.StateDB, nftAddress)
-		if pledgedFlag {
-			return nil, gas, ErrHasBeenPledged
-		}
+		//pledgedFlag := evm.Context.GetPledgedFlag(evm.StateDB, nftAddress)
+		//if pledgedFlag {
+		//	return nil, gas, ErrHasBeenPledged
+		//}
 		evm.Context.ExchangeNFTToCurrency(
 			evm.StateDB,
 			caller.Address(),
@@ -1007,83 +1007,83 @@ func (evm *EVM) HandleNFT(
 		log.Info("HandleNFT(), ExchangeNFTToCurrency<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 	case 7: //NFT pledge
-		log.Info("HandleNFT(), PledgeNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64())
-		if !strings.HasPrefix(wormholes.NFTAddress, "0x") &&
-			!strings.HasPrefix(wormholes.NFTAddress, "0X") {
-			return nil, gas, ErrStartIndex
-		}
-		nftAddress, level1, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
-		if err != nil {
-			return nil, gas, err
-		}
-		if !IsOfficialNFT(nftAddress) {
-			log.Error("HandleNFT(), PledgeNFT", "wormholes.Type", wormholes.Type,
-				"nft address", wormholes.NFTAddress, "error", ErrNotMintByOfficial, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrNotMintByOfficial
-		}
-		level2 := evm.StateDB.GetNFTMergeLevel(nftAddress)
-		if int(level2) != level1 {
-			log.Error("HandleNFT(), PledgeNFT", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
-				"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrNotExistNft
-		}
-		if level2 < 1 {
-			log.Error("HandleNFT(), PledgeNFT", "wormholes.Type", wormholes.Type,
-				"error", ErrNotMergedSNFT, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrNotMergedSNFT
-		}
-		if !evm.Context.VerifyNFTOwner(evm.StateDB, wormholes.NFTAddress, caller.Address()) {
-			return nil, gas, ErrNotOwner
-		}
-		if evm.Context.GetPledgedFlag(evm.StateDB, nftAddress) {
-			return nil, gas, ErrRepeatedPledge
-		}
-		evm.Context.PledgeNFT(evm.StateDB, nftAddress, evm.Context.BlockNumber)
-		log.Info("HandleNFT(), PledgeNFT<<<<<<<<<<", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64())
+		//log.Info("HandleNFT(), PledgeNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+		//	"blocknumber", evm.Context.BlockNumber.Uint64())
+		//if !strings.HasPrefix(wormholes.NFTAddress, "0x") &&
+		//	!strings.HasPrefix(wormholes.NFTAddress, "0X") {
+		//	return nil, gas, ErrStartIndex
+		//}
+		//nftAddress, level1, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
+		//if err != nil {
+		//	return nil, gas, err
+		//}
+		//if !IsOfficialNFT(nftAddress) {
+		//	log.Error("HandleNFT(), PledgeNFT", "wormholes.Type", wormholes.Type,
+		//		"nft address", wormholes.NFTAddress, "error", ErrNotMintByOfficial, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrNotMintByOfficial
+		//}
+		//level2 := evm.StateDB.GetNFTMergeLevel(nftAddress)
+		//if int(level2) != level1 {
+		//	log.Error("HandleNFT(), PledgeNFT", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
+		//		"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrNotExistNft
+		//}
+		//if level2 < 1 {
+		//	log.Error("HandleNFT(), PledgeNFT", "wormholes.Type", wormholes.Type,
+		//		"error", ErrNotMergedSNFT, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrNotMergedSNFT
+		//}
+		//if !evm.Context.VerifyNFTOwner(evm.StateDB, wormholes.NFTAddress, caller.Address()) {
+		//	return nil, gas, ErrNotOwner
+		//}
+		//if evm.Context.GetPledgedFlag(evm.StateDB, nftAddress) {
+		//	return nil, gas, ErrRepeatedPledge
+		//}
+		//evm.Context.PledgeNFT(evm.StateDB, nftAddress, evm.Context.BlockNumber)
+		//log.Info("HandleNFT(), PledgeNFT<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+		//	"blocknumber", evm.Context.BlockNumber.Uint64())
 	case 8: //cancel nft pledge
-		log.Info("HandleNFT(), CancelPledgedNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64())
-		if !strings.HasPrefix(wormholes.NFTAddress, "0x") &&
-			!strings.HasPrefix(wormholes.NFTAddress, "0X") {
-			return nil, gas, ErrStartIndex
-		}
-		nftAddress, level1, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
-		if err != nil {
-			return nil, gas, err
-		}
-		if !IsOfficialNFT(nftAddress) {
-			log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type,
-				"nft address", wormholes.NFTAddress, "error", ErrNotMintByOfficial, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrNotMintByOfficial
-		}
-		level2 := evm.StateDB.GetNFTMergeLevel(nftAddress)
-		if int(level2) != level1 {
-			log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
-				"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrNotExistNft
-		}
-		if level2 < 1 {
-			log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type,
-				"error", ErrNotMergedSNFT, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrNotMergedSNFT
-		}
-		if !evm.Context.VerifyNFTOwner(evm.StateDB, wormholes.NFTAddress, caller.Address()) {
-			return nil, gas, ErrNotOwner
-		}
-		nftPledgedTime := evm.Context.GetNFTPledgedBlockNumber(evm.StateDB, nftAddress)
-		if big.NewInt(CancelNFTPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, nftPledgedTime)) > 0 {
-			log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type,
-				"error", ErrTooCloseToCancel, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrTooCloseToCancel
-		}
-		if !evm.Context.GetPledgedFlag(evm.StateDB, nftAddress) {
-			return nil, gas, ErrNotPledge
-		}
-		evm.Context.CancelPledgedNFT(evm.StateDB, nftAddress)
-		log.Info("HandleNFT(), CancelPledgedNFT<<<<<<<<<<", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64())
+		//log.Info("HandleNFT(), CancelPledgedNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+		//	"blocknumber", evm.Context.BlockNumber.Uint64())
+		//if !strings.HasPrefix(wormholes.NFTAddress, "0x") &&
+		//	!strings.HasPrefix(wormholes.NFTAddress, "0X") {
+		//	return nil, gas, ErrStartIndex
+		//}
+		//nftAddress, level1, err := evm.Context.GetNftAddressAndLevel(wormholes.NFTAddress)
+		//if err != nil {
+		//	return nil, gas, err
+		//}
+		//if !IsOfficialNFT(nftAddress) {
+		//	log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type,
+		//		"nft address", wormholes.NFTAddress, "error", ErrNotMintByOfficial, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrNotMintByOfficial
+		//}
+		//level2 := evm.StateDB.GetNFTMergeLevel(nftAddress)
+		//if int(level2) != level1 {
+		//	log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type, "nft address", wormholes.NFTAddress,
+		//		"input nft level", level1, "real nft level", level2, "error", ErrNotOwner, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrNotExistNft
+		//}
+		//if level2 < 1 {
+		//	log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type,
+		//		"error", ErrNotMergedSNFT, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrNotMergedSNFT
+		//}
+		//if !evm.Context.VerifyNFTOwner(evm.StateDB, wormholes.NFTAddress, caller.Address()) {
+		//	return nil, gas, ErrNotOwner
+		//}
+		//nftPledgedTime := evm.Context.GetNFTPledgedBlockNumber(evm.StateDB, nftAddress)
+		//if big.NewInt(CancelNFTPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, nftPledgedTime)) > 0 {
+		//	log.Error("HandleNFT(), CancelPledgedNFT", "wormholes.Type", wormholes.Type,
+		//		"error", ErrTooCloseToCancel, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrTooCloseToCancel
+		//}
+		//if !evm.Context.GetPledgedFlag(evm.StateDB, nftAddress) {
+		//	return nil, gas, ErrNotPledge
+		//}
+		//evm.Context.CancelPledgedNFT(evm.StateDB, nftAddress)
+		//log.Info("HandleNFT(), CancelPledgedNFT<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+		//	"blocknumber", evm.Context.BlockNumber.Uint64())
 
 	case 9: // pledge token
 		var firstTime bool = false

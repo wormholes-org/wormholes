@@ -69,10 +69,10 @@ type AccountNFT struct {
 	NFTApproveAddressList common.Address
 	//Auctions map[string][]common.Address
 	// MergeLevel is the level of NFT merged
-	MergeLevel            uint8
-	MergeNumber           uint32
-	PledgedFlag           bool
-	NFTPledgedBlockNumber *big.Int
+	MergeLevel  uint8
+	MergeNumber uint32
+	//PledgedFlag           bool
+	//NFTPledgedBlockNumber *big.Int
 
 	Creator   common.Address
 	Royalty   uint16
@@ -107,8 +107,8 @@ func SlimAccount(nonce uint64,
 	nftapproveaddresslist common.Address,
 	mergelevel uint8,
 	mergenumber uint32,
-	pledgedflag bool,
-	nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -134,15 +134,15 @@ func SlimAccount(nonce uint64,
 			Symbol: symbol,
 			//Price:      price,
 			//Direction:  direction,
-			Owner:                 owner,
-			MergeLevel:            mergelevel,
-			MergeNumber:           mergenumber,
-			PledgedFlag:           pledgedflag,
-			NFTPledgedBlockNumber: nftpledgedblocknumber,
-			Creator:               creator,
-			Royalty:               royalty,
-			Exchanger:             exchanger,
-			MetaURL:               metaurl,
+			Owner:       owner,
+			MergeLevel:  mergelevel,
+			MergeNumber: mergenumber,
+			//PledgedFlag:           pledgedflag,
+			//NFTPledgedBlockNumber: nftpledgedblocknumber,
+			Creator:   creator,
+			Royalty:   royalty,
+			Exchanger: exchanger,
+			MetaURL:   metaurl,
 		},
 		//RewardFlag: rewardFlag,
 	}
@@ -191,8 +191,8 @@ func SlimAccountRLP(nonce uint64,
 	nftapproveaddresslist common.Address,
 	mergelevel uint8,
 	mergenumber uint32,
-	pledgedflag bool,
-	nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -223,8 +223,8 @@ func SlimAccountRLP(nonce uint64,
 		nftapproveaddresslist,
 		mergelevel,
 		mergenumber,
-		pledgedflag,
-		nftpledgedblocknumber,
+		//pledgedflag,
+		//nftpledgedblocknumber,
 		creator,
 		royalty,
 		exchanger,
