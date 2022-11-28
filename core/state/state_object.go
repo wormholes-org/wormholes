@@ -1185,24 +1185,27 @@ func (s *stateObject) setCoefficient(coe uint8) {
 	s.data.Coefficient = coe
 }
 
+//func (s *stateObject) AddCoefficient(coe uint8) {
+//	var sum uint8
+//	preSum := s.Coefficient() + coe
+//	if preSum <= VALIDATOR_COEFFICIENT {
+//		sum = preSum
+//	} else {
+//		sum = VALIDATOR_COEFFICIENT
+//	}
+//	s.SetCoefficient(sum)
+//}
 func (s *stateObject) AddCoefficient(coe uint8) {
-	var sum uint8
-	preSum := s.Coefficient() + coe
-	if preSum <= VALIDATOR_COEFFICIENT {
-		sum = preSum
-	} else {
-		sum = VALIDATOR_COEFFICIENT
-	}
-	s.SetCoefficient(sum)
+	s.SetCoefficient(VALIDATOR_COEFFICIENT)
 }
 
 func (s *stateObject) SubCoefficient(coe uint8) {
 	var result uint8
 	preSub := s.Coefficient() - coe
-	if preSub >= 10 {
+	if preSub >= 1 {
 		result = preSub
 	} else {
-		result = 10
+		result = 1
 	}
 	s.SetCoefficient(result)
 }
