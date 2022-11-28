@@ -651,8 +651,11 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		for _, addr := range istanbulExtra.ExchangerAddr {
 			log.Info("Finalize : CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase", header.Coinbase.Hex(), "no", header.Number.Uint64())
 		}
-
-		state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+		if header.Coinbase == (common.Address{}) {
+			state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+		} else {
+			state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+		}
 
 		/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 		header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
