@@ -141,7 +141,6 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		GetMergeNumber: GetMergeNumber,
 		//GetPledgedFlag:              GetPledgedFlag,
 		//GetNFTPledgedBlockNumber:    GetNFTPledgedBlockNumber,
-		UnfrozenAccount:             UnfrozenAccount,
 		RecoverValidatorCoefficient: RecoverValidatorCoefficient,
 	}
 }
@@ -1944,10 +1943,6 @@ func GetMergeNumber(db vm.StateDB, nftaddress common.Address) uint32 {
 //func GetNFTPledgedBlockNumber(db vm.StateDB, nftaddress common.Address) *big.Int {
 //	return db.GetNFTPledgedBlockNumber(nftaddress)
 //}
-
-func UnfrozenAccount(db vm.StateDB, frozenInfo *types.FrozenAccount, blocknumber *big.Int) {
-	db.UnfrozenAccount(frozenInfo, blocknumber)
-}
 
 func RecoverValidatorCoefficient(db vm.StateDB, address common.Address) error {
 	balance := db.GetPledgedBalance(address)

@@ -1641,16 +1641,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	bc.WriteValidatorPool(block.Header(), validatorPool)
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 
-	//if state.FrozenAccounts != nil && len(state.FrozenAccounts) > 0 {
-	//	if block.NumberU64() < 600 {
-	//		UpdateFrozenAccounts(state.FrozenAccounts)
-	//	} else {
-	//		UpdateFrozenAccounts2(state.FrozenAccounts)
-	//	}
-	//	state.FrozenAccounts = state.FrozenAccounts[:0]
-	//}
-	bc.WriteFrozenAccounts(block.Header(), state.FrozenAccounts)
-
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
@@ -1998,11 +1988,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 			//	}
 			//}
-			frozenAccounts, err := bc.ReadFrozenAccounts(parent)
-			if err != nil {
-				return it.index, err
-			}
-			statedb.FrozenAccounts = frozenAccounts
 
 		} else {
 			mintDeep = new(types.MintDeep)
@@ -2020,10 +2005,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			//exchangeList = &types.SNFTExchangeList{
 			//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 			//}
-
-			frozenAccounts := GetInitFrozenAccounts(FrozenAccounts)
-			statedb.FrozenAccounts = frozenAccounts
-
 		}
 		statedb.MintDeep = mintDeep
 		//statedb.SNFTExchangePool = exchangeList
@@ -3165,15 +3146,3 @@ func getSurroundingChainNo(i, Nr, Np int) []int {
 //		vm.FrozenAcconts = tempFrozenAccounts
 //	}
 //}
-
-func (bc *BlockChain) WriteFrozenAccounts(header *types.Header, frozenAccounts *types.FrozenAccountList) {
-	poolBatch := bc.db.NewBatch()
-	rawdb.WriteFrozenAccounts(poolBatch, header.Hash(), header.Number.Uint64(), frozenAccounts)
-	if err := poolBatch.Write(); err != nil {
-		log.Crit("Failed to write frozenaccounts disk", "err", err)
-	}
-}
-
-func (bc *BlockChain) ReadFrozenAccounts(header *types.Header) (*types.FrozenAccountList, error) {
-	return rawdb.ReadFrozenAccounts(bc.db, header.Hash(), header.Number.Uint64())
-}
