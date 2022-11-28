@@ -103,7 +103,6 @@ var (
 	snftExchangePoolPrefix     = []byte("snft-exchange-pool-")
 	officialNFTPrefix          = []byte("official-nft-")
 	nominatedOfficialNFTPrefix = []byte("nominated-official-nft-")
-	frozenAccountPrefix        = []byte("frozen-account-")
 
 	preimageCounter    = metrics.NewRegisteredCounter("db/preimage/total", nil)
 	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
@@ -270,9 +269,4 @@ func officialNFTPoolKey(number uint64, hash common.Hash) []byte {
 // nominatedOfficialNFTPoolKey = nominatedOfficialNFTPrefix + num (uint64 big endian) + hash
 func nominatedOfficialNFTPoolKey(number uint64, hash common.Hash) []byte {
 	return append(append(nominatedOfficialNFTPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
-}
-
-// frozenAccountKey = frozenAccountPrefix + num (uint64 big endian) + hash
-func frozenAccountKey(number uint64, hash common.Hash) []byte {
-	return append(append(frozenAccountPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }
