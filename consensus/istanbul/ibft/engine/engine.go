@@ -540,35 +540,43 @@ func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []com
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	if c, ok := chain.(*core.BlockChain); ok {
+		// empty block  reduce 0.1weight and normal block add 0.5weight
+		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		if err != nil {
+			log.Error("Finalize : invalid validators", err.Error())
+			return
+		}
+
 		istanbulExtra, err := types.ExtractIstanbulExtra(header)
 		if err != nil {
 			return
 		}
 
-		// 1 Adjust the weight of the previous block
-		// pick 7 validator from rewardSeals
-		var validatorAddr []common.Address
-		if header.Number.Uint64() == 1 {
-			// Block 1 does not issue any rewards
-			validatorAddr = make([]common.Address, 0)
-		} else {
-			prePreHeader := c.GetHeaderByHash(c.CurrentHeader().ParentHash)
-			random11Validators, err := c.Random11ValidatorWithOutProxy(prePreHeader)
-			if err != nil {
-				log.Error("Finalize : invalid validators", err.Error())
-				return
+		if header.Coinbase == (common.Address{}) {
+			// reduce 1 weight
+			for _, v := range random11Validators.Validators {
+				state.SubValidatorCoefficient(v.Address(), 10)
 			}
-			if c.CurrentHeader().Coinbase == (common.Address{}) {
-				// reduce 1 weight
-				for _, v := range random11Validators.Validators {
-					state.SubValidatorCoefficient(v.Address(), 10)
-				}
+		} else {
+			// add 2 weight
+			for _, v := range istanbulExtra.ValidatorAddr {
+				state.AddValidatorCoefficient(v, 20)
+			}
+		}
+
+		if header.Coinbase == (common.Address{}) {
+			state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+
+			/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
+			header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+			header.UncleHash = nilUncleHash
+		} else {
+			// pick 7 validator from rewardSeals
+			var validatorAddr []common.Address
+			if header.Number.Uint64() == 1 {
+				// Block 1 does not issue any rewards
+				validatorAddr = make([]common.Address, 0)
 			} else {
-				validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
-				if err != nil {
-					log.Error("Finalize : validator pool err", err, err)
-					return
-				}
 				// quorum Size
 				quorumSize := e.QuorumSize(random11Validators.Len())
 				if quorumSize == 0 {
@@ -590,31 +598,8 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 					log.Error("Finalize rewarders err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 					return
 				}
-
-				var rewardersWithoutProxy []common.Address
-				for _, v := range istanbulExtra.ValidatorAddr {
-					rewardersWithoutProxy = append(rewardersWithoutProxy, v)
-				}
-				if validatorPool != nil && len(validatorPool.Validators) > 0 {
-					//k:proxy,v:validator
-					mp := make(map[string]*types.Validator, 0)
-					for _, v := range validatorPool.Validators {
-						if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
-							mp[v.Proxy.String()] = v
-						}
-					}
-					//If the reward address is on a proxy account, it will be restored to a pledge account
-					for index, a := range rewardersWithoutProxy {
-						if v, ok := mp[a.String()]; ok {
-							rewardersWithoutProxy[index] = v.Addr
-						}
-					}
-				}
-
-				for _, v := range rewardersWithoutProxy {
+				for _, v := range rewarders {
 					log.Info("Finalize: onlineValidator", "addr", v.Hex(), "len", len(rewarders), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-					// add 2 weight
-					state.AddValidatorCoefficient(v, 20)
 				}
 				if len(rewarders) < quorumSize {
 					log.Error("Finalize commiters len less than 7", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
@@ -628,6 +613,11 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 					validatorAddr = append(validatorAddr, v)
 				}
 
+				validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
+				if err != nil {
+					log.Error("Finalize : validator pool err", err, err)
+					return
+				}
 				if validatorPool != nil && len(validatorPool.Validators) > 0 {
 					//k:proxy,v:validator
 					mp := make(map[string]*types.Validator, 0)
@@ -644,23 +634,19 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 					}
 				}
 			}
-		}
-		for _, addr := range validatorAddr {
-			log.Info("Finalize : CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase", header.Coinbase.Hex(), "no", header.Number.Uint64())
-		}
-		for _, addr := range istanbulExtra.ExchangerAddr {
-			log.Info("Finalize : CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase", header.Coinbase.Hex(), "no", header.Number.Uint64())
-		}
-		if header.Coinbase == (common.Address{}) {
-			state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
-		} else {
+			for _, addr := range validatorAddr {
+				log.Info("Finalize : CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase", header.Coinbase.Hex(), "no", header.Number.Uint64())
+			}
+			for _, addr := range istanbulExtra.ExchangerAddr {
+				log.Info("Finalize : CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase", header.Coinbase.Hex(), "no", header.Number.Uint64())
+			}
+
 			state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+
+			/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
+			header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+			header.UncleHash = nilUncleHash
 		}
-
-		/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
-		header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-		header.UncleHash = nilUncleHash
-
 	}
 }
 
@@ -673,73 +659,25 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		return nil, err
 	}
 
-	// 1 Adjust the weight of the previous block
 	if c, ok := chain.(*core.BlockChain); ok {
-		if header.Number.Uint64() == 1 {
-			log.Info("Finishing assembling first block")
-		} else {
-			prePreHeader := c.GetHeaderByHash(c.CurrentHeader().ParentHash)
-			random11Validators, err := c.Random11ValidatorWithOutProxy(prePreHeader)
-			if err != nil {
-				log.Error("FinalizeAndAssemble : invalid validators", err.Error())
-				return nil, err
+		// empty block  reduce 0.1weight and normal block add 0.5weight
+		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		if err != nil {
+			log.Error("FinalizeAndAssemble : invalid validators", err.Error())
+			return nil, err
+		}
+		if header.Coinbase == (common.Address{}) {
+			// reduce 1 weight
+			for _, v := range random11Validators.Validators {
+				state.SubValidatorCoefficient(v.Address(), 10)
 			}
-			// previous is an empty block
-			if c.CurrentHeader().Coinbase == (common.Address{}) {
-				// reduce 1 weight
-				for _, v := range random11Validators.Validators {
-					state.SubValidatorCoefficient(v.Address(), 10)
-				}
-			} else {
-				validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
-				if err != nil {
-					log.Error("FinalizeAndAssemble : validator pool err", err, err)
-					return nil, err
-				}
-				// // previous is a normal block
-				// // take out the rewardseal in the header directly, this is the data of the last normal block
-				// // Get the header of the last normal block
-				// preHeader, err := getPreHash(chain, header)
-				// if err != nil {
-				// 	log.Error("FinalizeAndAssemble get preHash err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				// 	return nil, err
-				// }
-				// log.Info("FinalizeAndAssemble getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				// // decode rewards
-				// // preHeader + currentRewadSeal
-				// rewarders, err := e.RecoverRewards(preHeader, istanbulExtra.RewardSeal)
-				// if err != nil {
-				// 	log.Error("FinalizeAndAssemble rewarders err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				// 	return nil, err
-				// }
-				var rewardersWithoutProxy []common.Address
-				for _, v := range istanbulExtra.ValidatorAddr {
-					rewardersWithoutProxy = append(rewardersWithoutProxy, v)
-				}
-				if validatorPool != nil && len(validatorPool.Validators) > 0 {
-					//k:proxy,v:validator
-					mp := make(map[string]*types.Validator, 0)
-					for _, v := range validatorPool.Validators {
-						if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
-							mp[v.Proxy.String()] = v
-						}
-					}
-					//If the reward address is on a proxy account, it will be restored to a pledge account
-					for index, a := range rewardersWithoutProxy {
-						if v, ok := mp[a.String()]; ok {
-							rewardersWithoutProxy[index] = v.Addr
-						}
-					}
-				}
-				for _, v := range rewardersWithoutProxy {
-					log.Info("FinalizeAndAssemble: onlineValidator", "addr", v.Hex(), "len", len(rewardersWithoutProxy), "no", header.Number, "hash", header.Hash().Hex())
-					// add 2 weight
-					state.AddValidatorCoefficient(v, 20)
-				}
+		} else {
+			// add 2 weight
+			for _, v := range istanbulExtra.ValidatorAddr {
+				state.AddValidatorCoefficient(v, 20)
 			}
 		}
 	}
-
 	for _, addr := range istanbulExtra.ValidatorAddr {
 		log.Info("FinalizeAndAssemble : CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "no", header.Number.Uint64())
 	}
