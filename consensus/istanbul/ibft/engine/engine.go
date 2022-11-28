@@ -592,7 +592,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 				}
 
 				var rewardersWithoutProxy []common.Address
-				for _, v := range rewarders {
+				for _, v := range istanbulExtra.ValidatorAddr {
 					rewardersWithoutProxy = append(rewardersWithoutProxy, v)
 				}
 				if validatorPool != nil && len(validatorPool.Validators) > 0 {
@@ -693,24 +693,24 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 					log.Error("FinalizeAndAssemble : validator pool err", err, err)
 					return nil, err
 				}
-				// previous is a normal block
-				// take out the rewardseal in the header directly, this is the data of the last normal block
-				// Get the header of the last normal block
-				preHeader, err := getPreHash(chain, header)
-				if err != nil {
-					log.Error("FinalizeAndAssemble get preHash err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-					return nil, err
-				}
-				log.Info("FinalizeAndAssemble getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				// decode rewards
-				// preHeader + currentRewadSeal
-				rewarders, err := e.RecoverRewards(preHeader, istanbulExtra.RewardSeal)
-				if err != nil {
-					log.Error("FinalizeAndAssemble rewarders err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-					return nil, err
-				}
+				// // previous is a normal block
+				// // take out the rewardseal in the header directly, this is the data of the last normal block
+				// // Get the header of the last normal block
+				// preHeader, err := getPreHash(chain, header)
+				// if err != nil {
+				// 	log.Error("FinalizeAndAssemble get preHash err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+				// 	return nil, err
+				// }
+				// log.Info("FinalizeAndAssemble getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+				// // decode rewards
+				// // preHeader + currentRewadSeal
+				// rewarders, err := e.RecoverRewards(preHeader, istanbulExtra.RewardSeal)
+				// if err != nil {
+				// 	log.Error("FinalizeAndAssemble rewarders err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+				// 	return nil, err
+				// }
 				var rewardersWithoutProxy []common.Address
-				for _, v := range rewarders {
+				for _, v := range istanbulExtra.ValidatorAddr {
 					rewardersWithoutProxy = append(rewardersWithoutProxy, v)
 				}
 				if validatorPool != nil && len(validatorPool.Validators) > 0 {
@@ -729,7 +729,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 					}
 				}
 				for _, v := range rewardersWithoutProxy {
-					log.Info("FinalizeAndAssemble: onlineValidator", "addr", v.Hex(), "len", len(rewarders), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+					log.Info("FinalizeAndAssemble: onlineValidator", "addr", v.Hex(), "len", len(rewardersWithoutProxy), "no", header.Number, "hash", header.Hash().Hex())
 					// add 2 weight
 					state.AddValidatorCoefficient(v, 20)
 				}
