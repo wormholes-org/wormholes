@@ -1502,11 +1502,11 @@ func (evm *EVM) HandleNFT(
 		//	return nil, gas, ErrRoyaltyNotLessthan10000
 		//}
 		var dir = wormholes.Dir
-		if len(dir) < 0 {
+		if len(dir) <= 0 {
 			dir = types.DefaultDir
 		}
 		var creator = wormholes.Creator
-		if len(creator) < 0 {
+		if len(creator) <= 0 {
 			creator = caller.Address().Hex()
 		}
 		nominatedNFT := types.NominatedOfficialNFT{
