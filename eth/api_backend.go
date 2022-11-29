@@ -363,5 +363,5 @@ func (b *EthAPIBackend) QueryMinerProxy(ctx context.Context, number int64, miner
 }
 
 func (b *EthAPIBackend) Random11ValidatorFromPool(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
-	return b.eth.blockchain.Random11ValidatorFromPool(header)
+	return b.eth.blockchain.Random11ValidatorWithOutProxy(header)
 }
