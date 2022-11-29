@@ -1599,10 +1599,12 @@ func (w *worker) targetSizeWithWeight() (*big.Int, error) {
 	}
 	var voteBalance *big.Int
 	var coe uint8
+	log.Info("targetSizeWithWeight:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
 	for _, voter := range w.cerytify.stakers.Validators {
 		coe = currentState.GetValidatorCoefficient(voter.Addr)
 		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
 		total.Add(total, voteBalance)
+		log.Info("targetSizeWithWeight:info", "height", w.chain.CurrentBlock().NumberU64()+1, "coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total)
 	}
 	a := new(big.Int).Mul(big.NewInt(50), total)
 	b := new(big.Int).Div(a, big.NewInt(100))
