@@ -1501,16 +1501,23 @@ func (evm *EVM) HandleNFT(
 		//		"error", ErrRoyaltyNotLessthan10000, "blocknumber", evm.Context.BlockNumber.Uint64())
 		//	return nil, gas, ErrRoyaltyNotLessthan10000
 		//}
-
+		var dir = wormholes.Dir
+		if len(dir) <= 0 {
+			dir = types.DefaultDir
+		}
+		var creator = wormholes.Creator
+		if len(creator) <= 0 {
+			creator = caller.Address().Hex()
+		}
 		nominatedNFT := types.NominatedOfficialNFT{
 			InjectedOfficialNFT: types.InjectedOfficialNFT{
-				Dir:        wormholes.Dir,
+				Dir:        dir,
 				StartIndex: startIndex,
 				//Number: wormholes.Number,
 				Number: number,
 				//Royalty: wormholes.Royalty,
 				Royalty: royalty,
-				Creator: wormholes.Creator,
+				Creator: creator,
 				Address: caller.Address(),
 			},
 		}

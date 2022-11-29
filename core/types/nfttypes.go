@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
+	"regexp"
 )
 
 type MintDeep struct {
@@ -209,6 +210,7 @@ type Wormholes struct {
 }
 
 const WormholesVersion = "v0.0.1"
+const PattenAddr = "^0x[0-9a-fA-F]{40}$"
 
 //var PattenAddr = "^0[xX][0-9a-fA-F]{40}$"
 //var PattenHex = "^[0-9a-fA-F]+$"
@@ -274,9 +276,31 @@ func (w *Wormholes) CheckFormat() error {
 			return errors.New("dir too long")
 		}
 
+		if len(w.Creator) > 0 {
+			regAddr, err := regexp.Compile(PattenAddr)
+			if err != nil {
+				return err
+			}
+			match := regAddr.MatchString(w.Creator)
+			if !match {
+				return errors.New("invalid creator")
+			}
+		}
+
 	case 24:
 		if len(w.Dir) > 256 {
 			return errors.New("dir too long")
+		}
+
+		if len(w.Creator) > 0 {
+			regAddr, err := regexp.Compile(PattenAddr)
+			if err != nil {
+				return err
+			}
+			match := regAddr.MatchString(w.Creator)
+			if !match {
+				return errors.New("invalid creator")
+			}
 		}
 
 	case 25:
