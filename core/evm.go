@@ -1903,6 +1903,14 @@ func VoteOfficialNFTByApprovedExchanger(
 	}
 
 	startIndex := db.NextIndex()
+	var dir = wormholes.Dir
+	if len(dir) < 0 {
+		dir = types.DefaultDir
+	}
+	var creator = wormholes.Creator
+	if len(creator) < 0 {
+		creator = originalExchanger.Hex()
+	}
 
 	nominatedNFT := types.NominatedOfficialNFT{
 		InjectedOfficialNFT: types.InjectedOfficialNFT{
