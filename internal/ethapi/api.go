@@ -22,10 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/p2p/discover"
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/p2p/discover"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
 
@@ -670,6 +671,29 @@ func (s *PublicBlockChainAPI) GetAccountInfo(ctx context.Context, address common
 	//fmt.Println("owner=", state.GetNFTOwner(address).String())
 	acc := st.GetAccountInfo(address)
 	return acc, st.Error()
+}
+
+func (w *PublicBlockChainAPI) GetValidators(ctx context.Context, number rpc.BlockNumber) ([]common.Address, error) {
+	parent, err := w.b.BlockByNumber(ctx, number-1)
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	if parent == nil {
+		return []common.Address{}, err
+	}
+
+	valset, err := w.b.Random11ValidatorFromPool(ctx, parent.Header())
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	var addrs []common.Address
+	for _, v := range valset.Validators {
+		addrs = append(addrs, v.Addr)
+	}
+
+	return addrs, nil
 }
 
 type BeneficiaryAddress struct {
@@ -1915,6 +1939,29 @@ func (w *PublicWormholesAPI) GetAccountInfo(ctx context.Context, address common.
 	//fmt.Println("owner=", state.GetNFTOwner(address).String())
 	acc := st.GetAccountInfo(address)
 	return acc, st.Error()
+}
+
+func (w *PublicWormholesAPI) GetValidators(ctx context.Context, number rpc.BlockNumber) ([]common.Address, error) {
+	parent, err := w.b.BlockByNumber(ctx, number-1)
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	if parent == nil {
+		return []common.Address{}, err
+	}
+
+	valset, err := w.b.Random11ValidatorFromPool(ctx, parent.Header())
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	var addrs []common.Address
+	for _, v := range valset.Validators {
+		addrs = append(addrs, v.Addr)
+	}
+
+	return addrs, nil
 }
 
 func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (BeneficiaryAddressList, error) {
