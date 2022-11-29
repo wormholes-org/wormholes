@@ -96,7 +96,7 @@ type PledgedToken struct {
 	ProxyAddress common.Address
 }
 
-var DefaultDir string = "/ipfs/Qme8eCqoj3Csbh96AUuHGYKsC1okUPiEwGNeTVDG2SBLVN"
+var DefaultDir string = "/ipfs/Qmf3xw9rEmsjJdQTV3ZcyF4KfYGtxMkXdNQ8YkVqNmLHY8"
 var DefaultNumber uint64 = 4096
 var DefaultRoyalty uint16 = 1000
 var DefaultCreator string = "0x0000000000000000000000000000000000000000"
