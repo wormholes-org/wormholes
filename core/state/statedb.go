@@ -3009,6 +3009,15 @@ func (s *StateDB) GetAccountInfo(addr common.Address) Account {
 	return Account{}
 }
 
+// GetCoefficient retrieves the coefficient from the given address or 0 if object not found
+func (s *StateDB) GetCoefficient(addr common.Address) uint8 {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		return stateObject.Coefficient()
+	}
+	return 0
+}
+
 // GetExchangerBalance retrieves the exchanger balance from the given address or 0 if object not found
 func (s *StateDB) GetExchangerBalance(addr common.Address) *big.Int {
 	stateObject := s.GetOrNewStateObject(addr)

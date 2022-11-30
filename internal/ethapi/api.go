@@ -673,27 +673,36 @@ func (s *PublicBlockChainAPI) GetAccountInfo(ctx context.Context, address common
 	return acc, st.Error()
 }
 
-func (w *PublicBlockChainAPI) GetValidators(ctx context.Context, number rpc.BlockNumber) ([]common.Address, error) {
-	parent, err := w.b.BlockByNumber(ctx, number-1)
-	if err != nil {
-		return []common.Address{}, err
-	}
+type OnlineWeight struct {
+	Address common.Address `json:"address"`
+	Value   uint8          `json:"value"`
+}
 
-	if parent == nil {
-		return []common.Address{}, err
+func (w *PublicBlockChainAPI) GetValidators(ctx context.Context, number rpc.BlockNumber) ([]OnlineWeight, error) {
+	parent, err := w.b.BlockByNumber(ctx, number-1)
+	if err != nil || parent == nil {
+		return []OnlineWeight{}, err
 	}
 
 	valset, err := w.b.Random11ValidatorFromPool(ctx, parent.Header())
 	if err != nil {
-		return []common.Address{}, err
+		return []OnlineWeight{}, err
 	}
 
-	var addrs []common.Address
+	db, _, err := w.b.StateAndHeaderByNumber(ctx, number)
+	if err != nil || db == nil {
+		return []OnlineWeight{}, err
+	}
+
+	var values []OnlineWeight
 	for _, v := range valset.Validators {
-		addrs = append(addrs, v.Addr)
+		values = append(values, OnlineWeight{
+			v.Addr,
+			db.GetCoefficient(v.Addr),
+		})
 	}
 
-	return addrs, nil
+	return values, nil
 }
 
 type BeneficiaryAddress struct {
