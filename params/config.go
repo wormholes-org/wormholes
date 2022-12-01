@@ -224,7 +224,7 @@ var (
 
 	// TestnetChainConfig is the chain parameters to run a node on the wormholes test network.
 	TestnetChainConfig = &ChainConfig{
-		ChainID:        big.NewInt(51888),
+		ChainID:        big.NewInt(8888),
 		HomesteadBlock: big.NewInt(0),
 		//DAOForkBlock:        big.NewInt(1_920_000),
 		//DAOForkSupport:      true,
