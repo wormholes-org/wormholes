@@ -337,16 +337,17 @@ func (c *core) startNewRound(round *big.Int) {
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 
-	for _, v := range c.valSet.List() {
-		log.Info("ibftConsensus: startNewRound validator info",
-			"no", newView.Sequence.String(),
-			"round", newView.Round.String(),
-			"proposer", c.valSet.GetProposer().Address().Hex(),
-			"validator", v.Address().Hex(),
-			"self", c.address.Hex(),
-			"isproposer", c.address.Hex() == c.valSet.GetProposer().Address().Hex(),
-		)
-	}
+	// for _, v := range c.valSet.List() {
+	// 	log.Info("ibftConsensus: startNewRound validator info",
+	// 		"no", newView.Sequence.String(),
+	// 		"round", newView.Round.String(),
+	// 		"proposer", c.valSet.GetProposer().Address().Hex(),
+	// 		"validator", v.Address().Hex(),
+	// 		"self", c.address.Hex(),
+	// 		"isproposer", c.address.Hex() == c.valSet.GetProposer().Address().Hex(),
+	// 	)
+	// }
+	log.Info("find specific validator", "no", newView.Sequence, "validator", c.valSet.List())
 
 	consensusData := ConsensusData{
 		Height:     newView.Sequence.String(),
