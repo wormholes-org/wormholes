@@ -21,7 +21,6 @@ import (
 	"math"
 	"math/big"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	metrics "github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/miniredis"
-	"github.com/ethereum/go-ethereum/sgiccommon"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -355,29 +353,35 @@ func (c *core) startNewRound(round *big.Int) {
 		Temp text code
 		Fix(mindcarver)
 	*/
-	count := 0
-	specialAddrs := []common.Address{
-		common.HexToAddress("0x66f9e46b49EDDc40F0dA18D67C07ae755b3643CE"),
-		common.HexToAddress("0x3E6a45b12E2A4E25fb0176c7Aa1855459E8e862b"),
-		common.HexToAddress("0x84d84e6073A06B6e784241a9B13aA824AB455326"),
-		common.HexToAddress("0x52EAE6D396E82358D703BEDeC2ab11E723127230"),
-		common.HexToAddress("0x2DbdaCc91fd967E2A5C3F04D321752d99a7741C8"),
-		common.HexToAddress("0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e"),
-		common.HexToAddress("0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09"),
-	}
-	if c.current.sequence.Uint64() > 5 {
-		for _, v := range specialAddrs {
-			flg, _ := c.valSet.GetByAddress(v)
-			if flg != -1 {
-				count++
-			}
-			if count >= 7 {
-				// special addr
-				log.Info("find special seven addr, pls disconnet network", "no", c.current.sequence)
-				sgiccommon.Sigc <- syscall.SIGTERM
-			}
-		}
-	}
+	// count := 0
+	// specialAddrs := []common.Address{
+	// 	common.HexToAddress("0x66f9e46b49EDDc40F0dA18D67C07ae755b3643CE"),
+	// 	common.HexToAddress("0x3E6a45b12E2A4E25fb0176c7Aa1855459E8e862b"),
+	// 	common.HexToAddress("0x84d84e6073A06B6e784241a9B13aA824AB455326"),
+	// 	common.HexToAddress("0x52EAE6D396E82358D703BEDeC2ab11E723127230"),
+	// 	common.HexToAddress("0x2DbdaCc91fd967E2A5C3F04D321752d99a7741C8"),
+	// 	common.HexToAddress("0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e"),
+	// 	common.HexToAddress("0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09"),
+	// }
+	// if c.current.sequence.Uint64() > 5 {
+	// 	for _, v := range specialAddrs {
+	// 		flg, _ := c.valSet.GetByAddress(v)
+	// 		if flg != -1 {
+	// 			count++
+	// 		}
+	// 		if count >= 7 {
+	// 			// special addr
+	// 			if c.backend.Address() == common.HexToAddress("0x66f9e46b49EDDc40F0dA18D67C07ae755b3643CE") ||
+	// 				c.backend.Address() == common.HexToAddress("0x84d84e6073A06B6e784241a9B13aA824AB455326") {
+
+	// 			} else {
+	// 				log.Info("find special seven addr, pls disconnet network", "no", c.current.sequence)
+	// 				sgiccommon.Sigc <- syscall.SIGTERM
+	// 			}
+
+	// 		}
+	// 	}
+	// }
 
 	consensusData := ConsensusData{
 		Height:     newView.Sequence.String(),
