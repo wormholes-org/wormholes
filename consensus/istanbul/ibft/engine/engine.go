@@ -337,8 +337,13 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			// Block 1 does not issue any rewards
 			validatorAddr = make([]common.Address, 0)
 		} else {
+			parent := c.GetBlockByHash(header.ParentHash)
+			if parent == nil {
+				log.Error("Prepare: invalid parent", "no", header.Number)
+				return errors.New("Prepare: invalid parent")
+			}
 			// quorum Size
-			random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+			random11Validators, err := c.Random11ValidatorWithOutProxy(parent.Header())
 			if err != nil {
 				log.Error("Prepare : invalid validators", err.Error())
 				return errors.New("Prepare: invalid validators")
@@ -540,8 +545,13 @@ func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []com
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	if c, ok := chain.(*core.BlockChain); ok {
+		parent := c.GetBlockByHash(header.ParentHash)
+		if parent == nil {
+			log.Error("Finalize: invalid parent", "no", header.Number)
+			return
+		}
 		// empty block  reduce 0.1weight and normal block add 0.5weight
-		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		random11Validators, err := c.Random11ValidatorWithOutProxy(parent.Header())
 		if err != nil {
 			log.Error("Finalize : invalid validators", err.Error())
 			return
@@ -660,8 +670,13 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	}
 
 	if c, ok := chain.(*core.BlockChain); ok {
+		parent := c.GetBlockByHash(header.ParentHash)
+		if parent == nil {
+			log.Error("FinalizeAndAssemble: invalid parent", "no", header.Number)
+			return nil, errors.New("FinalizeAndAssemble: invalid parent")
+		}
 		// empty block  reduce 0.1weight and normal block add 0.5weight
-		random11Validators, err := c.Random11ValidatorWithOutProxy(c.CurrentHeader())
+		random11Validators, err := c.Random11ValidatorWithOutProxy(parent.Header())
 		if err != nil {
 			log.Error("FinalizeAndAssemble : invalid validators", err.Error())
 			return nil, err
