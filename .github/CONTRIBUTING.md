@@ -30,9 +30,3 @@ Please make sure your contributions adhere to our coding guidelines:
 Before you submit a feature request, please check and make sure that it isn't 
 possible through some other means. The JavaScript-enabled console is a powerful 
 feature in the right hands.
-
-## Configuration, dependencies, and tests
-
-Please see the [Developers' Guide](https://www.wormholes.com/docs/interface/)
-for more details on configuring your environment, managing project dependencies
-and testing procedures.
