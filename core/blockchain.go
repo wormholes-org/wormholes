@@ -2980,23 +2980,22 @@ func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common
 	log.Info("GetRandomDrop : index", "index", vals, "height", header.Number, "i", i, "vals", vals)
 
 	var buffer bytes.Buffer
+
+	// Height of the block being assembled
+	buffer.WriteString((big.NewInt(0).Add(header.Number, big.NewInt(1)).String()))
+
 	// The index calculated according to the multilateral chain may be greater than the total number of validators
 	for _, v := range vals {
 		val := validators.GetByIndex(uint64(v))
 		if val.Address() == (common.Address{}) {
 			buffer.WriteString(common.Hash{}.Hex())
 			continue
-		}
-		encValidator, err := rlp.EncodeToBytes(validators.GetValidatorByAddr(val.Address()))
-		if err != nil {
-			buffer.WriteString(common.Hash{}.Hex())
 		} else {
-			buffer.WriteString(string(common.BytesToHash(encValidator).Hex()))
+			buffer.WriteString(val.Addr.Hex())
 		}
 	}
 	buffer.WriteString(header.Hash().Hex())
 	return crypto.Keccak256Hash(buffer.Bytes())
-	//return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))
 }
 
 func getSurroundingChainNo(i, Nr, Np int) []int {
