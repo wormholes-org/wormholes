@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -291,7 +292,13 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	header := block.Header()
 	var valSet istanbul.ValidatorSet
 	if c, ok := sb.chain.(*core.BlockChain); ok {
-		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
+		parent := c.GetBlockByHash(block.ParentHash())
+		if parent == nil {
+			log.Error("Verify: invalid Header", "no", block.Number())
+			return 0, errors.New("Verify: invalid Header")
+		}
+
+		validatorList, err := c.Random11ValidatorFromPool(parent.Header())
 		if err != nil {
 			log.Error("Verify: invalid validator list", "no", c.CurrentBlock().Header().Number, "err", err)
 			return 0, err
