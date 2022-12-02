@@ -1,4 +1,4 @@
-# Wormholes Chain
+# WormholesChain
 
 The WormholesChain solves the blockchain trilemma, which entails a necessary tradeoff between scalability, security, and decentralization, by building the
 technology to achieve the ideal balance between these three metrics, creating a highly scalable and secure blockchain system that doesn’t sacrifice
@@ -49,84 +49,28 @@ Before installing the client, please ensure your computer has enough resources t
 Running your node benefits you a lot, including opening more possibilities, and helping to support the ecosystem. This page will guide you through spinning
 up your node and taking part in validating Wormholes transactions.
 
-The actual client setup can be done by using the automatic launcher or manually.For ordinary users, we recommend you use a startup script, which guides you through the installation and automates the client setup process. However,
-if you have experience with the terminal, the manual setup steps should be easy to follow.
+The actual client setup can be done by using the automatic launcher or manually.For ordinary users, we recommend you use a startup script, which guides you
+through the installation and automates the client setup process. However,if you have experience with the terminal, the manual setup steps should be easy to
+follow.
 
 ### Docker Clients Setup
 
-#### Install docker
+#### Preparation
 
-You must ensure that docker has been installed. If it is not, please install docker first. For details, please refer to the [Rookie Tutorial](https://www.runoob.com/docker/ubuntu-docker-install.html). Or ignore it if already installed.
+- Install wget. 
 
-#### Prepare the JavaScript
+  Please go to the [wget website](https://www.gnu.org/software/wget/) to download and install it. If you are using Linux system, you can also 
+install it using the `apt-get install wget` command. If you are using MacOS system, you can also install it using the `brew install wget` command.
 
-Taking the Linux system as an example, the script Wormholes_install.sh to run the node can be named accordingly.
+- Install Docker.
 
-```
-#!/bin/bash
-#check docker cmd
-which docker >/dev/null 2>&1
-if  [ $? -ne 0 ] ; then
-     echo "docker not found, please install first!"
-     echo "ubuntu:sudo apt install docker.io -y"
-     echo "centos:yum install  -y docker-ce "
-     echo "fedora:sudo dnf  install -y docker-ce"
-     exit
-fi
-#check docker service
-docker ps > /dev/null 2>&1
-if [ $? -ne 0 ] ; then
-
-     echo "docker service is not running! you can use command start it:"
-     echo "sudo service docker start"
-     exit
-fi
-
-docker stop wormholes > /dev/null 2>&1
-docker rm wormholes > /dev/null 2>&1
-docker rmi wormholestech/wormholes:v1 > /dev/null 2>&1
-
-if [ -d /wm/.wormholes/keystore ]; then
-   read -p "Whether to clear the Wormholes blockchain data history, if yes, press the “y” button, and if not, click “enter.”：" xyz
-   if [ "$xyz" = 'y' ]; then
-         rm -rf /wm/.wormholes
-              read -p "Enter your private key：" ky
-   else
-         echo "Do not clear"
-   fi
-else
-   read -p "Please import your private key：" ky
-fi
-
-mkdir -p /wm/.wormholes/wormholes
-if [ -n "$ky" ]; then
-   echo ${#ky}
-     echo ${ky:0:2}
-     if [ ${#ky} -eq 64 ];then
-             echo $ky > /wm/.wormholes/wormholes/nodekey
-     elif [ ${#ky} -eq 66 ] && ([ ${ky:0:2} == "0x" ] || [ ${ky:0:2} == "0X" ]);then
-             echo ${ky:2:64} > /wm/.wormholes/wormholes/nodekey
-     else
-             echo "the nodekey format is not correct"
-             exit -1
-     fi
-fi
-
-docker run -id -e KEY=$ky  -p 30303:30303 -p 8545:8545 -v /wm/.wormholes:/wm/.wormholes --name wormholes wormholestech/wormholes:v1
-
-echo "Your private key is:"
-sleep 6
-docker exec -it wormholes /usr/bin/cat /wm/.wormholes/wormholes/nodekey
-```
+  For the installation and use of Docker, please refer to the [Docker Official Documentation](https://docs.docker.com/engine/install/).
 
 #### Run the node
 
-When using the script to start the node, you must enter the private key of the account used for pledge prepared earlierWhen using the script to start the
-node, you must enter the private key of the account used for pledge prepared earlier.
+When using the script to start the node, you must enter the private key of the account used for pledge prepared earlier. For details, see the
+documentation [Deploy Wormholes Nodes Using Official Scripts](https://www.wormholes.com/docs/install/run/docker/docker_3/index.html).
 
-``` 
-bash ./wormholes_install.sh 
-```
 
 ### Manual clients setup
 
@@ -142,7 +86,7 @@ avoiding processing the entire history of the Wormholes Chain network, which is 
 
 - Start up***Wormholes's*** built-in interactive JavaScript,(via the trailing ***console*** subcommand) through which you can interact using ***web3***
   [methods](https://learnblockchain.cn/docs/web3.js/getting-started.html)(note: the ***web3*** version bundled within ***Wormholes*** is very old, and
-  not up to date with official docs), as well as ***Wormholes's*** own [management APIs](https://www.wormholes.com/docs/management/) .
+  not up to date with official docs), as well as ***Wormholes's*** own [management APIs](https://www.wormholes.com/docs/management/).
   This tool is optional and if you leave it out you can always attach to an already running ``Wormholes`` instance with ***Wormholes attach*** .
 
 #### Full nodes functions
