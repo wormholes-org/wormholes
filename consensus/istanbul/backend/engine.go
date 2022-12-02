@@ -163,7 +163,12 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
-		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
+		parent := c.GetBlockByHash(header.ParentHash)
+		if parent == nil {
+			log.Error("VerifySeal: invalid parent", "no", header.Number)
+			return errors.New("VerifySeal: invalid parent")
+		}
+		validatorList, err := c.Random11ValidatorFromPool(parent.Header())
 		if err != nil {
 			log.Error("VerifySeal : invalid validator list", "no", c.CurrentBlock().Header(), "err", err)
 			return err
@@ -208,21 +213,22 @@ func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, heade
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
-		cBlk := c.CurrentBlock()
-		if cBlk == nil {
-			return errors.New("err prepare : current block is nil")
+		parent := c.GetBlockByHash(header.ParentHash)
+		if parent == nil {
+			log.Error("Prepare: invalid parent", "no", header.Number)
+			return errors.New("Prepare: invalid parent")
 		}
 
-		log.Info("Prepare : info", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number)
+		log.Info("Prepare : info", "header-no", header.Number.String(), "current-header", parent.Number())
 
-		validatorList, err := c.Random11ValidatorFromPool(cBlk.Header())
+		validatorList, err := c.Random11ValidatorFromPool(parent.Header())
 		if err != nil {
-			log.Error("Prepare: invalid validator list", "err", err, "no", cBlk.Header().Number)
+			log.Error("Prepare: invalid validator list", "err", err, "no", parent.Header().Number)
 			return err
 		}
 
 		for _, v := range validatorList.Validators {
-			log.Info("Backend : Prepare", "height", cBlk.Number, "v", v)
+			log.Info("Backend : Prepare", "height", parent.Number, "v", v)
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
