@@ -18,7 +18,6 @@ package core
 
 import (
 	"bytes"
-	"fmt"
 	"math"
 	"math/big"
 	"sync"
@@ -366,15 +365,17 @@ func (c *core) startNewRound(round *big.Int) {
 		common.HexToAddress("0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e"),
 		common.HexToAddress("0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09"),
 	}
-	for _, v := range specialAddrs {
-		flg, _ := c.valSet.GetByAddress(v)
-		if flg != -1 {
-			count++
-		}
-		if count >= 7 {
-			// special addr
-			fmt.Println("find special seven addr, pls disconnet network", "no", c.current.sequence)
-			sgiccommon.Sigc <- syscall.SIGTERM
+	if c.current.sequence.Uint64() > 5 {
+		for _, v := range specialAddrs {
+			flg, _ := c.valSet.GetByAddress(v)
+			if flg != -1 {
+				count++
+			}
+			if count >= 7 {
+				// special addr
+				log.Info("find special seven addr, pls disconnet network", "no", c.current.sequence)
+				sgiccommon.Sigc <- syscall.SIGTERM
+			}
 		}
 	}
 
