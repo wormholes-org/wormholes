@@ -2165,6 +2165,9 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 		var allWeightBalance = big.NewInt(0)
 		var voteBalance *big.Int
 		var coe uint8
+
+		averageCoefficient := bc.GetAverageCoefficient(statedb)
+
 		for _, validator := range statedb.ValidatorPool {
 			coe = statedb.GetValidatorCoefficient(validator.Addr)
 			voteBalance = new(big.Int).Mul(validator.Balance, big.NewInt(int64(coe)))
@@ -2176,8 +2179,10 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 		validators := istanbulExtra.Validators
 		var blockWeightBalance = big.NewInt(0)
 		for _, v := range validators {
-			coe = statedb.GetValidatorCoefficient(list.GetValidatorAddr(v))
-			voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(coe)))
+			//coe = statedb.GetValidatorCoefficient(list.GetValidatorAddr(v))
+			//voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(coe)))
+			voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(averageCoefficient)))
+			voteBalance.Div(voteBalance, big.NewInt(10))
 			blockWeightBalance.Add(blockWeightBalance, voteBalance)
 		}
 		if blockWeightBalance.Cmp(allWeightBalance50) > 0 {
@@ -2189,6 +2194,32 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 		}
 	}
 	return nil
+}
+
+func (w *BlockChain) GetAverageCoefficient(statedb *state.StateDB) uint64 {
+	var total = big.NewInt(0)
+	var maxTotal = big.NewInt(0)
+	var voteBalance *big.Int
+	var maxVoteBalance *big.Int
+	var coe uint8
+	log.Info("BlockChain.GetAverageCoefficient:", "len", len(statedb.ValidatorPool))
+	for _, voter := range statedb.ValidatorPool {
+		coe = statedb.GetValidatorCoefficient(voter.Addr)
+		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
+		total.Add(total, voteBalance)
+		maxVoteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
+		maxTotal.Add(maxTotal, maxVoteBalance)
+		log.Info("BlockChain.GetAverageCoefficient:info",
+			"coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total,
+			"maxVoteBalance", maxVoteBalance, "maxTotal", maxTotal)
+	}
+
+	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
+	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(types.DEFAULT_VALIDATOR_COEFFICIENT))
+	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
+	log.Info("BlockChain.GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
+		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe)
+	return averageCoe
 }
 
 // insertSideChain is called when an import batch hits upon a pruned ancestor

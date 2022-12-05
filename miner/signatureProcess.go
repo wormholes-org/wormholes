@@ -7,8 +7,6 @@ import (
 	"math/big"
 )
 
-const DEFAULT_VALIDATOR_COEFFICIENT = 70
-
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 	log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
 	ques := &SignatureData{

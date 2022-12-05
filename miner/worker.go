@@ -1637,7 +1637,7 @@ func (w *worker) GetAverageCoefficient() (uint64, error) {
 		coe = currentState.GetValidatorCoefficient(voter.Addr)
 		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
 		total.Add(total, voteBalance)
-		maxVoteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(DEFAULT_VALIDATOR_COEFFICIENT))
+		maxVoteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
 		maxTotal.Add(maxTotal, maxVoteBalance)
 		log.Info("GetAverageCoefficient:info", "height", w.chain.CurrentBlock().NumberU64()+1,
 			"coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total,
@@ -1645,7 +1645,7 @@ func (w *worker) GetAverageCoefficient() (uint64, error) {
 	}
 
 	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
-	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(DEFAULT_VALIDATOR_COEFFICIENT))
+	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(types.DEFAULT_VALIDATOR_COEFFICIENT))
 	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
 	log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
 		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe, "height", w.chain.CurrentBlock().NumberU64()+1)
