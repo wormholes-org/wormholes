@@ -1647,8 +1647,8 @@ func (w *worker) GetAverageCoefficient() (uint64, error) {
 	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
 	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(DEFAULT_VALIDATOR_COEFFICIENT))
 	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
-	log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal",
-		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe)
+	log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
+		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe, "height", w.chain.CurrentBlock().NumberU64()+1)
 	return averageCoe, nil
 }
 
