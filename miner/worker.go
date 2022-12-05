@@ -1622,6 +1622,36 @@ func (w *worker) getValidatorCoefficient(address common.Address) (uint8, error) 
 	return coe, nil
 }
 
+func (w *worker) GetAverageCoefficient() (uint64, error) {
+	var total = big.NewInt(0)
+	var maxTotal = big.NewInt(0)
+	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
+	if err != nil {
+		return 0, err
+	}
+	var voteBalance *big.Int
+	var maxVoteBalance *big.Int
+	var coe uint8
+	log.Info("GetAverageCoefficient:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
+	for _, voter := range w.cerytify.stakers.Validators {
+		coe = currentState.GetValidatorCoefficient(voter.Addr)
+		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
+		total.Add(total, voteBalance)
+		maxVoteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(DEFAULT_VALIDATOR_COEFFICIENT))
+		maxTotal.Add(maxTotal, maxVoteBalance)
+		log.Info("GetAverageCoefficient:info", "height", w.chain.CurrentBlock().NumberU64()+1,
+			"coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total,
+			"maxVoteBalance", maxVoteBalance, "maxTotal", maxTotal)
+	}
+
+	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
+	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(DEFAULT_VALIDATOR_COEFFICIENT))
+	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
+	log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal",
+		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe)
+	return averageCoe, nil
+}
+
 func (w *worker) getNodeAddr() common.Address {
 	return ethcrypto.PubkeyToAddress(w.eth.GetNodeKey().PublicKey)
 }
