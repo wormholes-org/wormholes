@@ -18,12 +18,12 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
-	"fmt"
 
-	"github.com/ethereum/go-ethereum/miniredis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/miniredis"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -176,7 +177,6 @@ func (sb *Backend) Broadcast(valSet istanbul.ValidatorSet, code uint64, payload 
 	return nil
 }
 
-
 func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []byte) error {
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
@@ -208,7 +208,7 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			sb.recentMessages.Add(addr, m)
 
 			miniredis.GetLogCh() <- map[string]interface{}{
-				fmt.Sprintf("t %v", time.Now().UTC().Unix()): sb.address.Hex()+" "+addr.Hex(),
+				fmt.Sprintf("t %v", time.Now().UTC().Unix()): sb.address.Hex() + " " + addr.Hex(),
 			}
 
 			if sb.IsQBFTConsensus() {
@@ -218,7 +218,6 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 				}
 				go p.SendQBFTConsensus(outboundCode, payload)
 			} else {
-				log.Info("carver|Gossip|istanbulMsg", "chain.current.no", sb.chain.CurrentHeader().Number.String(), "code", code)
 				go p.SendConsensus(istanbulMsg, payload)
 			}
 		}
@@ -293,7 +292,13 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	header := block.Header()
 	var valSet istanbul.ValidatorSet
 	if c, ok := sb.chain.(*core.BlockChain); ok {
-		validatorList, err := c.Random11ValidatorFromPool(c.CurrentBlock().Header())
+		parent := c.GetBlockByHash(block.ParentHash())
+		if parent == nil {
+			log.Error("Verify: invalid Header", "no", block.Number())
+			return 0, errors.New("Verify: invalid Header")
+		}
+
+		validatorList, err := c.Random11ValidatorFromPool(parent.Header())
 		if err != nil {
 			log.Error("Verify: invalid validator list", "no", c.CurrentBlock().Header().Number, "err", err)
 			return 0, err

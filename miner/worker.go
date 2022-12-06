@@ -20,12 +20,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -209,46 +209,48 @@ type worker struct {
 	onlineValidators *types.OnlineValidatorList
 
 	//empty block
-	emptyTimestamp  int64
-	emptyHandleFlag bool
-	cacheHeight     *big.Int
-	emptyTimer      *time.Timer
-	resetEmptyCh    chan struct{}
+	emptyTimestamp      int64
+	emptyHandleFlag     bool
+	cacheHeight         *big.Int
+	targetWeightBalance *big.Int
+	emptyTimer          *time.Timer
+	resetEmptyCh        chan struct{}
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
 	worker := &worker{
-		config:             config,
-		chainConfig:        chainConfig,
-		engine:             engine,
-		eth:                eth,
-		mux:                mux,
-		chain:              eth.BlockChain(),
-		isLocalBlock:       isLocalBlock,
-		localUncles:        make(map[common.Hash]*types.Block),
-		remoteUncles:       make(map[common.Hash]*types.Block),
-		unconfirmed:        newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks:       make(map[common.Hash]*task),
-		txsCh:              make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:        make(chan core.ChainHeadEvent, chainHeadChanSize),
-		chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
-		newWorkCh:          make(chan *newWorkReq),
-		taskCh:             make(chan *task),
-		resultCh:           make(chan *types.Block, resultQueueSize),
-		exitCh:             make(chan struct{}),
-		startCh:            make(chan struct{}, 1),
-		onlineCh:           make(chan struct{}, 1),
-		emptyCh:            make(chan struct{}),
-		cacheHeight:        new(big.Int),
-		isEmpty:            false,
-		resubmitIntervalCh: make(chan time.Duration),
-		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
-		cerytify:           NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
-		miner:              handler,
-		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
-		emptyTimestamp:     time.Now().Unix(),
-		emptyHandleFlag:    false,
-		resetEmptyCh:       make(chan struct{}, 1),
+		config:              config,
+		chainConfig:         chainConfig,
+		engine:              engine,
+		eth:                 eth,
+		mux:                 mux,
+		chain:               eth.BlockChain(),
+		isLocalBlock:        isLocalBlock,
+		localUncles:         make(map[common.Hash]*types.Block),
+		remoteUncles:        make(map[common.Hash]*types.Block),
+		unconfirmed:         newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		pendingTasks:        make(map[common.Hash]*task),
+		txsCh:               make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:         make(chan core.ChainHeadEvent, chainHeadChanSize),
+		chainSideCh:         make(chan core.ChainSideEvent, chainSideChanSize),
+		newWorkCh:           make(chan *newWorkReq),
+		taskCh:              make(chan *task),
+		resultCh:            make(chan *types.Block, resultQueueSize),
+		exitCh:              make(chan struct{}),
+		startCh:             make(chan struct{}, 1),
+		onlineCh:            make(chan struct{}, 1),
+		emptyCh:             make(chan struct{}),
+		cacheHeight:         new(big.Int),
+		targetWeightBalance: new(big.Int),
+		isEmpty:             false,
+		resubmitIntervalCh:  make(chan time.Duration),
+		resubmitAdjustCh:    make(chan *intervalAdjust, resubmitAdjustChanSize),
+		cerytify:            NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
+		miner:               handler,
+		notifyBlockCh:       make(chan *types.OnlineValidatorList, 1),
+		emptyTimestamp:      time.Now().Unix(),
+		emptyHandleFlag:     false,
+		resetEmptyCh:        make(chan struct{}, 1),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -358,8 +360,8 @@ func (w *worker) start() {
 func (w *worker) stop() {
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
 		istanbul.Stop()
-	}else{
-		fmt.Println("======================",ok)
+	} else {
+		fmt.Println("======================", ok)
 	}
 	atomic.StoreInt32(&w.running, 0)
 }
@@ -450,6 +452,7 @@ func (w *worker) emptyLoop() {
 				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
+					log.Info("!w.isRunning()", "w.isRunning()", w.isRunning())
 					continue
 				}
 				if w.isEmpty {
@@ -472,23 +475,6 @@ func (w *worker) emptyLoop() {
 				w.emptyCh <- struct{}{}
 				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 
-				//modification on 20221102 start
-				//w.stop()
-				EmptyEvent := StartEmptyBlockEvent{
-					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
-				}
-				w.mux.Post(EmptyEvent)
-				time.Sleep(10 * time.Second)
-				if w.isRunning() {
-					w.isEmpty = false
-					w.emptyTimestamp = time.Now().Unix()
-					w.emptyTimer.Reset(120 * time.Second)
-					log.Info("generate empty block interupt by downloader")
-					//w.resetEmptyCh <- struct{}{}
-					continue
-				}
-				//modification on 20221102 end
-
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				if err != nil {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
@@ -505,7 +491,36 @@ func (w *worker) emptyLoop() {
 				//	w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
 				//	w.cerytify.receiveValidatorsSum = big.NewInt(0)
 				//}
+
+				//modification on 20221102 start
+				//w.stop()
+				EmptyEvent := StartEmptyBlockEvent{
+					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
+				}
+				err = w.mux.Post(EmptyEvent)
+				if err != nil {
+					log.Error("emptyTimer.C : post empty event", "err", err)
+					continue
+				}
+				time.Sleep(10 * time.Second)
+				//if w.isRunning() {
+				//	w.isEmpty = false
+				//	w.emptyTimestamp = time.Now().Unix()
+				//	w.emptyTimer.Reset(120 * time.Second)
+				//	log.Info("generate empty block interupt by downloader", "w.isRunning()", w.isRunning())
+				//	//w.resetEmptyCh <- struct{}{}
+				//	continue
+				//}
+				//modification on 20221102 end
+
 				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
+
+				totalWeightBalance, err := w.targetSizeWithWeight()
+				if err != nil {
+					log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
+					continue
+				}
+				w.targetWeightBalance = totalWeightBalance
 
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
@@ -521,8 +536,9 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetSize(), "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
-				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
+				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
+				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now())
@@ -607,7 +623,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			log.Info("w.chainHeadCh: start commit block", "no", head.Block.NumberU64())
 
 			if w.isRunning() {
-				w.GossipOnlineProof()
 				w.emptyTimestamp = time.Now().Unix()
 			}
 
@@ -619,7 +634,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			timestamp = time.Now().Unix()
 			// Start submitting online proof blocks
 			w.onlineValidators = nil
-			//w.CommitOnlineProofBlock(*proofTimer)
 			commit(false, commitInterruptNewHead)
 
 		case onlineValidators := <-w.notifyBlockCh:
@@ -636,7 +650,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// higher priced transactions. Disable this overhead for pending blocks.
 			if w.isRunning() {
 				log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1)
-				w.GossipOnlineProof()
 				commit(false, commitInterruptResubmit)
 			}
 			//log.Info("timer.C : commit request", "no", w.chain.CurrentHeader().Number.Uint64()+1, "w.isRunning", w.isRunning())
@@ -931,11 +944,6 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//	}
 		//}
-		frozenAccounts, err := w.chain.ReadFrozenAccounts(parent.Header())
-		if err != nil {
-			return err
-		}
-		state.FrozenAccounts = frozenAccounts
 
 	} else {
 		mintDeep = new(types.MintDeep)
@@ -953,10 +961,6 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		//exchangeList = &types.SNFTExchangeList{
 		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//}
-
-		frozenAccounts := core.GetInitFrozenAccounts(core.FrozenAccounts)
-		state.FrozenAccounts = frozenAccounts
-
 	}
 	state.MintDeep = mintDeep
 	//state.SNFTExchangePool = exchangeList
@@ -1046,11 +1050,6 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//	}
 		//}
-		frozenAccounts, err := w.chain.ReadFrozenAccounts(parent.Header())
-		if err != nil {
-			return err
-		}
-		state.FrozenAccounts = frozenAccounts
 
 	} else {
 		mintDeep = new(types.MintDeep)
@@ -1068,10 +1067,6 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		//exchangeList = &types.SNFTExchangeList{
 		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//}
-
-		frozenAccounts := core.GetInitFrozenAccounts(core.FrozenAccounts)
-		state.FrozenAccounts = frozenAccounts
-
 	}
 	state.MintDeep = mintDeep
 	//state.SNFTExchangePool = exchangeList
@@ -1592,44 +1587,69 @@ func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }
 
-func (w *worker) GossipOnlineProof() error {
-	log.Info("GossipOnlineProof : enter", "height", w.chain.CurrentHeader().Number.Uint64()+1)
-
-	parent := w.chain.CurrentBlock()
-
-	num := parent.Number()
-	header := &types.Header{
-		ParentHash: parent.Hash(),
-		Number:     num.Add(num, common.Big1),
-		GasLimit:   21000,
-		Extra:      w.extra,
-		Time:       10000,
-	}
-
-	header.Coinbase = common.HexToAddress("0x0000000000000000000000000000000000000001")
-
-	//if err := w.engine.Prepare(w.chain, header); err != nil {
-	//	return errors.New("GossipOnlineProof : Failed to prepare header for mining")
-	//}
-
-	err := w.makeProofCurrent(parent, header)
-	if err != nil {
-		return errors.New("GossipOnlineProof : Failed to create mining context")
-	}
-
-	// receipts := copyReceipts(w.current.receipts)
-	s := w.proofcurrent.state.Copy()
-	block, err := w.engine.FinalizeOnlineProofBlk(w.chain, w.proofcurrent.header, s, w.proofcurrent.txs, nil, nil)
-	if err != nil {
-		return err
-	}
-
-	w.engine.GossipOnlineProof(w.chain, block)
-
-	return nil
-}
 func (w *worker) targetSize() *big.Int {
 	return w.cerytify.stakers.TargetSize()
+}
+
+func (w *worker) targetSizeWithWeight() (*big.Int, error) {
+	var total = big.NewInt(0)
+	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	var voteBalance *big.Int
+	var coe uint8
+	log.Info("targetSizeWithWeight:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
+	for _, voter := range w.cerytify.stakers.Validators {
+		coe = currentState.GetValidatorCoefficient(voter.Addr)
+		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
+		total.Add(total, voteBalance)
+		log.Info("targetSizeWithWeight:info", "height", w.chain.CurrentBlock().NumberU64()+1, "coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total)
+	}
+	a := new(big.Int).Mul(big.NewInt(50), total)
+	b := new(big.Int).Div(a, big.NewInt(100))
+	return b, nil
+}
+
+func (w *worker) getValidatorCoefficient(address common.Address) (uint8, error) {
+	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
+	if err != nil {
+		return 0, err
+	}
+	validatorAddress := w.cerytify.stakers.GetValidatorAddr(address)
+	log.Info("worker.getValidatorCoefficient", "address", address.Hex(), "validator address", validatorAddress.Hex())
+	coe := currentState.GetValidatorCoefficient(validatorAddress)
+	return coe, nil
+}
+
+func (w *worker) GetAverageCoefficient() (uint64, error) {
+	var total = big.NewInt(0)
+	var maxTotal = big.NewInt(0)
+	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
+	if err != nil {
+		return 0, err
+	}
+	var voteBalance *big.Int
+	var maxVoteBalance *big.Int
+	var coe uint8
+	log.Info("GetAverageCoefficient:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
+	for _, voter := range w.cerytify.stakers.Validators {
+		coe = currentState.GetValidatorCoefficient(voter.Addr)
+		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
+		total.Add(total, voteBalance)
+		maxVoteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
+		maxTotal.Add(maxTotal, maxVoteBalance)
+		log.Info("GetAverageCoefficient:info", "height", w.chain.CurrentBlock().NumberU64()+1,
+			"coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total,
+			"maxVoteBalance", maxVoteBalance, "maxTotal", maxTotal)
+	}
+
+	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
+	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(types.DEFAULT_VALIDATOR_COEFFICIENT))
+	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
+	log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
+		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe, "height", w.chain.CurrentBlock().NumberU64()+1)
+	return averageCoe, nil
 }
 
 func (w *worker) getNodeAddr() common.Address {
@@ -1666,12 +1686,6 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//	}
 		//}
-		frozenAccounts, err := w.chain.ReadFrozenAccounts(parent.Header())
-		if err != nil {
-			return err
-		}
-		state.FrozenAccounts = frozenAccounts
-
 	} else {
 		mintDeep = new(types.MintDeep)
 		//mintDeep.OfficialMint = big.NewInt(1)
@@ -1688,10 +1702,6 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 		//exchangeList = &types.SNFTExchangeList{
 		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 		//}
-
-		frozenAccounts := core.GetInitFrozenAccounts(core.FrozenAccounts)
-		state.FrozenAccounts = frozenAccounts
-
 	}
 	state.MintDeep = mintDeep
 	//state.SNFTExchangePool = exchangeList

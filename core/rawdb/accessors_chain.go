@@ -978,32 +978,3 @@ func ReadNominatedOfficialNFT(db ethdb.Reader, hash common.Hash, number uint64) 
 	//}
 	return NominatedOfficialNFT, nil
 }
-
-// WriteFrozenAccounts write FrozenAccounts to database
-func WriteFrozenAccounts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, frozenAccounts *types.FrozenAccountList) {
-	data, err := rlp.EncodeToBytes(frozenAccounts)
-	if err != nil {
-		log.Crit("Failed to RLP encode frozenaccount", "err", err)
-	}
-	if err := db.Put(frozenAccountKey(number, hash), data); err != nil {
-		log.Crit("Failed to store frozenaccount", "err", err)
-	}
-}
-
-// ReadFrozenAccounts retrieves FrozenAccounts corresponding to the hash.
-func ReadFrozenAccounts(db ethdb.Reader, hash common.Hash, number uint64) (*types.FrozenAccountList, error) {
-	data, err := db.Get(frozenAccountKey(number, hash))
-	if err != nil {
-		return nil, err
-	}
-	if data == nil {
-		return nil, nil
-	}
-	FrozenAccounts := new(types.FrozenAccountList)
-	if err := rlp.Decode(bytes.NewReader(data), FrozenAccounts); err != nil {
-		log.Error("Invalid frozenaccount RLP", "hash", hash, "err", err)
-		return nil, err
-	}
-
-	return FrozenAccounts, nil
-}

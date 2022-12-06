@@ -97,7 +97,4 @@ var (
 	ErrInvalidSigner = errors.New("message not signed by the sender")
 
 	ErrInvalidBenifitedAddr = errors.New("invalid benifited Address ")
-
-	// ErrFailedDecodeOnlineProof is returned when the ONLINE-PROOF message is malformed.
-	ErrFailedDecodeOnlineProof = errors.New("failed to decode ONLINE-PROOF message")
 )

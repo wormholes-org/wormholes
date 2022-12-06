@@ -71,7 +71,7 @@ type Genesis struct {
 	Dir          string   `json:"dir"`
 	InjectNumber uint64   `json:"inject_number"`
 	StartIndex   *big.Int `json:"start_index"`
-	Royalty      uint32   `json:"royalty"`
+	Royalty      uint16   `json:"royalty"`
 	Creator      string   `json:"creator"`
 }
 
@@ -293,7 +293,7 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 
 	for addr, account := range g.Stake {
 		log.Info("caver|ToBlock|stake", "addr", addr, "amount", account.Balance.String())
-		statedb.OpenExchanger(addr, account.Balance, big.NewInt(0), uint32(account.FeeRate), account.ExchangerName, account.ExchangerUrl)
+		statedb.OpenExchanger(addr, account.Balance, big.NewInt(0), uint16(account.FeeRate), account.ExchangerName, account.ExchangerUrl)
 	}
 
 	for addr, account := range g.Validator {

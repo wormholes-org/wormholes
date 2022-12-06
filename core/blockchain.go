@@ -1641,16 +1641,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	bc.WriteValidatorPool(block.Header(), validatorPool)
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 
-	//if state.FrozenAccounts != nil && len(state.FrozenAccounts) > 0 {
-	//	if block.NumberU64() < 600 {
-	//		UpdateFrozenAccounts(state.FrozenAccounts)
-	//	} else {
-	//		UpdateFrozenAccounts2(state.FrozenAccounts)
-	//	}
-	//	state.FrozenAccounts = state.FrozenAccounts[:0]
-	//}
-	bc.WriteFrozenAccounts(block.Header(), state.FrozenAccounts)
-
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
@@ -1998,11 +1988,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			//		SNFTExchanges: make([]*types.SNFTExchange, 0),
 			//	}
 			//}
-			frozenAccounts, err := bc.ReadFrozenAccounts(parent)
-			if err != nil {
-				return it.index, err
-			}
-			statedb.FrozenAccounts = frozenAccounts
 
 		} else {
 			mintDeep = new(types.MintDeep)
@@ -2020,10 +2005,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			//exchangeList = &types.SNFTExchangeList{
 			//	SNFTExchanges: make([]*types.SNFTExchange, 0),
 			//}
-
-			frozenAccounts := GetInitFrozenAccounts(FrozenAccounts)
-			statedb.FrozenAccounts = frozenAccounts
-
 		}
 		statedb.MintDeep = mintDeep
 		//statedb.SNFTExchangePool = exchangeList
@@ -2057,6 +2038,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			return it.index, err
 		}
 		statedb.ValidatorPool = valList.Validators
+
+		emptyBlockErr := bc.VerifyEmptyBlock(block, statedb, valList)
+		if emptyBlockErr != nil {
+			log.Error("insertChain: invalid validators of empty block", "emptyBlockErr", emptyBlockErr)
+			return it.index, emptyBlockErr
+		}
 
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
@@ -2160,6 +2147,79 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 	}
 	stats.ignored += it.remaining()
 	return it.index, err
+}
+
+func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateDB, list *types.ValidatorList) error {
+	// if the block is empty block, validate it
+	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.NumberU64() > 0 {
+
+		if block.Difficulty().Uint64() != 24 {
+			return errors.New("invalid difficulty of empty block")
+		}
+		istanbulExtra, checkerr := types.ExtractIstanbulExtra(block.Header())
+		if checkerr != nil {
+			log.Error("BlockChain.VerifyEmptyBlock()", "VerifyHeadersAndcheckerr checkerr:", checkerr)
+			return checkerr
+		}
+
+		var allWeightBalance = big.NewInt(0)
+		var voteBalance *big.Int
+		var coe uint8
+
+		averageCoefficient := bc.GetAverageCoefficient(statedb)
+
+		for _, validator := range statedb.ValidatorPool {
+			coe = statedb.GetValidatorCoefficient(validator.Addr)
+			voteBalance = new(big.Int).Mul(validator.Balance, big.NewInt(int64(coe)))
+			allWeightBalance.Add(allWeightBalance, voteBalance)
+		}
+		allWeightBalance50 := new(big.Int).Mul(big.NewInt(50), allWeightBalance)
+		allWeightBalance50 = new(big.Int).Div(allWeightBalance50, big.NewInt(100))
+
+		validators := istanbulExtra.Validators
+		var blockWeightBalance = big.NewInt(0)
+		for _, v := range validators {
+			//coe = statedb.GetValidatorCoefficient(list.GetValidatorAddr(v))
+			//voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(coe)))
+			voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(averageCoefficient)))
+			voteBalance.Div(voteBalance, big.NewInt(10))
+			blockWeightBalance.Add(blockWeightBalance, voteBalance)
+		}
+		if blockWeightBalance.Cmp(allWeightBalance50) > 0 {
+			return nil
+		} else {
+			log.Error("BlockChain.VerifyEmptyBlock(), verify validators of empty block error ",
+				"blockWeightBalance", blockWeightBalance, "allWeightBalance50", allWeightBalance50)
+			return errors.New("verify validators of empty block error")
+		}
+	}
+	return nil
+}
+
+func (w *BlockChain) GetAverageCoefficient(statedb *state.StateDB) uint64 {
+	var total = big.NewInt(0)
+	var maxTotal = big.NewInt(0)
+	var voteBalance *big.Int
+	var maxVoteBalance *big.Int
+	var coe uint8
+	log.Info("BlockChain.GetAverageCoefficient:", "len", len(statedb.ValidatorPool))
+	for _, voter := range statedb.ValidatorPool {
+		coe = statedb.GetValidatorCoefficient(voter.Addr)
+		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
+		total.Add(total, voteBalance)
+		maxVoteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
+		maxTotal.Add(maxTotal, maxVoteBalance)
+		log.Info("BlockChain.GetAverageCoefficient:info",
+			"coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total,
+			"maxVoteBalance", maxVoteBalance, "maxTotal", maxTotal)
+	}
+
+	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
+	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(types.DEFAULT_VALIDATOR_COEFFICIENT))
+	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
+	log.Info("BlockChain.GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
+		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe)
+	return averageCoe
 }
 
 // insertSideChain is called when an import batch hits upon a pruned ancestor
@@ -2951,23 +3011,22 @@ func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common
 	log.Info("GetRandomDrop : index", "index", vals, "height", header.Number, "i", i, "vals", vals)
 
 	var buffer bytes.Buffer
+
+	// Height of the block being assembled
+	buffer.WriteString((big.NewInt(0).Add(header.Number, big.NewInt(1)).String()))
+
 	// The index calculated according to the multilateral chain may be greater than the total number of validators
 	for _, v := range vals {
 		val := validators.GetByIndex(uint64(v))
 		if val.Address() == (common.Address{}) {
 			buffer.WriteString(common.Hash{}.Hex())
 			continue
-		}
-		encValidator, err := rlp.EncodeToBytes(validators.GetValidatorByAddr(val.Address()))
-		if err != nil {
-			buffer.WriteString(common.Hash{}.Hex())
 		} else {
-			buffer.WriteString(string(common.BytesToHash(encValidator).Hex()))
+			buffer.WriteString(val.Addr.Hex())
 		}
 	}
 	buffer.WriteString(header.Hash().Hex())
 	return crypto.Keccak256Hash(buffer.Bytes())
-	//return common.HexToHash(common.Bytes2Hex(buffer.Bytes()))
 }
 
 func getSurroundingChainNo(i, Nr, Np int) []int {
@@ -3117,15 +3176,3 @@ func getSurroundingChainNo(i, Nr, Np int) []int {
 //		vm.FrozenAcconts = tempFrozenAccounts
 //	}
 //}
-
-func (bc *BlockChain) WriteFrozenAccounts(header *types.Header, frozenAccounts *types.FrozenAccountList) {
-	poolBatch := bc.db.NewBatch()
-	rawdb.WriteFrozenAccounts(poolBatch, header.Hash(), header.Number.Uint64(), frozenAccounts)
-	if err := poolBatch.Write(); err != nil {
-		log.Crit("Failed to write frozenaccounts disk", "err", err)
-	}
-}
-
-func (bc *BlockChain) ReadFrozenAccounts(header *types.Header) (*types.FrozenAccountList, error) {
-	return rawdb.ReadFrozenAccounts(bc.db, header.Hash(), header.Number.Uint64())
-}

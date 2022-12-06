@@ -44,49 +44,42 @@ var (
 // New creates an Istanbul consensus core
 func New(backend istanbul.Backend, config *istanbul.Config) *core {
 	c := &core{
-		config:                          config,
-		address:                         backend.Address(),
-		state:                           ibfttypes.StateAcceptRequest,
-		handlerWg:                       new(sync.WaitGroup),
-		logger:                          log.New("address", backend.Address()),
-		backend:                         backend,
-		backlogs:                        make(map[common.Address]*prque.Prque),
-		backlogsMu:                      new(sync.Mutex),
-		pendingOnlineProofRequests:      prque.New(),
-		pendingRequests:                 prque.New(),
-		pendingRequestsMu:               new(sync.Mutex),
-		consensusTimestamp:              time.Time{},
-		pendindingOnlineProofRequestsMu: new(sync.Mutex),
-		onlineProofsMu:                  new(sync.Mutex),
+		config:             config,
+		address:            backend.Address(),
+		state:              ibfttypes.StateAcceptRequest,
+		handlerWg:          new(sync.WaitGroup),
+		logger:             log.New("address", backend.Address()),
+		backend:            backend,
+		backlogs:           make(map[common.Address]*prque.Prque),
+		backlogsMu:         new(sync.Mutex),
+		pendingRequests:    prque.New(),
+		pendingRequestsMu:  new(sync.Mutex),
+		consensusTimestamp: time.Time{},
 	}
 
 	c.validateFn = c.checkValidatorSignature
-	c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
 	return c
 }
 
 // NewCore creates an Istanbul consensus core
 func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(common.Address) (bool, error)) *core {
 	c := &core{
-		config:                          config,
-		address:                         backend.Address(),
-		state:                           ibfttypes.StateAcceptRequest,
-		handlerWg:                       new(sync.WaitGroup),
-		logger:                          log.New("address", backend.Address()),
-		backend:                         backend,
-		backlogs:                        make(map[common.Address]*prque.Prque),
-		backlogsMu:                      new(sync.Mutex),
-		pendingOnlineProofRequests:      prque.New(),
-		pendingRequests:                 prque.New(),
-		pendingRequestsMu:               new(sync.Mutex),
-		consensusTimestamp:              time.Time{},
-		pendindingOnlineProofRequestsMu: new(sync.Mutex),
-		onlineProofsMu:                  new(sync.Mutex),
+		config:             config,
+		address:            backend.Address(),
+		state:              ibfttypes.StateAcceptRequest,
+		handlerWg:          new(sync.WaitGroup),
+		logger:             log.New("address", backend.Address()),
+		backend:            backend,
+		backlogs:           make(map[common.Address]*prque.Prque),
+		backlogsMu:         new(sync.Mutex),
+		pendingRequests:    prque.New(),
+		pendingRequestsMu:  new(sync.Mutex),
+		consensusTimestamp: time.Time{},
+		commitHeight:       0,
 	}
 
 	c.validateFn = c.checkValidatorSignature
 	c.validateExistFn = vExistFn
-	c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
 	return c
 }
 
@@ -121,22 +114,15 @@ type core struct {
 	pendingRequests   *prque.Prque
 	pendingRequestsMu *sync.Mutex
 
-	//
-	pendingOnlineProofRequests      *prque.Prque
-	pendindingOnlineProofRequestsMu *sync.Mutex
-
-	// Temporary storage of online data collected at each altitude
-	onlineProofs   map[uint64]*types.OnlineValidatorList
-	onlineProofsMu *sync.Mutex
-
 	consensusTimestamp time.Time
+	commitHeight       uint64
 }
 
 type ConsensusData struct {
-	Height           string                                       `json:"height"`
-	Validators       []common.Address                             `json:"validators,omitempty"`
-//	OnlineValidators map[common.Address]OnlineValidatorDetail     `json:"online_validators,omitempty"`
-	Rounds           map[int64]RoundInfo                          `json:"rounds,omitempty"`
+	Height     string           `json:"height"`
+	Validators []common.Address `json:"validators,omitempty"`
+	//	OnlineValidators map[common.Address]OnlineValidatorDetail     `json:"online_validators,omitempty"`
+	Rounds map[int64]RoundInfo `json:"rounds,omitempty"`
 }
 
 //type OnlineValidatorDetail struct {
@@ -155,7 +141,7 @@ type RoundInfo struct {
 	Round      int64          `json:"round,omitempty"`
 	Hash       common.Hash    `json:"hash,omitempty"`
 	Miner      common.Address `json:"miner,omitempty"`
-	Error	   error          `json:"error,omitempty"`
+	Error      error          `json:"error,omitempty"`
 	IsProposal bool           `json:"is_proposal,omitempty"`
 }
 
@@ -252,7 +238,7 @@ func (c *core) commit() {
 					Sequence:   c.currentView().Sequence.Uint64(),
 					Round:      c.currentView().Round.Int64(),
 					Hash:       proposal.Hash(),
-					Miner:	    c.valSet.GetProposer().Address(),
+					Miner:      c.valSet.GetProposer().Address(),
 					Error:      err,
 					IsProposal: c.IsProposer(),
 				},
@@ -330,16 +316,6 @@ func (c *core) startNewRound(round *big.Int) {
 			log.Error("ibftConsensus: c.valSet == nil", "no", newView.Sequence, "round", newView.Sequence, "self", c.address.Hex())
 			return
 		}
-		onlineValidators := new(types.OnlineValidatorList)
-		c.onlineProofsMu.Lock()
-		if c.onlineProofs == nil {
-			c.onlineProofs = make(map[uint64]*types.OnlineValidatorList)
-		}
-		c.onlineProofs[newView.Sequence.Uint64()] = onlineValidators
-		if c.onlineProofs[newView.Sequence.Uint64()-2] != nil {
-			delete(c.onlineProofs, newView.Sequence.Uint64()-2)
-		}
-		c.onlineProofsMu.Unlock()
 	}
 
 	// If new round is 0, then check if qbftConsensus needs to be enabled
@@ -374,11 +350,11 @@ func (c *core) startNewRound(round *big.Int) {
 
 	consensusData := ConsensusData{
 		Height:     newView.Sequence.String(),
-                Validators: c.valSet.ListAll(),
-        }
-        c.SaveData(consensusData)
+		Validators: c.valSet.ListAll(),
+	}
+	c.SaveData(consensusData)
 
-	if len(consensusInfo) > 0{
+	if len(consensusInfo) > 0 {
 		<-consensusInfo
 	}
 	data := make(map[string]interface{})
@@ -509,13 +485,6 @@ func (c *core) RoundInfo() (roundInfo []string) {
 	roundInfo = append(roundInfo, rs.round.String())
 	roundInfo = append(roundInfo, rs.sequence.String())
 	return
-}
-
-func (c *core) OnlineProofSize(height *big.Int) int {
-	c.onlineProofsMu.Lock()
-	defer c.onlineProofsMu.Unlock()
-	onlineProofs := c.onlineProofs[height.Uint64()]
-	return len(onlineProofs.Validators)
 }
 
 func (c *core) ConsensusInfo() chan map[string]interface{} {

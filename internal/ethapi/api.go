@@ -19,13 +19,14 @@ package ethapi
 import (
 	"bytes"
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/p2p/discover"
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/p2p/discover"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
 
@@ -672,6 +673,38 @@ func (s *PublicBlockChainAPI) GetAccountInfo(ctx context.Context, address common
 	return acc, st.Error()
 }
 
+type OnlineWeight struct {
+	Address common.Address `json:"address"`
+	Value   uint8          `json:"value"`
+}
+
+func (w *PublicBlockChainAPI) GetValidators(ctx context.Context, number rpc.BlockNumber) ([]OnlineWeight, error) {
+	parent, err := w.b.BlockByNumber(ctx, number-1)
+	if err != nil || parent == nil {
+		return []OnlineWeight{}, err
+	}
+
+	valset, err := w.b.Random11ValidatorFromPool(ctx, parent.Header())
+	if err != nil {
+		return []OnlineWeight{}, err
+	}
+
+	db, _, err := w.b.StateAndHeaderByNumber(ctx, number)
+	if err != nil || db == nil {
+		return []OnlineWeight{}, err
+	}
+
+	var values []OnlineWeight
+	for _, v := range valset.Validators {
+		values = append(values, OnlineWeight{
+			v.Addr,
+			db.GetCoefficient(v.Addr),
+		})
+	}
+
+	return values, nil
+}
+
 type BeneficiaryAddress struct {
 	Address      common.Address
 	NftAddress   common.Address
@@ -917,7 +950,7 @@ type NominatedNFTInfo struct {
 	Dir        string         `json:"dir"`
 	StartIndex *big.Int       `json:"start_index"`
 	Number     uint64         `json:"number"`
-	Royalty    uint32         `json:"royalty"`
+	Royalty    uint16         `json:"royalty"`
 	Creator    string         `json:"creator"`
 	Address    common.Address `json:"address"`
 	VoteWeight *big.Int       `json:"vote_weight"`
@@ -1917,6 +1950,29 @@ func (w *PublicWormholesAPI) GetAccountInfo(ctx context.Context, address common.
 	return acc, st.Error()
 }
 
+func (w *PublicWormholesAPI) GetValidators(ctx context.Context, number rpc.BlockNumber) ([]common.Address, error) {
+	parent, err := w.b.BlockByNumber(ctx, number-1)
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	if parent == nil {
+		return []common.Address{}, err
+	}
+
+	valset, err := w.b.Random11ValidatorFromPool(ctx, parent.Header())
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	var addrs []common.Address
+	for _, v := range valset.Validators {
+		addrs = append(addrs, v.Addr)
+	}
+
+	return addrs, nil
+}
+
 func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (BeneficiaryAddressList, error) {
 	//var address []common.Address
 	//var nftAddress []common.Address
@@ -2244,7 +2300,7 @@ func (w *PublicWormholesAPI) Mint(ctx context.Context, args TransactionArgs) (co
 
 	transaction := types.Wormholes{
 		Type:      0,
-		Royalty:   uint32(TxData["royalty"].(float64)),
+		Royalty:   uint16(TxData["royalty"].(float64)),
 		MetaURL:   TxData["metaUrl"].(string),
 		Exchanger: TxData["exchanger"].(string),
 		Version:   types.WormholesVersion,
@@ -2663,7 +2719,7 @@ func (w *PublicWormholesAPI) OpenExchanger(ctx context.Context, args Transaction
 
 	transaction := types.Wormholes{
 		Type:    11,
-		FeeRate: uint32(TxData["royalty"].(float64)),
+		FeeRate: uint16(TxData["royalty"].(float64)),
 		Name:    TxData["name"].(string),
 		Url:     TxData["url"].(string),
 		Version: types.WormholesVersion,
@@ -2843,7 +2899,7 @@ func (w *PublicWormholesAPI) VoteOfficialNFT(ctx context.Context, args Transacti
 		Dir:        TxData["dir"].(string),
 		StartIndex: TxData["startIndex"].(string),
 		Number:     uint64(TxData["number"].(float64)),
-		Royalty:    uint32(TxData["royalty"].(float64)),
+		Royalty:    uint16(TxData["royalty"].(float64)),
 		Creator:    TxData["creater"].(string),
 		Version:    types.WormholesVersion,
 	}

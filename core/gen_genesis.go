@@ -36,7 +36,7 @@ func (g Genesis) MarshalJSON() ([]byte, error) {
 		Dir string												`json:"dir"`
 		InjectNumber uint64										`json:"inject_number"`
 		StartIndex *big.Int										`json:"start_index"`
-		Royalty uint32											`json:"royalty"`
+		Royalty uint16											`json:"royalty"`
 		Creator string 											`json:"creator"`
 	}
 	var enc Genesis
@@ -98,7 +98,7 @@ func (g *Genesis) UnmarshalJSON(input []byte) error {
 		Dir string												`json:"dir"`
 		InjectNumber uint64										`json:"inject_number"`
 		StartIndex *big.Int										`json:"start_index"`
-		Royalty uint32											`json:"royalty"`
+		Royalty uint16											`json:"royalty"`
 		Creator string 											`json:"creator"`
 	}
 	var dec Genesis

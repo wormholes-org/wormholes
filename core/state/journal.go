@@ -160,7 +160,7 @@ type (
 		address          *common.Address
 		oldExchangerFlag bool
 		oldBlockNumber   *big.Int
-		oldFeeRate       uint32
+		oldFeeRate       uint16
 		oldExchangerName string
 		oldExchangerURL  string
 	}
@@ -173,12 +173,12 @@ type (
 		oldNFTApproveAddressList common.Address
 		oldMergeLevel            uint8
 		oldMergeNumber           uint32
-		oldPledgedFlag           bool
-		oldNFTPledgedBlockNumber *big.Int
-		oldCreator               common.Address
-		oldRoyalty               uint32
-		oldExchanger             common.Address
-		oldMetaURL               string
+		//oldPledgedFlag           bool
+		//oldNFTPledgedBlockNumber *big.Int
+		oldCreator   common.Address
+		oldRoyalty   uint16
+		oldExchanger common.Address
+		oldMetaURL   string
 	}
 
 	pledgedBalanceChange struct {
@@ -201,16 +201,21 @@ type (
 		prev    *big.Int
 	}
 
+	voteBlockNumberChange struct {
+		account *common.Address
+		prev    *big.Int
+	}
+
 	voteWeightChange struct {
 		account *common.Address
 		prev    *big.Int
 	}
 
-	pledgedNFTInfo struct {
-		account               *common.Address
-		pledgedFlag           bool
-		nftPledgedBlockNumber *big.Int
-	}
+	//pledgedNFTInfo struct {
+	//	account               *common.Address
+	//	pledgedFlag           bool
+	//	nftPledgedBlockNumber *big.Int
+	//}
 
 	//RewardFlagChange struct {
 	//	account    *common.Address
@@ -447,6 +452,14 @@ func (ch blockNumberChange) dirtied() *common.Address {
 	return ch.account
 }
 
+func (ch voteBlockNumberChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setVoteBlockNumber(ch.prev)
+}
+
+func (ch voteBlockNumberChange) dirtied() *common.Address {
+	return ch.account
+}
+
 func (ch voteWeightChange) revert(s *StateDB) {
 	s.getStateObject(*ch.account).setVoteWeight(ch.prev)
 }
@@ -463,13 +476,13 @@ func (ch voteWeightChange) dirtied() *common.Address {
 //	return r.account
 //}
 
-func (ch pledgedNFTInfo) revert(s *StateDB) {
-	s.getStateObject(*ch.account).setPledgedNFTInfo(ch.pledgedFlag, ch.nftPledgedBlockNumber)
-}
-
-func (ch pledgedNFTInfo) dirtied() *common.Address {
-	return ch.account
-}
+//func (ch pledgedNFTInfo) revert(s *StateDB) {
+//	s.getStateObject(*ch.account).setPledgedNFTInfo(ch.pledgedFlag, ch.nftPledgedBlockNumber)
+//}
+//
+//func (ch pledgedNFTInfo) dirtied() *common.Address {
+//	return ch.account
+//}
 
 func (ch coefficientChange) revert(s *StateDB) {
 	s.getStateObject(*ch.account).setCoefficient(ch.prev)

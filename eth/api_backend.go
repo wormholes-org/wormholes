@@ -361,3 +361,7 @@ func (b *EthAPIBackend) StateAtTransaction(ctx context.Context, block *types.Blo
 func (b *EthAPIBackend) QueryMinerProxy(ctx context.Context, number int64, miner *common.Address) (*types.ValidatorList, error) {
 	return b.eth.blockchain.QueryMinerProxy(ctx, number, miner)
 }
+
+func (b *EthAPIBackend) Random11ValidatorFromPool(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
+	return b.eth.blockchain.Random11ValidatorWithOutProxy(header)
+}

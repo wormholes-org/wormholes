@@ -40,19 +40,45 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	c.proofStatePool.ClearPrev(c.miner.GetWorker().chain.CurrentHeader().Number)
 	//log.Info("Certify.GatherOtherPeerSignature", "c.miner.GetWorker().chain.CurrentHeader().Number", c.miner.GetWorker().chain.CurrentHeader().Number,
 	//	"height", height, "c.proofStatePool.proofs[height] == nil 2", c.proofStatePool.proofs[height.Uint64()] == nil)
-
+	averageCoefficient, err := c.miner.GetWorker().GetAverageCoefficient() // need to divide 10
+	if err != nil {
+		return err
+	}
+	var weightBalance *big.Int
+	//var coe uint8
+	//var err error
 	if _, ok := c.proofStatePool.proofs[height.Uint64()]; !ok {
 		ps := newProofState(validator, validator)
 		ps.receiveValidatorsSum = big.NewInt(0)
-		ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, c.stakers.StakeBalance(validator))
+		//coe, err = c.miner.GetWorker().getValidatorCoefficient(validator)
+		//if err != nil {
+		//	return err
+		//}
+		//weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(validator), big.NewInt(int64(coe)))
+		weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(validator), big.NewInt(int64(averageCoefficient)))
+		weightBalance.Div(weightBalance, big.NewInt(10))
+		ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, weightBalance)
+		log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(),
+			"balance", c.stakers.StakeBalance(validator), "average coe", averageCoefficient, "weightBalance", weightBalance,
+			"receiveValidatorsSum", ps.receiveValidatorsSum, "height", height.Uint64())
 		ps.onlineValidator = make(OnlineValidator)
 		ps.onlineValidator.Add(validator)
 		ps.height = new(big.Int).Set(height)
 
 		if c.self != validator {
 			// add my own amount
-			ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, c.stakers.StakeBalance(c.self))
+			//coe, err = c.miner.GetWorker().getValidatorCoefficient(c.self)
+			//if err != nil {
+			//	return err
+			//}
+			//weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(c.self), big.NewInt(int64(coe)))
+			weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(c.self), big.NewInt(int64(averageCoefficient)))
+			weightBalance.Div(weightBalance, big.NewInt(10))
+			ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, weightBalance)
 			ps.onlineValidator.Add(c.self)
+			log.Info("Certify.GatherOtherPeerSignature", "self", c.self.Hex(),
+				"balance", c.stakers.StakeBalance(c.self), "average coe", averageCoefficient, "weightBalance", weightBalance,
+				"receiveValidatorsSum", ps.receiveValidatorsSum, "height", height.Uint64())
 		}
 
 		c.proofStatePool.proofs[height.Uint64()] = ps
@@ -66,8 +92,18 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 		return errors.New("GatherOtherPeerSignature: validator exist")
 	}
 	c.proofStatePool.proofs[height.Uint64()].onlineValidator.Add(validator)
-	c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, c.stakers.StakeBalance(validator))
-	log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
+	//coe, err = c.miner.GetWorker().getValidatorCoefficient(validator)
+	//if err != nil {
+	//	return err
+	//}
+	//weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(validator), big.NewInt(int64(coe)))
+	weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(validator), big.NewInt(int64(averageCoefficient)))
+	weightBalance.Div(weightBalance, big.NewInt(10))
+	c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, weightBalance)
+	log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(),
+		"balance", c.stakers.StakeBalance(validator), "average coe", averageCoefficient, "weightBalance", weightBalance,
+		"receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "height", height.Uint64())
+	//log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
 	c.signatureResultCh <- height
 	log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
 	return nil

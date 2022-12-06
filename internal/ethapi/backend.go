@@ -69,6 +69,7 @@ type Backend interface {
 	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
 	SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
 	QueryMinerProxy(ctx context.Context, number int64, addr *common.Address) (*types.ValidatorList, error)
+	Random11ValidatorFromPool(ctx context.Context, header *types.Header) (*types.ValidatorList, error)
 	GetAllStakers(ctx context.Context) *types.StakerList
 
 	// Transaction pool API
@@ -136,7 +137,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Version:   "1.0",
 			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
 			Public:    false,
-		},{
+		}, {
 			Namespace: "erb",
 			Version:   "1.0",
 			Service:   NewPublicWormholesAPI(apiBackend, nonceLock),

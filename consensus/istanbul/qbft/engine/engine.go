@@ -364,11 +364,6 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
 }
 
-func (e *Engine) FinalizeOnlineProofBlk(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
-	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
-}
-
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, validators istanbul.ValidatorSet) (*types.Block, error) {

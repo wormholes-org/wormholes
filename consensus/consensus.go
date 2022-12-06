@@ -132,15 +132,6 @@ type Engine interface {
 	// than one result may also be returned depending on the consensus algorithm.
 	SealforEmptyBlock(chain ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error)
 
-	//
-	SealOnlineProofBlk(chain ChainHeaderReader, block *types.Block, results chan *types.OnlineValidatorList, stop <-chan struct{}) error
-
-	//
-	GossipOnlineProof(chain ChainHeaderReader, block *types.Block) error
-
-	FinalizeOnlineProofBlk(chain ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
-		uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error)
-
 	ConsensusInfo() map[string]interface{}
 }
 

@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
+	"regexp"
 )
 
 type MintDeep struct {
@@ -95,16 +96,16 @@ type PledgedToken struct {
 	ProxyAddress common.Address
 }
 
-var DefaultDir string = "/ipfs/Qme8eCqoj3Csbh96AUuHGYKsC1okUPiEwGNeTVDG2SBLVN"
+var DefaultDir string = "/ipfs/Qmf3xw9rEmsjJdQTV3ZcyF4KfYGtxMkXdNQ8YkVqNmLHY8"
 var DefaultNumber uint64 = 4096
-var DefaultRoyalty uint32 = 1000
+var DefaultRoyalty uint16 = 1000
 var DefaultCreator string = "0x0000000000000000000000000000000000000000"
 
 type InjectedOfficialNFT struct {
 	Dir        string         `json:"dir"`
 	StartIndex *big.Int       `json:"start_index"`
 	Number     uint64         `json:"number"`
-	Royalty    uint32         `json:"royalty"`
+	Royalty    uint16         `json:"royalty"`
 	Creator    string         `json:"creator"`
 	Address    common.Address `json:"address"`
 	VoteWeight *big.Int       `json:"vote_weight"`
@@ -190,10 +191,10 @@ type Wormholes struct {
 	ProxyAddress string `json:"proxy_address,omitempty"`
 	ProxySign    string `json:"proxy_sign,omitempty"`
 	Exchanger    string `json:"exchanger,omitempty"`
-	Royalty      uint32 `json:"royalty,omitempty"`
+	Royalty      uint16 `json:"royalty,omitempty"`
 	MetaURL      string `json:"meta_url,omitempty"`
 	//ApproveAddress string		`json:"approve_address"`
-	FeeRate       uint32           `json:"fee_rate,omitempty"`
+	FeeRate       uint16           `json:"fee_rate,omitempty"`
 	Name          string           `json:"name,omitempty"`
 	Url           string           `json:"url,omitempty"`
 	Dir           string           `json:"dir,omitempty"`
@@ -209,6 +210,7 @@ type Wormholes struct {
 }
 
 const WormholesVersion = "v0.0.1"
+const PattenAddr = "^0x[0-9a-fA-F]{40}$"
 
 //var PattenAddr = "^0[xX][0-9a-fA-F]{40}$"
 //var PattenHex = "^[0-9a-fA-F]+$"
@@ -233,8 +235,8 @@ func (w *Wormholes) CheckFormat() error {
 	case 4:
 	case 5:
 	case 6:
-	case 7:
-	case 8:
+	//case 7:
+	//case 8:
 	case 9:
 	case 10:
 	case 11:
@@ -274,9 +276,31 @@ func (w *Wormholes) CheckFormat() error {
 			return errors.New("dir too long")
 		}
 
+		if len(w.Creator) > 0 {
+			regAddr, err := regexp.Compile(PattenAddr)
+			if err != nil {
+				return err
+			}
+			match := regAddr.MatchString(w.Creator)
+			if !match {
+				return errors.New("invalid creator")
+			}
+		}
+
 	case 24:
 		if len(w.Dir) > 256 {
 			return errors.New("dir too long")
+		}
+
+		if len(w.Creator) > 0 {
+			regAddr, err := regexp.Compile(PattenAddr)
+			if err != nil {
+				return err
+			}
+			match := regAddr.MatchString(w.Creator)
+			if !match {
+				return errors.New("invalid creator")
+			}
 		}
 
 	case 25:
@@ -307,10 +331,10 @@ func (w *Wormholes) TxGas() (uint64, error) {
 		return params.WormholesTx5, nil
 	case 6:
 		return params.WormholesTx6, nil
-	case 7:
-		return params.WormholesTx7, nil
-	case 8:
-		return params.WormholesTx8, nil
+	//case 7:
+	//	return params.WormholesTx7, nil
+	//case 8:
+	//	return params.WormholesTx8, nil
 	case 9:
 		return params.WormholesTx9, nil
 	case 10:
