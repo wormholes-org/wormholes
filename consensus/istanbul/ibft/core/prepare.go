@@ -17,13 +17,14 @@
 package core
 
 import (
-	"time"
-	"reflect"
-
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/miniredis"
+	"reflect"
+	"time"
 )
 
 func (c *core) sendPrepare() {
@@ -31,23 +32,12 @@ func (c *core) sendPrepare() {
 
 	sub := c.current.Subject()
 	encodedSubject, err := ibfttypes.Encode(sub)
-	consensusData := ConsensusData{
-		Height: sub.View.Sequence.String(),
-		Rounds: map[int64]RoundInfo{
-			sub.View.Round.Int64(): {
-				Method:     "sendPrepare",
-				Timestamp:  time.Now().UnixNano(),
-				Sender:     c.address,
-				Sequence:   sub.View.Sequence.Uint64(),
-				Round:      sub.View.Round.Int64(),
-				Hash:       sub.Digest,
-				Miner:	    c.valSet.GetProposer().Address(),
-				Error:      err,
-				IsProposal: c.IsProposer(),
-			},
-		},
+
+	c.currentProcess.Process = "sendPrepare"
+	c.currentProcess.Sender = map[string]string{
+		c.address.Hex(): c.server.NodeInfo().IP + c.server.ListenAddr[4:],
 	}
-	c.SaveData(consensusData)
+
 	if err != nil {
 		logger.Error("Failed to encode", "subject", sub)
 		return
@@ -69,26 +59,32 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 	// Decode PREPARE message
 	var prepare *istanbul.Subject
 	err := msg.Decode(&prepare)
-	roundInfo := RoundInfo{
-		Method:     "handlePrepare",
-		Timestamp:  time.Now().UnixNano(),
-		Sender:	    src.Address(),
-		Receiver:   c.address,
-		Sequence:   prepare.View.Sequence.Uint64(),
-		Round:      prepare.View.Round.Int64(),
-		Hash:       prepare.Digest,
-		Miner:      c.valSet.GetProposer().Address(),
-		Error:	    err,
-		IsProposal: c.IsProposer(),
+	sender := make(map[string]string)
+	receiver := make(map[string]string)
+	if c.address != src.Address() {
+		for _, peer := range c.server.Peers() {
+			if crypto.PubkeyToAddress(*(peer.Node().Pubkey())) == src.Address() {
+				sender[src.Address().Hex()] = peer.Info().Network.RemoteAddress
+				receiver[c.address.Hex()] = peer.Info().Network.LocalAddress
+				break
+			}
+		}
+	} else {
+		ip := c.server.NodeInfo().IP + c.server.ListenAddr[4:]
+		sender[src.Address().Hex()] = ip
+		receiver[src.Address().Hex()] = ip
 	}
 
-	consensusData := ConsensusData{
-		Height: prepare.View.Sequence.String(),
-		Rounds: map[int64]RoundInfo{
-			prepare.View.Round.Int64(): roundInfo,
-		},
-	}
-	c.SaveData(consensusData)
+	c.currentProcess.Timestamp = time.Now().UnixNano()
+	c.currentProcess.Process = "handlePrepare"
+	c.currentProcess.Sender = sender
+	c.currentProcess.Receiver = receiver
+
+	defer func() {
+		miniredis.GetLogCh() <- map[string]interface{}{
+			c.currentProcess.Number: *c.currentProcess,
+		}
+	}()
 	if err != nil {
 		return istanbulcommon.ErrFailedDecodePrepare
 	}
@@ -99,15 +95,7 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 		"hash", prepare.Digest.Hex(),
 		"slef", c.address.Hex())
 
-	err = c.checkMessage(ibfttypes.MsgPrepare, prepare.View)
-	roundInfo.Method = "HandlePrepare checkMessage"
-	roundInfo.Timestamp = time.Now().UnixNano()
-	roundInfo.Error = err
-	consensusData.Rounds = map[int64]RoundInfo{
-                        prepare.View.Round.Int64(): roundInfo,
-                }
-	c.SaveData(consensusData)
-	if err != nil {
+	if err = c.checkMessage(ibfttypes.MsgPrepare, prepare.View); err != nil {
 		log.Error("ibftConsensus: handlePrepare checkMessage",
 			"no", prepare.View.Sequence,
 			"round", prepare.View.Round,
@@ -121,15 +109,7 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 
 	// If it is locked, it can only process on the locked block.
 	// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepared state.
-	err = c.verifyPrepare(prepare, src)
-	roundInfo.Method = "handlePrepare verify"
-	roundInfo.Timestamp = time.Now().UnixNano()
-	roundInfo.Error = err
-	consensusData.Rounds = map[int64]RoundInfo{
-                        prepare.View.Round.Int64(): roundInfo,
-                }
-	c.SaveData(consensusData)
-	if err != nil {
+	if err = c.verifyPrepare(prepare, src); err != nil {
 		log.Info("ibftConsensus: handlePrepare verifyPrepare",
 			"no", prepare.View.Sequence,
 			"round", prepare.View.Round.String(),

@@ -2,8 +2,8 @@ package miniredis
 
 import (
 	"encoding/json"
-	"regexp"
 	"github.com/go-redis/redis/v7"
+	"regexp"
 )
 
 // Ethereum interface
@@ -12,10 +12,10 @@ type Ethereum interface {
 }
 
 var (
-	eth Ethereum
+	eth       Ethereum
 	addr      = "127.0.0.1:6379"
 	client    *redis.Client
-	client1    *redis.Client
+	client1   *redis.Client
 	logCh     = make(chan map[string]interface{}, 1000)
 	nodiscard = false
 	// save ip

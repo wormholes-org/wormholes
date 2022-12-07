@@ -227,7 +227,7 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime //Quorum
 		config.Istanbul.TestQBFTBlock = chainConfig.Istanbul.TestQBFTBlock
 
-		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
+		return istanbulBackend.New(&config.Istanbul, stack, db)
 	}
 	// Otherwise assume proof-of-work
 	switch config.Ethash.PowMode {

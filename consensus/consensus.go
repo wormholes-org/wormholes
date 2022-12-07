@@ -132,7 +132,7 @@ type Engine interface {
 	// than one result may also be returned depending on the consensus algorithm.
 	SealforEmptyBlock(chain ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error)
 
-	ConsensusInfo() map[string]interface{}
+	ConsensusInfo() interface{}
 }
 
 // Handler should be implemented is the consensus needs to handle and send peer's message

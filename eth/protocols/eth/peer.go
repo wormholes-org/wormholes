@@ -545,6 +545,10 @@ func (p *Peer) RequestTxs(hashes []common.Hash) error {
 	return p2p.Send(p.rw, GetPooledTransactionsMsg, GetPooledTransactionsPacket(hashes))
 }
 
+func (p *Peer) NodeInfo() interface{} {
+	return p.Peer.Info()
+}
+
 // SendConsensus Used to send consensus subprotocol messages from an "eth" peer, e.g.  "istanbul/100" subprotocol messages.
 func (p *Peer) SendConsensus(msgcode uint64, data interface{}) error {
 	//if p.consensusRw == nil {

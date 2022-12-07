@@ -19,6 +19,7 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/node"
 	"math/big"
 	"reflect"
 	"testing"
@@ -34,7 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
@@ -42,7 +42,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	memDB := rawdb.NewMemoryDatabase()
 
 	// Use the first key as private key
-	backend := New(cfg, nodeKeys[0], memDB)
+	backend := New(cfg, &node.Node{}, memDB)
 
 	backend.qbftConsensusEnabled = backend.IsQBFTConsensus()
 	genesis.MustCommit(memDB)
@@ -52,8 +52,6 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 		panic(err)
 	}
 
-	prikey, _ := crypto.HexToECDSA("f616c4d20311a2e73c67ef334630f834b7fb42304a1d4448fb2058e9940ecc0a")
-	backend.privateKey = prikey
 	backend.Start(blockchain, blockchain.CurrentBlock, rawdb.HasBadBlock)
 
 	return blockchain, backend

@@ -33,6 +33,7 @@ func (c *core) handleFinalCommitted() error {
 		go c.startNewRound(common.Big0)
 	} else {
 		log.Info("handleFinalCommitted: startNewRound")
+		c.currentProcess.Miner = c.valSet.GetProposer().Address().Hex()
 		c.startNewRound(common.Big0)
 	}
 	return nil

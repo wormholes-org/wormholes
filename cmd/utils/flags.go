@@ -1699,9 +1699,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		SetDNSDiscoveryDefaults(cfg, params.DevNetGenesisHash)
 
 	default:
-		if cfg.NetworkId == 1 {
-			SetDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)
-		}
+		//if cfg.NetworkId == 1 {
+		SetDNSDiscoveryDefaults(cfg, common.Hash{})
+		//}
 	}
 }
 

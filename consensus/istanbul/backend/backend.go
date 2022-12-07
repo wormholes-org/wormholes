@@ -17,13 +17,8 @@
 package backend
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"math/big"
-	"sync"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -41,7 +36,14 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miniredis"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
+	"math/big"
+	"reflect"
+	"sync"
+	"time"
+	"unsafe"
 )
 
 const (
@@ -50,7 +52,7 @@ const (
 )
 
 // New creates an Ethereum backend for Istanbul core engine.
-func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) *Backend {
+func New(config *istanbul.Config, node *node.Node, db ethdb.Database) *Backend {
 	// Allocate the snapshot caches and create the engine
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	recentMessages, _ := lru.NewARC(inmemoryPeers)
@@ -58,9 +60,9 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 
 	sb := &Backend{
 		config:           config,
+		server:           node.Server(),
 		istanbulEventMux: new(event.TypeMux),
-		privateKey:       privateKey,
-		address:          crypto.PubkeyToAddress(privateKey.PublicKey),
+		address:          crypto.PubkeyToAddress(node.GetNodeKey().PublicKey),
 		logger:           log.New(),
 		db:               db,
 		commitCh:         make(chan *types.Block, 1),
@@ -83,8 +85,9 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 type Backend struct {
 	config *istanbul.Config
 
-	privateKey *ecdsa.PrivateKey
-	address    common.Address
+	server *p2p.Server
+
+	address common.Address
 
 	core istanbul.Core
 
@@ -188,6 +191,7 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 		}
 	}
 	log.Info("carver|Gossip|len(targets)", "len", len(targets), "sb.broadcaster != nil", sb.broadcaster != nil)
+	to := make(map[string]string)
 	if sb.broadcaster != nil && len(targets) > 0 {
 		ps := sb.broadcaster.FindPeers(targets)
 		log.Info("carver|Gossip|len(ps)", "len", len(ps), "code", code)
@@ -218,8 +222,18 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 				}
 				go p.SendQBFTConsensus(outboundCode, payload)
 			} else {
+				np := p.NodeInfo().(*p2p.PeerInfo)
+				to[addr.Hex()] = np.Network.RemoteAddress
 				go p.SendConsensus(istanbulMsg, payload)
 			}
+		}
+	}
+
+	if to != nil {
+		csv := reflect.ValueOf(sb.core.ConsensusInfo()).Elem()
+		*(*map[string]string)(unsafe.Pointer(csv.Field(9).Addr().Pointer())) = to
+		miniredis.GetLogCh() <- map[string]interface{}{
+			csv.Field(0).String(): csv.Interface(),
 		}
 	}
 	return nil
@@ -321,12 +335,12 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 // Sign implements istanbul.Backend.Sign
 func (sb *Backend) Sign(data []byte) ([]byte, error) {
 	hashData := crypto.Keccak256(data)
-	return crypto.Sign(hashData, sb.privateKey)
+	return crypto.Sign(hashData, sb.server.PrivateKey)
 }
 
 // SignWithoutHashing implements istanbul.Backend.SignWithoutHashing and signs input data with the backend's private key without hashing the input data
 func (sb *Backend) SignWithoutHashing(data []byte) ([]byte, error) {
-	return crypto.Sign(data, sb.privateKey)
+	return crypto.Sign(data, sb.server.PrivateKey)
 }
 
 // CheckSignature implements istanbul.Backend.CheckSignature
@@ -440,7 +454,7 @@ func (sb *Backend) startIBFT() error {
 	sb.qbftConsensusEnabled = false
 
 	//sb.core = ibftcore.New(sb, sb.config)
-	sb.core = ibftcore.NewCore(sb, sb.config, sb.ValidatorExist)
+	sb.core = ibftcore.NewCore(sb, sb.server, sb.config, sb.ValidatorExist)
 	if err := sb.core.Start(); err != nil {
 		sb.logger.Error("BFT: failed to activate IBFT", "err", err)
 		return err

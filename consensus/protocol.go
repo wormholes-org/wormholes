@@ -70,6 +70,7 @@ type Broadcaster interface {
 
 // Peer defines the interface to communicate with peer
 type Peer interface {
+	NodeInfo() interface{}
 	// Send sends the message to this peer
 	Send(msgcode uint64, data interface{}) error
 

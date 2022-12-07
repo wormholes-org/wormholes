@@ -17,6 +17,8 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/miniredis"
 	"strconv"
 	"time"
 
@@ -42,24 +44,6 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			Proposal: request.Proposal,
 		})
 
-		consensusData := ConsensusData{
-			Height: curView.Sequence.String(),
-			Rounds: map[int64]RoundInfo{
-				curView.Round.Int64(): {
-					Method:     "sendPreprepare",
-					Timestamp:  time.Now().UnixNano(),
-					Sender:     c.address,
-					Sequence:   curView.Sequence.Uint64(),
-					Round:      curView.Round.Int64(),
-					Hash:       request.Proposal.Hash(),
-					Miner:      c.valSet.GetProposer().Address(),
-					Error:      err,
-					IsProposal: c.IsProposer(),
-				},
-			},
-		}
-		c.SaveData(consensusData)
-
 		if err != nil {
 			logger.Error("Failed to encode", "view", curView)
 			return
@@ -71,6 +55,12 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			"hash", request.Proposal.Hash().Hex(),
 			"self", c.address.Hex())
 
+		c.currentProcess.Process = "sendPreprepare"
+		c.currentProcess.Hash = request.Proposal.Hash().Hex()
+		c.currentProcess.Sender = map[string]string{
+			c.address.Hex(): c.server.NodeInfo().IP + c.server.ListenAddr[4:],
+		}
+
 		c.broadcast(&ibfttypes.Message{
 			Code: ibfttypes.MsgPreprepare,
 			Msg:  preprepare,
@@ -80,31 +70,36 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 
 func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
-
 	// Decode PRE-PREPARE
 	var preprepare *istanbul.Preprepare
 	err := msg.Decode(&preprepare)
-	roundInfo := RoundInfo{
-		Method:     "handlePreprepare",
-		Timestamp:  time.Now().UnixNano(),
-		Sender:	    src.Address(),
-		Receiver:   c.address,
-		Sequence:   preprepare.View.Sequence.Uint64(),
-		Round:      preprepare.View.Round.Int64(),
-		Hash:       preprepare.Proposal.Hash(),
-		Miner:      c.valSet.GetProposer().Address(),
-		Error:	    err,
-		IsProposal: c.IsProposer(),
+	sender := make(map[string]string)
+	receiver := make(map[string]string)
+	if c.address != src.Address() {
+		for _, peer := range c.server.Peers() {
+			if crypto.PubkeyToAddress(*(peer.Node().Pubkey())) == src.Address() {
+				sender[src.Address().Hex()] = peer.Info().Network.RemoteAddress
+				receiver[c.address.Hex()] = peer.Info().Network.LocalAddress
+				break
+			}
+		}
+	} else {
+		ip := c.server.NodeInfo().IP + c.server.ListenAddr[4:]
+		sender[src.Address().Hex()] = ip
+		receiver[src.Address().Hex()] = ip
 	}
 
-	consensusData := ConsensusData{
-		Height: preprepare.View.Sequence.String(),
-		Rounds: map[int64]RoundInfo{
-			preprepare.View.Round.Int64(): roundInfo,
-		},
-	}
-	c.SaveData(consensusData)
+	c.currentProcess.Timestamp = time.Now().UnixNano()
+	c.currentProcess.Process = "handlePreprepare"
+	c.currentProcess.Sender = sender
+	c.currentProcess.Receiver = receiver
 
+	defer func() {
+		miniredis.GetLogCh() <- map[string]interface{}{
+			c.currentProcess.Number: *c.currentProcess,
+		}
+	}()
+	log.Info("handle preprepare", "num", c.currentProcess.Number, "info", *c.currentProcess)
 	if err != nil {
 		return istanbulcommon.ErrFailedDecodePreprepare
 	}
@@ -119,15 +114,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 
 	// Ensure we have the same view with the PRE-PREPARE message
 	// If it is old message, see if we need to broadcast COMMIT
-	err = c.checkMessage(ibfttypes.MsgPreprepare, preprepare.View)
-	roundInfo.Method = "handlePreprepare checkMessage"
-	roundInfo.Timestamp = time.Now().UnixNano()
-	roundInfo.Error = err
-	consensusData.Rounds = map[int64]RoundInfo{
-                        preprepare.View.Round.Int64(): roundInfo,
-                }
-	c.SaveData(consensusData)
-	if err != nil {
+	if err = c.checkMessage(ibfttypes.MsgPreprepare, preprepare.View); err != nil {
 		log.Error("ibftConsensus: handlePreprepare checkMessage",
 			"no", preprepare.Proposal.Number().Uint64(),
 			"round", preprepare.View.Round.String(),
@@ -180,15 +167,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 	// } else {
 
 	// }
-	duration, err := c.backend.Verify(preprepare.Proposal)
-	roundInfo.Method = "handlePreprepare verify"
-        roundInfo.Timestamp = time.Now().UnixNano()
-        roundInfo.Error = err
-	consensusData.Rounds = map[int64]RoundInfo{
-                        preprepare.View.Round.Int64(): roundInfo,
-                }
-        c.SaveData(consensusData)
-	if err != nil {
+	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
 		// if it's a future block, we will handle it again after the duration
 		if err == consensus.ErrFutureBlock {
 			logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)

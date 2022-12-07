@@ -764,6 +764,6 @@ func (c *Clique) Protocol() consensus.Protocol {
 	return consensus.CliqueProtocol
 }
 
-func (c *Clique) ConsensusInfo() map[string]interface{} {
+func (c *Clique) ConsensusInfo() interface{} {
 	return nil
 }

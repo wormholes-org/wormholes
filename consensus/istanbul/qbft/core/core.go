@@ -286,6 +286,6 @@ func (c *core) RoundInfo() []string {
 	return nil
 }
 
-func (c *core) ConsensusInfo() chan map[string]interface{} {
+func (c *core) ConsensusInfo() interface{} {
 	return nil
 }

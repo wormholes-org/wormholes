@@ -19,5 +19,5 @@ type Core interface {
 
 	RoundInfo() []string
 
-	ConsensusInfo() chan map[string]interface{}
+	ConsensusInfo() interface{}
 }

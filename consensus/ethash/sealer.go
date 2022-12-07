@@ -457,6 +457,6 @@ func (s *remoteSealer) submitWork(nonce types.BlockNonce, mixDigest common.Hash,
 	return false
 }
 
-func (ethash *Ethash) ConsensusInfo() map[string]interface{} {
+func (ethash *Ethash) ConsensusInfo() interface{} {
 	return nil
 }

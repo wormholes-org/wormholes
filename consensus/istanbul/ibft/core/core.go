@@ -18,6 +18,7 @@ package core
 
 import (
 	"bytes"
+	"github.com/ethereum/go-ethereum/p2p"
 	"math"
 	"math/big"
 	"sync"
@@ -30,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	metrics "github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/miniredis"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -38,7 +38,6 @@ var (
 	roundMeter     = metrics.NewRegisteredMeter("consensus/istanbul/core/round", nil)
 	sequenceMeter  = metrics.NewRegisteredMeter("consensus/istanbul/core/sequence", nil)
 	consensusTimer = metrics.NewRegisteredTimer("consensus/istanbul/core/consensus", nil)
-	consensusInfo  = make(chan map[string]interface{}, 1)
 )
 
 // New creates an Istanbul consensus core
@@ -62,9 +61,10 @@ func New(backend istanbul.Backend, config *istanbul.Config) *core {
 }
 
 // NewCore creates an Istanbul consensus core
-func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(common.Address) (bool, error)) *core {
+func NewCore(backend istanbul.Backend, server *p2p.Server, config *istanbul.Config, vExistFn func(common.Address) (bool, error)) *core {
 	c := &core{
 		config:             config,
+		server:             server,
 		address:            backend.Address(),
 		state:              ibfttypes.StateAcceptRequest,
 		handlerWg:          new(sync.WaitGroup),
@@ -87,6 +87,7 @@ func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(co
 
 type core struct {
 	config  *istanbul.Config
+	server  *p2p.Server
 	address common.Address
 	state   ibfttypes.State
 	logger  log.Logger
@@ -116,33 +117,21 @@ type core struct {
 
 	consensusTimestamp time.Time
 	commitHeight       uint64
+	currentProcess     *consensusDetail
 }
 
-type ConsensusData struct {
-	Height     string           `json:"height"`
-	Validators []common.Address `json:"validators,omitempty"`
-	//	OnlineValidators map[common.Address]OnlineValidatorDetail     `json:"online_validators,omitempty"`
-	Rounds map[int64]RoundInfo `json:"rounds,omitempty"`
-}
-
-//type OnlineValidatorDetail struct {
-//	Timestamp  string                    `json:"timestamp"`
-//	Count      int                       `json:"count"`
-//	Validators []*types.OnlineValidator  `json:"validators"`
-//}
-
-type RoundInfo struct {
-	Owner      common.Address `json:"owner,omitempty"`
-	Method     string         `json:"method,omitempty"`
-	Timestamp  int64          `json:"timestamp,omitempty"`
-	Sender     common.Address `json:"sender,omitempty"`
-	Receiver   common.Address `json:"receiver,omitempty"`
-	Sequence   uint64         `json:"sequence,omitempty"`
-	Round      int64          `json:"round,omitempty"`
-	Hash       common.Hash    `json:"hash,omitempty"`
-	Miner      common.Address `json:"miner,omitempty"`
-	Error      error          `json:"error,omitempty"`
-	IsProposal bool           `json:"is_proposal,omitempty"`
+type consensusDetail struct {
+	Number     string
+	Hash       string
+	Author     string
+	Validator  []common.Address
+	Round      string
+	Miner      string
+	Timestamp  int64
+	Process    string
+	Sender     map[string]string
+	Receiver   map[string]string
+	IsProposal bool
 }
 
 func (c *core) finalizeMessage(msg *ibfttypes.Message) ([]byte, error) {
@@ -228,23 +217,6 @@ func (c *core) commit() {
 		log.Info("ibftConsensus: commit baseInfo", "no", c.currentView().Sequence, "round", c.currentView().Round)
 
 		err := c.backend.Commit(proposal, committedSeals, big.NewInt(-1))
-		consensusData := ConsensusData{
-			Height: c.currentView().Sequence.String(),
-			Rounds: map[int64]RoundInfo{
-				c.currentView().Round.Int64(): {
-					Method:     "commit",
-					Timestamp:  time.Now().UnixNano(),
-					Sender:     c.address,
-					Sequence:   c.currentView().Sequence.Uint64(),
-					Round:      c.currentView().Round.Int64(),
-					Hash:       proposal.Hash(),
-					Miner:      c.valSet.GetProposer().Address(),
-					Error:      err,
-					IsProposal: c.IsProposer(),
-				},
-			},
-		}
-		c.SaveData(consensusData)
 		if err != nil {
 			c.current.UnlockHash() //Unlock block when insertion fails
 			log.Error("ibftConsensus: commit sendNextRoundChange", "no", c.currentView().Sequence, "round", c.currentView().Round,
@@ -348,26 +320,24 @@ func (c *core) startNewRound(round *big.Int) {
 		)
 	}
 
-	consensusData := ConsensusData{
-		Height:     newView.Sequence.String(),
-		Validators: c.valSet.ListAll(),
+	c.currentProcess = &consensusDetail{
+		newView.Sequence.String(),
+		"",
+		c.address.Hex(),
+		c.valSet.ListAll(),
+		newView.Round.String(),
+		c.valSet.GetProposer().Address().Hex(),
+		time.Now().UnixNano(),
+		"startNewRound",
+		map[string]string{},
+		map[string]string{},
+		c.valSet.IsProposer(c.address),
 	}
-	c.SaveData(consensusData)
-
-	if len(consensusInfo) > 0 {
-		<-consensusInfo
-	}
-	data := make(map[string]interface{})
-	data["no"] = newView.Sequence.String()
-	data["hash"] = c.valSet.GetProposer().Address().Hex()
-	data["author"] = c.address.Hex()
-	data["round"] = newView.Round.String()
-	data["validator"] = c.valSet.ListAll()
-	consensusInfo <- data
 
 	c.waitingForRoundChange = false
 
 	c.setState(ibfttypes.StateAcceptRequest)
+
 	if roundChange && c.IsProposer() && c.current != nil {
 		// If it is locked, propose the old proposal
 		// If we have pending request, propose pending request
@@ -487,12 +457,6 @@ func (c *core) RoundInfo() (roundInfo []string) {
 	return
 }
 
-func (c *core) ConsensusInfo() chan map[string]interface{} {
-	return consensusInfo
-}
-
-func (c *core) SaveData(msg ConsensusData) {
-	miniredis.GetLogCh() <- map[string]interface{}{
-		msg.Height: msg,
-	}
+func (c *core) ConsensusInfo() interface{} {
+	return c.currentProcess
 }

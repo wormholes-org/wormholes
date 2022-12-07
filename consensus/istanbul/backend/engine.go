@@ -671,15 +671,10 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	return nil
 }
 
-func (sb *Backend) ConsensusInfo() map[string]interface{} {
+func (sb *Backend) ConsensusInfo() interface{} {
 	ibftCore := sb.GetCore()
 	if ibftCore != nil {
-		data := ibftCore.ConsensusInfo()
-		if len(data) > 0 {
-			return <-data
-		} else {
-			return nil
-		}
+		return ibftCore.ConsensusInfo()
 	}
 	return nil
 }
