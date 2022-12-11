@@ -132,7 +132,7 @@ func (sl *StakerList) TotalStakeBalance() *big.Int {
 // Returns the amount of the staked node
 func (sl *StakerList) StakeBalance(address common.Address) *big.Int {
 	for _, st := range sl.Stakers {
-		if st.Address().Hex() != address.Hex() {
+		if st.Address() != address {
 			continue
 		}
 		return st.Balance
