@@ -18,7 +18,6 @@ package eth
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"time"
 
@@ -226,7 +225,7 @@ func handleMessage(backend Backend, peer *Peer) error {
 
 	var handlers = eth65
 	if peer.Version() >= ETH66 {
-		log.Info("eth66")
+		//log.Info("eth66")
 		handlers = eth66
 	}
 	// Track the amount of time it takes to serve the request and run the handler

@@ -351,8 +351,8 @@ func (p *Peer) handle(msg Msg) error {
 		}
 		select {
 		case proto.in <- msg:
-			log.Info("Peer.handle()", "msg.Code", msg.Code, "proto.offset", proto.offset,
-				"peer.id", p.ID().String())
+			//log.Info("Peer.handle()", "msg.Code", msg.Code, "proto.offset", proto.offset,
+			//	"peer.id", p.ID().String())
 			return nil
 		case <-p.closed:
 			return io.EOF
