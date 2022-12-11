@@ -42,24 +42,6 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			Proposal: request.Proposal,
 		})
 
-		consensusData := ConsensusData{
-			Height: curView.Sequence.String(),
-			Rounds: map[int64]RoundInfo{
-				curView.Round.Int64(): {
-					Method:     "sendPreprepare",
-					Timestamp:  time.Now().UnixNano(),
-					Sender:     c.address,
-					Sequence:   curView.Sequence.Uint64(),
-					Round:      curView.Round.Int64(),
-					Hash:       request.Proposal.Hash(),
-					Miner:      c.valSet.GetProposer().Address(),
-					Error:      err,
-					IsProposal: c.IsProposer(),
-				},
-			},
-		}
-		c.SaveData(consensusData)
-
 		if err != nil {
 			logger.Error("Failed to encode", "view", curView)
 			return
@@ -107,27 +89,6 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 	// Decode PRE-PREPARE
 	var preprepare *istanbul.Preprepare
 	err := msg.Decode(&preprepare)
-	roundInfo := RoundInfo{
-		Method:     "handlePreprepare",
-		Timestamp:  time.Now().UnixNano(),
-		Sender:     src.Address(),
-		Receiver:   c.address,
-		Sequence:   preprepare.View.Sequence.Uint64(),
-		Round:      preprepare.View.Round.Int64(),
-		Hash:       preprepare.Proposal.Hash(),
-		Miner:      c.valSet.GetProposer().Address(),
-		Error:      err,
-		IsProposal: c.IsProposer(),
-	}
-
-	consensusData := ConsensusData{
-		Height: preprepare.View.Sequence.String(),
-		Rounds: map[int64]RoundInfo{
-			preprepare.View.Round.Int64(): roundInfo,
-		},
-	}
-	c.SaveData(consensusData)
-
 	if err != nil {
 		return istanbulcommon.ErrFailedDecodePreprepare
 	}
@@ -142,15 +103,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 
 	// Ensure we have the same view with the PRE-PREPARE message
 	// If it is old message, see if we need to broadcast COMMIT
-	err = c.checkMessage(ibfttypes.MsgPreprepare, preprepare.View)
-	roundInfo.Method = "handlePreprepare checkMessage"
-	roundInfo.Timestamp = time.Now().UnixNano()
-	roundInfo.Error = err
-	consensusData.Rounds = map[int64]RoundInfo{
-		preprepare.View.Round.Int64(): roundInfo,
-	}
-	c.SaveData(consensusData)
-	if err != nil {
+	if err = c.checkMessage(ibfttypes.MsgPreprepare, preprepare.View); err != nil {
 		log.Error("ibftConsensus: handlePreprepare checkMessage",
 			"no", preprepare.Proposal.Number().Uint64(),
 			"round", preprepare.View.Round.String(),
@@ -203,15 +156,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 	// } else {
 
 	// }
-	duration, err := c.backend.Verify(preprepare.Proposal)
-	roundInfo.Method = "handlePreprepare verify"
-	roundInfo.Timestamp = time.Now().UnixNano()
-	roundInfo.Error = err
-	consensusData.Rounds = map[int64]RoundInfo{
-		preprepare.View.Round.Int64(): roundInfo,
-	}
-	c.SaveData(consensusData)
-	if err != nil {
+	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
 		// if it's a future block, we will handle it again after the duration
 		if err == consensus.ErrFutureBlock {
 			logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)

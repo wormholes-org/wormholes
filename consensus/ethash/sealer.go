@@ -456,7 +456,3 @@ func (s *remoteSealer) submitWork(nonce types.BlockNonce, mixDigest common.Hash,
 	s.ethash.config.Log.Warn("Work submitted is too old", "number", solution.NumberU64(), "sealhash", sealhash, "hash", solution.Hash())
 	return false
 }
-
-func (ethash *Ethash) ConsensusInfo() map[string]interface{} {
-	return nil
-}

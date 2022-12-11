@@ -18,6 +18,4 @@ type Core interface {
 	IsCurrentProposal(blockHash common.Hash) bool
 
 	RoundInfo() []string
-
-	ConsensusInfo() chan map[string]interface{}
 }
