@@ -187,10 +187,10 @@ func (sb *Backend) Gossip(valSet istanbul.ValidatorSet, code uint64, payload []b
 			targets[val.Address()] = true
 		}
 	}
-	log.Info("carver|Gossip|len(targets)", "len", len(targets), "sb.broadcaster != nil", sb.broadcaster != nil)
+	//log.Info("carver|Gossip|len(targets)", "len", len(targets), "sb.broadcaster != nil", sb.broadcaster != nil)
 	if sb.broadcaster != nil && len(targets) > 0 {
 		ps := sb.broadcaster.FindPeers(targets)
-		log.Info("carver|Gossip|len(ps)", "len", len(ps), "code", code)
+		//log.Info("carver|Gossip|len(ps)", "len", len(ps), "code", code)
 		for addr, p := range ps {
 			ms, ok := sb.recentMessages.Get(addr)
 			var m *lru.ARCCache

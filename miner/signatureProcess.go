@@ -8,7 +8,7 @@ import (
 )
 
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
-	log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
+	//log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
 	ques := &SignatureData{
 		Address: addr,
 		Height:  height,
@@ -29,7 +29,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	log.Info("Certify.GatherOtherPeerSignature >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	//log.Info("Certify.GatherOtherPeerSignature >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
 	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) >= 0 {
 		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
@@ -58,9 +58,9 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 		weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(validator), big.NewInt(int64(averageCoefficient)))
 		weightBalance.Div(weightBalance, big.NewInt(10))
 		ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, weightBalance)
-		log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(),
-			"balance", c.stakers.StakeBalance(validator), "average coe", averageCoefficient, "weightBalance", weightBalance,
-			"receiveValidatorsSum", ps.receiveValidatorsSum, "height", height.Uint64())
+		//log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(),
+		//	"balance", c.stakers.StakeBalance(validator), "average coe", averageCoefficient, "weightBalance", weightBalance,
+		//	"receiveValidatorsSum", ps.receiveValidatorsSum, "height", height.Uint64())
 		ps.onlineValidator = make(OnlineValidator)
 		ps.onlineValidator.Add(validator)
 		ps.height = new(big.Int).Set(height)
@@ -76,14 +76,14 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 			weightBalance.Div(weightBalance, big.NewInt(10))
 			ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, weightBalance)
 			ps.onlineValidator.Add(c.self)
-			log.Info("Certify.GatherOtherPeerSignature", "self", c.self.Hex(),
-				"balance", c.stakers.StakeBalance(c.self), "average coe", averageCoefficient, "weightBalance", weightBalance,
-				"receiveValidatorsSum", ps.receiveValidatorsSum, "height", height.Uint64())
+			//log.Info("Certify.GatherOtherPeerSignature", "self", c.self.Hex(),
+			//	"balance", c.stakers.StakeBalance(c.self), "average coe", averageCoefficient, "weightBalance", weightBalance,
+			//	"receiveValidatorsSum", ps.receiveValidatorsSum, "height", height.Uint64())
 		}
 
 		c.proofStatePool.proofs[height.Uint64()] = ps
 		c.signatureResultCh <- height
-		log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 1")
+		//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 1")
 		return nil
 	}
 
@@ -100,11 +100,11 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(validator), big.NewInt(int64(averageCoefficient)))
 	weightBalance.Div(weightBalance, big.NewInt(10))
 	c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, weightBalance)
-	log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(),
-		"balance", c.stakers.StakeBalance(validator), "average coe", averageCoefficient, "weightBalance", weightBalance,
-		"receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "height", height.Uint64())
+	//log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(),
+	//	"balance", c.stakers.StakeBalance(validator), "average coe", averageCoefficient, "weightBalance", weightBalance,
+	//	"receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "height", height.Uint64())
 	//log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
 	c.signatureResultCh <- height
-	log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
+	//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
 	return nil
 }
