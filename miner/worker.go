@@ -434,12 +434,12 @@ func (w *worker) emptyLoop() {
 			w.emptyTimer.Reset(120 * time.Second)
 
 		case <-checkTimer.C:
-			log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
+			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
 			if !w.isEmpty {
 				continue
 			}
-			log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
+			//log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
 			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
@@ -452,7 +452,7 @@ func (w *worker) emptyLoop() {
 				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
-					log.Info("!w.isRunning()", "w.isRunning()", w.isRunning())
+					//log.Info("!w.isRunning()", "w.isRunning()", w.isRunning())
 					continue
 				}
 				if w.isEmpty {
@@ -466,14 +466,14 @@ func (w *worker) emptyLoop() {
 				curTime := time.Now().Unix()
 				curBlock := w.chain.CurrentBlock()
 				if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
-					log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					//log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
-					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					//log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
-				log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
 
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				if err != nil {
@@ -499,7 +499,7 @@ func (w *worker) emptyLoop() {
 				}
 				err = w.mux.Post(EmptyEvent)
 				if err != nil {
-					log.Error("emptyTimer.C : post empty event", "err", err)
+					//log.Error("emptyTimer.C : post empty event", "err", err)
 					continue
 				}
 				time.Sleep(10 * time.Second)
@@ -517,7 +517,7 @@ func (w *worker) emptyLoop() {
 
 				totalWeightBalance, err := w.targetSizeWithWeight()
 				if err != nil {
-					log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
+					//log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
 				w.targetWeightBalance = totalWeightBalance
@@ -536,15 +536,15 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				//log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
 				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
-					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					//log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
-						log.Info("emptyLoop.start produce empty block", "time", time.Now())
+						//log.Info("emptyLoop.start produce empty block", "time", time.Now())
 						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
-							log.Error("emptyLoop.commitEmptyWork error", "err", err)
+							//log.Error("emptyLoop.commitEmptyWork error", "err", err)
 						} else {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
@@ -1599,12 +1599,12 @@ func (w *worker) targetSizeWithWeight() (*big.Int, error) {
 	}
 	var voteBalance *big.Int
 	var coe uint8
-	log.Info("targetSizeWithWeight:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
+	//log.Info("targetSizeWithWeight:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
 	for _, voter := range w.cerytify.stakers.Validators {
 		coe = currentState.GetValidatorCoefficient(voter.Addr)
 		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
 		total.Add(total, voteBalance)
-		log.Info("targetSizeWithWeight:info", "height", w.chain.CurrentBlock().NumberU64()+1, "coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total)
+		//log.Info("targetSizeWithWeight:info", "height", w.chain.CurrentBlock().NumberU64()+1, "coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total)
 	}
 	a := new(big.Int).Mul(big.NewInt(50), total)
 	b := new(big.Int).Div(a, big.NewInt(100))
@@ -1617,7 +1617,7 @@ func (w *worker) getValidatorCoefficient(address common.Address) (uint8, error) 
 		return 0, err
 	}
 	validatorAddress := w.cerytify.stakers.GetValidatorAddr(address)
-	log.Info("worker.getValidatorCoefficient", "address", address.Hex(), "validator address", validatorAddress.Hex())
+	//log.Info("worker.getValidatorCoefficient", "address", address.Hex(), "validator address", validatorAddress.Hex())
 	coe := currentState.GetValidatorCoefficient(validatorAddress)
 	return coe, nil
 }
@@ -1632,23 +1632,23 @@ func (w *worker) GetAverageCoefficient() (uint64, error) {
 	var voteBalance *big.Int
 	var maxVoteBalance *big.Int
 	var coe uint8
-	log.Info("GetAverageCoefficient:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
+	//log.Info("GetAverageCoefficient:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
 	for _, voter := range w.cerytify.stakers.Validators {
 		coe = currentState.GetValidatorCoefficient(voter.Addr)
 		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
 		total.Add(total, voteBalance)
 		maxVoteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
 		maxTotal.Add(maxTotal, maxVoteBalance)
-		log.Info("GetAverageCoefficient:info", "height", w.chain.CurrentBlock().NumberU64()+1,
-			"coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total,
-			"maxVoteBalance", maxVoteBalance, "maxTotal", maxTotal)
+		//log.Info("GetAverageCoefficient:info", "height", w.chain.CurrentBlock().NumberU64()+1,
+		//	"coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total,
+		//	"maxVoteBalance", maxVoteBalance, "maxTotal", maxTotal)
 	}
 
 	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
 	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(types.DEFAULT_VALIDATOR_COEFFICIENT))
 	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
-	log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
-		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe, "height", w.chain.CurrentBlock().NumberU64()+1)
+	//log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
+	//	"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe, "height", w.chain.CurrentBlock().NumberU64()+1)
 	return averageCoe, nil
 }
 
