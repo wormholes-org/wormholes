@@ -78,6 +78,29 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 	}
 }
 
+func (c *core) simpleCheckPreprepare(msg *ibfttypes.Message, _ istanbul.Validator) error {
+	var preprepare *istanbul.Preprepare
+	err := msg.Decode(&preprepare)
+	if err != nil {
+		return err
+	}
+	if preprepare.Proposal.Number().Uint64() < c.backend.CurrentNumber() {
+		return istanbulcommon.ErrOldMessage
+	}
+	return nil
+}
+
+func (c *core) simpleCheckSubject(msg *ibfttypes.Message, _ istanbul.Validator) error {
+	var rc *istanbul.Subject
+	if err := msg.Decode(&rc); err != nil {
+		return err
+	}
+	if rc.View.Sequence.Uint64() < c.backend.CurrentNumber() {
+		return istanbulcommon.ErrOldMessage
+	}
+	return nil
+}
+
 func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
@@ -87,13 +110,13 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 	roundInfo := RoundInfo{
 		Method:     "handlePreprepare",
 		Timestamp:  time.Now().UnixNano(),
-		Sender:	    src.Address(),
+		Sender:     src.Address(),
 		Receiver:   c.address,
 		Sequence:   preprepare.View.Sequence.Uint64(),
 		Round:      preprepare.View.Round.Int64(),
 		Hash:       preprepare.Proposal.Hash(),
 		Miner:      c.valSet.GetProposer().Address(),
-		Error:	    err,
+		Error:      err,
 		IsProposal: c.IsProposer(),
 	}
 
@@ -124,8 +147,8 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 	roundInfo.Timestamp = time.Now().UnixNano()
 	roundInfo.Error = err
 	consensusData.Rounds = map[int64]RoundInfo{
-                        preprepare.View.Round.Int64(): roundInfo,
-                }
+		preprepare.View.Round.Int64(): roundInfo,
+	}
 	c.SaveData(consensusData)
 	if err != nil {
 		log.Error("ibftConsensus: handlePreprepare checkMessage",
@@ -182,12 +205,12 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 	// }
 	duration, err := c.backend.Verify(preprepare.Proposal)
 	roundInfo.Method = "handlePreprepare verify"
-        roundInfo.Timestamp = time.Now().UnixNano()
-        roundInfo.Error = err
+	roundInfo.Timestamp = time.Now().UnixNano()
+	roundInfo.Error = err
 	consensusData.Rounds = map[int64]RoundInfo{
-                        preprepare.View.Round.Int64(): roundInfo,
-                }
-        c.SaveData(consensusData)
+		preprepare.View.Round.Int64(): roundInfo,
+	}
+	c.SaveData(consensusData)
 	if err != nil {
 		// if it's a future block, we will handle it again after the duration
 		if err == consensus.ErrFutureBlock {

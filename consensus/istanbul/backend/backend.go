@@ -138,6 +138,10 @@ func (sb *Backend) ValidatorExist(address common.Address) (bool, error) {
 	return all.Exist(address), nil
 }
 
+func (sb *Backend) CurrentNumber() uint64 {
+	return sb.currentBlock().NumberU64()
+}
+
 func (sb *Backend) EngineForBlockNumber(blockNumber *big.Int) istanbul.Engine {
 	switch {
 	case blockNumber != nil && sb.IsQBFTConsensusAt(blockNumber):

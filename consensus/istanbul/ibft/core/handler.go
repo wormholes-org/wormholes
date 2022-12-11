@@ -120,7 +120,10 @@ func (c *core) handleEvents() {
 				i, _ := c.valSet.GetByAddress(c.address)
 				if i < 0 {
 					//If it is not the current validator, the broadcast message will not be processed
-					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
+					if err := c.checkMsgSeq(ev.Payload); err == nil {
+						//If it is not the current validator, the broadcast message will not be processed
+						c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
+					}
 				} else if err := c.handleMsg(ev.Payload); err == nil {
 					c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
 				}
@@ -160,6 +163,32 @@ func (c *core) handleEvents() {
 // sendEvent sends events to mux
 func (c *core) sendEvent(ev interface{}) {
 	c.backend.EventMux().Post(ev)
+}
+
+func (c *core) checkMsgSeq(payload []byte) error {
+	// Decode message and check its signature
+	msg := new(ibfttypes.Message)
+	if err := msg.FromPayload(payload, c.validateFn); err != nil {
+		return err
+	}
+	switch msg.Code {
+	case ibfttypes.MsgPreprepare:
+		err := c.simpleCheckPreprepare(msg, nil)
+		return err
+	case ibfttypes.MsgPrepare:
+		err := c.simpleCheckSubject(msg, nil)
+		return err
+	case ibfttypes.MsgCommit:
+		err := c.simpleCheckSubject(msg, nil)
+		return err
+	case ibfttypes.MsgRoundChange:
+		err := c.simpleCheckSubject(msg, nil)
+		return err
+	default:
+		return istanbulcommon.ErrInvalidMessage
+	}
+
+	return istanbulcommon.ErrInvalidMessage
 }
 
 func (c *core) handleMsg(payload []byte) error {
