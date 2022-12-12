@@ -87,4 +87,6 @@ type Backend interface {
 	NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorList)
 
 	GetCore() Core
+
+	CurrentNumber() uint64
 }

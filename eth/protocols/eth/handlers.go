@@ -528,7 +528,7 @@ func handleWorker66(backend Backend, msg Decoder, peer *Peer) error {
 }
 
 func handleWormhole(backend Backend, msg Decoder, peer *Peer) error {
-	log.Info("P2P-handleWormhole | p2p start to call DRE Msg")
+	//log.Info("P2P-handleWormhole | p2p start to call DRE Msg")
 	if handler, ok := backend.Chain().Engine().(consensus.Handler); ok {
 		pubKey := peer.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)

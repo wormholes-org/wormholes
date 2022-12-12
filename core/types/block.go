@@ -26,8 +26,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -107,7 +105,7 @@ func (h *Header) Hash() common.Hash {
 	//return rlpHash(h)
 	// If the mix digest is equivalent to the predefined Istanbul digest, use Istanbul
 	// specific hash calculation.
-	log.Info("Hash", "time", time.Now().Unix())
+	//log.Info("Hash", "time", time.Now().Unix())
 	if h.MixDigest == IstanbulDigest {
 		// Seal is reserved in extra-data. To prove block is signed by the proposer.
 		if istanbulHeader := FilteredHeader(h); istanbulHeader != nil {

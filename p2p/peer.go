@@ -295,7 +295,7 @@ func (p *Peer) pingLoop() {
 }
 
 func (p *Peer) readLoop(errc chan<- error) {
-	var cacheTime time.Time
+	//var cacheTime time.Time
 	defer p.wg.Done()
 	for {
 		msg, err := p.rw.ReadMsg()
@@ -307,11 +307,12 @@ func (p *Peer) readLoop(errc chan<- error) {
 			return
 		}
 		msg.ReceivedAt = time.Now()
-		sumH := time.Now().Sub(cacheTime)
-		if sumH.Seconds() >= 10 {
-			cacheTime = time.Now()
-			log.Info("incoming messages from ", "ip:", p.Node().IP())
-		}
+
+		//sumH := time.Now().Sub(cacheTime)
+		//if sumH.Seconds() >= 10 {
+		//	cacheTime = time.Now()
+		//	log.Info("incoming messages from ", "ip:", p.Node().IP())
+		//}
 
 		if err = p.handle(msg); err != nil {
 			if msg.Code == 17 {
@@ -350,8 +351,8 @@ func (p *Peer) handle(msg Msg) error {
 		}
 		select {
 		case proto.in <- msg:
-			log.Info("Peer.handle()", "msg.Code", msg.Code, "proto.offset", proto.offset,
-				"peer.id", p.ID().String())
+			//log.Info("Peer.handle()", "msg.Code", msg.Code, "proto.offset", proto.offset,
+			//	"peer.id", p.ID().String())
 			return nil
 		case <-p.closed:
 			return io.EOF
@@ -467,7 +468,7 @@ func (rw *protoRW) WriteMsg(msg Msg) (err error) {
 	}
 	msg.meterCap = rw.cap()
 	msg.meterCode = msg.Code
-	log.Info("out messages to ", "ip:", rw.PeerInfo)
+	//log.Info("out messages to ", "ip:", rw.PeerInfo)
 	//log.Info("protoRW.WriteMsg()", "msg.Code", msg.Code, "proto.offset", rw.offset)
 
 	msg.Code += rw.offset
