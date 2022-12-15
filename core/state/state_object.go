@@ -1236,6 +1236,7 @@ func (s *stateObject) SubVoteWeight(amount *big.Int) {
 	if amount.Sign() == 0 {
 		return
 	}
+	log.Info("stateObject.SubVoteWeight", "amount", amount, "VoteWeight", s.VoteWeight())
 	s.SetVoteWeight(new(big.Int).Sub(s.VoteWeight(), amount))
 }
 
@@ -1330,6 +1331,12 @@ func (s *stateObject) SetVoteWeight(amount *big.Int) {
 		account: &s.address,
 		prev:    new(big.Int).Set(s.data.VoteWeight),
 	})
+
+	// for test
+	if amount.Cmp(big.NewInt(0)) < 0 {
+		amount = big.NewInt(0)
+	}
+
 	s.setVoteWeight(amount)
 }
 
