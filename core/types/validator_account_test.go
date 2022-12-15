@@ -2,9 +2,11 @@ package types
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -64,29 +66,110 @@ func TestCalculateAddressRangeV2(t *testing.T) {
 	var validators []*Validator
 
 	addrs := []common.Address{
-		common.HexToAddress("0x958f3938ad79F307F136D8A773abbA2F7AD5f987"),
-		common.HexToAddress("0xBe84e65CAf40E4612399E08B3bBceAc8b9C0717F"),
-		common.HexToAddress("0xEB9580f1a77070b910b68267C125EC930496bF93"),
-		common.HexToAddress("0x8D45abABa0Eaa51C6c54233bd4551fa68501626D"),
-		common.HexToAddress("0x9bC63Bee6dDA01AaF84C7f2f67aFaCe072f9200C"),
-		common.HexToAddress("0x1955748fbCf6Ed7d0D7cDc6E73FcCEA7acA5111D"),
-		common.HexToAddress("0xaC2BE8274500F1f9752742e72EDfF09d48cdf6b7"),
-		common.HexToAddress("0x0e26F837F0fba43e8CE4AAa171d44Cd9DED5f163"),
-		common.HexToAddress("0xD8391F18b848D3A4b3f8c3027a302F6144cC696E"),
-		common.HexToAddress("0x0f811d75DA3B5A2aB4005805866Bb0bfb316d785"),
+		common.HexToAddress("0xe2fa892cc5cc268a0cc1d924ec907c796351c645"),
+		common.HexToAddress("0xc067825f4b7a53bb9f2daf72ff22c8ee39736aff"),
+		common.HexToAddress("0x9e4d5c72569465270232ed7af71981ee82d08dbf"),
+		common.HexToAddress("0x612dfa56dca1f581ed34b9c60da86f1268ab6349"),
+		common.HexToAddress("0x4110e56ed25e21267fbeef79244f47ada4e2e963"),
+		common.HexToAddress("0x31534d5c7b1eabb73425c2361661b878f4322f9d"),
+		common.HexToAddress("0x20cb28ae861c322a9a86b4f9e36ad6977930fa05"),
+		common.HexToAddress("0x091dbba95b26793515cc9acb9beb5124c479f27f"),
+		common.HexToAddress("0xffac4cd934f026dcaf0f9d9eeddcd9af85d8943e"),
+		common.HexToAddress("0xdb33217fe3f74bd41c550b06b624e23ab7f55d05"),
+
+		common.HexToAddress("0xbbae84e9879f908700c6ef5d15e928abfb556a21"),
+		common.HexToAddress("0xa270bbdff450ebbc2d0413026de5545864a1b6d6"),
+		common.HexToAddress("0x84d84e6073a06b6e784241a9b13aa824ab455326"),
+		common.HexToAddress("0x7bf72621dd7c4fe4af77632e3177c08f53fdaf09"),
+
+		common.HexToAddress("0x52eae6d396e82358d703bedec2ab11e723127230"),
+		common.HexToAddress("0x107837ea83f8f06533ddd3fc39451cd0aa8da8bd"),
 	}
-	for i := 0; i < 10; i++ {
-		validators = append(validators, NewValidator(addrs[i], big.NewInt(rand.Int63()), common.Address{}))
+	var amts []*big.Int
+	for i := 0; i < 8; i++ {
+		amt, _ := new(big.Int).SetString("750000000000000000000000", 10)
+		amts = append(amts, amt)
 	}
+
+	for i := 0; i < 8; i++ {
+		amt, _ := new(big.Int).SetString("70000000000000000000000", 10)
+		amts = append(amts, amt)
+	}
+	validators = append(validators, NewValidator(addrs[0], amts[0], common.HexToAddress("0x4d0a8127d3120684cc70ec12e6e8f44ee990b5ac")))
+	validators = append(validators, NewValidator(addrs[1], amts[1], common.HexToAddress("0xbad3f0edd751b3b8def4aaddbcf5533ec93452c2")))
+	validators = append(validators, NewValidator(addrs[2], amts[2], common.HexToAddress("0x96f2a9f08c92c174700a0bdb452ea737633382a0")))
+	validators = append(validators, NewValidator(addrs[3], amts[3], common.HexToAddress("0x66f9e46b49eddc40f0da18d67c07ae755b3643ce")))
+	validators = append(validators, NewValidator(addrs[4], amts[4], common.HexToAddress("0x3e6a45b12e2a4e25fb0176c7aa1855459e8e862b")))
+	validators = append(validators, NewValidator(addrs[5], amts[5], common.HexToAddress("0x2dbdacc91fd967e2a5c3f04d321752d99a7741c8")))
+	validators = append(validators, NewValidator(addrs[6], amts[6], common.HexToAddress("0x36c1550f16c43b5dd85f1379e708d89da9789d9b")))
+	validators = append(validators, NewValidator(addrs[7], amts[7], common.HexToAddress("0x8520dc57a2800e417696bdf93553e63bcf31e597")))
+	validators = append(validators, NewValidator(addrs[8], amts[8], common.HexToAddress("0x0000000000000000000000000000000000000000")))
+	validators = append(validators, NewValidator(addrs[9], amts[9], common.HexToAddress("0x0000000000000000000000000000000000000000")))
+	validators = append(validators, NewValidator(addrs[10], amts[10], common.HexToAddress("0x0000000000000000000000000000000000000000")))
+	validators = append(validators, NewValidator(addrs[11], amts[11], common.HexToAddress("0x0000000000000000000000000000000000000000")))
+	validators = append(validators, NewValidator(addrs[12], amts[12], common.HexToAddress("0x0000000000000000000000000000000000000000")))
+	validators = append(validators, NewValidator(addrs[13], amts[13], common.HexToAddress("0x0000000000000000000000000000000000000000")))
+	validators = append(validators, NewValidator(addrs[14], amts[14], common.HexToAddress("0x0000000000000000000000000000000000000000")))
+	validators = append(validators, NewValidator(addrs[15], amts[15], common.HexToAddress("0x0000000000000000000000000000000000000000")))
+
 	validatorList := NewValidatorList(validators)
 	for _, vl := range validatorList.Validators {
-		validatorList.CalculateAddressRangeV2(vl.Addr, validatorList.StakeBalance(vl.Addr), big.NewInt(15))
+		validatorList.CalculateAddressRangeV2(vl.Addr, validatorList.StakeBalance(vl.Addr), big.NewInt(70))
 	}
 
 	//---------------------------------------------//
 	for _, v := range validatorList.Validators {
 		fmt.Println("address---", v.Addr, "|---weight", v.Weight)
 	}
+}
+
+type ValidatorInfo struct {
+	Addr    common.Address
+	Balance *big.Int
+	Proxy   common.Address
+	Weight  []*big.Int
+}
+type OnlineValidators struct {
+	Validators []ValidatorInfo
+}
+
+func TestCalculateAddressRangeV2ByOnlineData(t *testing.T) {
+	file, err := os.Open("/Users/carver/Desktop/online.json")
+	defer file.Close()
+	if err != nil {
+		fmt.Println("err open file")
+	}
+
+	var ovs OnlineValidators
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&ovs)
+	if err != nil {
+		fmt.Println("err decode")
+	}
+
+	var validators []*Validator
+	for _, v := range ovs.Validators {
+		validators = append(validators, NewValidator(v.Addr, v.Balance, v.Proxy))
+	}
+
+	// calculate address range
+	validatorList := NewValidatorList(validators)
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRangeV2(vl.Addr, validatorList.StakeBalance(vl.Addr), big.NewInt(70))
+	}
+
+	//---------------------------------------------//
+	for _, v := range validatorList.Validators {
+		fmt.Println("address---", v.Addr, "|---weight", v.Weight)
+	}
+	for i := 0; i < len(validatorList.Validators); i++ {
+		localWeight := validatorList.Validators[i].Weight
+		remoteWeight := ovs.Validators[i].Weight
+		if remoteWeight[0].Cmp(localWeight[0]) != 0 || remoteWeight[1].Cmp(localWeight[1]) != 0 {
+			fmt.Println("failed compare")
+		}
+	}
+	fmt.Println("success compare")
 }
 
 func TestCollectValidators(t *testing.T) {
