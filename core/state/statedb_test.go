@@ -155,7 +155,7 @@ func TestCopy(t *testing.T) {
 	orig.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	orig.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	orig.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	orig.FrozenAccounts = new(types.FrozenAccountList)
+	//orig.FrozenAccounts = new(types.FrozenAccountList)
 	orig.MintDeep = new(types.MintDeep)
 	orig.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 
@@ -490,7 +490,7 @@ func TestTouchDelete(t *testing.T) {
 	s.state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	s.state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	s.state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	s.state.FrozenAccounts = new(types.FrozenAccountList)
+	//s.state.FrozenAccounts = new(types.FrozenAccountList)
 	s.state.MintDeep = new(types.MintDeep)
 	s.state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 
@@ -511,7 +511,7 @@ func TestCopyOfCopy(t *testing.T) {
 	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	state.FrozenAccounts = new(types.FrozenAccountList)
+	//state.FrozenAccounts = new(types.FrozenAccountList)
 	state.MintDeep = new(types.MintDeep)
 	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	addr := common.HexToAddress("aaaa")
@@ -535,7 +535,7 @@ func TestCopyCommitCopy(t *testing.T) {
 	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	state.FrozenAccounts = new(types.FrozenAccountList)
+	//state.FrozenAccounts = new(types.FrozenAccountList)
 	state.MintDeep = new(types.MintDeep)
 	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	// Create an account and check if the retrieved balance is correct
@@ -613,7 +613,7 @@ func TestCopyCopyCommitCopy(t *testing.T) {
 	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	state.FrozenAccounts = new(types.FrozenAccountList)
+	//state.FrozenAccounts = new(types.FrozenAccountList)
 	state.MintDeep = new(types.MintDeep)
 	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	// Create an account and check if the retrieved balance is correct
@@ -1153,7 +1153,7 @@ func TestMergeNFT16(t *testing.T) {
 	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	state.FrozenAccounts = new(types.FrozenAccountList)
+	//state.FrozenAccounts = new(types.FrozenAccountList)
 	state.MintDeep = new(types.MintDeep)
 	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(11))
 	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
@@ -1175,7 +1175,7 @@ func TestMergeNFT16(t *testing.T) {
 		newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 		newObject.data.MergeLevel = 0
 		newObject.data.MetaURL = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
-		newObject.data.NFTPledgedBlockNumber = big.NewInt(1110)
+		//newObject.data.NFTPledgedBlockNumber = big.NewInt(1110)
 		state.updateStateObject(newObject)
 
 		//state.Commit(false)
@@ -1206,7 +1206,7 @@ func TestMergeNFT16_2(t *testing.T) {
 	state.ExchangerTokenPool = make([]*types.PledgedToken, 0)
 	state.OfficialNFTPool = new(types.InjectedOfficialNFTList)
 	state.NominatedOfficialNFT = new(types.NominatedOfficialNFT)
-	state.FrozenAccounts = new(types.FrozenAccountList)
+	//state.FrozenAccounts = new(types.FrozenAccountList)
 	state.MintDeep = new(types.MintDeep)
 	state.NominatedOfficialNFT.StartIndex = big.NewInt(int64(0))
 	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
@@ -1229,7 +1229,7 @@ func TestMergeNFT16_2(t *testing.T) {
 			newObject.data.MergeLevel = 0
 			newObject.data.MergeNumber = 1
 			newObject.data.MetaURL = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
-			newObject.data.NFTPledgedBlockNumber = big.NewInt(1110)
+			//newObject.data.NFTPledgedBlockNumber = big.NewInt(1110)
 			state.updateStateObject(newObject)
 
 			//state.Commit(false)
@@ -1239,8 +1239,10 @@ func TestMergeNFT16_2(t *testing.T) {
 
 		nftAddr1 := common.BigToAddress(bigj)
 		nftAddr2 := common.BigToAddress(new(big.Int).Add(bigj, big.NewInt(1)))
+		nftAddr3 := common.BigToAddress(new(big.Int).Add(bigj, big.NewInt(2)))
 		nftAccount1 := state.getStateObject(nftAddr1)
 		nftAccount2 := state.getStateObject(nftAddr2)
+		nftAccount3 := state.GetOrNewStateObject(nftAddr3)
 		//nftAddr := common.HexToAddress("2000000000000000000000000000000003000000")
 		t.Log("")
 		t.Log("-----------------------------------------------------------")
@@ -1250,6 +1252,9 @@ func TestMergeNFT16_2(t *testing.T) {
 		t.Log("addr2 before", nftAddr2.Hex())
 		t.Log(nftAccount2.NFTOwner().Hex(), nftAccount2.GetNFTMergeLevel(),
 			nftAccount2.GetMergeNumber())
+		t.Log("addr3 before", nftAddr3.Hex())
+		t.Log(nftAccount3.NFTOwner().Hex(), nftAccount3.GetNFTMergeLevel(),
+			nftAccount3.GetMergeNumber())
 
 		increaseValue, err := state.MergeNFT16(nftAddr1)
 		t.Log("increase value", increaseValue, "err", err)
@@ -1276,6 +1281,9 @@ func TestMergeNFT16_2(t *testing.T) {
 		t.Log("addr2 after", nftAddr2.Hex())
 		t.Log(nftAccount2.NFTOwner().Hex(), nftAccount2.GetNFTMergeLevel(),
 			nftAccount2.GetMergeNumber())
+		t.Log("addr3 before", nftAddr3.Hex())
+		t.Log(nftAccount3.NFTOwner().Hex(), nftAccount3.GetNFTMergeLevel(),
+			nftAccount3.GetMergeNumber())
 		t.Log("-----------------------------------------------------------")
 		t.Log("")
 	}
@@ -1312,7 +1320,7 @@ func TestSplitNFT16(t *testing.T) {
 		newObject.data.Owner = common.HexToAddress("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 		newObject.data.MergeLevel = 0
 		newObject.data.MetaURL = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
-		newObject.data.NFTPledgedBlockNumber = big.NewInt(1110)
+		//newObject.data.NFTPledgedBlockNumber = big.NewInt(1110)
 		state.updateStateObject(newObject)
 	}
 
@@ -1455,7 +1463,7 @@ func TestGetExistAddress(t *testing.T) {
 
 		newObject.data.MergeLevel = 0
 		newObject.data.MetaURL = "ipfs/" + newAccount.String()
-		newObject.data.NFTPledgedBlockNumber = big.NewInt(0)
+		//newObject.data.NFTPledgedBlockNumber = big.NewInt(0)
 		state.updateStateObject(newObject)
 	}
 
@@ -1522,7 +1530,7 @@ func TestGetExistAddress2(t *testing.T) {
 
 		newObject.data.MergeLevel = 0
 		newObject.data.MetaURL = "ipfs/" + newAccount.String()
-		newObject.data.NFTPledgedBlockNumber = big.NewInt(0)
+		//newObject.data.NFTPledgedBlockNumber = big.NewInt(0)
 		state.updateStateObject(newObject)
 	}
 
