@@ -469,7 +469,7 @@ func (w *worker) emptyLoop() {
 					//log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
-					//log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
@@ -536,10 +536,10 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				//log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.current.header.Number.Uint64()", w.current.header.Number.Uint64(), "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
 				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
-					//log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
+					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						//log.Info("emptyLoop.start produce empty block", "time", time.Now())
 						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()
