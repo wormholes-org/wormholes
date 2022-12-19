@@ -3,8 +3,6 @@ package types
 import (
 	"math"
 	"math/rand"
-	"time"
-
 	//"crypto"
 	"math/big"
 	"sort"
@@ -332,8 +330,11 @@ func (vl *ValidatorList) RandomValidatorV3(k int, randomHash common.Hash) []comm
 		balanceInfos = append(balanceInfos, &balanceInfo)
 	}
 
+	randombytes := randomHash.Bytes()
+	seed := new(big.Int).SetBytes(randombytes[len(randombytes)-7:]).Int64()
+
 	validatorArr := vl.InitAddressArr(balanceInfos)
-	selectedValidators := vl.SelectRandom11Address(k, validatorArr)
+	selectedValidators := vl.SelectRandom11Address(k, validatorArr, seed)
 
 	return selectedValidators
 }
@@ -354,8 +355,8 @@ func (vl *ValidatorList) InitAddressArr(balanceInfos []*BalanceInfo) []common.Ad
 	return addressArray
 }
 
-func (vl *ValidatorList) RandomSelectAddress(addressArray []common.Address) common.Address {
-	rand.Seed(time.Now().UnixNano())
+func (vl *ValidatorList) RandomSelectAddress(addressArray []common.Address, seed int64) common.Address {
+	rand.Seed(seed)
 	index := rand.Intn(len(addressArray))
 	return addressArray[index]
 }
@@ -379,10 +380,10 @@ func (vl *ValidatorList) DeleteAddress(addressArray []common.Address, address co
 	return addressArray
 }
 
-func (vl *ValidatorList) SelectRandom11Address(num int, addressArray []common.Address) []common.Address {
+func (vl *ValidatorList) SelectRandom11Address(num int, addressArray []common.Address, seed int64) []common.Address {
 	var random11Address []common.Address
 	for i := 0; i < num; i++ {
-		address := vl.RandomSelectAddress(addressArray)
+		address := vl.RandomSelectAddress(addressArray, seed)
 		random11Address = append(random11Address, address)
 		addressArray = vl.DeleteAddress(addressArray, address)
 	}
