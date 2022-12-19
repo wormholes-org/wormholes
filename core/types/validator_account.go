@@ -2,6 +2,9 @@ package types
 
 import (
 	"math"
+	"math/rand"
+	"time"
+
 	//"crypto"
 	"math/big"
 	"sort"
@@ -291,6 +294,102 @@ func (vl *ValidatorList) RandomValidatorV2(k int, randomHash common.Hash) []comm
 	return validators
 }
 
+type BalanceInfo struct {
+	Address common.Address
+	Balance *big.Int
+}
+
+func (vl *ValidatorList) RandomValidatorV3(k int, randomHash common.Hash) []common.Address {
+	err, validators := vl.CollectValidatorsV3(randomHash)
+	log.Info("ccccc", "vl.validators.len", len(vl.Validators), "colleted validators.len", len(validators))
+	if err != nil {
+		return []common.Address{}
+	}
+
+	// Make up for less than K
+	diffCount := k - len(validators)
+	for _, v := range vl.Validators {
+		flg := false
+		for _, vv := range validators {
+			if vv == v.Addr {
+				flg = true
+				break
+			}
+		}
+		if !flg && diffCount > 0 {
+			validators = append(validators, v.Addr)
+			diffCount--
+		}
+	}
+
+	var balanceInfos []*BalanceInfo
+	for _, validator := range validators {
+		balance := vl.StakeBalance(validator)
+		balanceInfo := BalanceInfo{
+			Address: validator,
+			Balance: new(big.Int).Set(balance),
+		}
+		balanceInfos = append(balanceInfos, &balanceInfo)
+	}
+
+	validatorArr := vl.InitAddressArr(balanceInfos)
+	selectedValidators := vl.SelectRandom11Address(k, validatorArr)
+
+	return selectedValidators
+}
+
+func (vl *ValidatorList) InitAddressArr(balanceInfos []*BalanceInfo) []common.Address {
+	var addressArray []common.Address
+	base, _ := new(big.Int).SetString("1000000000000000000000", 10)
+
+	for _, balanceInfo := range balanceInfos {
+		num := new(big.Int).Div(balanceInfo.Balance, base).Uint64()
+
+		var i uint64
+		for i = 0; i < num; i++ {
+			addressArray = append(addressArray, balanceInfo.Address)
+		}
+	}
+
+	return addressArray
+}
+
+func (vl *ValidatorList) RandomSelectAddress(addressArray []common.Address) common.Address {
+	rand.Seed(time.Now().UnixNano())
+	index := rand.Intn(len(addressArray))
+	return addressArray[index]
+}
+
+func (vl *ValidatorList) DeleteAddress(addressArray []common.Address, address common.Address) []common.Address {
+	var startIndex int
+	var startFlag bool = true
+	var endIndex int
+	for i, v := range addressArray {
+		if v == address {
+			if startFlag {
+				startIndex = i
+				startFlag = false
+			} else {
+				endIndex = i
+			}
+		}
+	}
+
+	addressArray = append(addressArray[:startIndex], addressArray[endIndex+1:]...)
+	return addressArray
+}
+
+func (vl *ValidatorList) SelectRandom11Address(num int, addressArray []common.Address) []common.Address {
+	var random11Address []common.Address
+	for i := 0; i < num; i++ {
+		address := vl.RandomSelectAddress(addressArray)
+		random11Address = append(random11Address, address)
+		addressArray = vl.DeleteAddress(addressArray, address)
+	}
+
+	return random11Address
+}
+
 // CollectValidators Collect the k validators closest to the drop point
 func (vl *ValidatorList) CollectValidators(randomHash common.Hash, k int) (error, []common.Address) {
 	rr := randomHash.Hex()
@@ -307,6 +406,39 @@ func (vl *ValidatorList) CollectValidators(randomHash common.Hash, k int) (error
 		if count == k {
 			break
 		}
+		if v.Weight == nil {
+			continue
+		}
+		if len(v.Weight) == 2 {
+			if point.Cmp(v.Weight[0]) > 0 && point.Cmp(v.Weight[1]) < 0 {
+				validators = append(validators, v.Addr)
+				count++
+			}
+		}
+		if len(v.Weight) == 4 {
+			if (point.Cmp(v.Weight[0]) > 0 && point.Cmp(v.Weight[1]) < 0) ||
+				(point.Cmp(v.Weight[2]) > 0 && point.Cmp(v.Weight[3]) < 0) {
+				validators = append(validators, v.Addr)
+				count++
+			}
+		}
+	}
+	return nil, validators
+}
+
+// CollectValidators Collect the k validators closest to the drop point
+func (vl *ValidatorList) CollectValidatorsV3(randomHash common.Hash) (error, []common.Address) {
+	rr := randomHash.Hex()
+	pri, err := crypto.HexToECDSA(rr[2:])
+	if err != nil {
+		return err, []common.Address{}
+	}
+	addr := crypto.PubkeyToAddress(pri.PublicKey)
+	point := addr.Hash().Big()
+
+	var validators []common.Address
+	var count int
+	for _, v := range vl.Validators {
 		if v.Weight == nil {
 			continue
 		}
