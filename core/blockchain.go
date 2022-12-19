@@ -2853,8 +2853,12 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 		return nil, err
 	}
 	log.Info("Random11ValidatorFromPool : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
-	//validators := validatorList.RandomValidatorV2(11, randomHash)
-	validators := validatorList.RandomValidatorV3(11, randomHash)
+	var validators []common.Address
+	if header.Number.Uint64() > types.WinterSolsticeBlock {
+		validators = validatorList.RandomValidatorV3(11, randomHash)
+	} else {
+		validators = validatorList.RandomValidatorV2(11, randomHash)
+	}
 	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
 		log.Warn("Random11ValidatorFromPool", "len(validatorList.Validators)", len(validatorList.Validators),
@@ -2901,8 +2905,14 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 		return nil, err
 	}
 	log.Info("Random11ValidatorWithOutProxy : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
-	//validators := validatorList.RandomValidatorV2(11, randomHash)
-	validators := validatorList.RandomValidatorV3(11, randomHash)
+
+	var validators []common.Address
+	if header.Number.Uint64() > types.WinterSolsticeBlock {
+		validators = validatorList.RandomValidatorV3(11, randomHash)
+	} else {
+		validators = validatorList.RandomValidatorV2(11, randomHash)
+	}
+
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
 		log.Warn("Random11ValidatorWithOutProxy", "len(validatorList.Validators)", len(validatorList.Validators),
 			"len(validators)", len(validators))
