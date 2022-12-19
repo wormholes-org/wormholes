@@ -1383,6 +1383,186 @@ func TestGetByAddress(t *testing.T) {
 	}
 }
 
+func TestCollectValidatorsV3(t *testing.T) {
+	c, _ := new(big.Int).SetString("70000000000000000000000", 10)
+	c2, _ := new(big.Int).SetString("7000000000000000000000", 10)
+	stakeAmt := []*big.Int{
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		// c,
+		// c,
+		// c,
+		// c,
+		// c,
+		// c,
+
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+	}
+
+	addrs := []common.Address{
+		common.HexToAddress("0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e"),
+		common.HexToAddress("0xE2FA892CC5CC268a0cC1d924EC907C796351C645"),
+		common.HexToAddress("0xdb33217fE3F74bD41c550B06B624E23ab7f55d05"),
+		common.HexToAddress("0xc067825f4B7a53Bb9f2Daf72fF22C8EE39736afF"),
+		common.HexToAddress("0xbbaE84E9879F908700c6ef5D15e928Abfb556a21"),
+		common.HexToAddress("0xa270bBDFf450EbbC2d0413026De5545864a1b6d6"),
+		common.HexToAddress("0x9e4d5C72569465270232ed7Af71981Ee82d08dBF"),
+		common.HexToAddress("0x84d84e6073A06B6e784241a9B13aA824AB455326"),
+		common.HexToAddress("0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09"),
+		common.HexToAddress("0x612DFa56DcA1F581Ed34b9c60Da86f1268Ab6349"),
+		// common.HexToAddress("0x52EAE6D396E82358D703BEDeC2ab11E723127230"),
+		// common.HexToAddress("0x4110E56ED25e21267FBeEf79244f47ada4e2E963"),
+		// common.HexToAddress("0x31534d5C7b1eabb73425c2361661b878F4322f9D"),
+		// common.HexToAddress("0x20cb28AE861c322A9A86b4F9e36Ad6977930fA05"),
+		// common.HexToAddress("0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD"),
+		// common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F"),
+
+		common.HexToAddress("0xAc17A48d782DE6985D471F6EEcB1023C08f0CB05"),
+		common.HexToAddress("0xa337175D23bB0ee4f879e38B73973CDe829b9d29"),
+		common.HexToAddress("0x9baeC4D975B0Dd5baa904200Ea11727eDD593be6"),
+		common.HexToAddress("0x77c33e2951d2851D9D648161BEfAC8f4C60D1181"),
+		common.HexToAddress("0x5a7f652BC51Fb99747fe2641A8CDd6CbFE51b201"),
+		common.HexToAddress("0x2c2909db351764D92ecc313a0D8baF72735C5165"),
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+
+	var count1 int
+	var count2 int
+	var count3 int
+	var count4 int
+	var count5 int
+	var count6 int
+	for i := 0; i < 10000; i++ {
+		randomHash := randomHash()
+		fmt.Println(randomHash)
+		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
+		for _, v := range consensusValidator {
+			if v.Hex() == "0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e" {
+				count1++
+			}
+			if v.Hex() == "0xa337175D23bB0ee4f879e38B73973CDe829b9d29" {
+				count2++
+			}
+			if v.Hex() == "0x9baeC4D975B0Dd5baa904200Ea11727eDD593be6" {
+				count3++
+			}
+			if v.Hex() == "0x77c33e2951d2851D9D648161BEfAC8f4C60D1181" {
+				count4++
+			}
+			if v.Hex() == "0x5a7f652BC51Fb99747fe2641A8CDd6CbFE51b201" {
+				count5++
+			}
+			if v.Hex() == "0x2c2909db351764D92ecc313a0D8baF72735C5165" {
+				count6++
+			}
+		}
+	}
+	fmt.Print("=====v====", count1, count2, count3, count4, count5, count6)
+}
+
+func TestCollectValidatorsV3Statable(t *testing.T) {
+	c, _ := new(big.Int).SetString("750000000000000000000000", 10)
+	c2, _ := new(big.Int).SetString("70000000000000000000000", 10)
+	stakeAmt := []*big.Int{
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+		c,
+
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+	}
+
+	addrs := []common.Address{
+		common.HexToAddress("0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e"),
+		common.HexToAddress("0xE2FA892CC5CC268a0cC1d924EC907C796351C645"),
+		common.HexToAddress("0xdb33217fE3F74bD41c550B06B624E23ab7f55d05"),
+		common.HexToAddress("0xc067825f4B7a53Bb9f2Daf72fF22C8EE39736afF"),
+		common.HexToAddress("0xbbaE84E9879F908700c6ef5D15e928Abfb556a21"),
+		common.HexToAddress("0xa270bBDFf450EbbC2d0413026De5545864a1b6d6"),
+		common.HexToAddress("0x9e4d5C72569465270232ed7Af71981Ee82d08dBF"),
+		common.HexToAddress("0x84d84e6073A06B6e784241a9B13aA824AB455326"),
+		common.HexToAddress("0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09"),
+		common.HexToAddress("0x612DFa56DcA1F581Ed34b9c60Da86f1268Ab6349"),
+		common.HexToAddress("0x52EAE6D396E82358D703BEDeC2ab11E723127230"),
+		common.HexToAddress("0x4110E56ED25e21267FBeEf79244f47ada4e2E963"),
+		common.HexToAddress("0x31534d5C7b1eabb73425c2361661b878F4322f9D"),
+		common.HexToAddress("0x20cb28AE861c322A9A86b4F9e36Ad6977930fA05"),
+		common.HexToAddress("0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD"),
+		common.HexToAddress("0x091DBBa95B26793515cc9aCB9bEb5124c479f27F"),
+
+		//
+		common.HexToAddress("0xAc17A48d782DE6985D471F6EEcB1023C08f0CB05"),
+		common.HexToAddress("0xa337175D23bB0ee4f879e38B73973CDe829b9d29"),
+		common.HexToAddress("0x9baeC4D975B0Dd5baa904200Ea11727eDD593be6"),
+		common.HexToAddress("0x77c33e2951d2851D9D648161BEfAC8f4C60D1181"),
+		common.HexToAddress("0x5a7f652BC51Fb99747fe2641A8CDd6CbFE51b201"),
+		common.HexToAddress("0x2c2909db351764D92ecc313a0D8baF72735C5165"),
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+
+	for _, vl := range validatorList.Validators {
+		fmt.Println("!!!!addr!!!!", vl.Addr, "!!!!amt!!!!", validatorList.StakeBalance(vl.Addr))
+	}
+
+	for i := 0; i < 10; i++ {
+		fmt.Println("=======i======", i)
+		randomHash := common.HexToHash("0xbadf760a05fb025a5fbae67e4c3f849e6626a8c77b1623d29fa81fa49406e7ec")
+		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
+		for _, v := range consensusValidator {
+			fmt.Println("=========v======", v)
+		}
+	}
+
+}
+
 // helper func ============================================================== //
 func MockValidator() *ValidatorList {
 	addrs := AddrList()

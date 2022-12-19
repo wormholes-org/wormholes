@@ -1,9 +1,12 @@
 package types
 
 import (
+	"fmt"
 	"math"
+
 	//"crypto"
 	"math/big"
+	"math/rand"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -325,6 +328,141 @@ func (vl *ValidatorList) CollectValidators(randomHash common.Hash, k int) (error
 		}
 	}
 	return nil, validators
+}
+
+func (vl *ValidatorList) RandomValidatorV3(k int, randomHash common.Hash) []common.Address {
+	err, validators := vl.CollectValidatorsV3(randomHash, k)
+	if err != nil {
+		return []common.Address{}
+	}
+
+	if len(validators) < k {
+		// Make up for less than K
+		diffCount := k - len(validators)
+		for _, v := range vl.Validators {
+			flg := false
+			for _, vv := range validators {
+				if vv == v.Addr {
+					flg = true
+					break
+				}
+			}
+			if !flg && diffCount > 0 {
+				validators = append(validators, v.Addr)
+				diffCount--
+			}
+		}
+	}
+
+	return validators
+}
+
+// CollectValidators Collect the k validators closest to the drop point
+func (vl *ValidatorList) CollectValidatorsV3(randomHash common.Hash, k int) (error, []common.Address) {
+	rr := randomHash.Hex()
+	pri, err := crypto.HexToECDSA(rr[2:])
+	if err != nil {
+		return err, []common.Address{}
+	}
+	addr := crypto.PubkeyToAddress(pri.PublicKey)
+	point := addr.Hash().Big()
+
+	var validators []common.Address
+
+	// Collect all validators that contain drop points
+	for _, v := range vl.Validators {
+		if v.Weight == nil {
+			continue
+		}
+		if len(v.Weight) == 2 {
+			if point.Cmp(v.Weight[0]) > 0 && point.Cmp(v.Weight[1]) < 0 {
+				validators = append(validators, v.Addr)
+			}
+		}
+		if len(v.Weight) == 4 {
+			if (point.Cmp(v.Weight[0]) > 0 && point.Cmp(v.Weight[1]) < 0) ||
+				(point.Cmp(v.Weight[2]) > 0 && point.Cmp(v.Weight[3]) < 0) {
+				validators = append(validators, v.Addr)
+			}
+		}
+	}
+	// Make sure there are more than 11
+	if len(validators) < 11 {
+		diffCount := k - len(validators)
+		for _, v := range vl.Validators {
+			flg := false
+			for _, vv := range validators {
+				if vv == v.Addr {
+					flg = true
+					break
+				}
+			}
+			if !flg && diffCount > 0 {
+				validators = append(validators, v.Addr)
+				diffCount--
+			}
+		}
+	}
+
+	log.Info("The validator selected according to the landing point", "len", len(validators))
+
+	// Select 11 validators based on weight
+	res := vl.pickKValidators(validators, 11, randomHash)
+	for _, v := range res {
+		log.Info("pickKValidators:val", "v", v.Hex())
+	}
+	return nil, res
+}
+
+func (vl *ValidatorList) pickKValidators(dropValidators []common.Address, k int, randomHash common.Hash) []common.Address {
+	var (
+		random11Validators []common.Address
+		totalAmt           = int64(0)
+		base, _            = new(big.Int).SetString("1000000000000000000000", 10)
+	)
+
+	// deepcopy
+	dropValidatorsCopy := make([]common.Address, len(dropValidators))
+	copy(dropValidatorsCopy, dropValidators)
+
+	// Calculate the initial total and divide by 1000
+	for _, v := range dropValidatorsCopy {
+		amt := new(big.Int).Set(vl.StakeBalance(v))
+		totalAmt += amt.Div(amt, base).Int64()
+	}
+	for i := 0; i < k; i++ {
+		rno := genRandomNoInDifferentRanges(totalAmt, randomHash.Big().Int64())
+
+		fmt.Println("totalAmt======", totalAmt, "=====rno===", rno)
+		compareAmt := big.NewInt(0)
+		for j := 0; j < len(dropValidatorsCopy); j++ {
+			amt := new(big.Int).Set(vl.StakeBalance(dropValidatorsCopy[j]))
+			compareAmt.Add(compareAmt, amt)
+			if compareAmt.Cmp(big.NewInt(0).Mul(base, big.NewInt(rno))) >= 0 {
+				random11Validators = append(random11Validators, dropValidatorsCopy[j])
+				fmt.Println("amt=====", amt, "==addr==", dropValidatorsCopy[j].Hex(), "compareAmt====", compareAmt, ",=====ranamt=======", big.NewInt(0).Mul(base, big.NewInt(rno)))
+
+				// Remove the currently eligible validator
+				dropValidatorsCopy = append(dropValidatorsCopy[:j], dropValidatorsCopy[j+1:]...)
+				j--
+				// Update the total pledge amount
+				totalAmt = totalAmt - amt.Div(amt, base).Int64()
+				break
+			}
+		}
+	}
+	log.Info("pick K Validators", "len", len(random11Validators))
+	return random11Validators
+}
+
+// Generate random numbers in different ranges
+func genRandomNoInDifferentRanges(ranges, seed int64) int64 {
+	if ranges == 0 {
+		return 0
+	}
+	rand.Seed(seed + 1)
+	log.Info("genRandomNoInDifferentRanges", "val", rand.Int63n(ranges))
+	return rand.Int63n(ranges)
 }
 
 // TotalStakeBalance Calculate the total amount of the stake account
