@@ -55,7 +55,6 @@ var (
 	//for test
 	//ReduceRewardPeriod = uint64(1024)
 	//ExchangePeriod     = uint64(1) // 365 * 720 * 24 * 4 / 4096
-	FixVoteWeightBlockNumber = uint64(0)
 )
 
 type proofList [][]byte
@@ -2447,7 +2446,7 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		//Merge SNFT
 		existNftAddress := s.GetExistAddress(nftaddress, mergeLevel)
 		if existNftAddress != emptyAddress {
-			if blocknumber.Uint64() > FixVoteWeightBlockNumber {
+			if blocknumber.Uint64() > types.WinterSolsticeBlock {
 				existNftStateObject := s.GetOrNewStateObject(existNftAddress)
 				nftOwner := existNftStateObject.NFTOwner()
 				increaseValue, _ := s.MergeNFT16(existNftAddress)
