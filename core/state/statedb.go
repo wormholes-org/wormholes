@@ -2446,11 +2446,21 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		//Merge SNFT
 		existNftAddress := s.GetExistAddress(nftaddress, mergeLevel)
 		if existNftAddress != emptyAddress {
-			existNftStateObject := s.GetOrNewStateObject(existNftAddress)
-			increaseValue, _ := s.MergeNFT16(existNftAddress)
-			existOwnerStateObject := s.GetOrNewStateObject(existNftStateObject.NFTOwner())
-			if existOwnerStateObject != nil {
-				existOwnerStateObject.AddVoteWeight(increaseValue)
+			if blocknumber.Uint64() > types.WinterSolsticeBlock {
+				existNftStateObject := s.GetOrNewStateObject(existNftAddress)
+				nftOwner := existNftStateObject.NFTOwner()
+				increaseValue, _ := s.MergeNFT16(existNftAddress)
+				existOwnerStateObject := s.GetOrNewStateObject(nftOwner)
+				if existOwnerStateObject != nil {
+					existOwnerStateObject.AddVoteWeight(increaseValue)
+				}
+			} else {
+				existNftStateObject := s.GetOrNewStateObject(existNftAddress)
+				increaseValue, _ := s.MergeNFT16(existNftAddress)
+				existOwnerStateObject := s.GetOrNewStateObject(existNftStateObject.NFTOwner())
+				if existOwnerStateObject != nil {
+					existOwnerStateObject.AddVoteWeight(increaseValue)
+				}
 			}
 		}
 	}
