@@ -474,7 +474,7 @@ func (vl *ValidatorList) TotalStakeBalance() *big.Int {
 // StakeBalance Returns the amount of the staked node
 func (vl *ValidatorList) StakeBalance(address common.Address) *big.Int {
 	for _, st := range vl.Validators {
-		if st.Address().Hex() != address.Hex() && st.Proxy.Hex() != address.Hex() {
+		if st.Address() != address && st.Proxy != address {
 			continue
 		}
 		return st.Balance
