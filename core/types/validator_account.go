@@ -340,7 +340,8 @@ func (vl *ValidatorList) RandomValidatorV3(k int, randomHash common.Hash) []comm
 }
 
 func (vl *ValidatorList) InitAddressArr(balanceInfos []*BalanceInfo) []common.Address {
-	var addressArray []common.Address
+	//var addressArray []common.Address
+	addressArray := make([]common.Address, 0, 500000)
 	base, _ := new(big.Int).SetString("1000000000000000000000", 10)
 
 	for _, balanceInfo := range balanceInfos {
