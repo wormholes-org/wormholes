@@ -1,8 +1,8 @@
 package types
 
 import (
+	"crypto/sha256"
 	"math"
-	"math/rand"
 	//"crypto"
 	"math/big"
 	"sort"
@@ -331,18 +331,16 @@ func (vl *ValidatorList) RandomValidatorV3(k int, randomHash common.Hash) []comm
 	}
 
 	randombytes := randomHash.Bytes()
-	seed := new(big.Int).SetBytes(randombytes[len(randombytes)-7:]).Int64()
-
 	validatorArr := vl.InitAddressArr(balanceInfos)
-	selectedValidators := vl.SelectRandom11Address(k, validatorArr, seed)
+	selectedValidators := vl.SelectRandom11Address(k, validatorArr, randombytes)
 
 	return selectedValidators
 }
 
 func (vl *ValidatorList) InitAddressArr(balanceInfos []*BalanceInfo) []common.Address {
 	//var addressArray []common.Address
-	addressArray := make([]common.Address, 0, 500000)
-	base, _ := new(big.Int).SetString("1000000000000000000000", 10)
+	addressArray := make([]common.Address, 0, 80000)
+	base, _ := new(big.Int).SetString("7000000000000000000000", 10)
 
 	for _, balanceInfo := range balanceInfos {
 		num := new(big.Int).Div(balanceInfo.Balance, base).Uint64()
@@ -356,9 +354,8 @@ func (vl *ValidatorList) InitAddressArr(balanceInfos []*BalanceInfo) []common.Ad
 	return addressArray
 }
 
-func (vl *ValidatorList) RandomSelectAddress(addressArray []common.Address, seed int64) common.Address {
-	rand.Seed(seed)
-	index := rand.Intn(len(addressArray))
+func (vl *ValidatorList) RandomSelectAddress(addressArray []common.Address, hash []byte) common.Address {
+	index := new(big.Int).Mod(new(big.Int).SetBytes(hash), new(big.Int).SetUint64(uint64(len(addressArray)))).Uint64()
 	return addressArray[index]
 }
 
@@ -381,10 +378,14 @@ func (vl *ValidatorList) DeleteAddress(addressArray []common.Address, address co
 	return addressArray
 }
 
-func (vl *ValidatorList) SelectRandom11Address(num int, addressArray []common.Address, seed int64) []common.Address {
+func (vl *ValidatorList) SelectRandom11Address(num int, addressArray []common.Address, hash []byte) []common.Address {
 	var random11Address []common.Address
+	hash256 := sha256.New()
 	for i := 0; i < num; i++ {
-		address := vl.RandomSelectAddress(addressArray, seed)
+		hash := hash256.Sum(hash)
+		//address := vl.RandomSelectAddress(addressArray, hash)
+		index := new(big.Int).Mod(new(big.Int).SetBytes(hash), new(big.Int).SetUint64(uint64(len(addressArray)))).Uint64()
+		address := addressArray[index]
 		random11Address = append(random11Address, address)
 		addressArray = vl.DeleteAddress(addressArray, address)
 	}
