@@ -2855,7 +2855,7 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 	log.Info("Random11ValidatorFromPool : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
 	var validators []common.Address
 	if header.Number.Uint64() > types.WinterSolsticeBlock {
-		validators = validatorList.RandomValidatorV4(11, randomHash)
+		validators = validatorList.RandomValidatorV3(11, randomHash)
 	} else {
 		validators = validatorList.RandomValidatorV2(11, randomHash)
 	}
@@ -2908,7 +2908,7 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 
 	var validators []common.Address
 	if header.Number.Uint64() > types.WinterSolsticeBlock {
-		validators = validatorList.RandomValidatorV4(11, randomHash)
+		validators = validatorList.RandomValidatorV3(11, randomHash)
 	} else {
 		validators = validatorList.RandomValidatorV2(11, randomHash)
 	}
