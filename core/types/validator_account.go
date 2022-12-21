@@ -382,7 +382,7 @@ func (vl *ValidatorList) SelectRandom11Address(num int, addressArray []common.Ad
 	var random11Address []common.Address
 	hash256 := sha256.New()
 	for i := 0; i < num; i++ {
-		hash := hash256.Sum(hash)
+		hash = hash256.Sum(hash)
 		//address := vl.RandomSelectAddress(addressArray, hash)
 		index := new(big.Int).Mod(new(big.Int).SetBytes(hash), new(big.Int).SetUint64(uint64(len(addressArray)))).Uint64()
 		address := addressArray[index]
