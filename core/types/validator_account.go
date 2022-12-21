@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"math"
 	//"crypto"
+	"errors"
 	"math/big"
 	"sort"
 
@@ -391,6 +392,97 @@ func (vl *ValidatorList) SelectRandom11Address(num int, addressArray []common.Ad
 	}
 
 	return random11Address
+}
+
+func (vl *ValidatorList) DeepCopy() *ValidatorList {
+	tempValidatorList := &ValidatorList{
+		Validators: make([]*Validator, 0, vl.Len()),
+	}
+
+	for _, validator := range vl.Validators {
+		tempValidator := Validator{
+			Addr:    validator.Addr,
+			Balance: new(big.Int).Set(validator.Balance),
+			Proxy:   validator.Proxy,
+		}
+		for _, v := range validator.Weight {
+			tempValidator.Weight = append(tempValidator.Weight, new(big.Int).Set(v))
+		}
+
+		tempValidatorList.Validators = append(tempValidatorList.Validators, &tempValidator)
+	}
+
+	return tempValidatorList
+}
+
+func (vl *ValidatorList) selectAddress(rand *big.Int) (common.Address, error) {
+	sum := big.NewInt(0)
+	for _, validator := range vl.Validators {
+		sum.Add(sum, validator.Balance)
+		if sum.Cmp(rand) >= 0 {
+			return validator.Addr, nil
+		}
+	}
+
+	return common.Address{}, errors.New("select address error")
+}
+
+func (vl *ValidatorList) SelectRandom11AddressV2(num int, hash []byte) ([]common.Address, error) {
+	var random11Address []common.Address
+	tempValidators := vl.DeepCopy()
+	hsh256 := sha256.New()
+	for i := 0; i < num; i++ {
+		total := tempValidators.TotalStakeBalance()
+		hash = hsh256.Sum(hash)
+		mod := new(big.Int).Mod(new(big.Int).SetBytes(hash), total)
+		address, err := tempValidators.selectAddress(mod)
+		if err != nil {
+			return nil, err
+		}
+		random11Address = append(random11Address, address)
+		tempValidators.RemoveValidator(address, new(big.Int).Set(tempValidators.StakeBalance(address)))
+	}
+
+	return random11Address, nil
+}
+
+func (vl *ValidatorList) RandomValidatorV4(k int, randomHash common.Hash) []common.Address {
+	err, validators := vl.CollectValidatorsV3(randomHash)
+	log.Info("ccccc", "vl.validators.len", len(vl.Validators), "colleted validators.len", len(validators))
+	if err != nil {
+		return []common.Address{}
+	}
+
+	// Make up for less than K
+	diffCount := k - len(validators)
+	for _, v := range vl.Validators {
+		flg := false
+		for _, vv := range validators {
+			if vv == v.Addr {
+				flg = true
+				break
+			}
+		}
+		if !flg && diffCount > 0 {
+			validators = append(validators, v.Addr)
+			diffCount--
+		}
+	}
+
+	var tempList *ValidatorList
+	for _, validatorAddress := range validators {
+		for _, validator := range vl.Validators {
+			if validatorAddress == validator.Addr {
+				tempList.Validators = append(tempList.Validators, validator)
+				break
+			}
+		}
+	}
+
+	randombytes := randomHash.Bytes()
+	selectedValidators, _ := tempList.SelectRandom11AddressV2(k, randombytes)
+
+	return selectedValidators
 }
 
 // CollectValidators Collect the k validators closest to the drop point
