@@ -469,7 +469,9 @@ func (vl *ValidatorList) RandomValidatorV4(k int, randomHash common.Hash) []comm
 		}
 	}
 
-	var tempList *ValidatorList
+	tempList := &ValidatorList{
+		Validators: make([]*Validator, 0, len(validators)),
+	}
 	for _, validatorAddress := range validators {
 		for _, validator := range vl.Validators {
 			if validatorAddress == validator.Addr {
