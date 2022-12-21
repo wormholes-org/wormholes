@@ -392,14 +392,14 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		stakeList := c.GetStakerPool()
 		var benifitedStakers []common.Address
 		if header.Number.Uint64() > types.WinterSolsticeBlock {
-			validatorList, err := c.ReadValidatorPool(header)
+			validatorList, err := c.ReadValidatorPool(parent)
 			if err != nil {
 				log.Error("Engine: Prepare", "err", err, "no", c.CurrentHeader().Number.Uint64())
 				return err
 			}
 
 			// Obtain random landing points according to the surrounding chain algorithm
-			randomHash := core.GetRandomDrop(validatorList, header)
+			randomHash := core.GetRandomDrop(validatorList, parent)
 			if randomHash == (common.Hash{}) {
 				log.Error("Engine: Prepare : invalid random hash", "no", c.CurrentHeader().Number.Uint64())
 				return err
