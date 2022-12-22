@@ -377,7 +377,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				validatorAddr = append(validatorAddr, v)
 			}
 			for _, v := range commiters {
-				log.Info("print committers", "addr", v.Hex())
+				log.Info("print committers", "addr", v.Hex(), "preHeader", preHeader.Number, "no", header.Number)
 			}
 			for _, v := range validatorAddr {
 				log.Info("Prepare: onlineValidator", "addr", v.Hex(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
