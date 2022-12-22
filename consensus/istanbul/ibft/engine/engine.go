@@ -329,7 +329,6 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	var (
 		validatorAddr []common.Address
 		exchangerAddr []common.Address
-		addrBigInt    []*big.Int
 		rewardSeals   [][]byte
 	)
 	if c, ok := chain.(*core.BlockChain); ok {
@@ -394,32 +393,27 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		// reward to openExchangers
 		stakeList := c.GetStakerPool()
 		var benifitedStakers []common.Address
-		if header.Number.Uint64() > types.WinterSolsticeBlock {
-			validatorList, err := c.ReadValidatorPool(parent)
-			if err != nil {
-				log.Error("Engine: Prepare", "err", err, "no", c.CurrentHeader().Number.Uint64())
-				return err
-			}
 
-			// Obtain random landing points according to the surrounding chain algorithm
-			randomHash := core.GetRandomDrop(validatorList, parent)
-			if randomHash == (common.Hash{}) {
-				log.Error("Engine: Prepare : invalid random hash", "no", c.CurrentHeader().Number.Uint64())
-				return err
-			}
-			log.Info("Engine: Prepare : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
-
-			benifitedStakers, err = stakeList.SelectRandom4Address(4, randomHash.Bytes())
-			if err != nil {
-				log.Error("Engine: Prepare", "SelectRandom4Address err", err, "no", c.CurrentHeader().Number.Uint64())
-				return err
-			}
-		} else {
-			for _, staker := range stakeList.Stakers {
-				addrBigInt = append(addrBigInt, staker.Addr.Hash().Big())
-			}
-			benifitedStakers = stakeList.ValidatorByDistanceAndWeight(addrBigInt, 4, c.CurrentBlock().Header().Hash())
+		validatorList, err := c.ReadValidatorPool(parent)
+		if err != nil {
+			log.Error("Engine: Prepare", "err", err, "no", c.CurrentHeader().Number.Uint64())
+			return err
 		}
+
+		// Obtain random landing points according to the surrounding chain algorithm
+		randomHash := core.GetRandomDrop(validatorList, parent)
+		if randomHash == (common.Hash{}) {
+			log.Error("Engine: Prepare : invalid random hash", "no", c.CurrentHeader().Number.Uint64())
+			return err
+		}
+		log.Info("Engine: Prepare : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
+
+		benifitedStakers, err = stakeList.SelectRandom4Address(4, randomHash.Bytes())
+		if err != nil {
+			log.Error("Engine: Prepare", "SelectRandom4Address err", err, "no", c.CurrentHeader().Number.Uint64())
+			return err
+		}
+
 		exchangerAddr = append(exchangerAddr, benifitedStakers...)
 
 		//new&update  at 20220523

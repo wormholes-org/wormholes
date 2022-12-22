@@ -322,6 +322,11 @@ func (vl *ValidatorList) RandomValidatorV3(k int, randomHash common.Hash) []comm
 	}
 
 	var balanceInfos []*BalanceInfo
+
+	for _, v := range validators {
+		log.Info("ValidatorList.RandomValidatorV3", "address", v.String())
+	}
+
 	for _, validator := range validators {
 		balance := vl.StakeBalance(validator)
 		balanceInfo := BalanceInfo{
