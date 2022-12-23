@@ -1033,11 +1033,10 @@ func TestConsensus(t *testing.T) {
 	fmt.Print("=====v====", count1, count2, count3, count4, count5, count6)
 }
 
-func TestRandomValidatorsV3(t *testing.T) {
-	// c := 750000
-	// c2 := 70000
+func TestRandomValidatorsV3By16Addr(t *testing.T) {
 	c, _ := new(big.Int).SetString("750000000000000000000000000", 10)
 	c2, _ := new(big.Int).SetString("70000000000000000000000000", 10)
+
 	stakeAmt := []*big.Int{
 		c,
 		c2,
@@ -1059,6 +1058,12 @@ func TestRandomValidatorsV3(t *testing.T) {
 
 	addrs := GetSelfAddr()
 
+	// initial count
+	countMap := make(map[common.Address]int, 0)
+	for _, v := range addrs {
+		countMap[v] = 0
+	}
+
 	var validators []*Validator
 	for i := 0; i < len(addrs); i++ {
 		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
@@ -1069,37 +1074,19 @@ func TestRandomValidatorsV3(t *testing.T) {
 		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
 	}
 
-	var count1 int
-	var count2 int
-	var count3 int
-	var count4 int
-	var count5 int
-	var count6 int
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 10000; i++ {
 		randomHash := randomHash()
+		fmt.Println("====randomhash===", randomHash)
 		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
 		for _, v := range consensusValidator {
-			if v.Hex() == "0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD" {
-				count1++
-			}
-			if v.Hex() == "0xa270bBDFf450EbbC2d0413026De5545864a1b6d6" {
-				count2++
-			}
-			if v.Hex() == "0x9baeC4D975B0Dd5baa904200Ea11727eDD593be6" {
-				count3++
-			}
-			if v.Hex() == "0x77c33e2951d2851D9D648161BEfAC8f4C60D1181" {
-				count4++
-			}
-			if v.Hex() == "0x5a7f652BC51Fb99747fe2641A8CDd6CbFE51b201" {
-				count5++
-			}
-			if v.Hex() == "0x2c2909db351764D92ecc313a0D8baF72735C5165" {
-				count6++
-			}
+			countMap[v]++
 		}
 	}
-	fmt.Print("=====v====", count1, count2, count3, count4, count5, count6)
+
+	for k, v := range countMap {
+		fmt.Println("addr====", k, "====count====", v)
+	}
+
 }
 func TestMockData(t *testing.T) {
 	c1 := 5000000
