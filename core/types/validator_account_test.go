@@ -2,11 +2,15 @@ package types
 
 import (
 	"bytes"
+	"encoding/hex"
+
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/rand"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -1088,6 +1092,111 @@ func TestRandomValidatorsV3By16Addr(t *testing.T) {
 	}
 
 }
+
+const allocData = "" +
+	"0x091DBBa95B26793515cc9aCB9bEb5124c479f27F:0x9ed194db19b238c00000," +
+	"0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD:0xed2b525841adfc00000," +
+	"0x612DFa56DcA1F581Ed34b9c60Da86f1268Ab6349:0x9ed194db19b238c00000," +
+	"0x84d84e6073A06B6e784241a9B13aA824AB455326:0xed2b525841adfc00000," +
+	"0x9e4d5C72569465270232ed7Af71981Ee82d08dBF:0x9ed194db19b238c00000," +
+	"0xa270bBDFf450EbbC2d0413026De5545864a1b6d6:0xed2b525841adfc00000," +
+	"0x4110E56ED25e21267FBeEf79244f47ada4e2E963:0x9ed194db19b238c00000," +
+	"0xdb33217fE3F74bD41c550B06B624E23ab7f55d05:0xed2b525841adfc00000," +
+	"0xE2FA892CC5CC268a0cC1d924EC907C796351C645:0x9ed194db19b238c00000," +
+	"0x52EAE6D396E82358D703BEDeC2ab11E723127230:0xed2b525841adfc00000," +
+	"0x31534d5C7b1eabb73425c2361661b878F4322f9D:0x9ed194db19b238c00000," +
+	"0xbbaE84E9879F908700c6ef5D15e928Abfb556a21:0xed2b525841adfc00000," +
+	"0x20cb28AE861c322A9A86b4F9e36Ad6977930fA05:0x9ed194db19b238c00000," +
+	"0xFfAc4cd934f026dcAF0f9d9EEDDcD9af85D8943e:0xed2b525841adfc00000," +
+	"0xc067825f4B7a53Bb9f2Daf72fF22C8EE39736afF:0x9ed194db19b238c00000," +
+	"0x7bf72621Dd7C4Fe4AF77632e3177c08F53fdAF09:0xed2b525841adfc00000"
+
+func GetBalanceInfos(data string) []*BalanceInfo {
+
+	var balanceInfos []*BalanceInfo
+
+	accountInfos := strings.Split(data, ",")
+	for _, accountInfo := range accountInfos {
+		splitAccountInfo := strings.Split(accountInfo, ":")
+		address := common.HexToAddress(splitAccountInfo[0])
+		strBalance := string([]byte(splitAccountInfo[1])[2:])
+		balance, _ := new(big.Int).SetString(strBalance, 16)
+		balanceInfo := BalanceInfo{
+			Address: address,
+			Balance: balance,
+		}
+
+		balanceInfos = append(balanceInfos, &balanceInfo)
+	}
+
+	return balanceInfos
+}
+
+func TestRandomValidatorsV3(t *testing.T) {
+	addressNum := make(map[common.Address]int, 0)
+	//hash := md5.New()
+	randomAddress := make(map[string]int, 0)
+
+	//hash := sha256.New()
+	infos := GetBalanceInfos(allocData)
+
+	tempValidatorList := &ValidatorList{
+		Validators: make([]*Validator, 0, len(infos)),
+	}
+
+	for _, info := range infos {
+		tempValidator := Validator{
+			Addr:    info.Address,
+			Balance: new(big.Int).Set(info.Balance),
+		}
+		tempValidatorList.Validators = append(tempValidatorList.Validators, &tempValidator)
+	}
+
+	//for _, v := range tempValidatorList.Validators {
+	//	t.Log("before", v.Weight)
+	//}
+
+	for _, vl := range tempValidatorList.Validators {
+		tempValidatorList.CalculateAddressRange(vl.Addr, tempValidatorList.StakeBalance(vl.Addr))
+	}
+
+	//for _, v := range tempValidatorList.Validators {
+	//	t.Log("after", v.Weight)
+	//}
+
+	for i := 0; i < 20000; i++ {
+		sum := crypto.Keccak256([]byte(strconv.Itoa(i)))
+		//sum = crypto.Keccak256Hash(sum.Bytes())
+		//sum := hash.Sum([]byte(strconv.Itoa(i)))
+		//sum = hash.Sum(sum)
+
+		t.Log("sum: ", hex.EncodeToString(sum))
+		rr := common.BytesToHash(sum).Hex()
+		pri, _ := crypto.HexToECDSA(rr[2:])
+		addr := crypto.PubkeyToAddress(pri.PublicKey)
+		t.Log(addr.Hex())
+		randomAddress[strings.ToLower(string([]byte(addr.String())[:3]))]++
+		addressArr := tempValidatorList.RandomValidatorV3(11, common.BytesToHash(sum))
+		//arr := tempValidatorList.InitAddressArr(infos)
+		//addressArr := tempValidatorList.SelectRandom11Address(11, arr, sum)
+		for _, address := range addressArr {
+			//t.Log(address.Hex())
+			addressNum[address]++
+		}
+	}
+
+	//infos := GetBalanceInfos(devnetAllocData)
+	base, _ := new(big.Int).SetString("1000000000000000000000", 10)
+	for _, info := range infos {
+		t.Log(info.Address.Hex(), new(big.Int).Div(info.Balance, base), addressNum[info.Address])
+	}
+	t.Log(tempValidatorList.Len())
+
+	for k, v := range randomAddress {
+		t.Log(k, v)
+	}
+}
+
 func TestMockData(t *testing.T) {
 	c1 := 5000000
 	c2 := 140000

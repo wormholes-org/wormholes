@@ -1,7 +1,6 @@
 package types
 
 import (
-	"crypto/sha256"
 	"math"
 	//"crypto"
 	"errors"
@@ -386,9 +385,10 @@ func (vl *ValidatorList) DeleteAddress(addressArray []common.Address, address co
 
 func (vl *ValidatorList) SelectRandom11Address(num int, addressArray []common.Address, hash []byte) []common.Address {
 	var random11Address []common.Address
-	hash256 := sha256.New()
+	//hash256 := sha256.New()
 	for i := 0; i < num; i++ {
-		hash = hash256.Sum(hash)
+		//hash = hash256.Sum(hash)
+		hash = crypto.Keccak256(hash)
 		//address := vl.RandomSelectAddress(addressArray, hash)
 		index := new(big.Int).Mod(new(big.Int).SetBytes(hash), new(big.Int).SetUint64(uint64(len(addressArray)))).Uint64()
 		address := addressArray[index]
@@ -435,10 +435,11 @@ func (vl *ValidatorList) selectAddress(rand *big.Int) (common.Address, error) {
 func (vl *ValidatorList) SelectRandom11AddressV2(num int, hash []byte) ([]common.Address, error) {
 	var random11Address []common.Address
 	tempValidators := vl.DeepCopy()
-	hsh256 := sha256.New()
+	//hsh256 := sha256.New()
 	for i := 0; i < num; i++ {
 		total := tempValidators.TotalStakeBalance()
-		hash = hsh256.Sum(hash)
+		//hash = hsh256.Sum(hash)
+		hash = crypto.Keccak256(hash)
 		mod := new(big.Int).Mod(new(big.Int).SetBytes(hash), total)
 		address, err := tempValidators.selectAddress(mod)
 		if err != nil {

@@ -1,9 +1,9 @@
 package types
 
 import (
-	"crypto/sha256"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sort"
@@ -173,10 +173,11 @@ func (sl *StakerList) selectAddress(rand *big.Int) (common.Address, error) {
 func (sl *StakerList) SelectRandom4Address(num int, hash []byte) ([]common.Address, error) {
 	var random4Address []common.Address
 	tempStakers := sl.DeepCopy()
-	hsh256 := sha256.New()
+	//hsh256 := sha256.New()
 	for i := 0; i < num; i++ {
 		total := tempStakers.TotalStakeBalance()
-		hash = hsh256.Sum(hash)
+		//hash = hsh256.Sum(hash)
+		hash = crypto.Keccak256(hash)
 		mod := new(big.Int).Mod(new(big.Int).SetBytes(hash), total)
 		address, err := tempStakers.selectAddress(mod)
 		if err != nil {
