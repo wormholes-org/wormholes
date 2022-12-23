@@ -1095,33 +1095,38 @@ func TestRandomValidatorsV3By16Addr(t *testing.T) {
 func TestRandomValidatorsV3By400Addr(t *testing.T) {
 	c, _ := new(big.Int).SetString("750000000000000000000000000", 10)
 	c2, _ := new(big.Int).SetString("70000000000000000000000000", 10)
+	c3, _ := new(big.Int).SetString("100000000000000000000000000", 10)
 
 	stakeAmt := []*big.Int{
 		c,
-		c2,
+		c3,
 		c,
-		c2,
+		c3,
 		c,
-		c2,
+		c3,
 		c,
-		c2,
+		c3,
 		c,
-		c2,
+		c3,
 		c,
-		c2,
+		c3,
 		c,
-		c2,
+		c3,
 		c,
-		c2,
+		c3,
 	}
 
-	for i := 0; i < 384; i++ {
+	for i := 0; i < 200; i++ {
 		stakeAmt = append(stakeAmt, c2.Add(c2, big.NewInt(int64(i))))
+	}
+
+	for i := 0; i < 200; i++ {
+		stakeAmt = append(stakeAmt, c3)
 	}
 
 	addrs := GetSelfAddr()
 
-	for i := 0; i < 384; i++ {
+	for i := 0; i < 400; i++ {
 		addrs = append(addrs, RandomAddr())
 	}
 
@@ -1151,7 +1156,7 @@ func TestRandomValidatorsV3By400Addr(t *testing.T) {
 	}
 
 	for k, v := range countMap {
-		fmt.Println("addr====", k, "====count====", v)
+		fmt.Println("addr====", k, "====count====", v, "balance", validatorList.StakeBalance(k))
 	}
 }
 
