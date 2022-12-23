@@ -2476,7 +2476,7 @@ func (s *StateDB) calculateExchangeAmount(level uint8, mergenumber uint32) *big.
 	nftNumber := big.NewInt(int64(mergenumber))
 	switch {
 	case level == 0:
-		radix, _ := big.NewInt(0).SetString("95000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("30000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	case level == 1:
 		radix, _ := big.NewInt(0).SetString("143000000000000000", 10)
