@@ -1074,7 +1074,7 @@ func TestRandomValidatorsV3By16Addr(t *testing.T) {
 		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
 	}
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 200; i++ {
 		randomHash := randomHash()
 		fmt.Println("====randomhash===", randomHash)
 		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
@@ -1086,7 +1086,69 @@ func TestRandomValidatorsV3By16Addr(t *testing.T) {
 	for k, v := range countMap {
 		fmt.Println("addr====", k, "====count====", v)
 	}
+}
 
+func TestRandomValidatorsV3By400Addr(t *testing.T) {
+	c, _ := new(big.Int).SetString("750000000000000000000000000", 10)
+	c2, _ := new(big.Int).SetString("70000000000000000000000000", 10)
+
+	stakeAmt := []*big.Int{
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+	}
+
+	for i := 0; i < 384; i++ {
+		stakeAmt = append(stakeAmt, c2.Add(c2, big.NewInt(int64(i))))
+	}
+
+	addrs := GetSelfAddr()
+
+	for i := 0; i < 384; i++ {
+		addrs = append(addrs, RandomAddr())
+	}
+
+	// initial count
+	countMap := make(map[common.Address]int, 0)
+	for _, v := range addrs {
+		countMap[v] = 0
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+
+	for i := 0; i < 1000; i++ {
+		randomHash := randomHash()
+		fmt.Println("====randomhash===", randomHash)
+		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
+		for _, v := range consensusValidator {
+			countMap[v]++
+		}
+	}
+
+	for k, v := range countMap {
+		fmt.Println("addr====", k, "====count====", v)
+	}
 }
 func TestMockData(t *testing.T) {
 	c1 := 5000000
