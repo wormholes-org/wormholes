@@ -3408,6 +3408,20 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Tra
 	}
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
+	var wormholes types.Wormholes
+	input := tx.Data()
+	if len(input) > 10 {
+		if string(input[:10]) == "wormholes:" {
+			jsonErr := json.Unmarshal(input[10:], &wormholes)
+			if jsonErr == nil {
+				if wormholes.Type == 21 {
+					return common.Hash{}, errors.New("This type is not supported for now")
+				}
+			} else {
+				return common.Hash{}, jsonErr
+			}
+		}
+	}
 
 	signed, err := wallet.SignTx(account, tx, s.b.ChainConfig().ChainID)
 	if err != nil {
@@ -3439,6 +3453,20 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input
 	tx := new(types.Transaction)
 	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
+	}
+	var wormholes types.Wormholes
+	inputData := tx.Data()
+	if len(inputData) > 10 {
+		if string(inputData[:10]) == "wormholes:" {
+			jsonErr := json.Unmarshal(inputData[10:], &wormholes)
+			if jsonErr == nil {
+				if wormholes.Type == 21 {
+					return common.Hash{}, errors.New("This type is not supported for now!")
+				}
+			} else {
+				return common.Hash{}, jsonErr
+			}
+		}
 	}
 	return SubmitTransaction(ctx, s.b, tx)
 }
