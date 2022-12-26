@@ -2446,21 +2446,12 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		//Merge SNFT
 		existNftAddress := s.GetExistAddress(nftaddress, mergeLevel)
 		if existNftAddress != emptyAddress {
-			if blocknumber.Uint64() > types.WinterSolsticeBlock {
-				existNftStateObject := s.GetOrNewStateObject(existNftAddress)
-				nftOwner := existNftStateObject.NFTOwner()
-				increaseValue, _ := s.MergeNFT16(existNftAddress)
-				existOwnerStateObject := s.GetOrNewStateObject(nftOwner)
-				if existOwnerStateObject != nil {
-					existOwnerStateObject.AddVoteWeight(increaseValue)
-				}
-			} else {
-				existNftStateObject := s.GetOrNewStateObject(existNftAddress)
-				increaseValue, _ := s.MergeNFT16(existNftAddress)
-				existOwnerStateObject := s.GetOrNewStateObject(existNftStateObject.NFTOwner())
-				if existOwnerStateObject != nil {
-					existOwnerStateObject.AddVoteWeight(increaseValue)
-				}
+			existNftStateObject := s.GetOrNewStateObject(existNftAddress)
+			nftOwner := existNftStateObject.NFTOwner()
+			increaseValue, _ := s.MergeNFT16(existNftAddress)
+			existOwnerStateObject := s.GetOrNewStateObject(nftOwner)
+			if existOwnerStateObject != nil {
+				existOwnerStateObject.AddVoteWeight(increaseValue)
 			}
 		}
 	}
@@ -2485,7 +2476,7 @@ func (s *StateDB) calculateExchangeAmount(level uint8, mergenumber uint32) *big.
 	nftNumber := big.NewInt(int64(mergenumber))
 	switch {
 	case level == 0:
-		radix, _ := big.NewInt(0).SetString("95000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("30000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	case level == 1:
 		radix, _ := big.NewInt(0).SetString("143000000000000000", 10)

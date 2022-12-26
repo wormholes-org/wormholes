@@ -133,7 +133,7 @@ func (l *ActiveMinerList) TotalStakeBalance() *big.Int {
 // Returns the amount of the staked node
 func (l *ActiveMinerList) StakeBalance(address common.Address) *big.Int {
 	for _, v := range l.ActiveMiners {
-		if v.Address.Hex() != address.Hex() {
+		if v.Address != address {
 			continue
 		}
 		return v.Balance

@@ -329,7 +329,6 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	var (
 		validatorAddr []common.Address
 		exchangerAddr []common.Address
-		addrBigInt    []*big.Int
 		rewardSeals   [][]byte
 	)
 	if c, ok := chain.(*core.BlockChain); ok {
@@ -377,6 +376,9 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				// reward to onlineValidtors
 				validatorAddr = append(validatorAddr, v)
 			}
+			for i, v := range commiters {
+				log.Info("print committers", "len", len(commiters), "i", i, "addr", v.Hex(), "preHeader", preHeader.Number, "no", header.Number)
+			}
 			for _, v := range validatorAddr {
 				log.Info("Prepare: onlineValidator", "addr", v.Hex(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
 			}
@@ -390,10 +392,28 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 
 		// reward to openExchangers
 		stakeList := c.GetStakerPool()
-		for _, staker := range stakeList.Stakers {
-			addrBigInt = append(addrBigInt, staker.Addr.Hash().Big())
+		var benifitedStakers []common.Address
+
+		validatorList, err := c.ReadValidatorPool(parent)
+		if err != nil {
+			log.Error("Engine: Prepare", "err", err, "no", c.CurrentHeader().Number.Uint64())
+			return err
 		}
-		benifitedStakers := stakeList.ValidatorByDistanceAndWeight(addrBigInt, 4, c.CurrentBlock().Header().Hash())
+
+		// Obtain random landing points according to the surrounding chain algorithm
+		randomHash := core.GetRandomDrop(validatorList, parent)
+		if randomHash == (common.Hash{}) {
+			log.Error("Engine: Prepare : invalid random hash", "no", c.CurrentHeader().Number.Uint64())
+			return err
+		}
+		log.Info("Engine: Prepare : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
+
+		benifitedStakers, err = stakeList.SelectRandom4Address(4, randomHash.Bytes())
+		if err != nil {
+			log.Error("Engine: Prepare", "SelectRandom4Address err", err, "no", c.CurrentHeader().Number.Uint64())
+			return err
+		}
+
 		exchangerAddr = append(exchangerAddr, benifitedStakers...)
 
 		//new&update  at 20220523
