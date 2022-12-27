@@ -1160,6 +1160,91 @@ func TestRandomValidatorsV3By400Addr(t *testing.T) {
 	}
 }
 
+/*
+方案1 ： 1个2000玩，7个 77万 ，400 个 7万， 离线率 40， 50 ，60 ，查看出正常块概率
+方案2 ： 8个 77万 ， 400个 7万
+*/
+
+func TestBlockRate(t *testing.T) {
+	c1, _ := new(big.Int).SetString("20000000000000000000000000000", 10)
+	c2, _ := new(big.Int).SetString("770000000000000000000000000", 10)
+	c3, _ := new(big.Int).SetString("70000000000000000000000000", 10)
+
+	stakeAmt := []*big.Int{
+		c1,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+	}
+
+	for i := 0; i < 400; i++ {
+		stakeAmt = append(stakeAmt, c3)
+	}
+
+	addrs := GetSelfAddr()
+
+	for i := 0; i < 400; i++ {
+		addrs = append(addrs, RandomAddr())
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+
+	// 准备离线列表 后面对应离线的地址数目
+	/*
+		160 63
+
+	*/
+	offlineList := PrepareOfflineValidator(validatorList, 200)
+
+	var failedBlockCount int
+	for i := 0; i < 10000; i++ {
+		randomHash := randomHash()
+		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
+
+		count := 0
+		for _, v := range consensusValidator {
+			if count > 4 {
+				failedBlockCount++
+				break
+			}
+			for j := 0; j < len(offlineList.Validators); j++ {
+				if v == offlineList.Validators[j].Addr {
+					count++
+				}
+			}
+		}
+	}
+
+	fmt.Println("failedBlockCount====", failedBlockCount)
+}
+
+func PrepareOfflineValidator(list *ValidatorList, count int) *ValidatorList {
+	offlineList := list.DeepCopy()
+	startIndex := 400 - count
+	offlineList.Validators = offlineList.Validators[startIndex:400]
+	return offlineList
+}
+
 const allocData = "" +
 	"0x091DBBa95B26793515cc9aCB9bEb5124c479f27F:0x9ed194db19b238c00000," +
 	"0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD:0xed2b525841adfc00000," +
