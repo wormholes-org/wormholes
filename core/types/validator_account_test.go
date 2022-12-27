@@ -1160,6 +1160,332 @@ func TestRandomValidatorsV3By400Addr(t *testing.T) {
 	}
 }
 
+//===================================================
+/*
+方案1 ： 1个2000玩，7个 77万 ，400 个 7万， 离线率 40， 50 ，60 ，查看出正常块概率
+方案2 ： 8个 300万 ， 400个 7万
+*/
+func TestBlockRate(t *testing.T) {
+	c1, _ := new(big.Int).SetString("20000000000000000000000000000", 10)
+	c2, _ := new(big.Int).SetString("3000000000000000000000000000", 10)
+	c3, _ := new(big.Int).SetString("70000000000000000000000000", 10)
+
+	stakeAmt := []*big.Int{
+		c1,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+	}
+
+	for i := 0; i < 400; i++ {
+		stakeAmt = append(stakeAmt, c3)
+	}
+
+	addrs := GetSelfAddr()
+
+	for i := 0; i < 400; i++ {
+		addrs = append(addrs, RandomAddr())
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRangeV2(vl.Addr, validatorList.StakeBalance(vl.Addr), big.NewInt(1))
+	}
+
+	// 准备离线列表 后面对应离线的地址数目
+	/*
+		              1*2000万  + 7 * 77万 + 8*7万 + 400 * 7万
+		              离线地址数  失败次数  在线率
+						160          63   60%
+						200  		 106  50%
+						240 		 109  40%
+
+
+					  8*300万 + 8*7万 + 400 * 7万
+					  离线地址数  失败次数  在线率
+						160 		 82   60%
+						200 		 123  50%
+						240 		 81   40%
+	*/
+	offlineList := PrepareOfflineValidator(validatorList, 160)
+
+	var failedBlockCount int
+	for i := 0; i < 1000; i++ {
+		randomHash := randomHash()
+		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
+
+		count := 0
+		for _, v := range consensusValidator {
+			if count > 4 {
+				failedBlockCount++
+				break
+			}
+			for j := 0; j < len(offlineList.Validators); j++ {
+				if v == offlineList.Validators[j].Addr {
+					count++
+				}
+			}
+		}
+		fmt.Println("failedBlockCount====", failedBlockCount)
+	}
+	fmt.Println("failedBlockCount====", failedBlockCount)
+}
+
+//===================================================
+/*
+测试每一轮我们的地址有几个， 其他的地址几个在线，几个离线
+*/
+type OnlineInfo struct {
+	Our          int
+	OtherOnline  int
+	OtherOffline int
+}
+
+func TestOnlineInfoByOnlineRatio(t *testing.T) {
+	c1, _ := new(big.Int).SetString("20000000000000000000000000000", 10)
+	c2, _ := new(big.Int).SetString("7700000000000000000000000000", 10)
+	c3, _ := new(big.Int).SetString("70000000000000000000000000", 10)
+
+	stakeAmt := []*big.Int{
+		c1,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+	}
+
+	for i := 0; i < 400; i++ {
+		stakeAmt = append(stakeAmt, c3)
+	}
+
+	addrs := GetSelfAddr()
+
+	for i := 0; i < 400; i++ {
+		addrs = append(addrs, RandomAddr())
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRangeV2(vl.Addr, validatorList.StakeBalance(vl.Addr), big.NewInt(1))
+	}
+
+	offlineList := PrepareOfflineValidator(validatorList, 160)
+
+	var ols []OnlineInfo
+	var (
+		oav      int
+		onlineav int
+		offlinav int
+	)
+	for i := 0; i < 500; i++ {
+		randomHash := randomHash()
+		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
+
+		var (
+			our          = 0
+			otherOnline  = 0
+			otherOffline = 0
+		)
+		for _, v := range consensusValidator {
+			// 统计我们validator 的数据
+			for i := 0; i < 16; i++ {
+				if v == addrs[i] {
+					our++
+				}
+			}
+
+			// 统计其他人的在线数据
+			for i := 16; i < 256; i++ {
+				if v == addrs[i] {
+					otherOnline++
+				}
+			}
+
+			// 统计其他人的不在线数据
+			for i := 0; i < len(offlineList.Validators); i++ {
+				if v == offlineList.Validators[i].Addr {
+					otherOffline++
+				}
+			}
+		}
+		ol := OnlineInfo{Our: our, OtherOnline: otherOnline, OtherOffline: otherOffline}
+		//fmt.Println("current info", "===our", our, "==otherOnline", otherOnline, "====otherOffline====", otherOffline)
+		fmt.Println("====current===", i)
+		ols = append(ols, ol)
+	}
+	for _, v := range ols {
+		oav += v.Our
+		onlineav += v.OtherOnline
+		offlinav += v.OtherOffline
+	}
+	fmt.Println("our===", oav/500, "====onlineav===", onlineav/500, "===offlinav===", offlinav/500)
+}
+
+//===================================================
+/*
+测试恢复权重
+初始权重设置为1 出块就 随机7个地址就恢复到70
+11个如果出块失败，11个地址减去10 ，最多减到1
+*/
+func TestRecoverWeight(t *testing.T) {
+	c1, _ := new(big.Int).SetString("20000000000000000000000000000", 10)
+	c2, _ := new(big.Int).SetString("7700000000000000000000000000", 10)
+	c3, _ := new(big.Int).SetString("70000000000000000000000000", 10)
+
+	stakeAmt := []*big.Int{
+		c1,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c2,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+		c3,
+	}
+
+	for i := 0; i < 400; i++ {
+		stakeAmt = append(stakeAmt, c3)
+	}
+
+	addrs := GetSelfAddr()
+
+	for i := 0; i < 400; i++ {
+		addrs = append(addrs, RandomAddr())
+	}
+
+	// 初始化权重map
+	weightMap := make(map[common.Address]int64, 0)
+	for _, v := range addrs {
+		weightMap[v] = 1
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRangeV2(vl.Addr, validatorList.StakeBalance(vl.Addr), big.NewInt(1))
+	}
+
+	offlineList := PrepareOfflineValidator(validatorList, 160)
+
+	failedBlockFlg := true
+	for i := 0; i < 500; i++ {
+		randomHash := randomHash()
+		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
+
+		failedBlockFlg = true
+		count := 0
+		for _, v := range consensusValidator {
+			for j := 0; j < len(offlineList.Validators); j++ {
+				if v == offlineList.Validators[j].Addr {
+					count++
+				}
+			}
+			if count > 4 {
+				fmt.Println("i==", i, "count>4")
+				failedBlockFlg = false
+				break
+			}
+		}
+
+		if !failedBlockFlg {
+			fmt.Println("failed 1")
+			// 出块失败
+			for _, v := range consensusValidator {
+				if weightMap[v] > 10 {
+					weightMap[v] -= 10
+				} else {
+					weightMap[v] = 1
+				}
+			}
+		} else {
+			// 随机7个地址恢复到70权重
+			fmt.Println("success 1")
+			randomMap := randomCount()
+			for k := range randomMap {
+				addr := consensusValidator[k]
+				if weightMap[addr] < 70 {
+					weightMap[addr] = 70
+				}
+			}
+		}
+	}
+
+	for addr, weight := range weightMap {
+		fmt.Println("addr===", addr, "====weight", weight)
+	}
+}
+
+func randomCount() map[int32]bool {
+	indexMap := make(map[int32]bool, 0)
+	for len(indexMap) < 7 {
+		rand.Seed(time.Now().UnixNano())
+		count := rand.Int31n(11)
+		if indexMap[count] == false {
+			indexMap[count] = true
+		}
+	}
+	return indexMap
+}
+
+func TestRandomCount(t *testing.T) {
+	randomMap := randomCount()
+	for k, v := range randomMap {
+		fmt.Println("k===", k, "===v===", v)
+	}
+}
+
+func PrepareOfflineValidator(list *ValidatorList, count int) *ValidatorList {
+	offlineList := list.DeepCopy()
+	startIndex := 400 - count
+	offlineList.Validators = offlineList.Validators[startIndex:400]
+	return offlineList
+}
+
 const allocData = "" +
 	"0x091DBBa95B26793515cc9aCB9bEb5124c479f27F:0x9ed194db19b238c00000," +
 	"0x107837Ea83f8f06533DDd3fC39451Cd0AA8DA8BD:0xed2b525841adfc00000," +
