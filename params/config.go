@@ -250,7 +250,7 @@ var (
 
 	// DevnetChainConfig is the chain parameters to run a node on the wormholes developer network.
 	DevnetChainConfig = &ChainConfig{
-		ChainID:        big.NewInt(51893),
+		ChainID:        big.NewInt(51894),
 		HomesteadBlock: big.NewInt(0),
 		//DAOForkBlock:        big.NewInt(1_920_000),
 		//DAOForkSupport:      true,
