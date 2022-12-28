@@ -523,8 +523,13 @@ func handlePooledTransactions66(backend Backend, msg Decoder, peer *Peer) error 
 }
 
 func handleWorker66(backend Backend, msg Decoder, peer *Peer) error {
-	log.Info("start handle workerMsg")
-	return backend.HandleWorkerMsg(msg, peer)
+	//log.Info("start handle workerMsg")
+	//return backend.HandleWorkerMsg(msg, peer)
+	err := backend.HandleWorkerMsg(msg, peer)
+	if err != nil {
+		log.Error("handleWorker66.emtpyblock", "err", err)
+	}
+	return err
 }
 
 func handleWormhole(backend Backend, msg Decoder, peer *Peer) error {
@@ -534,6 +539,7 @@ func handleWormhole(backend Backend, msg Decoder, peer *Peer) error {
 		addr := crypto.PubkeyToAddress(*pubKey)
 		handled, err := handler.HandleMsg(addr, msg.(p2p.Msg))
 		if handled {
+			log.Error("handleWormhole.normalblock", "err", err)
 			return err
 		}
 	}
