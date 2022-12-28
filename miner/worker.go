@@ -540,6 +540,7 @@ func (w *worker) emptyLoop() {
 					w.cerytify.proofStatePool.proofs == nil ||
 					rs == nil ||
 					w.cacheHeight == nil ||
+					w.cerytify.proofStatePool.proofs[rs.Uint64()] == nil ||
 					w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum == nil ||
 					w.targetWeightBalance == nil {
 					log.Error("emptyLoop.signatureResultCh, some items occur nil !!")
