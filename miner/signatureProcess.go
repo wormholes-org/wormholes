@@ -37,7 +37,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 
 	//log.Info("Certify.GatherOtherPeerSignature", "c.miner.GetWorker().chain.CurrentHeader().Number", c.miner.GetWorker().chain.CurrentHeader().Number,
 	//	"height", height, "c.proofStatePool.proofs[height] == nil 1", c.proofStatePool.proofs[height.Uint64()] == nil)
-	c.proofStatePool.ClearPrev(c.miner.GetWorker().chain.CurrentHeader().Number)
+	//c.proofStatePool.ClearPrev(c.miner.GetWorker().chain.CurrentHeader().Number)
 	//log.Info("Certify.GatherOtherPeerSignature", "c.miner.GetWorker().chain.CurrentHeader().Number", c.miner.GetWorker().chain.CurrentHeader().Number,
 	//	"height", height, "c.proofStatePool.proofs[height] == nil 2", c.proofStatePool.proofs[height.Uint64()] == nil)
 	averageCoefficient, err := c.miner.GetWorker().GetAverageCoefficient() // need to divide 10

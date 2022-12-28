@@ -564,6 +564,7 @@ func (w *worker) emptyLoop() {
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}
 				}
+				w.cerytify.proofStatePool.ClearPrev(w.chain.CurrentHeader().Number)
 			}
 		}
 	}
