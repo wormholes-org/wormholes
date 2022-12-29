@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
@@ -92,9 +91,9 @@ func (c *Certify) broadcast(from common.Address, msg *Msg) error {
 
 // Gossip Broadcast message to all stakers
 func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byte) error {
-	hash := istanbul.RLPHash(payload)
-	c.selfMessages.Add(hash, true)
-
+	//hash := istanbul.RLPHash(payload)
+	//c.selfMessages.Add(hash, true)
+	//
 	targets := make(map[common.Address]bool)
 	for _, val := range valSet.Validators {
 		if val.Address() != c.Address() {
@@ -106,21 +105,21 @@ func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byt
 		ps = miner.broadcaster.FindPeerSet(targets)
 	}
 	log.Info("certify gossip worker msg", "len", len(ps), "code", code)
-	for addr, p := range ps {
-		ms, ok := c.otherMessages.Get(addr)
-		var m *lru.ARCCache
-		if ok {
-			m, _ = ms.(*lru.ARCCache)
-			if _, k := m.Get(hash); k {
-				// This peer had this event, skip it
-				continue
-			}
-		} else {
-			m, _ = lru.NewARC(remotePeers)
-		}
-
-		m.Add(hash, true)
-		c.otherMessages.Add(addr, m)
+	for _, p := range ps {
+		//ms, ok := c.otherMessages.Get(addr)
+		//var m *lru.ARCCache
+		//if ok {
+		//	m, _ = ms.(*lru.ARCCache)
+		//	if _, k := m.Get(hash); k {
+		//		// This peer had this event, skip it
+		//		continue
+		//	}
+		//} else {
+		//	m, _ = lru.NewARC(remotePeers)
+		//}
+		//
+		//m.Add(hash, true)
+		//c.otherMessages.Add(addr, m)
 		go p.SendWorkerMsg(WorkerMsg, payload)
 	}
 	return nil
@@ -162,27 +161,27 @@ func (c *Certify) Address() common.Address {
 // HandleMsg handles a message from peer
 func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	if msg.Code == WorkerMsg {
-		data, hash, err := c.decode(msg)
-		log.Info("certify handleMsg", "code", msg.Code, "payload", data)
+		data, _, err := c.decode(msg)
+		log.Info("certify handleMsg", "code", msg.Code, "payload", data, "err", err)
 		if err != nil {
 			return true, err
 		}
-		// Mark peer's message
-		ms, ok := c.otherMessages.Get(addr)
-		var m *lru.ARCCache
-		if ok {
-			m, _ = ms.(*lru.ARCCache)
-		} else {
-			m, _ = lru.NewARC(remotePeers)
-			c.otherMessages.Add(addr, m)
-		}
-		m.Add(hash, true)
-
-		// Mark self known message
-		if _, ok := c.selfMessages.Get(hash); ok {
-			return true, nil
-		}
-		c.selfMessages.Add(hash, true)
+		//// Mark peer's message
+		//ms, ok := c.otherMessages.Get(addr)
+		//var m *lru.ARCCache
+		//if ok {
+		//	m, _ = ms.(*lru.ARCCache)
+		//} else {
+		//	m, _ = lru.NewARC(remotePeers)
+		//	c.otherMessages.Add(addr, m)
+		//}
+		//m.Add(hash, true)
+		//
+		//// Mark self known message
+		//if _, ok := c.selfMessages.Get(hash); ok {
+		//	return true, nil
+		//}
+		//c.selfMessages.Add(hash, true)
 
 		go c.eventMux.Post(MessageEvent{
 			Code:    msg.Code,
