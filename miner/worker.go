@@ -471,7 +471,7 @@ func (w *worker) emptyLoop() {
 				totalCondition++
 				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
 				if totalCondition < 120 && curBlock.Number().Uint64() > 0 {
-					log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
 					log.Info("ok empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
