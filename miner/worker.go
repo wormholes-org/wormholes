@@ -426,12 +426,14 @@ func (w *worker) emptyLoop() {
 	<-checkTimer.C // discard the initial tick
 	checkTimer.Reset(1 * time.Second)
 
+	totalCondition := 0
 	for {
 		select {
 		case <-w.resetEmptyCh:
 			w.isEmpty = false
 			w.emptyTimestamp = time.Now().Unix()
-			w.emptyTimer.Reset(120 * time.Second)
+			//w.emptyTimer.Reset(120 * time.Second)
+			w.emptyTimer.Reset(1 * time.Second)
 
 		case <-checkTimer.C:
 			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
@@ -443,7 +445,8 @@ func (w *worker) emptyLoop() {
 			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
-				w.emptyTimer.Reset(120 * time.Second)
+				//w.emptyTimer.Reset(120 * time.Second)
+				w.emptyTimer.Reset(1 * time.Second)
 				//w.resetEmptyCh <- struct{}{}
 			}
 
@@ -465,12 +468,15 @@ func (w *worker) emptyLoop() {
 				*/
 				curTime := time.Now().Unix()
 				curBlock := w.chain.CurrentBlock()
-				if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
-					//log.Info("wait empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+				totalCondition++
+				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
+				if totalCondition < 120 && curBlock.Number().Uint64() > 0 {
+					log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
-					log.Info("ok empty condition", "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("ok empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
+				totalCondition = 0
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
 				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
@@ -559,7 +565,8 @@ func (w *worker) emptyLoop() {
 						} else {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
-							w.emptyTimer.Reset(120 * time.Second)
+							//w.emptyTimer.Reset(120 * time.Second)
+							w.emptyTimer.Reset(1 * time.Second)
 							//w.resetEmptyCh <- struct{}{}
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
