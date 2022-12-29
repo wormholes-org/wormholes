@@ -234,9 +234,9 @@ func (c *Certify) handleEvents() {
 				//log.Info("Certify.handleEvents", "msg.Code", msg.Code, "SendSignMsg", SendSignMsg, "Height", signature.Height)
 
 				if msg.Code == SendSignMsg {
-					//log.Info("Certify.handleEvents", "SendSignMsg", SendSignMsg, "msg.Address", msg.Address.Hex(),
-					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
-					//	"c.stakers number", len(c.stakers.Validators))
+					log.Info("Certify.handleEvents", "msg.Address", msg.Address.Hex(),
+						"signature.Address", signature.Address, "signature.Height", signature.Height,
+						"c.stakers number", len(c.stakers.Validators))
 					//If the GatherOtherPeerSignature is ok, gossip message directly
 					if err := c.GatherOtherPeerSignature(msg.Address, signature.Height, encQues); err == nil {
 						c.rebroadcast(c.Address(), ev.Payload)
