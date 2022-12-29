@@ -1,8 +1,10 @@
 package miner
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 	"testing"
@@ -93,4 +95,35 @@ func TestRlpDecode2(t *testing.T) {
 		t.Log("err 2", err)
 	}
 	t.Log("signature", signature)
+}
+
+func TestMsgSignature(t *testing.T) {
+	ques := &SignatureData{
+		Address: common.HexToAddress("0x2000000000000000000000000000000000000002"),
+		Height:  big.NewInt(2),
+		//Timestamp: uint64(time.Now().Unix()),
+	}
+	encQues, err := Encode(ques)
+	if err != nil {
+		t.Log("err", err)
+	}
+	msg := &Msg{
+		Code: SendSignMsg,
+		Msg:  encQues,
+	}
+
+	payload, err := msg.PayloadNoSig()
+	//msg2 := new(Msg)
+	//if err := msg2.FromPayload(payload); err != nil {
+	//	t.Log("msg.FromPayload  error", err)
+	//}
+	for i := 0; i < 2; i++ {
+		hashData := crypto.Keccak256(payload)
+		prv, _ := crypto.HexToECDSA("501bbf00179b7e626d8983b7d7c9e1b040c8a5d9a0f5da649bf38e10b2dbfb8d")
+		msg.Signature, _ = crypto.Sign(hashData, prv)
+		t.Log(hex.EncodeToString(msg.Signature))
+		bytes, _ := msg.Payload()
+		toString := hex.EncodeToString(bytes)
+		t.Log(toString)
+	}
 }
