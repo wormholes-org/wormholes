@@ -432,7 +432,8 @@ func (w *worker) emptyLoop() {
 		case <-w.resetEmptyCh:
 			w.isEmpty = false
 			w.emptyTimestamp = time.Now().Unix()
-			w.emptyTimer.Reset(120 * time.Second)
+			//w.emptyTimer.Reset(120 * time.Second)
+			w.emptyTimer.Reset(1 * time.Second)
 
 		case <-checkTimer.C:
 			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
@@ -444,7 +445,8 @@ func (w *worker) emptyLoop() {
 			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
-				w.emptyTimer.Reset(120 * time.Second)
+				//w.emptyTimer.Reset(120 * time.Second)
+				w.emptyTimer.Reset(1 * time.Second)
 				//w.resetEmptyCh <- struct{}{}
 			}
 
@@ -563,7 +565,8 @@ func (w *worker) emptyLoop() {
 						} else {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
-							w.emptyTimer.Reset(120 * time.Second)
+							//w.emptyTimer.Reset(120 * time.Second)
+							w.emptyTimer.Reset(1 * time.Second)
 							//w.resetEmptyCh <- struct{}{}
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
