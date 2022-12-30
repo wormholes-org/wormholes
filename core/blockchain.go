@@ -2154,7 +2154,7 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.NumberU64() > 0 {
 		adjustedTimeNow := time.Now().Unix()
 		if block.Time() > uint64(adjustedTimeNow) {
-			log.Info("VerifyEmptyBlock:futureBlock",
+			log.Error("VerifyEmptyBlock:futureBlock",
 				"no", block.Number,
 				"adjustedTimeNow", adjustedTimeNow,
 				"header.Time", block.Time())
