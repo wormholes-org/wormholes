@@ -46,7 +46,7 @@ var (
 	errInvalidSealResult = errors.New("invalid or stale proof-of-work solution")
 )
 
-func (ethash *Ethash) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
+func (ethash *Ethash) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header, validators []common.Address, emptyBlockMessage [][]byte) error {
 	return nil
 }
 

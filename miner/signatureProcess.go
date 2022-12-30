@@ -3,13 +3,14 @@ package miner
 import (
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
 
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 	log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
-	ques := &SignatureData{
+	ques := &types.SignatureData{
 		Address: addr,
 		Height:  height,
 		//Timestamp: uint64(time.Now().Unix()),
@@ -19,13 +20,39 @@ func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 		log.Error("Failed to encode", "subject", err)
 		return
 	}
-	c.broadcast(c.Address(), &Msg{
+	c.broadcast(c.Address(), &types.EmptyMsg{
 		Code: SendSignMsg,
 		Msg:  encQues,
 	})
 }
 
-func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) error {
+func (c *Certify) GetSignedMessage(height *big.Int) ([]byte, error) {
+	ques := &types.SignatureData{
+		Address: c.self,
+		Height:  height,
+		//Timestamp: uint64(time.Now().Unix()),
+	}
+	encQues, err := Encode(ques)
+	if err != nil {
+		log.Error("GetSignedMessage Failed to encode", "subject", err)
+		return nil, err
+	}
+
+	msg := &types.EmptyMsg{
+		Code: SendSignMsg,
+		Msg:  encQues,
+	}
+
+	payload, err := c.signMessage(c.self, msg)
+	if err != nil {
+		log.Error("GetSignedMessage signMessage err", err)
+		return nil, err
+	}
+
+	return payload, nil
+}
+
+func (c *Certify) GatherOtherPeerSignature(addr common.Address, height *big.Int, encQues []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -33,6 +60,12 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 
 	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) >= 0 {
 		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
+	}
+
+	emptyAddrss := common.Address{}
+	validator := c.stakers.GetValidatorAddr(addr)
+	if validator == emptyAddrss {
+		return errors.New("not a validator")
 	}
 
 	//log.Info("Certify.GatherOtherPeerSignature", "c.miner.GetWorker().chain.CurrentHeader().Number", c.miner.GetWorker().chain.CurrentHeader().Number,
@@ -64,20 +97,27 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 		ps.onlineValidator = make(OnlineValidator)
 		ps.onlineValidator.Add(validator)
 		ps.height = new(big.Int).Set(height)
+		ps.emptyBlockMessages = append(ps.emptyBlockMessages, encQues)
 
-		if c.self != validator {
+		selfValidator := c.stakers.GetValidatorAddr(c.self)
+		if selfValidator != emptyAddrss && selfValidator != validator {
 			// add my own amount
 			//coe, err = c.miner.GetWorker().getValidatorCoefficient(c.self)
 			//if err != nil {
 			//	return err
 			//}
 			//weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(c.self), big.NewInt(int64(coe)))
-			weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(c.self), big.NewInt(int64(averageCoefficient)))
+			weightBalance = new(big.Int).Mul(c.stakers.StakeBalance(selfValidator), big.NewInt(int64(averageCoefficient)))
 			weightBalance.Div(weightBalance, big.NewInt(10))
 			ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, weightBalance)
-			ps.onlineValidator.Add(c.self)
-			log.Info("Certify.GatherOtherPeerSignature", "self", c.self.Hex(),
-				"balance", c.stakers.StakeBalance(c.self), "average coe", averageCoefficient, "weightBalance", weightBalance,
+			ps.onlineValidator.Add(selfValidator)
+			selfSignedMessage, err := c.GetSignedMessage(new(big.Int).Set(height))
+			if err != nil {
+				return err
+			}
+			ps.emptyBlockMessages = append(ps.emptyBlockMessages, selfSignedMessage)
+			log.Info("Certify.GatherOtherPeerSignature", "self", selfValidator.Hex(),
+				"balance", c.stakers.StakeBalance(selfValidator), "average coe", averageCoefficient, "weightBalance", weightBalance,
 				"receiveValidatorsSum", ps.receiveValidatorsSum, "height", height.Uint64())
 		}
 
@@ -92,6 +132,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 		return errors.New("GatherOtherPeerSignature: validator exist")
 	}
 	c.proofStatePool.proofs[height.Uint64()].onlineValidator.Add(validator)
+	c.proofStatePool.proofs[height.Uint64()].emptyBlockMessages = append(c.proofStatePool.proofs[height.Uint64()].emptyBlockMessages, encQues)
 	//coe, err = c.miner.GetWorker().getValidatorCoefficient(validator)
 	//if err != nil {
 	//	return err

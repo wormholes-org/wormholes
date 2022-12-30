@@ -43,12 +43,13 @@ var (
 
 // IstanbulExtra represents the legacy IBFT header extradata
 type IstanbulExtra struct {
-	Validators    []common.Address
-	Seal          []byte
-	CommittedSeal [][]byte
-	ExchangerAddr []common.Address
-	ValidatorAddr []common.Address
-	RewardSeal    [][]byte
+	Validators         []common.Address
+	Seal               []byte
+	CommittedSeal      [][]byte
+	ExchangerAddr      []common.Address
+	ValidatorAddr      []common.Address
+	RewardSeal         [][]byte
+	EmptyBlockMessages [][]byte
 }
 
 // EncodeRLP serializes ist into the Ethereum RLP format.
@@ -60,23 +61,25 @@ func (ist *IstanbulExtra) EncodeRLP(w io.Writer) error {
 		ist.ExchangerAddr,
 		ist.ValidatorAddr,
 		ist.RewardSeal,
+		ist.EmptyBlockMessages,
 	})
 }
 
 // DecodeRLP implements rlp.Decoder, and load the istanbul fields from a RLP stream.
 func (ist *IstanbulExtra) DecodeRLP(s *rlp.Stream) error {
 	var istanbulExtra struct {
-		Validators    []common.Address
-		Seal          []byte
-		CommittedSeal [][]byte
-		ExchangerAddr []common.Address
-		ValidatorAddr []common.Address
-		RewardSeal    [][]byte
+		Validators         []common.Address
+		Seal               []byte
+		CommittedSeal      [][]byte
+		ExchangerAddr      []common.Address
+		ValidatorAddr      []common.Address
+		RewardSeal         [][]byte
+		EmptyBlockMessages [][]byte
 	}
 	if err := s.Decode(&istanbulExtra); err != nil {
 		return err
 	}
-	ist.Validators, ist.Seal, ist.CommittedSeal, ist.ExchangerAddr, ist.ValidatorAddr, ist.RewardSeal = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr, istanbulExtra.RewardSeal
+	ist.Validators, ist.Seal, ist.CommittedSeal, ist.ExchangerAddr, ist.ValidatorAddr, ist.RewardSeal, ist.EmptyBlockMessages = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr, istanbulExtra.RewardSeal, istanbulExtra.EmptyBlockMessages
 	return nil
 }
 
@@ -126,6 +129,7 @@ func IstanbulFilteredHeader(h *Header, keepSeal bool) *Header {
 		istanbulExtra.ValidatorAddr = []common.Address{}
 		istanbulExtra.ExchangerAddr = []common.Address{}
 		istanbulExtra.RewardSeal = [][]byte{}
+		istanbulExtra.EmptyBlockMessages = [][]byte{}
 		payload, err := rlp.EncodeToBytes(&istanbulExtra)
 		if err != nil {
 			return nil

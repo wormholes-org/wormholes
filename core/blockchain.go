@@ -2176,7 +2176,16 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 		allWeightBalance50 := new(big.Int).Mul(big.NewInt(50), allWeightBalance)
 		allWeightBalance50 = new(big.Int).Div(allWeightBalance50, big.NewInt(100))
 
-		validators := istanbulExtra.Validators
+		var validators []common.Address
+		for _, emptyBlockMessage := range istanbulExtra.EmptyBlockMessages {
+			msg := &types.EmptyMsg{}
+			sender, err := msg.RecoverAddress(emptyBlockMessage)
+			if err != nil {
+				return err
+			}
+			validators = append(validators, sender)
+		}
+
 		var blockWeightBalance = big.NewInt(0)
 		for _, v := range validators {
 			//coe = statedb.GetValidatorCoefficient(list.GetValidatorAddr(v))
