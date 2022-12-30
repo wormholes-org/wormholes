@@ -433,6 +433,7 @@ func (w *worker) emptyLoop() {
 			w.isEmpty = false
 			w.emptyTimestamp = time.Now().Unix()
 			//w.emptyTimer.Reset(120 * time.Second)
+			totalCondition = 0
 			w.emptyTimer.Reset(1 * time.Second)
 
 		case <-checkTimer.C:
@@ -446,6 +447,7 @@ func (w *worker) emptyLoop() {
 				w.isEmpty = false
 				w.emptyTimestamp = time.Now().Unix()
 				//w.emptyTimer.Reset(120 * time.Second)
+				totalCondition = 0
 				w.emptyTimer.Reset(1 * time.Second)
 				//w.resetEmptyCh <- struct{}{}
 			}
@@ -566,6 +568,7 @@ func (w *worker) emptyLoop() {
 							w.isEmpty = false
 							w.emptyTimestamp = time.Now().Unix()
 							//w.emptyTimer.Reset(120 * time.Second)
+							totalCondition = 0
 							w.emptyTimer.Reset(1 * time.Second)
 							//w.resetEmptyCh <- struct{}{}
 						}
