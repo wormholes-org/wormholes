@@ -8,7 +8,7 @@ import (
 )
 
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
-	//log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
+	log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
 	ques := &SignatureData{
 		Address: addr,
 		Height:  height,

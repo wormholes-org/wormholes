@@ -473,7 +473,7 @@ func (w *worker) emptyLoop() {
 				totalCondition++
 				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
 				if totalCondition < 120 && curBlock.Number().Uint64() > 0 {
-					//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 					continue
 				} else {
 					log.Info("ok empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
@@ -1669,8 +1669,8 @@ func (w *worker) GetAverageCoefficient() (uint64, error) {
 	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
 	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(types.DEFAULT_VALIDATOR_COEFFICIENT))
 	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
-	//log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
-	//	"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe, "height", w.chain.CurrentBlock().NumberU64()+1)
+	log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
+		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe, "height", w.chain.CurrentBlock().NumberU64()+1)
 	return averageCoe, nil
 }
 
