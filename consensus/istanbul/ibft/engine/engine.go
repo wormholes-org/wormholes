@@ -534,6 +534,11 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 		}
 	}
 
+	// prevent future time
+	if header.Time > uint64(time.Now().Unix()) {
+		header.Time = uint64(time.Now().Unix())
+	}
+
 	return nil
 }
 
