@@ -560,7 +560,7 @@ func (w *worker) emptyLoop() {
 				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
-						//log.Info("emptyLoop.start produce empty block", "time", time.Now())
+						log.Info("emptyLoop.start produce empty block", "time", time.Now())
 						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
 							//log.Error("emptyLoop.commitEmptyWork error", "err", err)
