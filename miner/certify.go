@@ -36,6 +36,8 @@ type Certify struct {
 	validatorsHeight []string
 	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
 	//msgHeight        *big.Int
+
+	queueMessages chan []byte
 }
 
 func (c *Certify) Start() {
@@ -63,15 +65,17 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		validatorsHeight: make([]string, 0),
 		proofStatePool:   NewProofStatePool(),
 		//msgHeight:        new(big.Int),
+		queueMessages: make(chan []byte, 100),
 	}
 	return certify
 }
 
 func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
 	// Broadcast payload
-	if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-		return err
-	}
+	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+	//	return err
+	//}
+	c.queueMessages <- payload
 	return nil
 }
 
@@ -82,12 +86,27 @@ func (c *Certify) broadcast(from common.Address, msg *Msg) error {
 		return err
 	}
 	// Broadcast payload
-	if err = c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-		return err
-	}
+	//if err = c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+	//	return err
+	//}
+	c.queueMessages <- payload
 	// send to self
 	go c.eventMux.Post(msg)
 	return nil
+}
+
+func (c *Certify) SendSignedMessage() {
+	for {
+		select {
+		case msg := <-c.queueMessages:
+			err := c.Gossip(nil, SendSignMsg, msg)
+			if err != nil {
+				log.Error("SendSignedMessage", "error", err, "msg", msg)
+			}
+		case <-c.miner.GetWorker().exitCh:
+			return
+		}
+	}
 }
 
 // Gossip Broadcast message to all stakers
@@ -96,11 +115,11 @@ func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byt
 	c.selfMessages.Add(hash, true)
 
 	targets := make(map[common.Address]bool)
-	for _, val := range valSet.Validators {
-		if val.Address() != c.Address() {
-			targets[val.Address()] = true
-		}
-	}
+	//for _, val := range valSet.Validators {
+	//	if val.Address() != c.Address() {
+	//		targets[val.Address()] = true
+	//	}
+	//}
 	var ps map[common.Address]Peer
 	if miner, ok := c.miner.(*Miner); ok {
 		ps = miner.broadcaster.FindPeerSet(targets)
@@ -121,7 +140,8 @@ func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byt
 
 		m.Add(hash, true)
 		c.otherMessages.Add(addr, m)
-		go p.SendWorkerMsg(WorkerMsg, payload)
+		//go p.SendWorkerMsg(WorkerMsg, payload)
+		p.SendWorkerMsg(WorkerMsg, payload)
 	}
 	return nil
 }
