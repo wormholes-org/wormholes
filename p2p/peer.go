@@ -246,7 +246,7 @@ loop:
 			// there was no error.
 			if err != nil {
 				reason = DiscNetworkError
-				log.Info("Peer|run()|disconnect TCP|writeErr", "reason", reason.String())
+				log.Info("Peer|run()|disconnect TCP|writeErr", "reason", reason.String(), "err", err.Error())
 				break loop
 			}
 			writeStart <- struct{}{}
@@ -257,7 +257,7 @@ loop:
 			} else {
 				reason = DiscNetworkError
 			}
-			log.Info("Peer|run()|disconnect TCP|readErr", "reason", reason.String())
+			log.Info("Peer|run()|disconnect TCP|readErr", "reason", reason.String(), "err", err.Error())
 			break loop
 		case err = <-p.protoErr:
 			reason = discReasonForError(err)
