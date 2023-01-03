@@ -261,11 +261,11 @@ loop:
 			break loop
 		case err = <-p.protoErr:
 			reason = discReasonForError(err)
-			log.Info("Peer|run()|disconnect TCP|p.protoErr", "reason", reason.String())
+			log.Info("Peer|run()|disconnect TCP|p.protoErr", "reason", reason.String(), "err", err.Error())
 			break loop
 		case err = <-p.disc:
 			reason = discReasonForError(err)
-			log.Info("Peer|run()|disconnect TCP|p.disc", "reason", reason.String())
+			log.Info("Peer|run()|disconnect TCP|p.disc", "reason", reason.String(), "err", err.Error())
 			break loop
 		}
 	}
