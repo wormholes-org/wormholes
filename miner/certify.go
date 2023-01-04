@@ -103,7 +103,7 @@ func (c *Certify) broadcast(msg *types.EmptyMsg) error {
 
 	// send to self
 	go c.eventMux.Post(types.EmptyMessageEvent{
-		Code:    WorkerMsg,
+		Code: SendSignMsg,
 		Payload: payload,
 	})
 	return nil
@@ -215,8 +215,9 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		c.selfMessages.Add(hash, true)
 
 		if c.miner.GetWorker().isEmpty {
+			log.Info("certify handleMsg post", "hash", hash)
 			go c.eventMux.Post(types.EmptyMessageEvent{
-				Code:    msg.Code,
+				Code:    SendSignMsg,
 				Payload: data,
 			})
 		} else {
@@ -279,6 +280,7 @@ func (c *Certify) handleEvents() {
 					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
 					//	"c.stakers number", len(c.stakers.Validators))
 					//If the GatherOtherPeerSignature is ok, gossip message directly
+					log.Info("azh|handleEvents", "self",c.self, "sender", sender, "vote", signature.Vote, "height", signature.Height)
 					if signature.Vote == c.self {
 						if err := c.GatherOtherPeerSignature(sender, signature.Height, ev.Payload); err == nil {
 							c.rebroadcast(c.self, ev.Payload)
