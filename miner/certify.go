@@ -275,12 +275,12 @@ func (c *Certify) handleEvents() {
 				//c.msgHeight = signature.Height
 				//log.Info("Certify.handleEvents", "msg.Code", msg.Code, "SendSignMsg", SendSignMsg, "Height", signature.Height)
 
+				log.Info("azh|handleEvents", "self",c.self, "sender", sender, "vote", signature.Vote, "height", signature.Height)
 				if msg.Code == SendSignMsg {
 					//log.Info("Certify.handleEvents", "SendSignMsg", SendSignMsg, "msg.Address", msg.Address.Hex(),
 					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
 					//	"c.stakers number", len(c.stakers.Validators))
 					//If the GatherOtherPeerSignature is ok, gossip message directly
-					log.Info("azh|handleEvents", "self",c.self, "sender", sender, "vote", signature.Vote, "height", signature.Height)
 					if signature.Vote == c.self {
 						if err := c.GatherOtherPeerSignature(sender, signature.Height, ev.Payload); err == nil {
 							c.rebroadcast(c.self, ev.Payload)

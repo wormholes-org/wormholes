@@ -416,6 +416,8 @@ func (w *worker) emptyLoop() {
 	<-w.emptyTimer.C // discard the initial tick
 	w.emptyTimer.Reset(120 * time.Second)
 
+	go w.cerytify.handleEvents()
+
 	//gossipTimer := time.NewTimer(0)
 	//defer gossipTimer.Stop()
 	//<-gossipTimer.C // discard the initial tick
@@ -426,7 +428,7 @@ func (w *worker) emptyLoop() {
 	//<-checkTimer.C // discard the initial tick
 	//checkTimer.Reset(1 * time.Second)
 
-	//totalCondition := 0
+	totalCondition := 0
 	for {
 		select {
 		case <-w.resetEmptyCh:
@@ -437,6 +439,7 @@ func (w *worker) emptyLoop() {
 			w.isEmpty = false
 			w.cerytify.stakers = nil
 			w.cerytify.voteIndex = 0
+			totalCondition = 0
 			w.cacheHeight = big.NewInt(0)
 			w.targetWeightBalance = big.NewInt(0)
 			w.emptyTimestamp = time.Now().Unix()
@@ -462,13 +465,12 @@ func (w *worker) emptyLoop() {
 			{
 				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isEmpty {
-					//totalCondition++
-					//totalCondition < 120 && w.chain.CurrentBlock().Number().Uint64() > 0
-					//if w.chain.CurrentBlock().Number().Uint64() > 0 {
-					//	//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
-					//	continue
-					//}
-					//totalCondition = 0
+					totalCondition++
+					if totalCondition < 120 && w.chain.CurrentBlock().Number().Uint64() > 0 {
+						//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+						continue
+					}
+					totalCondition = 0
 				}
 
 				if w.isRunning() {
