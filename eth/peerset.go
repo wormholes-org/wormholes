@@ -257,3 +257,16 @@ func (ps *peerSet) close() {
 	}
 	ps.closed = true
 }
+
+func (ps *peerSet) peerWithoutEmptyBlockMsg(hash common.Hash) []*ethPeer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	list := make([]*ethPeer, 0, len(ps.peers))
+	for _, p := range ps.peers {
+		if !p.KnownEmptyBlockMsg(hash) {
+			list = append(list, p)
+		}
+	}
+	return list
+}

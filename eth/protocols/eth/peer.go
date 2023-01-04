@@ -17,6 +17,7 @@
 package eth
 
 import (
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -24,7 +25,6 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -55,6 +55,13 @@ const (
 	// dropping broadcasts. Similarly to block propagations, there's no point to queue
 	// above some healthy uncle limit, so use that.
 	maxQueuedBlockAnns = 4
+
+	// maxKnownEmptyBlockMsg is the maximum empty block message hashes to keep in the known list
+	// before starting to randomly evict them.
+	maxKnownEmptyBlockMsg = 32768
+	// maxQueuedEmptyBlockMsg is the maximum number of empty block message propagations to queue up before
+	// dropping broadcasts.
+	maxQueuedEmptyBlockMsg = 50
 )
 
 // max is a helper function which returns the larger of the two given integers.
@@ -89,24 +96,29 @@ type Peer struct {
 	lock sync.RWMutex  // Mutex protecting the internal fields
 
 	consensusRw p2p.MsgReadWriter // Quorum: this is the RW for the consensus devp2p protocol, e.g. "istanbul/100"
+
+	knownEmptyBlockMsgs  mapset.Set  // Set of block hashes known to be known by this peer
+	queuedEmptyBlockMsgs chan []byte // Queue of blocks to broadcast to the peer
 }
 
 // NewPeer create a wrapper for a network connection and negotiated  protocol
 // version.
 func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Peer {
 	peer := &Peer{
-		id:              p.ID().String(),
-		Peer:            p,
-		rw:              rw,
-		version:         version,
-		knownTxs:        mapset.NewSet(),
-		knownBlocks:     mapset.NewSet(),
-		queuedBlocks:    make(chan *blockPropagation, maxQueuedBlocks),
-		queuedBlockAnns: make(chan *types.Block, maxQueuedBlockAnns),
-		txBroadcast:     make(chan []common.Hash),
-		txAnnounce:      make(chan []common.Hash),
-		txpool:          txpool,
-		term:            make(chan struct{}),
+		id:                   p.ID().String(),
+		Peer:                 p,
+		rw:                   rw,
+		version:              version,
+		knownTxs:             mapset.NewSet(),
+		knownBlocks:          mapset.NewSet(),
+		queuedBlocks:         make(chan *blockPropagation, maxQueuedBlocks),
+		queuedBlockAnns:      make(chan *types.Block, maxQueuedBlockAnns),
+		txBroadcast:          make(chan []common.Hash),
+		txAnnounce:           make(chan []common.Hash),
+		txpool:               txpool,
+		term:                 make(chan struct{}),
+		knownEmptyBlockMsgs:  mapset.NewSet(),
+		queuedEmptyBlockMsgs: make(chan []byte, maxQueuedEmptyBlockMsg),
 	}
 	// Start up all the broadcasters
 	go peer.broadcastBlocks()
@@ -114,6 +126,9 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 	if version >= ETH65 {
 		go peer.announceTransactions()
 	}
+
+	go peer.broadcastEmptyBlockMsg()
+
 	return peer
 }
 
@@ -572,6 +587,25 @@ func (p *Peer) Send(msgcode uint64, data interface{}) error {
 }
 
 func (p *Peer) SendWorkerMsg(msgCode uint64, data interface{}) error {
-	log.Info("send worker msg", "code", msgCode, "data", data)
+	//log.Info("send worker msg", "code", msgCode, "data", data)
+
+	for p.knownEmptyBlockMsgs.Cardinality() >= maxKnownEmptyBlockMsg {
+		p.knownEmptyBlockMsgs.Pop()
+	}
+	hash := istanbul.RLPHash(data)
+	p.knownEmptyBlockMsgs.Add(hash)
 	return p2p.Send(p.rw, msgCode, data)
+}
+
+func (p *Peer) WriteQueueEmptyBlockMsg(msg []byte) {
+	select {
+	case p.queuedEmptyBlockMsgs <- msg:
+	case <-p.term:
+		p.Log().Debug("Dropping empty block message propagation")
+	}
+}
+
+// knownEmptyBlockMsg returns whether peer is known to already have the empty block message.
+func (p *Peer) KnownEmptyBlockMsg(hash common.Hash) bool {
+	return p.knownEmptyBlockMsgs.Contains(hash)
 }

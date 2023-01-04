@@ -193,3 +193,17 @@ func (p *Peer) announceTransactions() {
 		}
 	}
 }
+
+func (p *Peer) broadcastEmptyBlockMsg() {
+	for {
+		select {
+		case msg := <-p.queuedEmptyBlockMsgs:
+			if err := p.SendWorkerMsg(WorkerMsg, msg); err != nil {
+				return
+			}
+			//p.Log().Trace("Propagated empty block message", "msg", msg)
+		case <-p.term:
+			return
+		}
+	}
+}
