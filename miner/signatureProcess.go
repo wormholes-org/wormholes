@@ -105,11 +105,15 @@ func (c *Certify) SendSignToOtherPeer(vote common.Address, height *big.Int) {
 //	return payload, nil
 //}
 
-func (c *Certify) GatherOtherPeerSignature(addr common.Address, height *big.Int, encQues []byte) error {
+func (c *Certify) GatherOtherPeerSignature(addr, vote common.Address, height *big.Int, encQues []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	//log.Info("Certify.GatherOtherPeerSignature >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	if c.self != vote {
+		log.Info("GatherOtherPeerSignature", "vote", vote)
+		return nil
+	}
 
 	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) >= 0 {
 		return errors.New("GatherOtherPeerSignature: msg height < chain Number")

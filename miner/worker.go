@@ -443,7 +443,7 @@ func (w *worker) emptyLoop() {
 			w.cacheHeight = big.NewInt(0)
 			w.targetWeightBalance = big.NewInt(0)
 			w.emptyTimestamp = time.Now().Unix()
-			w.emptyTimer.Reset(120 * time.Second)
+			w.emptyTimer.Reset(1 * time.Second)
 
 		//case <-checkTimer.C:
 		//	//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
@@ -543,15 +543,9 @@ func (w *worker) emptyLoop() {
 
 				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
-				var voteAddr common.Address
-				voteValidator := w.cerytify.stakers.Validators[w.cerytify.voteIndex]
-				if voteValidator.Proxy == (common.Address{}) {
-					voteAddr = voteValidator.Addr
-				} else {
-					voteAddr = voteValidator.Proxy
-				}
 
-				if w.cerytify.self == voteAddr && w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
+				log.Info("emptyLoop.signatureResultCh", "voteAddr", "self", w.cerytify.self)
+				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now())
