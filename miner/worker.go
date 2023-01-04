@@ -274,7 +274,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		go worker.taskLoop()
 
 		// Enable worker message processing
-		go worker.cerytify.Start()
+		//go worker.cerytify.Start()
 
 		// Submit first work to initialize pending state.
 		if init {
@@ -416,101 +416,93 @@ func (w *worker) emptyLoop() {
 	<-w.emptyTimer.C // discard the initial tick
 	w.emptyTimer.Reset(120 * time.Second)
 
-	gossipTimer := time.NewTimer(0)
-	defer gossipTimer.Stop()
-	<-gossipTimer.C // discard the initial tick
-	gossipTimer.Reset(5 * time.Second)
+	//gossipTimer := time.NewTimer(0)
+	//defer gossipTimer.Stop()
+	//<-gossipTimer.C // discard the initial tick
+	//gossipTimer.Reset(5 * time.Second)
 
-	checkTimer := time.NewTimer(0)
-	defer checkTimer.Stop()
-	<-checkTimer.C // discard the initial tick
-	checkTimer.Reset(1 * time.Second)
+	//checkTimer := time.NewTimer(0)
+	//defer checkTimer.Stop()
+	//<-checkTimer.C // discard the initial tick
+	//checkTimer.Reset(1 * time.Second)
 
-	totalCondition := 0
+	//totalCondition := 0
 	for {
 		select {
 		case <-w.resetEmptyCh:
-			w.isEmpty = false
-			w.emptyTimestamp = time.Now().Unix()
-			//w.emptyTimer.Reset(120 * time.Second)
-			totalCondition = 0
-			w.emptyTimer.Reset(1 * time.Second)
+			if w.isEmpty {
+				w.cerytify.stopVoteCh <- struct{}{}
+			}
 
-		case <-checkTimer.C:
-			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
-			checkTimer.Reset(1 * time.Second)
-			if !w.isEmpty {
-				continue
-			}
-			//log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
-			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
-				w.isEmpty = false
-				w.emptyTimestamp = time.Now().Unix()
-				//w.emptyTimer.Reset(120 * time.Second)
-				totalCondition = 0
-				w.emptyTimer.Reset(1 * time.Second)
-				//w.resetEmptyCh <- struct{}{}
-			}
+			w.isEmpty = false
+			w.cerytify.stakers = nil
+			w.cerytify.voteIndex = 0
+			w.cacheHeight = big.NewInt(0)
+			w.targetWeightBalance = big.NewInt(0)
+			w.emptyTimestamp = time.Now().Unix()
+			w.emptyTimer.Reset(120 * time.Second)
+
+		//case <-checkTimer.C:
+		//	//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
+		//	checkTimer.Reset(1 * time.Second)
+		//	if !w.isEmpty {
+		//		continue
+		//	}
+		//	//log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
+		//	if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
+		//		w.isEmpty = false
+		//		w.emptyTimestamp = time.Now().Unix()
+		//		//w.emptyTimer.Reset(120 * time.Second)
+		//		totalCondition = 0
+		//		w.emptyTimer.Reset(1 * time.Second)
+		//		//w.resetEmptyCh <- struct{}{}
+		//	}
 
 		case <-w.emptyTimer.C:
 			{
 				w.emptyTimer.Reset(1 * time.Second)
-				if !w.isRunning() {
-					w.emptyTimestamp = time.Now().Unix()
-					//log.Info("!w.isRunning()", "w.isRunning()", w.isRunning())
-					continue
+				if !w.isEmpty {
+					//totalCondition++
+					//totalCondition < 120 && w.chain.CurrentBlock().Number().Uint64() > 0
+					//if w.chain.CurrentBlock().Number().Uint64() > 0 {
+					//	//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					//	continue
+					//}
+					//totalCondition = 0
 				}
-				if w.isEmpty {
-					continue
-				}
-				/*
-					if time.Now().Unix()-w.emptyTimestamp < 120 {
-						continue
+
+				if w.isRunning() {
+					w.emptyCh <- struct{}{}
+					EmptyEvent := StartEmptyBlockEvent{
+						BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
 					}
-				*/
-				curTime := time.Now().Unix()
-				curBlock := w.chain.CurrentBlock()
-				totalCondition++
-				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
-				if totalCondition < 120 && curBlock.Number().Uint64() > 0 {
-					//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					w.mux.Post(EmptyEvent)
 					continue
-				} else {
-					log.Info("ok empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
-				totalCondition = 0
+
+				if w.cerytify.stakers == nil {
+					stakers, _ := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+					w.cerytify.stakers = stakers
+					continue
+				}
+
+				if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
+					w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
+					continue
+				}
+
+				if w.targetWeightBalance.Cmp(big.NewInt(0)) == 0 {
+					totalWeightBalance, _ := w.targetSizeWithWeight()
+					w.targetWeightBalance = totalWeightBalance
+					continue
+				}
+				log.Info("azh|emptyLoop", "stakes", w.cerytify.stakers, "cacheHeight", w.cacheHeight, "targetWeight", w.targetWeightBalance)
+
 				w.isEmpty = true
-				w.emptyCh <- struct{}{}
-				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
-
-				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-				if err != nil {
-					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
-					continue
-				}
-				w.cerytify.stakers = stakers
-
-				if !w.emptyHandleFlag {
-					w.emptyHandleFlag = true
-					go w.cerytify.handleEvents()
-				}
-				//if w.cacheHeight.Cmp(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))) != 0 {
-				//	w.cerytify.validators = make([]common.Address, 0)
-				//	w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-				//	w.cerytify.receiveValidatorsSum = big.NewInt(0)
+				//if !w.emptyHandleFlag {
+				//	w.emptyHandleFlag = true
+				//	go w.cerytify.handleEvents()
 				//}
-
-				//modification on 20221102 start
-				//w.stop()
-				EmptyEvent := StartEmptyBlockEvent{
-					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
-				}
-				err = w.mux.Post(EmptyEvent)
-				if err != nil {
-					//log.Error("emptyTimer.C : post empty event", "err", err)
-					continue
-				}
-				time.Sleep(10 * time.Second)
 				//if w.isRunning() {
 				//	w.isEmpty = false
 				//	w.emptyTimestamp = time.Now().Unix()
@@ -520,27 +512,20 @@ func (w *worker) emptyLoop() {
 				//	continue
 				//}
 				//modification on 20221102 end
+				go w.cerytify.voteEmpty(w.cacheHeight)
 
-				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
-
-				totalWeightBalance, err := w.targetSizeWithWeight()
-				if err != nil {
-					//log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
-					continue
-				}
-				w.targetWeightBalance = totalWeightBalance
-
+				w.cerytify.emptyCh <- struct{}{}
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
 			}
-		case <-gossipTimer.C:
-			{
-				gossipTimer.Reset(10 * time.Second)
-				if !w.isEmpty {
-					continue
-				}
-				w.cerytify.SendSignToOtherPeer(w.cerytify.self, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-			}
+		//case <-gossipTimer.C:
+		//	{
+		//		gossipTimer.Reset(10 * time.Second)
+		//		if !w.isEmpty {
+		//			continue
+		//		}
+		//		w.cerytify.SendSignToOtherPeer(w.cerytify.self, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+		//	}
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
@@ -557,7 +542,15 @@ func (w *worker) emptyLoop() {
 
 				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
-				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
+				var voteAddr common.Address
+				voteValidator := w.cerytify.stakers.Validators[w.cerytify.voteIndex]
+				if voteValidator.Proxy == (common.Address{}) {
+					voteAddr = voteValidator.Addr
+				} else {
+					voteAddr = voteValidator.Proxy
+				}
+
+				if w.cerytify.self == voteAddr && w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now())
@@ -566,12 +559,7 @@ func (w *worker) emptyLoop() {
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators, emptyBlockMessages); err != nil {
 							//log.Error("emptyLoop.commitEmptyWork error", "err", err)
 						} else {
-							w.isEmpty = false
-							w.emptyTimestamp = time.Now().Unix()
-							//w.emptyTimer.Reset(120 * time.Second)
-							totalCondition = 0
-							w.emptyTimer.Reset(1 * time.Second)
-							//w.resetEmptyCh <- struct{}{}
+							w.resetEmptyCh <- struct{}{}
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}

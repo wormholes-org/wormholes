@@ -32,14 +32,18 @@ type Certify struct {
 	lock              sync.Mutex
 	//receiveValidatorsSum *big.Int
 	//validators           []common.Address
+	voteIndex        uint64
+	emptyCh          chan struct{}
+	stopVoteCh       chan struct{}
 	validatorsHeight []string
 	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
 	//msgHeight        *big.Int
 }
 
-func (c *Certify) Start() {
-	c.subscribeEvents()
-}
+//func (c *Certify) Start() {
+//	c.subscribeEvents()
+//}
+
 func (c *Certify) subscribeEvents() {
 	c.events = c.eventMux.Subscribe(
 		types.EmptyMessageEvent{},
@@ -59,10 +63,14 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		signatureResultCh: make(chan *big.Int),
 		//receiveValidatorsSum: big.NewInt(0),
 		//validators:           make([]common.Address, 0),
+		voteIndex:        0,
+		emptyCh:          make(chan struct{}),
+		stopVoteCh:       make(chan struct{}),
 		validatorsHeight: make([]string, 0),
 		proofStatePool:   NewProofStatePool(),
 		//msgHeight:        new(big.Int),
 	}
+	go certify.subscribeEvents()
 	return certify
 }
 
@@ -78,8 +86,8 @@ func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
 	return nil
 }
 
-func (c *Certify) broadcast(from common.Address, msg *types.EmptyMsg) error {
-	payload, err := c.signMessage(from, msg)
+func (c *Certify) broadcast(msg *types.EmptyMsg) error {
+	payload, err := c.signMessage(msg)
 	if err != nil {
 		log.Error("signMessage err", err)
 		return err
@@ -93,7 +101,10 @@ func (c *Certify) broadcast(from common.Address, msg *types.EmptyMsg) error {
 	}
 
 	// send to self
-	go c.eventMux.Post(msg)
+	go c.eventMux.Post(types.EmptyMessageEvent{
+		Code:    WorkerMsg,
+		Payload: payload,
+	})
 	return nil
 }
 
@@ -144,10 +155,10 @@ func (c *Certify) broadcast(from common.Address, msg *types.EmptyMsg) error {
 //	}
 //}
 
-func (c *Certify) signMessage(coinbase common.Address, msg *types.EmptyMsg) ([]byte, error) {
+func (c *Certify) signMessage(msg *types.EmptyMsg) ([]byte, error) {
 	var err error
 	// Add sender address
-	msg.Address = coinbase
+	msg.Address = c.self
 
 	// Sign message
 	data, err := msg.PayloadNoSig()
@@ -173,9 +184,9 @@ func (c *Certify) sign(data []byte) ([]byte, error) {
 	return crypto.Sign(hashData, c.eth.GetNodeKey())
 }
 
-func (c *Certify) Address() common.Address {
-	return c.self
-}
+//func (c *Certify) Address() common.Address {
+//	return c.self
+//}
 
 // HandleMsg handles a message from peer
 func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
@@ -194,18 +205,22 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			m, _ = lru.NewARC(remotePeers)
 			c.otherMessages.Add(addr, m)
 		}
-		m.Add(hash, true)
 
 		// Mark self known message
 		if _, ok := c.selfMessages.Get(hash); ok {
+			m.Add(hash, true)
 			return true, nil
 		}
 		c.selfMessages.Add(hash, true)
 
-		go c.eventMux.Post(types.EmptyMessageEvent{
-			Code:    msg.Code,
-			Payload: data,
-		})
+		if c.miner.GetWorker().isEmpty {
+			go c.eventMux.Post(types.EmptyMessageEvent{
+				Code:    msg.Code,
+				Payload: data,
+			})
+		} else {
+			m.Add(hash, data)
+		}
 	}
 	return false, nil
 }
@@ -262,8 +277,10 @@ func (c *Certify) handleEvents() {
 					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
 					//	"c.stakers number", len(c.stakers.Validators))
 					//If the GatherOtherPeerSignature is ok, gossip message directly
-					if err := c.GatherOtherPeerSignature(sender, signature.Height, ev.Payload); err == nil {
-						c.rebroadcast(c.Address(), ev.Payload)
+					if signature.Vote == c.self {
+						if err := c.GatherOtherPeerSignature(sender, signature.Height, ev.Payload); err == nil {
+							c.rebroadcast(c.self, ev.Payload)
+						}
 					}
 				}
 			}
