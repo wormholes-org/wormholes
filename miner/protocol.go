@@ -19,4 +19,5 @@ type Handler interface {
 
 type Peer interface {
 	SendWorkerMsg(msgCode uint64, data interface{}) error
+	WriteQueueEmptyBlockMsg(msg []byte)
 }

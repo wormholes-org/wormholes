@@ -69,9 +69,10 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 
 func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
 	// Broadcast payload
-	if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-		return err
-	}
+	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+	//	return err
+	//}
+	c.BroadcastEmptyBlockMsg(payload)
 	return nil
 }
 
@@ -82,9 +83,10 @@ func (c *Certify) broadcast(from common.Address, msg *Msg) error {
 		return err
 	}
 	// Broadcast payload
-	if err = c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-		return err
-	}
+	//if err = c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+	//	return err
+	//}
+	c.BroadcastEmptyBlockMsg(payload)
 	// send to self
 	go c.eventMux.Post(msg)
 	return nil
@@ -124,6 +126,17 @@ func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byt
 		go p.SendWorkerMsg(WorkerMsg, payload)
 	}
 	return nil
+}
+
+func (c *Certify) BroadcastEmptyBlockMsg(msg []byte) {
+	var ps map[common.Address]Peer
+	if miner, ok := c.miner.(*Miner); ok {
+		ps = miner.broadcaster.FindPeerSet(nil)
+	}
+
+	for _, p := range ps {
+		p.WriteQueueEmptyBlockMsg(msg)
+	}
 }
 
 func (c *Certify) signMessage(coinbase common.Address, msg *Msg) ([]byte, error) {
