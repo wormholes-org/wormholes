@@ -470,7 +470,6 @@ func (w *worker) emptyLoop() {
 						//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 						continue
 					}
-					totalCondition = 0
 				}
 
 				if w.isRunning() {
