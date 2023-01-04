@@ -465,8 +465,8 @@ func (w *worker) emptyLoop() {
 			{
 				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isEmpty {
-					totalCondition++
 					if totalCondition < 120 && w.chain.CurrentBlock().Number().Uint64() > 0 {
+						totalCondition++
 						//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 						continue
 					}
