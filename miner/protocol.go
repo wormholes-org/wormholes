@@ -6,7 +6,8 @@ import (
 )
 
 type Broadcaster interface {
-	FindPeerSet(targets map[common.Address]bool) map[common.Address]Peer
+	//FindPeerSet(targets map[common.Address]bool) map[common.Address]Peer
+	BroadcastEmptyBlockMsg(msg []byte)
 }
 
 type Handler interface {

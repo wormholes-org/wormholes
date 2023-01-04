@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
@@ -72,7 +71,10 @@ func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
 	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
 	//	return err
 	//}
-	c.BroadcastEmptyBlockMsg(payload)
+	if miner, ok := c.miner.(*Miner); ok {
+		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
+	}
+
 	return nil
 }
 
@@ -86,58 +88,61 @@ func (c *Certify) broadcast(from common.Address, msg *Msg) error {
 	//if err = c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
 	//	return err
 	//}
-	c.BroadcastEmptyBlockMsg(payload)
+	if miner, ok := c.miner.(*Miner); ok {
+		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
+	}
+
 	// send to self
 	go c.eventMux.Post(msg)
 	return nil
 }
 
 // Gossip Broadcast message to all stakers
-func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byte) error {
-	hash := istanbul.RLPHash(payload)
-	c.selfMessages.Add(hash, true)
+//func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byte) error {
+//	hash := istanbul.RLPHash(payload)
+//	c.selfMessages.Add(hash, true)
+//
+//	targets := make(map[common.Address]bool)
+//	for _, val := range valSet.Validators {
+//		if val.Address() != c.Address() {
+//			targets[val.Address()] = true
+//		}
+//	}
+//	var ps map[common.Address]Peer
+//	if miner, ok := c.miner.(*Miner); ok {
+//		ps = miner.broadcaster.FindPeerSet(targets)
+//	}
+//	log.Info("certify gossip worker msg", "len", len(ps), "code", code)
+//	for addr, p := range ps {
+//		ms, ok := c.otherMessages.Get(addr)
+//		var m *lru.ARCCache
+//		if ok {
+//			m, _ = ms.(*lru.ARCCache)
+//			if _, k := m.Get(hash); k {
+//				// This peer had this event, skip it
+//				continue
+//			}
+//		} else {
+//			m, _ = lru.NewARC(remotePeers)
+//		}
+//
+//		m.Add(hash, true)
+//		c.otherMessages.Add(addr, m)
+//		go p.SendWorkerMsg(WorkerMsg, payload)
+//	}
+//	return nil
+//}
 
-	targets := make(map[common.Address]bool)
-	for _, val := range valSet.Validators {
-		if val.Address() != c.Address() {
-			targets[val.Address()] = true
-		}
-	}
-	var ps map[common.Address]Peer
-	if miner, ok := c.miner.(*Miner); ok {
-		ps = miner.broadcaster.FindPeerSet(targets)
-	}
-	log.Info("certify gossip worker msg", "len", len(ps), "code", code)
-	for addr, p := range ps {
-		ms, ok := c.otherMessages.Get(addr)
-		var m *lru.ARCCache
-		if ok {
-			m, _ = ms.(*lru.ARCCache)
-			if _, k := m.Get(hash); k {
-				// This peer had this event, skip it
-				continue
-			}
-		} else {
-			m, _ = lru.NewARC(remotePeers)
-		}
-
-		m.Add(hash, true)
-		c.otherMessages.Add(addr, m)
-		go p.SendWorkerMsg(WorkerMsg, payload)
-	}
-	return nil
-}
-
-func (c *Certify) BroadcastEmptyBlockMsg(msg []byte) {
-	var ps map[common.Address]Peer
-	if miner, ok := c.miner.(*Miner); ok {
-		ps = miner.broadcaster.FindPeerSet(nil)
-	}
-
-	for _, p := range ps {
-		p.WriteQueueEmptyBlockMsg(msg)
-	}
-}
+//func (c *Certify) BroadcastEmptyBlockMsg(msg []byte) {
+//	var ps map[common.Address]Peer
+//	if miner, ok := c.miner.(*Miner); ok {
+//		ps = miner.broadcaster.FindPeerSet(nil)
+//	}
+//
+//	for _, p := range ps {
+//		p.WriteQueueEmptyBlockMsg(msg)
+//	}
+//}
 
 func (c *Certify) signMessage(coinbase common.Address, msg *Msg) ([]byte, error) {
 	var err error
