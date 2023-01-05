@@ -2047,6 +2047,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
+			log.Info("azh|bc.processor.Process", "err", err)
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)
 			return it.index, err
@@ -2068,6 +2069,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		substart = time.Now()
 
 		if err := bc.validator.ValidateState(block, statedb, receipts, usedGas); err != nil {
+			log.Info("bc.validator.ValidateState", "err", err)
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)
 			log.Info("caver|insertChain", "no", block.NumberU64(), "usedGas", usedGas, "parentRoot", parent.Root.Hex())

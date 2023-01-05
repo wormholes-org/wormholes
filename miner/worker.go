@@ -413,7 +413,7 @@ type StartEmptyBlockEvent struct {
 func (w *worker) emptyCounter() {
 	w.emptyTimer = time.NewTimer(time.Second)
 	counter := 0
-	log.Info("azh|emptyCounter")
+	log.Info("emptyCounter")
 	for {
 		select {
 		case <-w.emptyTimer.C:
@@ -421,7 +421,7 @@ func (w *worker) emptyCounter() {
 				counter++
 				w.emptyTimer.Reset(time.Second)
 			} else {
-				log.Info("azh|emptyCounter", "counter", counter)
+				log.Info("emptyCounter", "counter", counter)
 				w.emptyStartChan <- struct{}{}
 				counter = 0
 				w.emptyTimer.Stop()
@@ -431,7 +431,6 @@ func (w *worker) emptyCounter() {
 }
 
 func (w *worker) emptyLoop() {
-
 	//w.emptyTimer = time.NewTimer(0)
 	//defer w.emptyTimer.Stop()
 	//<-w.emptyTimer.C // discard the initial tick
@@ -495,18 +494,13 @@ func (w *worker) emptyLoop() {
 				//	}
 				//}
 
-				if w.isRunning() {
-					w.emptyCh <- struct{}{}
-					EmptyEvent := StartEmptyBlockEvent{
-						BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
-					}
-					w.mux.Post(EmptyEvent)
-					continue
+				if !w.isRunning() {
+					break
 				}
 
 				if w.cerytify.stakers == nil {
-					stakers, _ := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-					w.cerytify.stakers = stakers
+					stakes, _ := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+					w.cerytify.stakers = stakes
 					continue
 				}
 
@@ -520,7 +514,13 @@ func (w *worker) emptyLoop() {
 					w.targetWeightBalance = totalWeightBalance
 					continue
 				}
-				log.Info("azh|emptyLoop", "stakes", w.cerytify.stakers, "cacheHeight", w.cacheHeight, "targetWeight", w.targetWeightBalance)
+				log.Info("emptyLoop", "stakes", w.cerytify.stakers, "cacheHeight", w.cacheHeight, "targetWeight", w.targetWeightBalance)
+
+				w.emptyCh <- struct{}{}
+				EmptyEvent := StartEmptyBlockEvent{
+					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
+				}
+				w.mux.Post(EmptyEvent)
 
 				w.isEmpty = true
 				//if !w.emptyHandleFlag {
@@ -1212,6 +1212,7 @@ func (w *worker) updateSnapshot() {
 	w.snapshotState = w.current.state.Copy()
 }
 
+// need to add
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
 

@@ -599,20 +599,33 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 				state.SubValidatorCoefficient(v.Address(), 10)
 			}
 
+			voteAddrs := make([]common.Address, len(istanbulExtra.EmptyBlockMessages))
 			emptyMsg := new(types.EmptyMsg)
 			for _, emptyMessage := range istanbulExtra.EmptyBlockMessages {
 				sender, err := emptyMsg.RecoverAddress(emptyMessage)
 				if err != nil {
-					log.Info("azh|recover emptyMessage", "err", err)
+					log.Info("recover emptyMessage", "err", err)
 					continue
 				}
 
 				for _, val := range state.ValidatorPool {
 					if val.Addr == sender || val.Proxy == sender {
-						state.SubValidatorCoefficient(val.Addr, 70)
+						voteAddrs = append(voteAddrs, val.Addr)
 						break
 					}
 				}
+			}
+
+			for i := 0; i < len(voteAddrs); i++ {
+				for j := i + 1; j < len(voteAddrs); j++ {
+					if bytes.Compare(voteAddrs[i][:], voteAddrs[j][:]) > 0 {
+						voteAddrs[i], voteAddrs[j] = voteAddrs[j], voteAddrs[i]
+					}
+				}
+			}
+
+			for _, vote := range voteAddrs {
+				state.SubValidatorCoefficient(vote, 70)
 			}
 
 		} else {
@@ -736,6 +749,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 			}
 
 			for _, v := range istanbulExtra.ValidatorAddr {
+				log.Info("AddValidatorCoefficient", "addr", v)
 				state.AddValidatorCoefficient(v, 70)
 			}
 
