@@ -101,6 +101,7 @@ type (
 	BuyAndMintNFTByBuyerFunc               func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	BuyAndMintNFTByExchangerFunc           func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	BuyNFTByApproveExchangerFunc           func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
+	BatchBuyNFTByApproveExchangerFunc      func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	BuyAndMintNFTByApprovedExchangerFunc   func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	BuyNFTByExchangerFunc                  func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	AddExchangerTokenFunc                  func(StateDB, common.Address, *big.Int)
@@ -194,6 +195,7 @@ type BlockContext struct {
 	BuyAndMintNFTByBuyer               BuyAndMintNFTByBuyerFunc
 	BuyAndMintNFTByExchanger           BuyAndMintNFTByExchangerFunc
 	BuyNFTByApproveExchanger           BuyNFTByApproveExchangerFunc
+	BatchBuyNFTByApproveExchanger      BatchBuyNFTByApproveExchangerFunc
 	BuyAndMintNFTByApprovedExchanger   BuyAndMintNFTByApprovedExchangerFunc
 	BuyNFTByExchanger                  BuyNFTByExchangerFunc
 	AddExchangerToken                  AddExchangerTokenFunc
@@ -1578,7 +1580,26 @@ func (evm *EVM) HandleNFT(
 		}
 		log.Info("HandleNFT(), RecoverValidatorCoefficient<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
-
+	case 27:
+		log.Info("HandleNFT(), BatchBuyNFTByApproveExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
+		if value.Cmp(big.NewInt(0)) <= 0 {
+			return nil, gas, ErrTransAmount
+		}
+		err := evm.Context.BatchBuyNFTByApproveExchanger(
+			evm.StateDB,
+			evm.Context.BlockNumber,
+			caller.Address(),
+			addr,
+			&wormholes,
+			value)
+		if err != nil {
+			log.Error("HandleNFT(), BatchBuyNFTByApproveExchanger", "wormholes.Type", wormholes.Type,
+				"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, err
+		}
+		log.Info("HandleNFT(), BatchBuyNFTByApproveExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
 	default:
 		log.Error("HandleNFT()", "wormholes.Type", wormholes.Type, "error", ErrNotExistNFTType,
 			"blocknumber", evm.Context.BlockNumber.Uint64())

@@ -207,6 +207,8 @@ type Wormholes struct {
 	Creator       string           `json:"creator,omitempty"`
 	Version       string           `json:"version,omitempty"`
 	RewardFlag    uint8            `json:"reward_flag,omitempty"`
+	BuyerAuth     TraderPayload    `json:"buyer_auth,omitempty"`
+	SellerAuth    TraderPayload    `json:"seller_auth,omitempty"`
 }
 
 const WormholesVersion = "v0.0.1"
@@ -305,6 +307,7 @@ func (w *Wormholes) CheckFormat() error {
 
 	case 25:
 	case 26:
+	case 27:
 	case 30:
 	case 31:
 	default:
@@ -372,6 +375,8 @@ func (w *Wormholes) TxGas() (uint64, error) {
 		return params.WormholesTx25, nil
 	case 26:
 		return params.WormholesTx26, nil
+	case 27:
+		return params.WormholesTx27, nil
 	case 30:
 		return params.WormholesTx30, nil
 	case 31:
@@ -405,6 +410,11 @@ type ExchangerPayload struct {
 	To             string `json:"to"`
 	BlockNumber    string `json:"block_number"`
 	Sig            string `json:"sig"`
+}
+
+type TraderPayload struct {
+	Exchanger string `json:"exchanger"`
+	Sig       string `json:"sig"`
 }
 
 // *** modify to support nft transaction 20211215 end ***
