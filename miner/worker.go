@@ -214,7 +214,7 @@ type worker struct {
 	targetWeightBalance *big.Int
 	emptyStartChan      chan struct{}
 	emptyTimer          *time.Timer
-	counter				int
+	counter             int
 	resetEmptyCh        chan struct{}
 }
 
@@ -412,7 +412,6 @@ type StartEmptyBlockEvent struct {
 //type DoneEmptyBlockEvent struct{}
 func (w *worker) emptyCounter() {
 	w.emptyTimer = time.NewTimer(time.Second)
-	log.Info("emptyCounter")
 	for {
 		select {
 		case <-w.emptyTimer.C:
@@ -422,7 +421,6 @@ func (w *worker) emptyCounter() {
 			} else {
 				log.Info("emptyCounter", "counter", w.counter)
 				w.emptyStartChan <- struct{}{}
-				w.counter = 0
 				w.emptyTimer.Stop()
 			}
 		}
@@ -434,7 +432,6 @@ func (w *worker) emptyLoop() {
 	//defer w.emptyTimer.Stop()
 	//<-w.emptyTimer.C // discard the initial tick
 	//w.emptyTimer.Reset(120 * time.Second)
-
 	go w.cerytify.handleEvents()
 
 	go w.emptyCounter()
@@ -453,13 +450,10 @@ func (w *worker) emptyLoop() {
 	for {
 		select {
 		case <-w.resetEmptyCh:
-			if w.isEmpty {
-				w.cerytify.stopVoteCh <- struct{}{}
-			}
 			w.counter = 0
-
-			if !w.emptyTimer.Stop(){
+			if w.isEmpty {
 				w.emptyTimer.Reset(time.Second)
+				w.cerytify.stopVoteCh <- struct{}{}
 			}
 
 			w.isEmpty = false
@@ -469,7 +463,6 @@ func (w *worker) emptyLoop() {
 			w.cacheHeight = big.NewInt(0)
 			w.targetWeightBalance = big.NewInt(0)
 			w.emptyTimestamp = time.Now().Unix()
-
 		//case <-checkTimer.C:
 		//	//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 		//	checkTimer.Reset(1 * time.Second)
