@@ -210,11 +210,11 @@ type worker struct {
 
 	//empty block
 	emptyTimestamp      int64
-	emptyHandleFlag     bool
 	cacheHeight         *big.Int
 	targetWeightBalance *big.Int
 	emptyStartChan      chan struct{}
 	emptyTimer          *time.Timer
+	counter				int
 	resetEmptyCh        chan struct{}
 }
 
@@ -250,7 +250,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		miner:               handler,
 		notifyBlockCh:       make(chan *types.OnlineValidatorList, 1),
 		emptyTimestamp:      time.Now().Unix(),
-		emptyHandleFlag:     false,
+		counter:             0,
 		emptyStartChan:      make(chan struct{}, 1),
 		resetEmptyCh:        make(chan struct{}, 1),
 	}
@@ -412,18 +412,17 @@ type StartEmptyBlockEvent struct {
 //type DoneEmptyBlockEvent struct{}
 func (w *worker) emptyCounter() {
 	w.emptyTimer = time.NewTimer(time.Second)
-	counter := 0
 	log.Info("emptyCounter")
 	for {
 		select {
 		case <-w.emptyTimer.C:
-			if counter < 120 {
-				counter++
+			if w.counter < 120 {
+				w.counter++
 				w.emptyTimer.Reset(time.Second)
 			} else {
-				log.Info("emptyCounter", "counter", counter)
+				log.Info("emptyCounter", "counter", w.counter)
 				w.emptyStartChan <- struct{}{}
-				counter = 0
+				w.counter = 0
 				w.emptyTimer.Stop()
 			}
 		}
@@ -457,7 +456,12 @@ func (w *worker) emptyLoop() {
 			if w.isEmpty {
 				w.cerytify.stopVoteCh <- struct{}{}
 			}
-			w.emptyTimer.Reset(time.Second)
+			w.counter = 0
+
+			if !w.emptyTimer.Stop(){
+				w.emptyTimer.Reset(time.Second)
+			}
+
 			w.isEmpty = false
 			w.cerytify.stakers = nil
 			w.cerytify.voteIndex = 0
