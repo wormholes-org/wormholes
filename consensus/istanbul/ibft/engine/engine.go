@@ -598,6 +598,23 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			for _, v := range random11Validators.Validators {
 				state.SubValidatorCoefficient(v.Address(), 10)
 			}
+
+			emptyMsg := new(types.EmptyMsg)
+			for _, emptyMessage := range istanbulExtra.EmptyBlockMessages {
+				sender, err := emptyMsg.RecoverAddress(emptyMessage)
+				if err != nil {
+					log.Info("azh|recover emptyMessage", "err", err)
+					continue
+				}
+
+				for _, val := range state.ValidatorPool {
+					if val.Addr == sender || val.Proxy == sender {
+						state.SubValidatorCoefficient(val.Addr, 70)
+						break
+					}
+				}
+			}
+
 		} else {
 			// add 2 weight
 			for _, v := range istanbulExtra.ValidatorAddr {
@@ -717,6 +734,11 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 			for _, v := range random11Validators.Validators {
 				state.SubValidatorCoefficient(v.Address(), 10)
 			}
+
+			for _, v := range istanbulExtra.ValidatorAddr {
+				state.AddValidatorCoefficient(v, 70)
+			}
+
 		} else {
 			// add 2 weight
 			for _, v := range istanbulExtra.ValidatorAddr {

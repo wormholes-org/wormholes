@@ -413,6 +413,7 @@ type StartEmptyBlockEvent struct {
 func (w *worker) emptyCounter() {
 	w.emptyTimer = time.NewTimer(time.Second)
 	counter := 0
+	log.Info("azh|emptyCounter")
 	for {
 		select {
 		case <-w.emptyTimer.C:
