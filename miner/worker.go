@@ -213,6 +213,7 @@ type worker struct {
 	emptyHandleFlag     bool
 	cacheHeight         *big.Int
 	targetWeightBalance *big.Int
+	emptyStartChan      chan struct{}
 	emptyTimer          *time.Timer
 	resetEmptyCh        chan struct{}
 }
@@ -250,6 +251,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		notifyBlockCh:       make(chan *types.OnlineValidatorList, 1),
 		emptyTimestamp:      time.Now().Unix(),
 		emptyHandleFlag:     false,
+		emptyStartChan:      make(chan struct{}, 1),
 		resetEmptyCh:        make(chan struct{}, 1),
 	}
 
@@ -408,15 +410,35 @@ type StartEmptyBlockEvent struct {
 }
 
 //type DoneEmptyBlockEvent struct{}
+func (w *worker) emptyCounter() {
+	w.emptyTimer = time.NewTimer(time.Second)
+	counter := 0
+	for {
+		select {
+		case <-w.emptyTimer.C:
+			if counter < 120 {
+				counter++
+				w.emptyTimer.Reset(time.Second)
+			} else {
+				log.Info("azh|emptyCounter", "counter", counter)
+				w.emptyStartChan <- struct{}{}
+				counter = 0
+				w.emptyTimer.Stop()
+			}
+		}
+	}
+}
 
 func (w *worker) emptyLoop() {
 
-	w.emptyTimer = time.NewTimer(0)
-	defer w.emptyTimer.Stop()
-	<-w.emptyTimer.C // discard the initial tick
-	w.emptyTimer.Reset(120 * time.Second)
+	//w.emptyTimer = time.NewTimer(0)
+	//defer w.emptyTimer.Stop()
+	//<-w.emptyTimer.C // discard the initial tick
+	//w.emptyTimer.Reset(120 * time.Second)
 
 	go w.cerytify.handleEvents()
+
+	go w.emptyCounter()
 
 	//gossipTimer := time.NewTimer(0)
 	//defer gossipTimer.Stop()
@@ -428,22 +450,21 @@ func (w *worker) emptyLoop() {
 	//<-checkTimer.C // discard the initial tick
 	//checkTimer.Reset(1 * time.Second)
 
-	totalCondition := 0
+	//totalCondition := 0
 	for {
 		select {
 		case <-w.resetEmptyCh:
 			if w.isEmpty {
 				w.cerytify.stopVoteCh <- struct{}{}
 			}
-
+			w.emptyTimer.Reset(time.Second)
 			w.isEmpty = false
 			w.cerytify.stakers = nil
 			w.cerytify.voteIndex = 0
-			totalCondition = 0
+			//totalCondition = 0
 			w.cacheHeight = big.NewInt(0)
 			w.targetWeightBalance = big.NewInt(0)
 			w.emptyTimestamp = time.Now().Unix()
-			w.emptyTimer.Reset(1 * time.Second)
 
 		//case <-checkTimer.C:
 		//	//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
@@ -460,17 +481,18 @@ func (w *worker) emptyLoop() {
 		//		w.emptyTimer.Reset(1 * time.Second)
 		//		//w.resetEmptyCh <- struct{}{}
 		//	}
-
-		case <-w.emptyTimer.C:
-			{
-				w.emptyTimer.Reset(1 * time.Second)
-				if !w.isEmpty {
-					if totalCondition < 120 && w.chain.CurrentBlock().Number().Uint64() > 0 {
-						totalCondition++
-						//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
-						continue
-					}
-				}
+		case <-w.emptyStartChan:
+			log.Info("emptyLoop start empty")
+			for {
+				time.Sleep(time.Second)
+				//w.emptyTimer.Reset(1 * time.Second)
+				//if !w.isEmpty {
+				//	if totalCondition < 120 && w.chain.CurrentBlock().Number().Uint64() > 0 {
+				//		totalCondition++
+				//		//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+				//		continue
+				//	}
+				//}
 
 				if w.isRunning() {
 					w.emptyCh <- struct{}{}
@@ -515,9 +537,8 @@ func (w *worker) emptyLoop() {
 				//modification on 20221102 end
 				go w.cerytify.voteEmpty(w.cacheHeight)
 
-				w.cerytify.emptyCh <- struct{}{}
 				//w.onlineCh <- struct{}{}
-				w.emptyTimer.Stop()
+				break
 			}
 		//case <-gossipTimer.C:
 		//	{
@@ -544,7 +565,7 @@ func (w *worker) emptyLoop() {
 				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
 
-				log.Info("emptyLoop.signatureResultCh", "voteAddr", "self", w.cerytify.self)
+				log.Info("emptyLoop.signatureResultCh", "self", w.cerytify.self)
 				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {

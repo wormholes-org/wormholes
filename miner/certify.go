@@ -25,6 +25,7 @@ type Certify struct {
 	eth               Backend
 	otherMessages     *lru.ARCCache // the cache of peer's messages
 	selfMessages      *lru.ARCCache // the cache of self messages
+	cacheMessage      *lru.ARCCache
 	eventMux          *event.TypeMux
 	events            *event.TypeMuxSubscription
 	stakers           *types.ValidatorList // all validator
@@ -34,7 +35,6 @@ type Certify struct {
 	//receiveValidatorsSum *big.Int
 	//validators           []common.Address
 	voteIndex        uint64
-	emptyCh          chan struct{}
 	stopVoteCh       chan struct{}
 	validatorsHeight []string
 	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
@@ -54,18 +54,19 @@ func (c *Certify) subscribeEvents() {
 func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 	otherMsgs, _ := lru.NewARC(remotePeers)
 	selfMsgs, _ := lru.NewARC(storeMsgs)
+	cacheMsgs, _ := lru.NewARC(storeMsgs)
 	certify := &Certify{
 		self:              self,
 		eth:               eth,
 		eventMux:          new(event.TypeMux),
 		otherMessages:     otherMsgs,
 		selfMessages:      selfMsgs,
+		cacheMessage:      cacheMsgs,
 		miner:             handler,
 		signatureResultCh: make(chan *big.Int),
 		//receiveValidatorsSum: big.NewInt(0),
 		//validators:           make([]common.Address, 0),
 		voteIndex:        0,
-		emptyCh:          make(chan struct{}),
 		stopVoteCh:       make(chan struct{}),
 		validatorsHeight: make([]string, 0),
 		proofStatePool:   NewProofStatePool(),
@@ -189,6 +190,55 @@ func (c *Certify) sign(data []byte) ([]byte, error) {
 //	return c.self
 //}
 
+func (c *Certify) voteEmpty(height *big.Int) {
+	voteTimer := time.NewTimer(time.Second * 10)
+	for {
+		select {
+		case <-voteTimer.C:
+			voteValidator := c.stakers.Validators[c.voteIndex]
+			var voteAddress common.Address
+			if voteValidator.Proxy == (common.Address{}) {
+				voteAddress = voteValidator.Addr
+			} else {
+				voteAddress = voteValidator.Proxy
+			}
+
+			c.SendSignToOtherPeer(voteAddress, height)
+			if c.voteIndex == uint64(c.stakers.Len())-1 {
+				c.voteIndex = 0
+			} else {
+				c.voteIndex++
+			}
+			voteTimer.Reset(time.Second * 5)
+
+		case <-c.stopVoteCh:
+			c.cacheMessage.Purge()
+			return
+
+		default:
+			log.Info("azh|post cache", "cache len", c.cacheMessage.Len())
+			if c.cacheMessage.Len() > 0 {
+				for _, addr := range c.cacheMessage.Keys() {
+					if ms, ok := c.cacheMessage.Get(addr); ok {
+						m, _ := ms.(*lru.ARCCache)
+						log.Info("azh|repost", "addr", addr, "hash len", m.Len())
+						for _, hash := range m.Keys() {
+							if data, oks := m.Get(hash); oks {
+								m.Remove(hash)
+								log.Info("azh|repost", "hash", hash, "data", data)
+								go c.eventMux.Post(types.EmptyMsg{
+									Code: WorkerMsg,
+									Msg:  data.([]byte),
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 // HandleMsg handles a message from peer
 func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	if msg.Code == WorkerMsg {
@@ -206,10 +256,10 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			m, _ = lru.NewARC(remotePeers)
 			c.otherMessages.Add(addr, m)
 		}
+		m.Add(hash, true)
 
 		// Mark self known message
 		if _, ok := c.selfMessages.Get(hash); ok {
-			m.Add(hash, true)
 			return true, nil
 		}
 		c.selfMessages.Add(hash, true)
@@ -221,7 +271,16 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 				Payload: data,
 			})
 		} else {
-			m.Add(hash, data)
+			mc, ok := c.cacheMessage.Get(addr)
+			var ml *lru.ARCCache
+			if ok {
+				ml, _ = mc.(*lru.ARCCache)
+			} else {
+				ml, _ = lru.NewARC(remotePeers)
+				c.cacheMessage.Add(addr, ml)
+			}
+			ml.Add(hash, data)
+			log.Info("certify handleMsg cache", "hash", hash, "cache len", c.cacheMessage.Len())
 		}
 	}
 	return false, nil

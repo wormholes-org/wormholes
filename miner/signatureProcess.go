@@ -5,61 +5,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	lru "github.com/hashicorp/golang-lru"
 	"math/big"
-	"time"
 )
-
-func (c *Certify) voteEmpty(height *big.Int) {
-	voteTimer := time.NewTimer(time.Second * 10)
-	for {
-		select {
-		case <-voteTimer.C:
-			voteValidator := c.stakers.Validators[c.voteIndex]
-			var voteAddress common.Address
-			if voteValidator.Proxy == (common.Address{}) {
-				voteAddress = voteValidator.Addr
-			} else {
-				voteAddress = voteValidator.Proxy
-			}
-
-			c.SendSignToOtherPeer(voteAddress, height)
-			if c.voteIndex == uint64(c.stakers.Len())-1 {
-				c.voteIndex = 0
-			} else {
-				c.voteIndex++
-			}
-			voteTimer.Reset(time.Second * 5)
-
-		case <-c.emptyCh:
-			log.Info("azh|repost", "message addr len", c.otherMessages.Len())
-			if c.otherMessages.Len() > 0 {
-				for _, addr := range c.otherMessages.Keys() {
-					if ms, ok := c.otherMessages.Get(addr); ok {
-						m, _ := ms.(*lru.ARCCache)
-						log.Info("azh|repost", "addr", addr, "hash len", m.Len())
-						for _, hash := range m.Keys() {
-							if data, oks := m.Get(hash); oks {
-								if msg, okm := data.([]byte); okm {
-									m.Remove(hash)
-									m.Add(hash, true)
-									log.Info("azh|repost", "hash", hash, "data", msg)
-									go c.eventMux.Post(types.EmptyMsg{
-										Code: WorkerMsg,
-										Msg:  msg,
-									})
-								}
-							}
-						}
-					}
-				}
-			}
-
-		case <-c.stopVoteCh:
-			return
-		}
-	}
-}
 
 func (c *Certify) SendSignToOtherPeer(vote common.Address, height *big.Int) {
 	log.Info("start SendSignToOtherPeer", "Address", vote.Hex(), "Height:", height)
