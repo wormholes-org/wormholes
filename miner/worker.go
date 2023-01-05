@@ -511,7 +511,7 @@ func (w *worker) emptyLoop() {
 					w.targetWeightBalance = totalWeightBalance
 					continue
 				}
-				log.Info("emptyLoop", "stakes", w.cerytify.stakers, "cacheHeight", w.cacheHeight, "targetWeight", w.targetWeightBalance)
+				//	log.Info("emptyLoop", "stakes", w.cerytify.stakers, "cacheHeight", w.cacheHeight, "targetWeight", w.targetWeightBalance)
 
 				w.emptyCh <- struct{}{}
 				EmptyEvent := StartEmptyBlockEvent{

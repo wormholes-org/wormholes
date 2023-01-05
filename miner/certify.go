@@ -216,16 +216,16 @@ func (c *Certify) voteEmpty(height *big.Int) {
 			return
 
 		default:
-			log.Info("azh|post cache", "cache len", c.cacheMessage.Len())
+			//			log.Info("azh|post cache", "cache len", c.cacheMessage.Len())
 			if c.cacheMessage.Len() > 0 {
 				for _, addr := range c.cacheMessage.Keys() {
 					if ms, ok := c.cacheMessage.Get(addr); ok {
 						m, _ := ms.(*lru.ARCCache)
-						log.Info("azh|repost", "addr", addr, "hash len", m.Len())
+						//						log.Info("azh|repost", "addr", addr, "hash len", m.Len())
 						for _, hash := range m.Keys() {
 							if data, oks := m.Get(hash); oks {
 								m.Remove(hash)
-								log.Info("azh|repost", "hash", hash, "data", data)
+								//								log.Info("azh|repost", "hash", hash, "data", data)
 								go c.eventMux.Post(types.EmptyMsg{
 									Code: WorkerMsg,
 									Msg:  data.([]byte),
@@ -265,7 +265,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		c.selfMessages.Add(hash, true)
 
 		if c.miner.GetWorker().isEmpty {
-			log.Info("certify handleMsg post", "hash", hash)
+			//			log.Info("certify handleMsg post", "hash", hash)
 			go c.eventMux.Post(types.EmptyMessageEvent{
 				Code:    SendSignMsg,
 				Payload: data,
@@ -280,7 +280,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 				c.cacheMessage.Add(addr, ml)
 			}
 			ml.Add(hash, data)
-			log.Info("certify handleMsg cache", "hash", hash, "cache len", c.cacheMessage.Len())
+			//			log.Info("certify handleMsg cache", "hash", hash, "cache len", c.cacheMessage.Len())
 		}
 	}
 	return false, nil
