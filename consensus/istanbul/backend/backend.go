@@ -302,6 +302,8 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 			return 0, errors.New("Verify: invalid Header")
 		}
 
+		log.Info("Verify:calculate 11valSet", "no", header.Number, "hash", header.Hash().Hex(),
+			"parentNo", parent.NumberU64(), "parentHash", parent.Hash().Hex())
 		validatorList, err := c.Random11ValidatorFromPool(parent.Header())
 		if err != nil {
 			log.Error("Verify: invalid validator list", "no", c.CurrentBlock().Header().Number, "err", err)
@@ -372,13 +374,14 @@ func (sb *Backend) ParentValidators(proposal istanbul.Proposal) istanbul.Validat
 func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
 	var valSet istanbul.ValidatorSet
 	if c, ok := sb.chain.(*core.BlockChain); ok {
+		log.Info("getValidators:calculate 11valSet", "parentNo", number, "parentHash", hash.Hex())
 		validatorList, err := c.Random11ValidatorFromPool(c.GetHeaderByHash(hash))
 		if err != nil {
 			log.Error("Backend: getValidators", "err", err, "no", number)
 			return nil
 		}
 		for _, v := range validatorList.Validators {
-			log.Info("Backend: getValidators", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v.Addr.Hex())
+			log.Info("Backend: getValidators", "no", number+1, "parentNo", number, "parentHash", hash, "addr", v.Addr)
 		}
 
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)

@@ -168,6 +168,8 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 			log.Error("VerifySeal: invalid parent", "no", header.Number)
 			return errors.New("VerifySeal: invalid parent")
 		}
+		log.Info("VerifySeal:calculate 11valSet", "no", header.Number, "hash", header.Hash().Hex(),
+			"parentNo", parent.NumberU64(), "parentHash", parent.Hash().Hex())
 		validatorList, err := c.Random11ValidatorFromPool(parent.Header())
 		if err != nil {
 			log.Error("VerifySeal : invalid validator list", "no", c.CurrentBlock().Header(), "err", err)
@@ -220,7 +222,8 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		}
 
 		log.Info("Prepare : info", "header-no", header.Number.String(), "current-header", parent.Number())
-
+		log.Info("Prepare : calculate 11valSet", "no", header.Number, "hash", header.Hash().Hex(),
+			"parentNo", parent.NumberU64(), "parentHash", parent.Hash().Hex())
 		validatorList, err := c.Random11ValidatorFromPool(parent.Header())
 		if err != nil {
 			log.Error("Prepare: invalid validator list", "err", err, "no", parent.Header().Number)
@@ -228,7 +231,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		}
 
 		for _, v := range validatorList.Validators {
-			log.Info("Backend : Prepare", "height", parent.Number, "v", v)
+			log.Info("Backend : Prepare valSet", "no", header.Number, "addr", v.Addr.Hex(), "parentHash", parent.Hash().Hex())
 		}
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
 	}
