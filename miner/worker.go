@@ -1392,7 +1392,7 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		return err
 	}
 	w.mux.Post(core.NewMinedBlockEvent{Block: block})
-	log.Info("empty block wirte to localdb", "Number:", w.current.header.Number.Uint64())
+	log.Info("empty block wirte to localdb", "curNo:", w.current.header.Number.Uint64(), "no", block.Number(), "hash", block.Hash())
 	return nil
 }
 
