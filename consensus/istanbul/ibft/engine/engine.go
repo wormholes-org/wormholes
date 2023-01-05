@@ -599,10 +599,21 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 				state.SubValidatorCoefficient(v.Address(), 10)
 			}
 
-			voteAddrs := make([]common.Address, len(istanbulExtra.EmptyBlockMessages))
+			voteAddrs := make([]common.Address, 0)
 			emptyMsg := new(types.EmptyMsg)
 			for _, emptyMessage := range istanbulExtra.EmptyBlockMessages {
+				if err := emptyMsg.FromPayload(emptyMessage); err != nil {
+					log.Error("Certify Failed to decode message from payload", "err", err)
+					break
+				}
+				//var signature *types.SignatureData
+				//err = emptyMsg.Decode(&signature)
+				//if err !=nil {
+				//	log.Info("recoverMsg", "err", err)
+				//	continue
+				//}
 				sender, err := emptyMsg.RecoverAddress(emptyMessage)
+				//log.Info("recoverAddress", "msg", signature.Vote, "height", signature.Height, "sender", sender)
 				if err != nil {
 					log.Info("recover emptyMessage", "err", err)
 					continue
@@ -749,7 +760,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 				state.SubValidatorCoefficient(v.Address(), 10)
 			}
 
-			for _, v := range istanbulExtra.ValidatorAddr {
+			for _, v := range istanbulExtra.Validators {
 				log.Info("AddValidatorCoefficient", "addr", v)
 				state.AddValidatorCoefficient(v, 70)
 			}
