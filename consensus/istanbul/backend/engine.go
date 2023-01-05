@@ -77,6 +77,12 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 			return istanbulcommon.ErrInvalidExtraDataFormat
 		}
 		validators := istanbulExtra.Validators
+		for i, v := range validators {
+			log.Info("verifyHeader : valSet", "i", i, "no", header.Number,
+				"hash", header.Hash().Hex(),
+				"parentHash", header.ParentHash.Hex(),
+				"addr", v.Hex())
+		}
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
 		return sb.EngineForBlockNumber(header.Number).VerifyHeader(chain, header, parents, valSet)
 	}

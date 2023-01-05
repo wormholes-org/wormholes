@@ -840,6 +840,8 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 	}
 	// Update all in-memory chain markers in the last step
 	if updateHeads {
+		log.Info("writeHeadBlock : updateHeads", "no", block.NumberU64(),
+			"hash", block.Hash().Hex(), "parentHash", block.ParentHash().Hex())
 		bc.hc.SetCurrentHeader(block.Header())
 		bc.currentFastBlock.Store(block)
 		headFastBlockGauge.Update(int64(block.NumberU64()))
@@ -1672,6 +1674,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 	// Set new head.
 	if status == CanonStatTy {
+		log.Info("CanonStatTy : writeHeadBlock", "no", block.NumberU64(),
+			"hash", block.Hash().Hex(), "parentHash", block.ParentHash().Hex())
 		bc.writeHeadBlock(block)
 	}
 	bc.futureBlocks.Remove(block.Hash())
@@ -2475,6 +2479,8 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	// taking care of the proper incremental order.
 	for i := len(newChain) - 1; i >= 1; i-- {
 		// Insert the block in the canonical way, re-writing history
+		log.Info("reorg : writeHeadBlock", "no", newChain[i].NumberU64(),
+			"hash", newChain[i].Hash().Hex(), "parentHash", newChain[i].ParentHash().Hex())
 		bc.writeHeadBlock(newChain[i])
 
 		// Collect reborn logs due to chain reorg
