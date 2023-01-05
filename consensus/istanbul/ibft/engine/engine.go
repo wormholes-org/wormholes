@@ -625,7 +625,8 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			}
 
 			for _, vote := range voteAddrs {
-				state.SubValidatorCoefficient(vote, 70)
+				log.Info("AddValidatorCoefficient", "addr", vote)
+				state.AddValidatorCoefficient(vote, 70)
 			}
 
 		} else {
