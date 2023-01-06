@@ -41,9 +41,9 @@ type Certify struct {
 	//msgHeight        *big.Int
 }
 
-//func (c *Certify) Start() {
-//	c.subscribeEvents()
-//}
+func (c *Certify) Start() {
+	c.subscribeEvents()
+}
 
 func (c *Certify) subscribeEvents() {
 	c.events = c.eventMux.Subscribe(
@@ -72,7 +72,6 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		proofStatePool:   NewProofStatePool(),
 		//msgHeight:        new(big.Int),
 	}
-	go certify.subscribeEvents()
 	return certify
 }
 
