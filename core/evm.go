@@ -2079,7 +2079,7 @@ func BatchBuyNFTByApproveExchanger(
 		log.Error("BatchBuyNFTByApproveExchanger(), seller amount format error", "ok", ok)
 		return errors.New("seller amount is not string of 0x!")
 	}
-	if amount.Cmp(sellerAmount) <= 0 {
+	if amount.Cmp(sellerAmount) < 0 {
 		log.Error("BatchBuyNFTByApproveExchanger(), tx amount error",
 			"sellerAmount", sellerAmount.Text(16), "amount", amount.Text(16))
 		return errors.New("tx amount error")
