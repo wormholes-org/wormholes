@@ -411,7 +411,12 @@ type StartEmptyBlockEvent struct {
 
 //type DoneEmptyBlockEvent struct{}
 func (w *worker) emptyCounter() {
-	w.emptyTimer = time.NewTimer(time.Second)
+	//w.emptyTimer = time.NewTimer(time.Second)
+
+	w.emptyTimer = time.NewTimer(0)
+	defer w.emptyTimer.Stop()
+	<-w.emptyTimer.C // discard the initial tick
+	w.emptyTimer.Reset(time.Second)
 	for {
 		select {
 		case <-w.emptyTimer.C:
