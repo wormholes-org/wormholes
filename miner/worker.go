@@ -537,12 +537,13 @@ func (w *worker) emptyLoop() {
 
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
+
+				w.cerytify.PostCacheMessage()
 			}
 
 		case <-gossipTimer.C:
 			{
 				if !w.isEmpty {
-					w.cerytify.PostCacheMessage()
 					continue
 				}
 				w.cerytify.lock.Lock()
