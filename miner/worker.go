@@ -21,7 +21,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	lru "github.com/hashicorp/golang-lru"
 	"math"
 	"math/big"
 	"sync"
@@ -452,6 +451,9 @@ func (w *worker) emptyLoop() {
 				totalCondition = 0
 				w.emptyTimer.Reset(1 * time.Second)
 				//w.resetEmptyCh <- struct{}{}
+
+				w.cerytify.cacheMessage.Purge()
+				w.cerytify.voteIndex = 0
 			}
 
 		case <-w.emptyTimer.C:
@@ -539,24 +541,7 @@ func (w *worker) emptyLoop() {
 		case <-gossipTimer.C:
 			{
 				if !w.isEmpty {
-					if w.cerytify.cacheMessage.Len() > 0 {
-						for _, addr := range w.cerytify.cacheMessage.Keys() {
-							if ms, ok := w.cerytify.cacheMessage.Get(addr); ok {
-								m, _ := ms.(*lru.ARCCache)
-								//log.Info("azh|repost", "addr", addr, "hash len", m.Len())
-								for _, hash := range m.Keys() {
-									if data, oks := m.Get(hash); oks {
-										m.Remove(hash)
-										//log.Info("azh|repost", "hash", hash, "data", data)
-										go w.cerytify.eventMux.Post(types.EmptyMsg{
-											Code: WorkerMsg,
-											Msg:  data.([]byte),
-										})
-									}
-								}
-							}
-						}
-					}
+					w.cerytify.PostCacheMessage()
 					continue
 				} else {
 					voteValidator := w.cerytify.stakers.Validators[w.cerytify.voteIndex]
@@ -607,6 +592,9 @@ func (w *worker) emptyLoop() {
 							totalCondition = 0
 							w.emptyTimer.Reset(1 * time.Second)
 							//w.resetEmptyCh <- struct{}{}
+
+							w.cerytify.cacheMessage.Purge()
+							w.cerytify.voteIndex = 0
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}

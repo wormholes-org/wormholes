@@ -32,7 +32,7 @@ type Certify struct {
 	signatureResultCh chan *big.Int
 	miner             Handler // Apply some of the capabilities of the parent class
 	lock              sync.Mutex
-	cacheLock         sync.Mutex
+	messageLock       sync.Mutex
 	//receiveValidatorsSum *big.Int
 	//validators           []common.Address
 	voteIndex        uint64
@@ -220,7 +220,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 				Payload: data,
 			})
 		} else {
-			c.cacheLock.Lock()
+			c.messageLock.Unlock()
 			mc, ok := c.cacheMessage.Get(addr)
 			var ml *lru.ARCCache
 			if ok {
@@ -230,11 +230,40 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 				c.cacheMessage.Add(addr, ml)
 			}
 			ml.Add(hash, data)
-			c.cacheLock.Unlock()
+			c.messageLock.Unlock()
 			//log.Info("certify handleMsg cache", "hash", hash, "cache len", c.cacheMessage.Len())
 		}
 	}
 	return false, nil
+}
+
+func (c *Certify) PostCacheMessage() {
+	if c.cacheMessage.Len() <= 0 {
+		return
+	}
+
+	for _, addr := range c.cacheMessage.Keys() {
+		ms, ok := c.cacheMessage.Get(addr)
+		if ok {
+			m, _ := ms.(*lru.ARCCache)
+			//log.Info("azh|repost", "addr", addr, "hash len", m.Len())
+			for _, hash := range m.Keys() {
+				data, oks := m.Get(hash)
+				if oks {
+					m.Remove(hash)
+					//log.Info("azh|repost", "hash", hash, "data", data)
+					go c.eventMux.Post(types.EmptyMsg{
+						Code: WorkerMsg,
+						Msg:  data.([]byte),
+					})
+				} else {
+					return
+				}
+			}
+		} else {
+			return
+		}
+	}
 }
 
 func (c *Certify) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
