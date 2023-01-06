@@ -86,7 +86,10 @@ func (c *Certify) broadcast(from common.Address, msg *Msg) error {
 		return err
 	}
 	// send to self
-	go c.eventMux.Post(msg)
+	go c.eventMux.Post(MessageEvent{
+		Code:    msg.Code,
+		Payload: payload,
+	})
 	return nil
 }
 

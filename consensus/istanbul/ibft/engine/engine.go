@@ -538,7 +538,8 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	if header.Time > uint64(time.Now().Unix()) {
 		header.Time = uint64(time.Now().Unix())
 	}
-
+	log.Info("PrepareEmpty : info", "no", header.Number.Uint64(), "hash", header.Hash().Hex(),
+		"time", header.Time)
 	return nil
 }
 
@@ -712,6 +713,10 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 			return nil, err
 		}
 		if header.Coinbase == (common.Address{}) {
+			log.Info("emptyBlock : root before", "no", header.Number.Uint64(),
+				"hash", header.Hash().Hex(),
+				"parentHash", header.ParentHash.Hex(),
+				"root", header.Root.Hex())
 			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
 				state.SubValidatorCoefficient(v.Address(), 10)
@@ -735,6 +740,13 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
+
+	log.Info("block : root after",
+		"no", header.Number.Uint64(),
+		"coinbase", header.Coinbase.Hex(),
+		"hash", header.Hash().Hex(),
+		"parentHash", header.ParentHash.Hex(),
+		"root", header.Root.Hex())
 
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
