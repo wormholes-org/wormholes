@@ -491,6 +491,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			emptyAddress := common.Address{}
 			var buyer common.Address
 			if len(wormholes.BuyerAuth.Exchanger) > 0 &&
+				len(wormholes.BuyerAuth.BlockNumber) > 0 &&
 				len(wormholes.BuyerAuth.Sig) > 0 {
 				buyer, err = RecoverAddress(wormholes.BuyerAuth.Exchanger, wormholes.BuyerAuth.Sig)
 				if err != nil {
