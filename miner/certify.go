@@ -1,10 +1,6 @@
 package miner
 
 import (
-	"math/big"
-	"sync"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -12,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
+	"math/big"
+	"sync"
 )
 
 const (
@@ -279,7 +277,6 @@ func (c *Certify) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 }
 
 func (c *Certify) handleEvents() {
-	time.Sleep(time.Second * 10)
 	log.Info("Certify handle events start")
 	for {
 		select {
