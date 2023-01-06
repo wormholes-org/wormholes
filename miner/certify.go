@@ -258,7 +258,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 func (c *Certify) PostCacheMessage() {
 	handleMessage := func(hash, value interface{}) bool {
 		emptyMessage, ok := value.(types.EmptyMessageEvent)
-		if ok{
+		if ok {
 			miner, okm := c.miner.(*Miner)
 			if okm {
 				miner.broadcaster.BroadcastEmptyBlockMsg(emptyMessage.Payload)

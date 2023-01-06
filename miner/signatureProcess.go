@@ -9,7 +9,7 @@ import (
 )
 
 func (c *Certify) AssembleAndStoreMessage(height *big.Int) {
-	if c.voteIndex == c.stakers.Len()-1 {
+	if c.voteIndex == c.stakers.Len() {
 		return
 	}
 	voteValidator := c.stakers.Validators[c.voteIndex]
