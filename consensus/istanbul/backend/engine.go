@@ -196,7 +196,8 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
 	var valSet istanbul.ValidatorSet
 	if c, ok := chain.(*core.BlockChain); ok {
-		log.Info("Prepare", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number.String())
+		log.Info("Prepare", "header-no", header.Number.Uint64(), "hash", header.Hash(),
+			"current-header", c.CurrentBlock().Header().Number.Uint64(), "curHash", c.CurrentBlock().Header().Hash().Hex())
 		cHeader := c.CurrentBlock().Header()
 		if cHeader == nil {
 			return errors.New("prepare err: current header is nil")

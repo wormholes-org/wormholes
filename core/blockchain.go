@@ -1135,6 +1135,7 @@ const (
 	NonStatTy WriteStatus = iota
 	CanonStatTy
 	SideStatTy
+	WriteBlockStatTy
 )
 
 // truncateAncient rewinds the blockchain to the specified header and deletes all
@@ -1492,6 +1493,14 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
 
+	// check block height
+	cBlk := bc.CurrentBlock()
+	if block.NumberU64() != cBlk.NumberU64()+1 {
+		log.Error("failed write block with state", "curNo", cBlk.NumberU64(), "curHash", cBlk.Hash().Hex(),
+			"no", block.NumberU64(), "hash", block.Hash().Hex())
+
+		return WriteBlockStatTy, errors.New("err write block with state, invalid block height")
+	}
 	return bc.writeBlockWithState(block, receipts, logs, state, emitHeadEvent)
 }
 

@@ -725,7 +725,7 @@ func (w *worker) mainLoop() {
 			w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
 
 		case ev := <-w.chainSideCh:
-			log.Info("w.chainSideCh", "height", ev.Block.NumberU64())
+			log.Info("w.chainSideCh", "height", ev.Block.NumberU64(), "hash", ev.Block.Hash().Hex(), "parentHash", ev.Block.ParentHash().Hex())
 			// Short circuit for duplicate side blocks
 			if _, exist := w.localUncles[ev.Block.Hash()]; exist {
 				continue
@@ -1392,7 +1392,8 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		return err
 	}
 	w.mux.Post(core.NewMinedBlockEvent{Block: block})
-	log.Info("empty block wirte to localdb", "curNo:", w.current.header.Number.Uint64(), "no", block.Number(), "hash", block.Hash())
+	log.Info("empty block wirte to localdb", "curNo:", w.chain.CurrentBlock().NumberU64(), "hash", w.chain.CurrentBlock().Hash().Hex(),
+		"no", block.Number(), "hash", block.Hash())
 	return nil
 }
 
