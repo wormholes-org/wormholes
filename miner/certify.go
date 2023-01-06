@@ -242,26 +242,31 @@ func (c *Certify) PostCacheMessage() {
 		return
 	}
 
+	cacheList := make([]interface{}, 0)
 	for _, addr := range c.cacheMessage.Keys() {
-		ms, ok := c.cacheMessage.Get(addr)
-		if ok {
-			m, _ := ms.(*lru.ARCCache)
-			//log.Info("azh|repost", "addr", addr, "hash len", m.Len())
-			for _, hash := range m.Keys() {
-				data, oks := m.Get(hash)
-				if oks {
-					m.Remove(hash)
-					//log.Info("azh|repost", "hash", hash, "data", data)
-					go c.eventMux.Post(types.EmptyMsg{
-						Code: WorkerMsg,
-						Msg:  data.([]byte),
-					})
-				} else {
-					return
-				}
-			}
-		} else {
+		if ms, ok := c.cacheMessage.Get(addr); ok {
+			cacheList = append(cacheList, ms)
+		}
+	}
+
+	for _, ms := range cacheList {
+		m, _ := ms.(*lru.ARCCache)
+		if m.Len() <= 0 {
 			return
+		}
+
+		for _, hash := range m.Keys() {
+			data, oks := m.Get(hash)
+			if oks {
+				m.Remove(hash)
+				//log.Info("azh|repost", "hash", hash, "data", data)
+				go c.eventMux.Post(types.EmptyMsg{
+					Code: WorkerMsg,
+					Msg:  data.([]byte),
+				})
+			} else {
+				return
+			}
 		}
 	}
 }
