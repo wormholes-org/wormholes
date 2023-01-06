@@ -73,17 +73,17 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 	return certify
 }
 
-func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
-	// Broadcast payload
-	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-	//	return err
-	//}
-	if miner, ok := c.miner.(*Miner); ok {
-		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
-	}
-
-	return nil
-}
+//func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
+//	// Broadcast payload
+//	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+//	//	return err
+//	//}
+//	if miner, ok := c.miner.(*Miner); ok {
+//		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
+//	}
+//
+//	return nil
+//}
 
 //func (c *Certify) broadcast(msg *types.EmptyMsg) error {
 //	payload, err := c.signMessage(msg)
@@ -224,10 +224,10 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
-		if _, ok := c.messageList.Load(data); ok {
+		if _, ok := c.messageList.Load(string(data)); ok {
 			return false, nil
 		} else {
-			c.messageList.Store(data, types.EmptyMessageEvent{
+			c.messageList.Store(string(data), types.EmptyMessageEvent{
 				Sender: sender,
 				Vote:   signature.Vote,
 				Height: signature.Height,

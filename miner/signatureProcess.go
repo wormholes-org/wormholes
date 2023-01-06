@@ -32,10 +32,10 @@ func (c *Certify) AssembleAndStoreMessage(vote common.Address, height *big.Int) 
 		return
 	}
 
-	if _, ok := c.messageList.Load(payload); ok {
+	if _, ok := c.messageList.Load(string(payload)); ok {
 		return
 	} else {
-		c.messageList.Store(payload, types.EmptyMessageEvent{
+		c.messageList.Store(string(payload), types.EmptyMessageEvent{
 			Sender:  c.self,
 			Vote:    vote,
 			Height:  height,
