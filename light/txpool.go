@@ -522,7 +522,7 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 			if len(wormholes.BuyerAuth.Exchanger) > 0 &&
 				len(wormholes.BuyerAuth.BlockNumber) > 0 &&
 				len(wormholes.BuyerAuth.Sig) > 0 {
-				buyer, err = core.RecoverAddress(wormholes.BuyerAuth.Exchanger, wormholes.BuyerAuth.Sig)
+				buyer, err = core.RecoverAddress(wormholes.BuyerAuth.Exchanger+wormholes.BuyerAuth.BlockNumber, wormholes.BuyerAuth.Sig)
 				if err != nil {
 					return err
 				}
