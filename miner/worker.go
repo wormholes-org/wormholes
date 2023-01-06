@@ -486,13 +486,14 @@ func (w *worker) emptyLoop() {
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
 				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
-
+				w.cerytify.lock.Lock()
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				if err != nil {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
 				w.cerytify.stakers = stakers
+				w.cerytify.lock.Unlock()
 
 				if !w.emptyHandleFlag {
 					w.emptyHandleFlag = true
@@ -544,7 +545,7 @@ func (w *worker) emptyLoop() {
 					w.cerytify.PostCacheMessage()
 					continue
 				}
-
+				w.cerytify.lock.Lock()
 				voteValidator := w.cerytify.stakers.Validators[w.cerytify.voteIndex]
 				var voteAddress common.Address
 				if voteValidator.Proxy == (common.Address{}) {
@@ -558,6 +559,7 @@ func (w *worker) emptyLoop() {
 				} else {
 					w.cerytify.voteIndex++
 				}
+				w.cerytify.lock.Unlock()
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
