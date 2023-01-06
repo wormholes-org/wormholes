@@ -522,7 +522,7 @@ func (w *worker) emptyLoop() {
 					//log.Error("emptyTimer.C : post empty event", "err", err)
 					continue
 				}
-				time.Sleep(10 * time.Second)
+				//time.Sleep(10 * time.Second)
 				//if w.isRunning() {
 				//	w.isEmpty = false
 				//	w.emptyTimestamp = time.Now().Unix()
