@@ -434,7 +434,6 @@ func (w *worker) emptyLoop() {
 			totalCondition = 0
 			w.emptyTimer.Reset(1 * time.Second)
 
-			w.cerytify.cacheMessage.Purge()
 			w.cerytify.voteIndex = 0
 
 		case <-checkTimer.C:
@@ -452,7 +451,6 @@ func (w *worker) emptyLoop() {
 				w.emptyTimer.Reset(1 * time.Second)
 				//w.resetEmptyCh <- struct{}{}
 
-				w.cerytify.cacheMessage.Purge()
 				w.cerytify.voteIndex = 0
 			}
 
@@ -537,13 +535,12 @@ func (w *worker) emptyLoop() {
 
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
-
-				w.cerytify.PostCacheMessage()
 			}
 
 		case <-gossipTimer.C:
 			{
 				gossipTimer.Reset(time.Second * 5)
+				w.cerytify.PostCacheMessage()
 				if !w.isEmpty {
 					continue
 				}
@@ -555,7 +552,9 @@ func (w *worker) emptyLoop() {
 				} else {
 					voteAddress = voteValidator.Proxy
 				}
-				w.cerytify.SendSignToOtherPeer(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+
+				w.cerytify.AssembleAndStoreMessage(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+				//w.cerytify.SendSignToOtherPeer(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 				if w.cerytify.voteIndex == uint64(w.cerytify.stakers.Len())-1 {
 					w.cerytify.voteIndex = 0
 				} else {
@@ -597,7 +596,6 @@ func (w *worker) emptyLoop() {
 							w.emptyTimer.Reset(1 * time.Second)
 							//w.resetEmptyCh <- struct{}{}
 
-							w.cerytify.cacheMessage.Purge()
 							w.cerytify.voteIndex = 0
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM

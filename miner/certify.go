@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
-	lru "github.com/hashicorp/golang-lru"
 	"math/big"
 	"sync"
 )
@@ -18,19 +17,20 @@ const (
 )
 
 type Certify struct {
-	mu                sync.Mutex
-	self              common.Address
-	eth               Backend
-	otherMessages     *lru.ARCCache // the cache of peer's messages
-	selfMessages      *lru.ARCCache // the cache of self messages
-	cacheMessage      *lru.ARCCache
+	mu   sync.Mutex
+	self common.Address
+	eth  Backend
+	//otherMessages     *lru.ARCCache // the cache of peer's messages
+	//selfMessages      *lru.ARCCache // the cache of self messages
+	//cacheMessage      *lru.ARCCache
 	eventMux          *event.TypeMux
 	events            *event.TypeMuxSubscription
 	stakers           *types.ValidatorList // all validator
 	signatureResultCh chan *big.Int
 	miner             Handler // Apply some of the capabilities of the parent class
 	lock              sync.Mutex
-	messageLock       sync.Mutex
+	messageList       sync.Map
+	//messageLock       sync.Mutex
 	//receiveValidatorsSum *big.Int
 	//validators           []common.Address
 	voteIndex        uint64
@@ -50,16 +50,16 @@ func (c *Certify) subscribeEvents() {
 }
 
 func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
-	otherMsgs, _ := lru.NewARC(remotePeers)
-	selfMsgs, _ := lru.NewARC(storeMsgs)
-	cacheMsgs, _ := lru.NewARC(storeMsgs)
+	//otherMsgs, _ := lru.NewARC(remotePeers)
+	//selfMsgs, _ := lru.NewARC(storeMsgs)
+	//cacheMsgs, _ := lru.NewARC(storeMsgs)
 	certify := &Certify{
-		self:              self,
-		eth:               eth,
-		eventMux:          new(event.TypeMux),
-		otherMessages:     otherMsgs,
-		selfMessages:      selfMsgs,
-		cacheMessage:      cacheMsgs,
+		self:     self,
+		eth:      eth,
+		eventMux: new(event.TypeMux),
+		//otherMessages:     otherMsgs,
+		//selfMessages:      selfMsgs,
+		//cacheMessage:      cacheMsgs,
 		miner:             handler,
 		signatureResultCh: make(chan *big.Int),
 		//receiveValidatorsSum: big.NewInt(0),
@@ -84,27 +84,27 @@ func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
 	return nil
 }
 
-func (c *Certify) broadcast(msg *types.EmptyMsg) error {
-	payload, err := c.signMessage(msg)
-	if err != nil {
-		log.Error("signMessage err", err)
-		return err
-	}
-	// Broadcast payload
-	//if err = c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-	//	return err
-	//}
-	if miner, ok := c.miner.(*Miner); ok {
-		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
-	}
-
-	// send to self
-	go c.eventMux.Post(types.EmptyMessageEvent{
-		Code:    SendSignMsg,
-		Payload: payload,
-	})
-	return nil
-}
+//func (c *Certify) broadcast(msg *types.EmptyMsg) error {
+//	payload, err := c.signMessage(msg)
+//	if err != nil {
+//		log.Error("signMessage err", err)
+//		return err
+//	}
+//	// Broadcast payload
+//	//if err = c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+//	//	return err
+//	//}
+//	if miner, ok := c.miner.(*Miner); ok {
+//		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
+//	}
+//
+//	// send to self
+//	go c.eventMux.Post(types.EmptyMessageEvent{
+//		Code:    SendSignMsg,
+//		Payload: payload,
+//	})
+//	return nil
+//}
 
 // Gossip Broadcast message to all stakers
 //func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byte) error {
@@ -189,83 +189,56 @@ func (c *Certify) sign(data []byte) ([]byte, error) {
 // HandleMsg handles a message from peer
 func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	if msg.Code == WorkerMsg {
-		data, hash, err := c.decode(msg)
+		data, _, err := c.decode(msg)
 		log.Info("certify handleMsg", "code", msg.Code, "payload", data)
 		if err != nil {
 			return true, err
 		}
+
+		if _, ok := c.messageList.Load(data); ok {
+			return false, nil
+		} else {
+			c.messageList.Store(data, true)
+		}
 		// Mark peer's message
-		ms, ok := c.otherMessages.Get(addr)
-		var m *lru.ARCCache
-		if ok {
-			m, _ = ms.(*lru.ARCCache)
-		} else {
-			m, _ = lru.NewARC(remotePeers)
-			c.otherMessages.Add(addr, m)
-		}
-		m.Add(hash, true)
+		//ms, ok := c.otherMessages.Get(addr)
+		//var m *lru.ARCCache
+		//if ok {
+		//	m, _ = ms.(*lru.ARCCache)
+		//} else {
+		//	m, _ = lru.NewARC(remotePeers)
+		//	c.otherMessages.Add(addr, m)
+		//}
+		//m.Add(hash, data)
+		//
+		//// Mark self known message
+		//if _, ok := c.selfMessages.Get(hash); ok {
+		//	return true, nil
+		//}
+		//c.selfMessages.Add(hash, true)
+		//			log.Info("certify handleMsg post", "hash", hash)
+		//go c.eventMux.Post(types.EmptyMessageEvent{
+		//	Code:    SendSignMsg,
+		//	Payload: data,
+		//})
 
-		// Mark self known message
-		if _, ok := c.selfMessages.Get(hash); ok {
-			return true, nil
-		}
-		c.selfMessages.Add(hash, true)
-
-		if c.miner.GetWorker().isEmpty {
-			//			log.Info("certify handleMsg post", "hash", hash)
-			go c.eventMux.Post(types.EmptyMessageEvent{
-				Code:    SendSignMsg,
-				Payload: data,
-			})
-		} else {
-			c.messageLock.Lock()
-			mc, ok := c.cacheMessage.Get(addr)
-			var ml *lru.ARCCache
-			if ok {
-				ml, _ = mc.(*lru.ARCCache)
-			} else {
-				ml, _ = lru.NewARC(remotePeers)
-				c.cacheMessage.Add(addr, ml)
-			}
-			ml.Add(hash, data)
-			c.messageLock.Unlock()
-			//log.Info("certify handleMsg cache", "hash", hash, "cache len", c.cacheMessage.Len())
-		}
 	}
 	return false, nil
 }
 
 func (c *Certify) PostCacheMessage() {
-	if c.cacheMessage.Len() <= 0 {
-		return
-	}
-
-	cacheList := make([]interface{}, 0)
-	for _, addr := range c.cacheMessage.Keys() {
-		if ms, ok := c.cacheMessage.Get(addr); ok {
-			cacheList = append(cacheList, ms)
-		}
-	}
-
-	for _, ms := range cacheList {
-		m, _ := ms.(*lru.ARCCache)
-		if m.Len() <= 0 {
-			continue
+	c.messageList.Range(func(msg, value interface{}) bool {
+		if miner, ok := c.miner.(*Miner); ok {
+			miner.broadcaster.BroadcastEmptyBlockMsg(msg.([]byte))
 		}
 
-		for _, hash := range m.Keys() {
-			data, oks := m.Get(hash)
-			if !oks {
-				continue
-			}
-			m.Remove(hash)
-			//log.Info("azh|repost", "hash", hash, "data", data)
-			go c.eventMux.Post(types.EmptyMsg{
-				Code: WorkerMsg,
-				Msg:  data.([]byte),
-			})
-		}
-	}
+		go c.eventMux.Post(types.EmptyMessageEvent{
+			Code:    SendSignMsg,
+			Payload: msg.([]byte),
+		})
+
+		return true
+	})
 }
 
 func (c *Certify) decode(msg p2p.Msg) ([]byte, common.Hash, error) {

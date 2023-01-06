@@ -8,7 +8,7 @@ import (
 	"math/big"
 )
 
-func (c *Certify) SendSignToOtherPeer(vote common.Address, height *big.Int) {
+func (c *Certify) AssembleAndStoreMessage(vote common.Address, height *big.Int) {
 	log.Info("start SendSignToOtherPeer", "Address", vote.Hex(), "Height:", height)
 	ques := &types.SignatureData{
 		Vote:   vote,
@@ -20,11 +20,42 @@ func (c *Certify) SendSignToOtherPeer(vote common.Address, height *big.Int) {
 		log.Error("Failed to encode", "subject", err)
 		return
 	}
-	c.broadcast(&types.EmptyMsg{
+
+	msg := &types.EmptyMsg{
 		Code: SendSignMsg,
 		Msg:  encQues,
-	})
+	}
+
+	payload, err := c.signMessage(msg)
+	if err != nil {
+		log.Error("signMessage err", err)
+		return
+	}
+
+	if _, ok := c.messageList.Load(payload); ok {
+		return
+	} else {
+		c.messageList.Store(payload, true)
+	}
 }
+
+//func (c *Certify) SendSignToOtherPeer(vote common.Address, height *big.Int) {
+//	log.Info("start SendSignToOtherPeer", "Address", vote.Hex(), "Height:", height)
+//	ques := &types.SignatureData{
+//		Vote:   vote,
+//		Height: height,
+//		//Timestamp: uint64(time.Now().Unix()),
+//	}
+//	encQues, err := Encode(ques)
+//	if err != nil {
+//		log.Error("Failed to encode", "subject", err)
+//		return
+//	}
+//	c.broadcast(&types.EmptyMsg{
+//		Code: SendSignMsg,
+//		Msg:  encQues,
+//	})
+//}
 
 //func (c *Certify) GetSignedMessage(height *big.Int) ([]byte, error) {
 //	ques := &types.SignatureData{
