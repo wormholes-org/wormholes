@@ -543,20 +543,20 @@ func (w *worker) emptyLoop() {
 				if !w.isEmpty {
 					w.cerytify.PostCacheMessage()
 					continue
+				}
+
+				voteValidator := w.cerytify.stakers.Validators[w.cerytify.voteIndex]
+				var voteAddress common.Address
+				if voteValidator.Proxy == (common.Address{}) {
+					voteAddress = voteValidator.Addr
 				} else {
-					voteValidator := w.cerytify.stakers.Validators[w.cerytify.voteIndex]
-					var voteAddress common.Address
-					if voteValidator.Proxy == (common.Address{}) {
-						voteAddress = voteValidator.Addr
-					} else {
-						voteAddress = voteValidator.Proxy
-					}
-					w.cerytify.SendSignToOtherPeer(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-					if w.cerytify.voteIndex == uint64(w.cerytify.stakers.Len())-1 {
-						w.cerytify.voteIndex = 0
-					} else {
-						w.cerytify.voteIndex++
-					}
+					voteAddress = voteValidator.Proxy
+				}
+				w.cerytify.SendSignToOtherPeer(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+				if w.cerytify.voteIndex == uint64(w.cerytify.stakers.Len())-1 {
+					w.cerytify.voteIndex = 0
+				} else {
+					w.cerytify.voteIndex++
 				}
 			}
 

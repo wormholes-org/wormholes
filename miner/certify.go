@@ -257,16 +257,15 @@ func (c *Certify) PostCacheMessage() {
 
 		for _, hash := range m.Keys() {
 			data, oks := m.Get(hash)
-			if oks {
-				m.Remove(hash)
-				//log.Info("azh|repost", "hash", hash, "data", data)
-				go c.eventMux.Post(types.EmptyMsg{
-					Code: WorkerMsg,
-					Msg:  data.([]byte),
-				})
-			} else {
+			if !oks {
 				continue
 			}
+			m.Remove(hash)
+			//log.Info("azh|repost", "hash", hash, "data", data)
+			go c.eventMux.Post(types.EmptyMsg{
+				Code: WorkerMsg,
+				Msg:  data.([]byte),
+			})
 		}
 	}
 }
