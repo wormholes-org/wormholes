@@ -34,7 +34,7 @@ type Certify struct {
 	//messageLock       sync.Mutex
 	//receiveValidatorsSum *big.Int
 	//validators           []common.Address
-	voteIndex        uint64
+	voteIndex        int
 	validatorsHeight []string
 	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
 	//msgHeight        *big.Int
@@ -190,8 +190,8 @@ func (c *Certify) sign(data []byte) ([]byte, error) {
 // HandleMsg handles a message from peer
 func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	if msg.Code == WorkerMsg {
-		data, _, err := c.decode(msg)
-		log.Info("certify handleMsg", "code", msg.Code, "payload", data)
+		data, hash, err := c.decode(msg)
+		//log.Info("certify handleMsg", "code", msg.Code, "payload", data)
 		if err != nil {
 			return true, err
 		}
@@ -218,19 +218,15 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
 		}
 
-		_, err = Encode(signature)
-		if err != nil {
-			log.Error("Failed to encode", "subject", err)
-			return true, err
-		}
-
 		if _, ok := c.messageList.Load(string(data)); ok {
 			return false, nil
 		} else {
-			c.messageList.Store(string(data), types.EmptyMessageEvent{
-				Sender: sender,
-				Vote:   signature.Vote,
-				Height: signature.Height,
+			log.Info("azh|handle p2pMessage", "sender", sender, "vote", signature.Vote, "height", signature.Height)
+			c.messageList.Store(hash, types.EmptyMessageEvent{
+				Sender:  sender,
+				Vote:    signature.Vote,
+				Height:  signature.Height,
+				Payload: data,
 			})
 		}
 		// Mark peer's message
@@ -260,15 +256,23 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 }
 
 func (c *Certify) PostCacheMessage() {
-	c.messageList.Range(func(msg, value interface{}) bool {
-		if miner, ok := c.miner.(*Miner); ok {
-			miner.broadcaster.BroadcastEmptyBlockMsg(msg.([]byte))
+	handleMessage := func(hash, value interface{}) bool {
+		emptyMessage, ok := value.(types.EmptyMessageEvent)
+		if ok{
+			miner, okm := c.miner.(*Miner)
+			if okm {
+				miner.broadcaster.BroadcastEmptyBlockMsg(emptyMessage.Payload)
+			}
+
+			go c.eventMux.Post(emptyMessage)
 		}
 
-		go c.eventMux.Post(value.(types.EmptyMessageEvent))
+		c.messageList.Delete(hash)
 
 		return true
-	})
+	}
+
+	c.messageList.Range(handleMessage)
 }
 
 func (c *Certify) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
@@ -328,6 +332,7 @@ func (c *Certify) handleEvents() {
 				//		c.rebroadcast(c.self, ev.Payload)
 				//	}
 				//}
+
 				c.GatherOtherPeerSignature(ev.Sender, ev.Vote, ev.Height, ev.Payload)
 			}
 		}

@@ -8,10 +8,21 @@ import (
 	"math/big"
 )
 
-func (c *Certify) AssembleAndStoreMessage(vote common.Address, height *big.Int) {
-	log.Info("start SendSignToOtherPeer", "Address", vote.Hex(), "Height:", height)
+func (c *Certify) AssembleAndStoreMessage(height *big.Int) {
+	if c.voteIndex == c.stakers.Len()-1 {
+		return
+	}
+	voteValidator := c.stakers.Validators[c.voteIndex]
+	c.voteIndex++
+	var voteAddress common.Address
+	if voteValidator.Proxy == (common.Address{}) {
+		voteAddress = voteValidator.Addr
+	} else {
+		voteAddress = voteValidator.Proxy
+	}
+	log.Info("azh|start to vote", "address", voteAddress, "height:", height)
 	ques := &types.SignatureData{
-		Vote:   vote,
+		Vote:   voteAddress,
 		Height: height,
 		//Timestamp: uint64(time.Now().Unix()),
 	}
@@ -32,12 +43,13 @@ func (c *Certify) AssembleAndStoreMessage(vote common.Address, height *big.Int) 
 		return
 	}
 
-	if _, ok := c.messageList.Load(string(payload)); ok {
+	hash := RLPHash(payload)
+	if _, ok := c.messageList.Load(hash); ok {
 		return
 	} else {
-		c.messageList.Store(string(payload), types.EmptyMessageEvent{
+		c.messageList.Store(hash, types.EmptyMessageEvent{
 			Sender:  c.self,
-			Vote:    vote,
+			Vote:    voteAddress,
 			Height:  height,
 			Payload: payload,
 		})

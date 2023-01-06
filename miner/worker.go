@@ -436,6 +436,11 @@ func (w *worker) emptyLoop() {
 
 			w.cerytify.voteIndex = 0
 
+			w.cerytify.messageList.Range(func(msg, value interface{}) bool {
+				w.cerytify.messageList.Delete(msg)
+				return true
+			})
+
 		case <-checkTimer.C:
 			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
@@ -449,9 +454,13 @@ func (w *worker) emptyLoop() {
 				//w.emptyTimer.Reset(120 * time.Second)
 				totalCondition = 0
 				w.emptyTimer.Reset(1 * time.Second)
-				//w.resetEmptyCh <- struct{}{}
 
 				w.cerytify.voteIndex = 0
+				w.cerytify.messageList.Range(func(msg, value interface{}) bool {
+					w.cerytify.messageList.Delete(msg)
+					return true
+				})
+				//w.resetEmptyCh <- struct{}{}
 			}
 
 		case <-w.emptyTimer.C:
@@ -545,21 +554,8 @@ func (w *worker) emptyLoop() {
 					continue
 				}
 				w.cerytify.lock.Lock()
-				voteValidator := w.cerytify.stakers.Validators[w.cerytify.voteIndex]
-				var voteAddress common.Address
-				if voteValidator.Proxy == (common.Address{}) {
-					voteAddress = voteValidator.Addr
-				} else {
-					voteAddress = voteValidator.Proxy
-				}
-
-				w.cerytify.AssembleAndStoreMessage(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+				w.cerytify.AssembleAndStoreMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 				//w.cerytify.SendSignToOtherPeer(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-				if w.cerytify.voteIndex == uint64(w.cerytify.stakers.Len())-1 {
-					w.cerytify.voteIndex = 0
-				} else {
-					w.cerytify.voteIndex++
-				}
 				w.cerytify.lock.Unlock()
 			}
 
@@ -594,9 +590,13 @@ func (w *worker) emptyLoop() {
 							//w.emptyTimer.Reset(120 * time.Second)
 							totalCondition = 0
 							w.emptyTimer.Reset(1 * time.Second)
-							//w.resetEmptyCh <- struct{}{}
 
 							w.cerytify.voteIndex = 0
+							w.cerytify.messageList.Range(func(msg, value interface{}) bool {
+								w.cerytify.messageList.Delete(msg)
+								return true
+							})
+							//w.resetEmptyCh <- struct{}{}
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}
