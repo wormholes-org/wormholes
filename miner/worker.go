@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	lru "github.com/hashicorp/golang-lru"
 	"math"
 	"math/big"
 	"sync"
@@ -429,15 +430,13 @@ func (w *worker) emptyLoop() {
 	for {
 		select {
 		case <-w.resetEmptyCh:
-			if w.isEmpty {
-				w.cerytify.stopVoteCh <- struct{}{}
-			}
-
 			w.isEmpty = false
 			w.emptyTimestamp = time.Now().Unix()
-			w.cerytify.voteIndex = 0
 			totalCondition = 0
 			w.emptyTimer.Reset(1 * time.Second)
+
+			w.cerytify.cacheMessage.Purge()
+			w.cerytify.voteIndex = 0
 
 		case <-checkTimer.C:
 			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
@@ -540,9 +539,40 @@ func (w *worker) emptyLoop() {
 		case <-gossipTimer.C:
 			{
 				if !w.isEmpty {
+					if w.cerytify.cacheMessage.Len() > 0 {
+						for _, addr := range w.cerytify.cacheMessage.Keys() {
+							if ms, ok := w.cerytify.cacheMessage.Get(addr); ok {
+								m, _ := ms.(*lru.ARCCache)
+								//log.Info("azh|repost", "addr", addr, "hash len", m.Len())
+								for _, hash := range m.Keys() {
+									if data, oks := m.Get(hash); oks {
+										m.Remove(hash)
+										//log.Info("azh|repost", "hash", hash, "data", data)
+										go w.cerytify.eventMux.Post(types.EmptyMsg{
+											Code: WorkerMsg,
+											Msg:  data.([]byte),
+										})
+									}
+								}
+							}
+						}
+					}
 					continue
+				} else {
+					voteValidator := w.cerytify.stakers.Validators[w.cerytify.voteIndex]
+					var voteAddress common.Address
+					if voteValidator.Proxy == (common.Address{}) {
+						voteAddress = voteValidator.Addr
+					} else {
+						voteAddress = voteValidator.Proxy
+					}
+					w.cerytify.SendSignToOtherPeer(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+					if w.cerytify.voteIndex == uint64(w.cerytify.stakers.Len())-1 {
+						w.cerytify.voteIndex = 0
+					} else {
+						w.cerytify.voteIndex++
+					}
 				}
-				w.cerytify.voteEmpty(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
