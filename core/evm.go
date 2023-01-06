@@ -2136,8 +2136,8 @@ func BatchBuyNFTByApproveExchanger(
 		return errors.New("ExchangerAuth error")
 	}
 
-	if originalExchanger.String() != wormholes.BuyerAuth.Exchanger &&
-		originalExchanger.String() != wormholes.SellerAuth.Exchanger {
+	if originalExchanger != common.HexToAddress(wormholes.BuyerAuth.Exchanger) &&
+		originalExchanger != common.HexToAddress(wormholes.SellerAuth.Exchanger) {
 		log.Error("BatchBuyNFTByApproveExchanger(), authorized exchanger error",
 			"originalExchanger", originalExchanger.String(),
 			"wormholes.BuyerAuth.Exchanger", wormholes.BuyerAuth.Exchanger,
