@@ -220,7 +220,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 				Payload: data,
 			})
 		} else {
-			c.messageLock.Unlock()
+			c.messageLock.Lock()
 			mc, ok := c.cacheMessage.Get(addr)
 			var ml *lru.ARCCache
 			if ok {
