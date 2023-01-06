@@ -252,7 +252,7 @@ func (c *Certify) PostCacheMessage() {
 	for _, ms := range cacheList {
 		m, _ := ms.(*lru.ARCCache)
 		if m.Len() <= 0 {
-			return
+			continue
 		}
 
 		for _, hash := range m.Keys() {
@@ -265,7 +265,7 @@ func (c *Certify) PostCacheMessage() {
 					Msg:  data.([]byte),
 				})
 			} else {
-				return
+				continue
 			}
 		}
 	}
