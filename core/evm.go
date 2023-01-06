@@ -2123,7 +2123,7 @@ func BatchBuyNFTByApproveExchanger(
 		exchangerMsg := wormholes.ExchangerAuth.ExchangerOwner +
 			wormholes.ExchangerAuth.To +
 			wormholes.ExchangerAuth.BlockNumber
-		originalExchanger, err := RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+		originalExchanger, err = RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 		if err != nil {
 			log.Error("BatchBuyNFTByApproveExchanger()", "Get originalExchanger error", err)
 			return ErrRecoverAddress
