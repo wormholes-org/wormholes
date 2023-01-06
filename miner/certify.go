@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -195,10 +196,42 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
+		msg := new(types.EmptyMsg)
+		if err := msg.FromPayload(data); err != nil {
+			log.Error("Certify Failed to decode message from payload", "err", err)
+			return true, err
+		}
+		sender, err := msg.RecoverAddress(data)
+		if err != nil {
+			log.Error("Certify.handleEvents", "RecoverAddress error", err)
+			return true, err
+		}
+
+		var signature *types.SignatureData
+		err = msg.Decode(&signature)
+		if err != nil {
+			log.Error("Certify.handleEvents", "msg.Decode error", err)
+			return true, err
+		}
+
+		if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(signature.Height) >= 0 {
+			return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
+		}
+
+		_, err = Encode(signature)
+		if err != nil {
+			log.Error("Failed to encode", "subject", err)
+			return true, err
+		}
+
 		if _, ok := c.messageList.Load(data); ok {
 			return false, nil
 		} else {
-			c.messageList.Store(data, true)
+			c.messageList.Store(data, types.EmptyMessageEvent{
+				Sender: sender,
+				Vote:   signature.Vote,
+				Height: signature.Height,
+			})
 		}
 		// Mark peer's message
 		//ms, ok := c.otherMessages.Get(addr)
@@ -232,10 +265,7 @@ func (c *Certify) PostCacheMessage() {
 			miner.broadcaster.BroadcastEmptyBlockMsg(msg.([]byte))
 		}
 
-		go c.eventMux.Post(types.EmptyMessageEvent{
-			Code:    SendSignMsg,
-			Payload: msg.([]byte),
-		})
+		go c.eventMux.Post(value.(types.EmptyMessageEvent))
 
 		return true
 	})
@@ -261,43 +291,44 @@ func (c *Certify) handleEvents() {
 			switch ev := event.Data.(type) {
 			case types.EmptyMessageEvent:
 				//log.Info("Certify handle events")
-				msg := new(types.EmptyMsg)
-				if err := msg.FromPayload(ev.Payload); err != nil {
-					log.Error("Certify Failed to decode message from payload", "err", err)
-					break
-				}
-				sender, err := msg.RecoverAddress(ev.Payload)
-				if err != nil {
-					log.Error("Certify.handleEvents", "RecoverAddress error", err)
-					break
-				}
-
-				var signature *types.SignatureData
-				err = msg.Decode(&signature)
-				if err != nil {
-					log.Error("Certify.handleEvents", "msg.Decode error", err)
-					break
-				}
-
-				_, err = Encode(signature)
-				if err != nil {
-					log.Error("Failed to encode", "subject", err)
-					break
-				}
-
-				//c.msgHeight = signature.Height
-				//log.Info("Certify.handleEvents", "msg.Code", msg.Code, "SendSignMsg", SendSignMsg, "Height", signature.Height)
-
-				log.Info("azh|handleEvents", "self", c.self, "sender", sender, "vote", signature.Vote, "height", signature.Height)
-				if msg.Code == SendSignMsg {
-					//log.Info("Certify.handleEvents", "SendSignMsg", SendSignMsg, "msg.Address", msg.Address.Hex(),
-					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
-					//	"c.stakers number", len(c.stakers.Validators))
-					//If the GatherOtherPeerSignature is ok, gossip message directly
-					if err := c.GatherOtherPeerSignature(sender, signature.Vote, signature.Height, ev.Payload); err == nil {
-						c.rebroadcast(c.self, ev.Payload)
-					}
-				}
+				//msg := new(types.EmptyMsg)
+				//if err := msg.FromPayload(ev.Payload); err != nil {
+				//	log.Error("Certify Failed to decode message from payload", "err", err)
+				//	break
+				//}
+				//sender, err := msg.RecoverAddress(ev.Payload)
+				//if err != nil {
+				//	log.Error("Certify.handleEvents", "RecoverAddress error", err)
+				//	break
+				//}
+				//
+				//var signature *types.SignatureData
+				//err = msg.Decode(&signature)
+				//if err != nil {
+				//	log.Error("Certify.handleEvents", "msg.Decode error", err)
+				//	break
+				//}
+				//
+				//_, err = Encode(signature)
+				//if err != nil {
+				//	log.Error("Failed to encode", "subject", err)
+				//	break
+				//}
+				//
+				////c.msgHeight = signature.Height
+				////log.Info("Certify.handleEvents", "msg.Code", msg.Code, "SendSignMsg", SendSignMsg, "Height", signature.Height)
+				//
+				//log.Info("azh|handleEvents", "self", c.self, "sender", sender, "vote", signature.Vote, "height", signature.Height)
+				//if msg.Code == SendSignMsg {
+				//	//log.Info("Certify.handleEvents", "SendSignMsg", SendSignMsg, "msg.Address", msg.Address.Hex(),
+				//	//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
+				//	//	"c.stakers number", len(c.stakers.Validators))
+				//	//If the GatherOtherPeerSignature is ok, gossip message directly
+				//	if err := c.GatherOtherPeerSignature(sender, signature.Vote, signature.Height, ev.Payload); err == nil {
+				//		c.rebroadcast(c.self, ev.Payload)
+				//	}
+				//}
+				c.GatherOtherPeerSignature(ev.Sender, ev.Vote, ev.Height, ev.Payload)
 			}
 		}
 	}

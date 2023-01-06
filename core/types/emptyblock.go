@@ -10,7 +10,9 @@ import (
 const DEFAULT_VALIDATOR_COEFFICIENT = 70
 
 type EmptyMessageEvent struct {
-	Code    uint64
+	Sender  common.Address
+	Vote    common.Address
+	Height  *big.Int
 	Payload []byte
 }
 

@@ -35,7 +35,12 @@ func (c *Certify) AssembleAndStoreMessage(vote common.Address, height *big.Int) 
 	if _, ok := c.messageList.Load(payload); ok {
 		return
 	} else {
-		c.messageList.Store(payload, true)
+		c.messageList.Store(payload, types.EmptyMessageEvent{
+			Sender:  c.self,
+			Vote:    vote,
+			Height:  height,
+			Payload: payload,
+		})
 	}
 }
 
@@ -91,10 +96,6 @@ func (c *Certify) GatherOtherPeerSignature(addr, vote common.Address, height *bi
 	if c.self != vote {
 		log.Info("GatherOtherPeerSignature", "vote", vote)
 		return nil
-	}
-
-	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) >= 0 {
-		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
 	}
 
 	emptyAddress := common.Address{}
