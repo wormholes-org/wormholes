@@ -1457,6 +1457,8 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 
 				case 24:
 
+				case 27:
+
 				default:
 					if args.Value.ToInt().Cmp(available) >= 0 {
 						return 0, errors.New("insufficient funds for transfer")

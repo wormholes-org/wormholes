@@ -263,6 +263,8 @@ func (st *StateTransition) buyGas() error {
 			if exchangerBalance.Cmp(balanceCheck) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
 			}
+		case 27:
+
 		default:
 			if st.gasFeeCap != nil {
 				balanceCheck = new(big.Int).SetUint64(st.msg.Gas())
@@ -478,6 +480,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
 			}
 		//case 24:
+		case 27:
 
 		default:
 			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {

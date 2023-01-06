@@ -508,6 +508,8 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 			if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
 				return core.ErrInsufficientFunds
 			}
+		case 27:
+
 		default:
 			if currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
 				return core.ErrInsufficientFunds

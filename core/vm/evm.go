@@ -469,6 +469,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 				return nil, gas, ErrInsufficientBalance
 			}
 		//case 24:
+		case 27:
 
 		default:
 			if value.Sign() != 0 && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
