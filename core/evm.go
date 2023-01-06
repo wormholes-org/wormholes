@@ -1976,6 +1976,22 @@ func RecoverValidatorCoefficient(db vm.StateDB, address common.Address) error {
 	return nil
 }
 
+func checkBlockNumber(wBlockNumber string, currentBlockNumber *big.Int) error {
+	if !strings.HasPrefix(wBlockNumber, "0x") &&
+		!strings.HasPrefix(wBlockNumber, "0X") {
+		return errors.New("blocknumber is not string of 0x!")
+	}
+	blockNumber, ok := new(big.Int).SetString(wBlockNumber[2:], 16)
+	if !ok {
+		return errors.New("blocknumber is not string of 0x!")
+	}
+	if currentBlockNumber.Cmp(blockNumber) > 0 {
+		return errors.New("data is expired!")
+	}
+
+	return nil
+}
+
 // BatchBuyNFTByApproveExchanger is tx that approved exchanger
 func BatchBuyNFTByApproveExchanger(
 	db vm.StateDB,
@@ -1992,10 +2008,21 @@ func BatchBuyNFTByApproveExchanger(
 		return errors.New("nft addresss error")
 	}
 
-	if len(wormholes.BuyerAuth.Exchanger) <= 0 &&
-		len(wormholes.SellerAuth.Exchanger) <= 0 {
+	if (len(wormholes.BuyerAuth.Exchanger) <= 0 ||
+		len(wormholes.BuyerAuth.BlockNumber) <= 0) &&
+		(len(wormholes.SellerAuth.Exchanger) <= 0 ||
+			len(wormholes.SellerAuth.BlockNumber) <= 0) {
 		log.Error("BatchBuyNFTByApproveExchanger(), no buyer or seller's auth")
 		return errors.New("no buyer or seller's auth")
+	}
+
+	if len(wormholes.BuyerAuth.BlockNumber) > 0 {
+		err := checkBlockNumber(wormholes.BuyerAuth.BlockNumber, blocknumber)
+		if err != nil {
+			log.Error("BatchBuyNFTByApproveExchanger(), buyer blocknumber error",
+				"wormholes.BuyerAuth.BlockNumber", wormholes.BuyerAuth.BlockNumber,
+				"err", err)
+		}
 	}
 
 	var err error
@@ -2006,6 +2033,15 @@ func BatchBuyNFTByApproveExchanger(
 		if err != nil {
 			log.Error("BatchBuyNFTByApproveExchanger()", "Get buyer error", err)
 			return err
+		}
+	}
+
+	if len(wormholes.SellerAuth.BlockNumber) > 0 {
+		err := checkBlockNumber(wormholes.SellerAuth.BlockNumber, blocknumber)
+		if err != nil {
+			log.Error("BatchBuyNFTByApproveExchanger(), seller blocknumber error",
+				"wormholes.SellerAuth.BlockNumber", wormholes.SellerAuth.BlockNumber,
+				"err", err)
 		}
 	}
 
@@ -2021,6 +2057,12 @@ func BatchBuyNFTByApproveExchanger(
 
 	//2. compare current block number and buyer.blocknumber and exchanger_auth.blocknumber,
 	//return error if current block number is greater than buyer.blocknumber and exchanger_auth.blocknumber.
+	err = checkBlockNumber(wormholes.Buyer.BlockNumber, blocknumber)
+	if err != nil {
+		log.Error("BatchBuyNFTByApproveExchanger(), buyer blocknumber error",
+			"wormholes.Buyer.BlockNumber", wormholes.Buyer.BlockNumber,
+			"err", err)
+	}
 	if !strings.HasPrefix(wormholes.Buyer.BlockNumber, "0x") &&
 		!strings.HasPrefix(wormholes.Buyer.BlockNumber, "0X") {
 		log.Error("BatchBuyNFTByApproveExchanger(), buyer blocknumber format  error",
@@ -2069,6 +2111,12 @@ func BatchBuyNFTByApproveExchanger(
 		buyer = buyerApproved
 	}
 
+	err = checkBlockNumber(wormholes.Seller1.BlockNumber, blocknumber)
+	if err != nil {
+		log.Error("BatchBuyNFTByApproveExchanger(), seller blocknumber error",
+			"wormholes.Seller.BlockNumber", wormholes.Seller1.BlockNumber,
+			"err", err)
+	}
 	if !strings.HasPrefix(wormholes.Seller1.Amount, "0x") &&
 		!strings.HasPrefix(wormholes.Seller1.Amount, "0X") {
 		log.Error("BatchBuyNFTByApproveExchanger(), amount format error", "wormholes.Seller1.Amount", wormholes.Seller1.Amount)

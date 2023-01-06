@@ -413,8 +413,9 @@ type ExchangerPayload struct {
 }
 
 type TraderPayload struct {
-	Exchanger string `json:"exchanger"`
-	Sig       string `json:"sig"`
+	Exchanger   string `json:"exchanger"`
+	BlockNumber string `json:"block_number"`
+	Sig         string `json:"sig"`
 }
 
 // *** modify to support nft transaction 20211215 end ***
