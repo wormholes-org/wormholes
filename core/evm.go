@@ -2048,8 +2048,9 @@ func BatchBuyNFTByApproveExchanger(
 
 	var seller common.Address
 	if len(wormholes.SellerAuth.Exchanger) > 0 &&
+		len(wormholes.SellerAuth.BlockNumber) > 0 &&
 		len(wormholes.SellerAuth.Sig) > 0 {
-		seller, err = RecoverAddress(wormholes.SellerAuth.Exchanger, wormholes.SellerAuth.Sig)
+		seller, err = RecoverAddress(wormholes.SellerAuth.Exchanger+wormholes.SellerAuth.BlockNumber, wormholes.SellerAuth.Sig)
 		if err != nil {
 			log.Error("BatchBuyNFTByApproveExchanger()", "Get seller error", err)
 			return err
