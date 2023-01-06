@@ -749,6 +749,43 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				return ErrInsufficientFunds
 			}
 		case 27:
+			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
+			if pool.currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
+				return ErrInsufficientFunds
+			}
+			// recover buyer address
+
+			emptyAddress := common.Address{}
+			var buyer common.Address
+			if len(wormholes.BuyerAuth.Exchanger) > 0 &&
+				len(wormholes.BuyerAuth.Sig) > 0 {
+				buyer, err = RecoverAddress(wormholes.BuyerAuth.Exchanger, wormholes.BuyerAuth.Sig)
+				if err != nil {
+					return err
+				}
+			}
+
+			if buyer == emptyAddress {
+				// recover buyerApproved address
+				msg := wormholes.Buyer.Amount +
+					wormholes.Buyer.NFTAddress +
+					wormholes.Buyer.Exchanger +
+					wormholes.Buyer.BlockNumber +
+					wormholes.Buyer.Seller
+				buyerApproved, err := RecoverAddress(msg, wormholes.Buyer.Sig)
+				if err != nil {
+					log.Error("validateTx()", "Get public key error", err)
+					return err
+				}
+				buyer = buyerApproved
+			}
+
+			if pool.currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
+				return ErrInsufficientFunds
+			}
 
 		default:
 			if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {

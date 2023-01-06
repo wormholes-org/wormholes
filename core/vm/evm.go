@@ -470,6 +470,31 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			}
 		//case 24:
 		case 27:
+			// recover buyer address
+			emptyAddress := common.Address{}
+			var buyer common.Address
+			if len(wormholes.BuyerAuth.Exchanger) > 0 &&
+				len(wormholes.BuyerAuth.Sig) > 0 {
+				buyer, err = RecoverAddress(wormholes.BuyerAuth.Exchanger, wormholes.BuyerAuth.Sig)
+				if err != nil {
+					return nil, gas, err
+				}
+			}
+			if buyer == emptyAddress {
+				msgText := wormholes.Buyer.Amount +
+					wormholes.Buyer.NFTAddress +
+					wormholes.Buyer.Exchanger +
+					wormholes.Buyer.BlockNumber +
+					wormholes.Buyer.Seller
+				buyerApproved, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+				if err != nil {
+					return nil, gas, err
+				}
+				buyer = buyerApproved
+			}
+			if value.Sign() > 0 && !evm.Context.CanTransfer(evm.StateDB, buyer, value) {
+				return nil, gas, ErrInsufficientBalance
+			}
 
 		default:
 			if value.Sign() != 0 && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {

@@ -358,7 +358,7 @@ func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions
 			case 24:
 				return false
 			case 27:
-
+				return false
 			}
 		}
 
