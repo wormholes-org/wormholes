@@ -543,6 +543,7 @@ func (w *worker) emptyLoop() {
 
 		case <-gossipTimer.C:
 			{
+				gossipTimer.Reset(time.Second * 5)
 				if !w.isEmpty {
 					continue
 				}
