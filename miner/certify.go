@@ -218,7 +218,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
 		}
 
-		if _, ok := c.messageList.Load(string(data)); ok {
+		if _, ok := c.messageList.Load(hash); ok {
 			return false, nil
 		} else {
 			//log.Info("azh|handle p2pMessage", "sender", sender, "vote", signature.Vote, "height", signature.Height)
