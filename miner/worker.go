@@ -441,6 +441,10 @@ func (w *worker) emptyLoop() {
 				return true
 			})
 
+			//w.cerytify.lock.Lock()
+			w.cerytify.stakers = nil
+			//w.cerytify.lock.Unlock()
+
 		case <-checkTimer.C:
 			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
@@ -449,18 +453,18 @@ func (w *worker) emptyLoop() {
 			}
 			//log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
 			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
-				w.isEmpty = false
-				w.emptyTimestamp = time.Now().Unix()
-				//w.emptyTimer.Reset(120 * time.Second)
-				totalCondition = 0
-				w.emptyTimer.Reset(1 * time.Second)
-
-				w.cerytify.voteIndex = 0
-				w.cerytify.messageList.Range(func(msg, value interface{}) bool {
-					w.cerytify.messageList.Delete(msg)
-					return true
-				})
-				//w.resetEmptyCh <- struct{}{}
+				//w.isEmpty = false
+				//w.emptyTimestamp = time.Now().Unix()
+				////w.emptyTimer.Reset(120 * time.Second)
+				//totalCondition = 0
+				//w.emptyTimer.Reset(1 * time.Second)
+				//
+				//w.cerytify.voteIndex = 0
+				//w.cerytify.messageList.Range(func(msg, value interface{}) bool {
+				//	w.cerytify.messageList.Delete(msg)
+				//	return true
+				//})
+				w.resetEmptyCh <- struct{}{}
 			}
 
 		case <-w.emptyTimer.C:
@@ -493,14 +497,14 @@ func (w *worker) emptyLoop() {
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
 				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
-				w.cerytify.lock.Lock()
+				//w.cerytify.lock.Lock()
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				if err != nil {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
 				w.cerytify.stakers = stakers
-				w.cerytify.lock.Unlock()
+				//w.cerytify.lock.Unlock()
 
 				if !w.emptyHandleFlag {
 					w.emptyHandleFlag = true
@@ -548,15 +552,16 @@ func (w *worker) emptyLoop() {
 
 		case <-gossipTimer.C:
 			{
-				gossipTimer.Reset(time.Second * 5)
 				w.cerytify.PostCacheMessage()
 				if !w.isEmpty {
+					gossipTimer.Reset(time.Second * 5)
 					continue
 				}
-				w.cerytify.lock.Lock()
+				//w.cerytify.lock.Lock()
 				w.cerytify.AssembleAndStoreMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 				//w.cerytify.SendSignToOtherPeer(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-				w.cerytify.lock.Unlock()
+				//w.cerytify.lock.Unlock()
+				gossipTimer.Reset(time.Second * 5)
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
@@ -585,18 +590,18 @@ func (w *worker) emptyLoop() {
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators, emptyBlockMessages); err != nil {
 							//log.Error("emptyLoop.commitEmptyWork error", "err", err)
 						} else {
-							w.isEmpty = false
-							w.emptyTimestamp = time.Now().Unix()
-							//w.emptyTimer.Reset(120 * time.Second)
-							totalCondition = 0
-							w.emptyTimer.Reset(1 * time.Second)
-
-							w.cerytify.voteIndex = 0
-							w.cerytify.messageList.Range(func(msg, value interface{}) bool {
-								w.cerytify.messageList.Delete(msg)
-								return true
-							})
-							//w.resetEmptyCh <- struct{}{}
+							//w.isEmpty = false
+							//w.emptyTimestamp = time.Now().Unix()
+							////w.emptyTimer.Reset(120 * time.Second)
+							//totalCondition = 0
+							//w.emptyTimer.Reset(1 * time.Second)
+							//
+							//w.cerytify.voteIndex = 0
+							//w.cerytify.messageList.Range(func(msg, value interface{}) bool {
+							//	w.cerytify.messageList.Delete(msg)
+							//	return true
+							//})
+							w.resetEmptyCh <- struct{}{}
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
 					}

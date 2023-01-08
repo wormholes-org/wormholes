@@ -12,10 +12,10 @@ import (
 	"sync"
 )
 
-const (
-	remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
-	storeMsgs   = 2500 // Number of messages stored by yourself
-)
+//const (
+//	remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
+//	storeMsgs   = 2500 // Number of messages stored by yourself
+//)
 
 type Certify struct {
 	mu   sync.Mutex
@@ -221,7 +221,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		if _, ok := c.messageList.Load(string(data)); ok {
 			return false, nil
 		} else {
-			log.Info("azh|handle p2pMessage", "sender", sender, "vote", signature.Vote, "height", signature.Height)
+			//log.Info("azh|handle p2pMessage", "sender", sender, "vote", signature.Vote, "height", signature.Height)
 			c.messageList.Store(hash, types.EmptyMessageEvent{
 				Sender:  sender,
 				Vote:    signature.Vote,
@@ -256,23 +256,24 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 }
 
 func (c *Certify) PostCacheMessage() {
+	messageList := make([]types.EmptyMessageEvent, 0)
+
 	handleMessage := func(hash, value interface{}) bool {
-		emptyMessage, ok := value.(types.EmptyMessageEvent)
-		if ok {
-			miner, okm := c.miner.(*Miner)
-			if okm {
-				miner.broadcaster.BroadcastEmptyBlockMsg(emptyMessage.Payload)
-			}
-
-			go c.eventMux.Post(emptyMessage)
-		}
-
+		emptyMessage := value.(types.EmptyMessageEvent)
+		messageList = append(messageList, emptyMessage)
 		c.messageList.Delete(hash)
-
 		return true
 	}
-
 	c.messageList.Range(handleMessage)
+
+	for _, msg := range messageList {
+		//log.Info("PostCacheMessage", "sender", msg.Sender, "vote", msg.Vote, "height", msg.Height)
+		miner, okm := c.miner.(*Miner)
+		if okm {
+			miner.broadcaster.BroadcastEmptyBlockMsg(msg.Payload)
+		}
+		go c.eventMux.Post(msg)
+	}
 }
 
 func (c *Certify) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
@@ -333,6 +334,7 @@ func (c *Certify) handleEvents() {
 				//	}
 				//}
 
+				log.Info("handleEvents", "sender", ev.Sender, "vote", ev.Vote, "height", ev.Height)
 				c.GatherOtherPeerSignature(ev.Sender, ev.Vote, ev.Height, ev.Payload)
 			}
 		}
