@@ -102,22 +102,20 @@ func (c *Certify) AssembleAndStoreMessage(height *big.Int) {
 
 func (c *Certify) GatherOtherPeerSignature(addr, vote common.Address, height *big.Int, encQues []byte) error {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	//log.Info("GatherOtherPeerSignature", "c.self", c.self, "vote", vote)
 	//log.Info("Certify.GatherOtherPeerSignature >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 	if c.self != vote {
-		c.lock.Unlock()
 		return nil
 	}
 
 	if c.stakers == nil {
-		c.lock.Unlock()
 		return errors.New("stakes is nil")
 	}
 
 	emptyAddress := common.Address{}
 	validator := c.stakers.GetValidatorAddr(addr)
 	if validator == emptyAddress {
-		c.lock.Unlock()
 		return errors.New("not a validator")
 	}
 
@@ -128,7 +126,6 @@ func (c *Certify) GatherOtherPeerSignature(addr, vote common.Address, height *bi
 	//	"height", height, "c.proofStatePool.proofs[height] == nil 2", c.proofStatePool.proofs[height.Uint64()] == nil)
 	averageCoefficient, err := c.miner.GetWorker().GetAverageCoefficient() // need to divide 10
 	if err != nil {
-		c.lock.Unlock()
 		return err
 	}
 	var weightBalance *big.Int
@@ -175,7 +172,6 @@ func (c *Certify) GatherOtherPeerSignature(addr, vote common.Address, height *bi
 		//}
 
 		c.proofStatePool.proofs[height.Uint64()] = ps
-		c.lock.Unlock()
 		c.signatureResultCh <- height
 		//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 1")
 		return nil
@@ -197,7 +193,6 @@ func (c *Certify) GatherOtherPeerSignature(addr, vote common.Address, height *bi
 	c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, weightBalance)
 	//log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(), "balance", c.stakers.StakeBalance(validator), "average coe", averageCoefficient, "weightBalance", weightBalance, "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "height", height.Uint64())
 	//log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
-	c.lock.Unlock()
 	c.signatureResultCh <- height
 	//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
 	return nil
