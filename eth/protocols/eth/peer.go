@@ -61,7 +61,7 @@ const (
 	maxKnownEmptyBlockMsg = 32768
 	// maxQueuedEmptyBlockMsg is the maximum number of empty block message propagations to queue up before
 	// dropping broadcasts.
-	maxQueuedEmptyBlockMsg = 50
+	maxQueuedEmptyBlockMsg = 100
 )
 
 // max is a helper function which returns the larger of the two given integers.
@@ -598,10 +598,8 @@ func (p *Peer) SendWorkerMsg(msgCode uint64, data interface{}) error {
 }
 
 func (p *Peer) WriteQueueEmptyBlockMsg(msg []byte) {
-	select {
-	case p.queuedEmptyBlockMsgs <- msg:
-	case <-p.term:
-		p.Log().Debug("Dropping empty block message propagation")
+	if len(p.queuedEmptyBlockMsgs) <= 50 {
+		p.queuedEmptyBlockMsgs <- msg
 	}
 }
 

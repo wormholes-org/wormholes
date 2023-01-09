@@ -199,7 +199,7 @@ func (p *Peer) broadcastEmptyBlockMsg() {
 		select {
 		case msg := <-p.queuedEmptyBlockMsgs:
 			if err := p.SendWorkerMsg(WorkerMsg, msg); err != nil {
-				return
+				break
 			}
 			//p.Log().Trace("Propagated empty block message", "msg", msg)
 		case <-p.term:
