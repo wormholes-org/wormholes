@@ -2333,7 +2333,7 @@ func (w *PublicWormholesAPI) GetRealParticipantsByNumber(ctx context.Context, nu
 }
 
 func (w *PublicWormholesAPI) Version(ctx context.Context) string {
-	version := "wormholes v0.9.3"
+	version := "wormholes v" + params.Version
 	return version
 }
 
