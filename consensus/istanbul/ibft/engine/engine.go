@@ -453,9 +453,13 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Extra = extra
 
 	// set header's timestamp
+	now := uint64(time.Now().Unix())
 	header.Time = parent.Time + e.cfg.BlockPeriod
-	if header.Time < uint64(time.Now().Unix()) {
-		header.Time = uint64(time.Now().Unix())
+	if header.Time < now {
+		header.Time = now
+	}
+	if header.Time > now {
+		header.Time = now
 	}
 
 	return nil
@@ -523,7 +527,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	// set header's timestamp
 
 	if header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + 120
+		header.Time = parent.Time + 100
 		if header.Time < uint64(time.Now().Unix()) {
 			header.Time = uint64(time.Now().Unix())
 		}
@@ -535,9 +539,9 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// prevent future time
-	if header.Time > uint64(time.Now().Unix()) {
-		header.Time = uint64(time.Now().Unix())
-	}
+	// if header.Time > uint64(time.Now().Unix()) {
+	// 	header.Time = uint64(time.Now().Unix())
+	// }
 
 	return nil
 }
