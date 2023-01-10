@@ -1,6 +1,6 @@
 #!/bin/bash
 #check docker cmd
-echo "Script version Number: v0.11.5"
+echo "Script version Number: v0.11.6"
 which docker >/dev/null 2>&1
 if  [ $? -ne 0 ] ; then
         echo "docker not found, please install first!"
@@ -101,11 +101,11 @@ else
         exit 1
 fi
 
-docker run -id -p 30303:30303 -p 8545:8545 -v /wm/.wormholes:/wm/.wormholes --name wormholes wormholestech/wormholes:v1 >/dev/null 2>&1 &
+docker run -id -p 30303:30303 -p 8545:8545 -v /wm/.wormholes:/wm/.wormholes --name wormholes wormholestech/wormholes:v1
 
 while true
 do
-        echo  -e "running the container...\n"
+	echo  -e "running the container...\n"
         s=$(docker ps -a|grep "Up"|awk '{if($NF == "wormholes") print $NF}'|wc -l)
         key=$(docker exec -it wormholes /usr/bin/ls -l /wm/.wormholes/wormholes/nodekey 2>/dev/null)
         if [[ $s -gt 0 ]] && [[ "$key" =~ "nodekey" ]];then
