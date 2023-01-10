@@ -2084,22 +2084,6 @@ func BatchBuyNFTByApproveExchanger(
 			"wormholes.Buyer.BlockNumber", wormholes.Buyer.BlockNumber,
 			"err", err)
 	}
-	if !strings.HasPrefix(wormholes.Buyer.BlockNumber, "0x") &&
-		!strings.HasPrefix(wormholes.Buyer.BlockNumber, "0X") {
-		log.Error("BatchBuyNFTByApproveExchanger(), buyer blocknumber format  error",
-			"wormholes.Buyer.BlockNumber", wormholes.Buyer.BlockNumber)
-		return errors.New("buyer blocknumber is not string of 0x!")
-	}
-	buyerBlockNumber, ok := new(big.Int).SetString(wormholes.Buyer.BlockNumber[2:], 16)
-	if !ok {
-		log.Error("BatchBuyNFTByApproveExchanger(), buyer blocknumber format  error", "ok", ok)
-		return errors.New("buyer blocknumber is not string of 0x!")
-	}
-	if blocknumber.Cmp(buyerBlockNumber) > 0 {
-		log.Error("BatchBuyNFTByApproveExchanger(), buyer's data is expired!",
-			"buyerBlockNumber", buyerBlockNumber.Text(16), "blocknumber", blocknumber.Text(16))
-		return errors.New("buyer's data is expired!")
-	}
 
 	//4. return error if the amount that sender send is not equal buyer's amount.
 	if !strings.HasPrefix(wormholes.Buyer.Amount, "0x") &&
@@ -2172,21 +2156,11 @@ func BatchBuyNFTByApproveExchanger(
 		len(wormholes.ExchangerAuth.To) > 0 &&
 		len(wormholes.ExchangerAuth.BlockNumber) > 0 {
 
-		if !strings.HasPrefix(wormholes.ExchangerAuth.BlockNumber, "0x") &&
-			!strings.HasPrefix(wormholes.ExchangerAuth.BlockNumber, "0X") {
-			log.Error("BatchBuyNFTByApproveExchanger(), exchanger blocknumber format error",
-				"wormholes.ExchangerAuth.BlockNumber", wormholes.ExchangerAuth.BlockNumber)
-			return errors.New("exchanger blocknumber is not string of 0x!")
-		}
-		exchangerBlockNumber, ok := new(big.Int).SetString(wormholes.ExchangerAuth.BlockNumber[2:], 16)
-		if !ok {
-			log.Error("BatchBuyNFTByApproveExchanger(), auth exchanger blocknumber format error", "ok", ok)
-			return errors.New("exchanger blocknumber is not string of 0x!")
-		}
-		if blocknumber.Cmp(exchangerBlockNumber) > 0 {
-			log.Error("BatchBuyNFTByApproveExchanger(), exchanger's data is expired!",
-				"exchangerBlockNumber", exchangerBlockNumber.Text(16), "blocknumber", blocknumber.Text(16))
-			return errors.New("exchanger's data is expired!")
+		err = checkBlockNumber(wormholes.ExchangerAuth.BlockNumber, blocknumber)
+		if err != nil {
+			log.Error("BatchBuyNFTByApproveExchanger(), auth exchanger blocknumber error",
+				"wormholes.ExchangerAuth.BlockNumber", wormholes.ExchangerAuth.BlockNumber,
+				"err", err)
 		}
 
 		exchangerMsg := wormholes.ExchangerAuth.ExchangerOwner +
@@ -2242,6 +2216,18 @@ func BatchBuyNFTByApproveExchanger(
 			"input nft level", level, "real nft level", level2)
 		return errors.New("not exist nft")
 	}
+
+	sellerNftAddress, _, err := GetNftAddressAndLevel(wormholes.Seller1.NFTAddress)
+	if err != nil {
+		log.Error("BatchBuyNFTByApproveExchanger(), nft address error", "wormholes.Seller1.NFTAddress", wormholes.Seller1.NFTAddress)
+		return err
+	}
+	if nftAddress != sellerNftAddress {
+		log.Error("BatchBuyNFTByApproveExchanger(), the nft address is not same from buyer and seller!",
+			"buyerNftAddress", nftAddress.String(), "sellerNftAddress", sellerNftAddress.String())
+		return errors.New("the nft address is not same from buyer and seller!")
+	}
+
 	//pledgedFlag := db.GetPledgedFlag(nftAddress)
 	//if pledgedFlag {
 	//	return errors.New("has been pledged")
