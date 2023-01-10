@@ -653,6 +653,12 @@ func CheckSeller1(db vm.StateDB,
 		return false
 	}
 
+	err = checkBlockNumber(wormholes.Seller1.BlockNumber, blocknumber)
+	if err != nil {
+		log.Error("CheckSeller1(), seller data", "error", err)
+		return false
+	}
+
 	nftAddress, level, err := GetNftAddressAndLevel(wormholes.Seller1.NFTAddress)
 	if err != nil {
 		log.Error("CheckSeller1(), nft address error", "wormholes.Buyer.NFTAddress", wormholes.Buyer.NFTAddress)
@@ -954,7 +960,8 @@ func BuyAndMintNFTByExchanger(
 	//1. recover buyer and seller's address
 	buyerMsg := wormholes.Buyer.Amount +
 		wormholes.Buyer.Exchanger +
-		wormholes.Buyer.BlockNumber
+		wormholes.Buyer.BlockNumber +
+		wormholes.Buyer.Seller
 	//buyerMsgHash := crypto.Keccak256([]byte(buyerMsg))
 	//buyerSig, _ := hex.DecodeString(wormholes.Buyer.Sig)
 	//buyerPubKey, err := crypto.SigToPub(buyerMsgHash, buyerSig)
@@ -1274,6 +1281,16 @@ func BuyNFTByApproveExchanger(
 			"input nft level", level, "real nft level", level2)
 		return errors.New("not exist nft")
 	}
+	sellerNftAddress, _, err := GetNftAddressAndLevel(wormholes.Seller1.NFTAddress)
+	if err != nil {
+		log.Error("BuyNFTByApproveExchanger(), nft address error", "wormholes.Seller1.NFTAddress", wormholes.Seller1.NFTAddress)
+		return err
+	}
+	if nftAddress != sellerNftAddress {
+		log.Error("BuyNFTByApproveExchanger(), the nft address is not same from buyer and seller!",
+			"buyerNftAddress", nftAddress.String(), "sellerNftAddress", sellerNftAddress.String())
+		return errors.New("the nft address is not same from buyer and seller!")
+	}
 	//pledgedFlag := db.GetPledgedFlag(nftAddress)
 	//if pledgedFlag {
 	//	return errors.New("has been pledged")
@@ -1347,7 +1364,8 @@ func BuyAndMintNFTByApprovedExchanger(
 	//1. recover buyer, seller's address
 	buyerMsg := wormholes.Buyer.Amount +
 		wormholes.Buyer.Exchanger +
-		wormholes.Buyer.BlockNumber
+		wormholes.Buyer.BlockNumber +
+		wormholes.Buyer.Seller
 	//buyerMsgHash := crypto.Keccak256([]byte(buyerMsg))
 	//buyerSig, _ := hex.DecodeString(wormholes.Buyer.Sig)
 	//buyerPubKey, err := crypto.SigToPub(buyerMsgHash, buyerSig)
@@ -1606,7 +1624,8 @@ func BuyNFTByExchanger(
 	buyerMsg := wormholes.Buyer.Amount +
 		wormholes.Buyer.NFTAddress +
 		wormholes.Buyer.Exchanger +
-		wormholes.Buyer.BlockNumber
+		wormholes.Buyer.BlockNumber +
+		wormholes.Buyer.Seller
 	//msgHash := crypto.Keccak256([]byte(msg))
 	//sig, _ := hex.DecodeString(wormholes.Buyer.Sig)
 	//pubKey, err := crypto.SigToPub(msgHash, sig)
