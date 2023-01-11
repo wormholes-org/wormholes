@@ -31,12 +31,15 @@ func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 		Code: SendSignMsg,
 		Msg:  encQues,
 	})
+	c.proofStatePool.UpdateNextIndex(height)
+	log.Info("SendSignToOtherPeer end", "Address", addr.Hex(), "Height:", height, "Candidate", candidate.Hex())
 }
 
 func (c *Certify) GetSignedMessage(height *big.Int) ([]byte, error) {
 	ques := &types.SignatureData{
-		Address: c.self,
-		Height:  height,
+		Address:   c.self,
+		Height:    height,
+		Candidate: c.self,
 		//Timestamp: uint64(time.Now().Unix()),
 	}
 	encQues, err := Encode(ques)
@@ -63,7 +66,7 @@ func (c *Certify) GatherOtherPeerSignature(addr common.Address, height *big.Int,
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	//log.Info("Certify.GatherOtherPeerSignature >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	log.Info("Certify.GatherOtherPeerSignature >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
 	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) >= 0 {
 		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
