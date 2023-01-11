@@ -42,7 +42,7 @@ func (c *Certify) Start() {
 }
 func (c *Certify) subscribeEvents() {
 	c.events = c.eventMux.Subscribe(
-		MessageEvent{},
+		types.EmptyMessageEvent{},
 	)
 }
 
@@ -78,7 +78,7 @@ func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
 	return nil
 }
 
-func (c *Certify) broadcast(from common.Address, msg *Msg) error {
+func (c *Certify) broadcast(from common.Address, msg *types.EmptyMsg) error {
 	payload, err := c.signMessage(from, msg)
 	if err != nil {
 		log.Error("signMessage err", err)
@@ -144,7 +144,7 @@ func (c *Certify) broadcast(from common.Address, msg *Msg) error {
 //	}
 //}
 
-func (c *Certify) signMessage(coinbase common.Address, msg *Msg) ([]byte, error) {
+func (c *Certify) signMessage(coinbase common.Address, msg *types.EmptyMsg) ([]byte, error) {
 	var err error
 	// Add sender address
 	msg.Address = coinbase
@@ -202,7 +202,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		}
 		c.selfMessages.Add(hash, true)
 
-		go c.eventMux.Post(MessageEvent{
+		go c.eventMux.Post(types.EmptyMessageEvent{
 			Code:    msg.Code,
 			Payload: data,
 		})
@@ -228,21 +228,27 @@ func (c *Certify) handleEvents() {
 			}
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
-			case MessageEvent:
+			case types.EmptyMessageEvent:
 				//log.Info("Certify handle events")
-				msg := new(Msg)
+				msg := new(types.EmptyMsg)
 				if err := msg.FromPayload(ev.Payload); err != nil {
 					log.Error("Certify Failed to decode message from payload", "err", err)
 					break
 				}
-				var signature *SignatureData
-				err := msg.Decode(&signature)
+				sender, err := msg.RecoverAddress(ev.Payload)
+				if err != nil {
+					log.Error("Certify.handleEvents", "RecoverAddress error", err)
+					break
+				}
+
+				var signature *types.SignatureData
+				err = msg.Decode(&signature)
 				if err != nil {
 					log.Error("Certify.handleEvents", "msg.Decode error", err)
 					break
 				}
 
-				encQues, err := Encode(signature)
+				_, err = Encode(signature)
 				if err != nil {
 					log.Error("Failed to encode", "subject", err)
 					break
@@ -256,7 +262,7 @@ func (c *Certify) handleEvents() {
 					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
 					//	"c.stakers number", len(c.stakers.Validators))
 					//If the GatherOtherPeerSignature is ok, gossip message directly
-					if err := c.GatherOtherPeerSignature(msg.Address, signature.Height, encQues); err == nil {
+					if err := c.GatherOtherPeerSignature(sender, signature.Height, ev.Payload); err == nil {
 						c.rebroadcast(c.Address(), ev.Payload)
 					}
 				}

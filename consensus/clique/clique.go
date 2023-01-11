@@ -596,7 +596,7 @@ func (c *Clique) Authorize(signer common.Address, signFn SignerFn) {
 func (c *Clique) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error) {
 	return nil, nil
 }
-func (c *Clique) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
+func (c *Clique) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header, validators []common.Address, emptyBlockMessage [][]byte) error {
 	return nil
 }
 

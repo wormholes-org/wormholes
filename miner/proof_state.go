@@ -75,6 +75,7 @@ type ProofState struct {
 	receiveValidatorsSum *big.Int
 	proposer             common.Address
 	onlineValidator      OnlineValidator // The highly online validator of this block & reward addr
+	emptyBlockMessages   [][]byte
 }
 
 func newProofState(proposer, validator common.Address) *ProofState {

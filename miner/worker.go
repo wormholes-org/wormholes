@@ -539,7 +539,7 @@ func (w *worker) emptyLoop() {
 				if !w.isEmpty {
 					continue
 				}
-				w.cerytify.SendSignToOtherPeer(w.coinbase, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+				w.cerytify.SendSignToOtherPeer(w.cerytify.self, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
@@ -562,7 +562,8 @@ func (w *worker) emptyLoop() {
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now())
 						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()
-						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
+						emptyBlockMessages := w.cerytify.proofStatePool.proofs[rs.Uint64()].emptyBlockMessages
+						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators, emptyBlockMessages); err != nil {
 							//log.Error("emptyLoop.commitEmptyWork error", "err", err)
 						} else {
 							w.isEmpty = false
@@ -1341,7 +1342,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 }
 
 // commitEmptyWork generates several new sealing tasks based on the parent block.
-func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64, validators []common.Address) error {
+func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64, validators []common.Address, emptyBlockMessages [][]byte) error {
 	log.Info("caver|commitEmptyWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
 
 	if !w.isEmpty {
@@ -1362,7 +1363,7 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		Coinbase:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
 	}
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
-	if err := w.engine.PrepareForEmptyBlock(w.chain, header); err != nil {
+	if err := w.engine.PrepareForEmptyBlock(w.chain, header, validators, emptyBlockMessages); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
 		return err
 	}

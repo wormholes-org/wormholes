@@ -447,7 +447,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals)
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals, nil)
 	if err != nil {
 		return err
 	}
@@ -493,7 +493,7 @@ func getPreHash(chain consensus.ChainHeaderReader, header *types.Header) (*types
 	return preHeader, nil
 }
 
-func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet, emptyBlockMessages [][]byte) error {
 
 	if header.Coinbase != common.HexToAddress("0x0000000000000000000000000000000000000000") {
 		return errors.New("not a empty block")
@@ -516,7 +516,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	// modification on 20221102 end
 
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil, nil)
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil, nil, emptyBlockMessages)
 	if err != nil {
 		return err
 	}
@@ -544,7 +544,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	return nil
 }
 
-func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address, rewardSeals [][]byte) ([]byte, error) {
+func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address, rewardSeals [][]byte, emptyBlockMessages [][]byte) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
@@ -554,12 +554,13 @@ func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []com
 	buf.Write(header.Extra[:types.IstanbulExtraVanity])
 
 	ist := &types.IstanbulExtra{
-		Validators:    vals,
-		Seal:          []byte{},
-		CommittedSeal: [][]byte{},
-		ExchangerAddr: exchangerAddr,
-		ValidatorAddr: validatorAddr,
-		RewardSeal:    rewardSeals,
+		Validators:         vals,
+		Seal:               []byte{},
+		CommittedSeal:      [][]byte{},
+		ExchangerAddr:      exchangerAddr,
+		ValidatorAddr:      validatorAddr,
+		RewardSeal:         rewardSeals,
+		EmptyBlockMessages: emptyBlockMessages,
 	}
 
 	payload, err := rlp.EncodeToBytes(&ist)
