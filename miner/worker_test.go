@@ -541,8 +541,3 @@ func TestOnlineValidatorsDecode(t *testing.T) {
 		fmt.Println("v2: ", v2.Height)
 	}
 }
-
-func TestIntTobytes(t *testing.T) {
-	bytes := IntToBytes(1200000)
-	fmt.Println("bytes====", bytes)
-}

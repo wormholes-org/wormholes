@@ -117,11 +117,12 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 
 	// Don't waste time checking blocks from the future (adjusting for allowed threshold)
 	adjustedTimeNow := time.Now().Add(time.Duration(e.cfg.AllowedFutureBlockTime) * time.Second).Unix()
-	//log.Info("verifyHeader:futureBlock",
-	//	"no", header.Number,
-	//	"AllowedFutureBlockTime", e.cfg.AllowedFutureBlockTime,
-	//	"header.Time", header.Time,
-	//	"adjustedTimeNow", adjustedTimeNow)
+	// log.Info("verifyHeader:futureBlock",
+	// 	"no", header.Number,
+	// 	"AllowedFutureBlockTime", e.cfg.AllowedFutureBlockTime,
+	// 	"header.Time", header.Time,
+	// 	"adjustedTimeNow", adjustedTimeNow,
+	// 	"now", time.Now().Unix())
 	if header.Time > uint64(adjustedTimeNow) {
 		return consensus.ErrFutureBlock
 	}
@@ -453,9 +454,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Extra = extra
 
 	// set header's timestamp
+	now := uint64(time.Now().Unix())
 	header.Time = parent.Time + e.cfg.BlockPeriod
-	if header.Time < uint64(time.Now().Unix()) {
-		header.Time = uint64(time.Now().Unix())
+	if header.Time < now {
+		header.Time = now
 	}
 
 	return nil
@@ -523,7 +525,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	// set header's timestamp
 
 	if header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + 120
+		header.Time = parent.Time + 100
 		if header.Time < uint64(time.Now().Unix()) {
 			header.Time = uint64(time.Now().Unix())
 		}
@@ -535,9 +537,9 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// prevent future time
-	if header.Time > uint64(time.Now().Unix()) {
-		header.Time = uint64(time.Now().Unix())
-	}
+	// if header.Time > uint64(time.Now().Unix()) {
+	// 	header.Time = uint64(time.Now().Unix())
+	// }
 
 	return nil
 }
