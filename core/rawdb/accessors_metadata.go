@@ -153,6 +153,17 @@ func WriteStakePool(db ethdb.KeyValueWriter, hash common.Hash, number uint64, st
 	}
 }
 
+func WriteStakerBytes(db ethdb.KeyValueWriter, hash common.Hash, number uint64, stakerList []byte) {
+	//data, err := rlp.EncodeToBytes(stakerList)
+	//if err != nil {
+	//	log.Crit("Failed to RLP stakePool", "err", err)
+	//}
+
+	if err := db.Put(StakePoolKey(number, hash), stakerList); err != nil {
+		log.Crit("Failed to store stakePool", "err", err)
+	}
+}
+
 func ReadStakePool(db ethdb.Reader, hash common.Hash, number uint64) (*types.StakerList, error) {
 	data, err := db.Get(StakePoolKey(number, hash))
 	if err != nil {
