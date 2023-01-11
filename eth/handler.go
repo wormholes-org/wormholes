@@ -805,7 +805,7 @@ func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]
 
 func (h *handler) BroadcastEmptyBlockMsg(msg []byte) {
 	hash := istanbul.RLPHash(msg)
-	peers := h.peers.peersWithoutBlock(hash)
+	peers := h.peers.peerWithoutEmptyBlockMsg(hash)
 
 	for _, p := range peers {
 		p.WriteQueueEmptyBlockMsg(msg)
