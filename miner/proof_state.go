@@ -35,6 +35,41 @@ func (p *ProofStatePool) ClearPrev(height *big.Int) {
 	}
 }
 
+func (p *ProofStatePool) SetTargetWeightBalance(height *big.Int, weight *big.Int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if _, ok := p.proofs[height.Uint64()]; !ok {
+		ps := newProofState(common.Address{}, common.Address{})
+		ps.targetWeightBalance = new(big.Int).Set(weight)
+		p.proofs[height.Uint64()] = ps
+	} else {
+		p.proofs[height.Uint64()].targetWeightBalance = new(big.Int).Set(weight)
+	}
+}
+
+func (p *ProofStatePool) SetValidatorList(height *big.Int, list *types.ValidatorList) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if _, ok := p.proofs[height.Uint64()]; !ok {
+		ps := newProofState(common.Address{}, common.Address{})
+		ps.validatorList = list
+		p.proofs[height.Uint64()] = ps
+	} else {
+		p.proofs[height.Uint64()].validatorList = list
+	}
+}
+
+func (p *ProofStatePool) UpdateNextIndex(height *big.Int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if ps, ok := p.proofs[height.Uint64()]; ok {
+		if ps.validatorList == nil || len(ps.validatorList.Validators) <= 0 {
+			return
+		}
+		ps.nextIndex = (ps.nextIndex + 1) % len(ps.validatorList.Validators)
+	}
+}
+
 func (psp *ProofStatePool) Put(height *big.Int, proposer, validator common.Address, vl *types.ValidatorList) bool {
 	psp.mu.Lock()
 	defer psp.mu.Unlock()
@@ -76,11 +111,19 @@ type ProofState struct {
 	proposer             common.Address
 	onlineValidator      OnlineValidator // The highly online validator of this block & reward addr
 	emptyBlockMessages   [][]byte
+
+	validatorList       *types.ValidatorList
+	targetWeightBalance *big.Int
+	nextIndex           int
 }
 
 func newProofState(proposer, validator common.Address) *ProofState {
+	emptyAddress := common.Address{}
 	vals := make(OnlineValidator)
-	vals.Add(validator)
+	if validator != emptyAddress {
+		vals.Add(validator)
+	}
+
 	return &ProofState{count: 0, proposer: proposer, onlineValidator: vals}
 }
 

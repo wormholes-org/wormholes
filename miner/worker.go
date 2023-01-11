@@ -482,13 +482,18 @@ func (w *worker) emptyLoop() {
 				w.isEmpty = true
 				w.emptyCh <- struct{}{}
 				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
-
+				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
+				if _, ok := w.cerytify.proofStatePool.proofs[w.cacheHeight.Uint64()]; !ok {
+					ps := newProofState(w.cerytify.self, common.Address{})
+					w.cerytify.proofStatePool.proofs[w.cacheHeight.Uint64()] = ps
+				}
 				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				if err != nil {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
 				w.cerytify.stakers = stakers
+				w.cerytify.proofStatePool.SetValidatorList(w.cacheHeight, stakers.DeepCopy())
 
 				if !w.emptyHandleFlag {
 					w.emptyHandleFlag = true
@@ -521,14 +526,13 @@ func (w *worker) emptyLoop() {
 				//}
 				//modification on 20221102 end
 
-				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
-
 				totalWeightBalance, err := w.targetSizeWithWeight()
 				if err != nil {
 					//log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
 				w.targetWeightBalance = totalWeightBalance
+				w.cerytify.proofStatePool.SetTargetWeightBalance(w.cacheHeight, totalWeightBalance)
 
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()

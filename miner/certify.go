@@ -262,7 +262,7 @@ func (c *Certify) handleEvents() {
 					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
 					//	"c.stakers number", len(c.stakers.Validators))
 					//If the GatherOtherPeerSignature is ok, gossip message directly
-					if err := c.GatherOtherPeerSignature(sender, signature.Height, ev.Payload); err == nil {
+					if err := c.GatherOtherPeerSignature(sender, signature.Height, signature.Candidate, ev.Payload); err == nil {
 						c.rebroadcast(c.Address(), ev.Payload)
 					}
 				}

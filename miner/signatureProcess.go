@@ -10,9 +10,16 @@ import (
 
 func (c *Certify) SendSignToOtherPeer(addr common.Address, height *big.Int) {
 	log.Info("start SendSignToOtherPeer", "Address", addr.Hex(), "Height:", height)
+	emptyAddress := common.Address{}
+	candidate := c.proofStatePool.proofs[height.Uint64()].validatorList.Validators[c.proofStatePool.proofs[height.Uint64()].nextIndex].Proxy
+	if candidate == emptyAddress {
+		candidate = c.proofStatePool.proofs[height.Uint64()].validatorList.Validators[c.proofStatePool.proofs[height.Uint64()].nextIndex].Addr
+	}
+
 	ques := &types.SignatureData{
-		Address: addr,
-		Height:  height,
+		Address:   addr,
+		Height:    height,
+		Candidate: candidate,
 		//Timestamp: uint64(time.Now().Unix()),
 	}
 	encQues, err := Encode(ques)
@@ -52,7 +59,7 @@ func (c *Certify) GetSignedMessage(height *big.Int) ([]byte, error) {
 	return payload, nil
 }
 
-func (c *Certify) GatherOtherPeerSignature(addr common.Address, height *big.Int, encQues []byte) error {
+func (c *Certify) GatherOtherPeerSignature(addr common.Address, height *big.Int, candidate common.Address, encQues []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -60,6 +67,10 @@ func (c *Certify) GatherOtherPeerSignature(addr common.Address, height *big.Int,
 
 	if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(height) >= 0 {
 		return errors.New("GatherOtherPeerSignature: msg height < chain Number")
+	}
+
+	if c.self != candidate {
+		return nil
 	}
 
 	emptyAddrss := common.Address{}
