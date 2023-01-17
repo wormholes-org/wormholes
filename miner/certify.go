@@ -30,7 +30,7 @@ type Certify struct {
 	signatureResultCh chan *big.Int
 	miner             Handler // Apply some of the capabilities of the parent class
 	lock              sync.Mutex
-	messageList       sync.Map
+	//messageList       sync.Map
 	//messageLock       sync.Mutex
 	//receiveValidatorsSum *big.Int
 	//validators           []common.Address

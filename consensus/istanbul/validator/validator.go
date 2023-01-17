@@ -52,6 +52,14 @@ func ValidExtraData(extraData []byte) bool {
 	return len(extraData)%common.AddressLength == 0
 }
 
+func GetAllVotes(validators []istanbul.Validator) []common.Address {
+	addrs := make([]common.Address, len(validators))
+	for i, validator := range validators {
+		addrs[i] = validator.Address()
+	}
+	return addrs
+}
+
 func SortedAddresses(validators []istanbul.Validator) []common.Address {
 	addrs := make([]common.Address, len(validators))
 	for i, validator := range validators {

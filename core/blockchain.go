@@ -2174,7 +2174,7 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 		var voteBalance *big.Int
 		var coe uint8
 
-		averageCoefficient := bc.GetAverageCoefficient(statedb)
+		//averageCoefficient := bc.GetAverageCoefficient(statedb)
 
 		for _, validator := range statedb.ValidatorPool {
 			coe = statedb.GetValidatorCoefficient(validator.Addr)
@@ -2185,7 +2185,7 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 		allWeightBalance50 = new(big.Int).Div(allWeightBalance50, big.NewInt(100))
 
 		var validators []common.Address
-		for _, emptyBlockMessage := range istanbulExtra.EmptyBlockMessages {
+		for _, emptyBlockMessage := range istanbulExtra.EmptyBlockMessages[1:] {
 			msg := &types.EmptyMsg{}
 			sender, err := msg.RecoverAddress(emptyBlockMessage)
 			if err != nil {
@@ -2198,8 +2198,8 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 		for _, v := range validators {
 			//coe = statedb.GetValidatorCoefficient(list.GetValidatorAddr(v))
 			//voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(coe)))
-			voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(averageCoefficient)))
-			voteBalance.Div(voteBalance, big.NewInt(10))
+			voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
+			//voteBalance.Div(voteBalance, big.NewInt(10))
 			blockWeightBalance.Add(blockWeightBalance, voteBalance)
 		}
 		if blockWeightBalance.Cmp(allWeightBalance50) > 0 {

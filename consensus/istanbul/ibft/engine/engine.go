@@ -453,9 +453,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Extra = extra
 
 	// set header's timestamp
+	now := uint64(time.Now().Unix())
 	header.Time = parent.Time + e.cfg.BlockPeriod
-	if header.Time < uint64(time.Now().Unix()) {
-		header.Time = uint64(time.Now().Unix())
+	if header.Time < now {
+		header.Time = now
 	}
 
 	return nil
@@ -514,7 +515,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	// modification on 20221102 end
 
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil, nil, emptyBlockMessages)
+	extra, err := prepareExtra(header, validator.GetAllVotes(validators.List()), nil, nil, nil, emptyBlockMessages)
 	if err != nil {
 		return err
 	}
@@ -535,9 +536,9 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// prevent future time
-	if header.Time > uint64(time.Now().Unix()) {
-		header.Time = uint64(time.Now().Unix())
-	}
+	//if header.Time > uint64(time.Now().Unix()) {
+	//	header.Time = uint64(time.Now().Unix())
+	//}
 
 	return nil
 }

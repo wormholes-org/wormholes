@@ -279,7 +279,7 @@ func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *t
 	//	return emptyBlock, err1
 	//}
 	//valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
-	valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
+	valSet := validator.NewEmptySet(validators, sb.config.ProposerPolicy)
 
 	emptyBlock, err := sb.EngineForBlockNumber(header.Number).Seal(chain, block, valSet)
 	if err != nil {
