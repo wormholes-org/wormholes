@@ -11,7 +11,6 @@ const DEFAULT_VALIDATOR_COEFFICIENT = 70
 
 type EmptyMessageEvent struct {
 	Sender  common.Address
-	Vote    common.Address
 	Height  *big.Int
 	Payload []byte
 }
@@ -76,6 +75,7 @@ type SignatureData struct {
 	Vote   common.Address
 	Height *big.Int
 	//Timestamp uint64
+	Round uint64
 }
 
 type OnlineZkProof struct {

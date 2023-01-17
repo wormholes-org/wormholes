@@ -523,7 +523,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	// set header's timestamp
 
 	if header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + 120
+		header.Time = parent.Time + 100
 		if header.Time < uint64(time.Now().Unix()) {
 			header.Time = uint64(time.Now().Unix())
 		}
@@ -604,7 +604,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			for _, emptyMessage := range istanbulExtra.EmptyBlockMessages {
 				if err := emptyMsg.FromPayload(emptyMessage); err != nil {
 					log.Error("Certify Failed to decode message from payload", "err", err)
-					break
+					continue
 				}
 				//var signature *types.SignatureData
 				//err = emptyMsg.Decode(&signature)
@@ -627,19 +627,10 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 				}
 			}
 
-			for i := 0; i < len(voteAddrs); i++ {
-				for j := i + 1; j < len(voteAddrs); j++ {
-					if bytes.Compare(voteAddrs[i][:], voteAddrs[j][:]) > 0 {
-						voteAddrs[i], voteAddrs[j] = voteAddrs[j], voteAddrs[i]
-					}
-				}
-			}
-
-			for _, vote := range voteAddrs {
+			for _, vote := range voteAddrs[1:] {
 				log.Info("AddValidatorCoefficient", "addr", vote)
 				state.AddValidatorCoefficient(vote, 70)
 			}
-
 		} else {
 			// add 2 weight
 			for _, v := range istanbulExtra.ValidatorAddr {
@@ -760,7 +751,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 				state.SubValidatorCoefficient(v.Address(), 10)
 			}
 
-			for _, v := range istanbulExtra.Validators {
+			for _, v := range istanbulExtra.Validators[1:] {
 				log.Info("AddValidatorCoefficient", "addr", v)
 				state.AddValidatorCoefficient(v, 70)
 			}

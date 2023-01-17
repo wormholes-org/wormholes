@@ -1,29 +1,29 @@
 package miner
 
 import (
-	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
+	lru "github.com/hashicorp/golang-lru"
+	"golang.org/x/xerrors"
 	"math/big"
 	"sync"
 )
 
-//const (
-//	remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
-//	storeMsgs   = 2500 // Number of messages stored by yourself
-//)
+const (
+	//remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
+	storeMsgs = 2500 // Number of messages stored by yourself
+)
 
 type Certify struct {
 	mu   sync.Mutex
 	self common.Address
 	eth  Backend
 	//otherMessages     *lru.ARCCache // the cache of peer's messages
-	//selfMessages      *lru.ARCCache // the cache of self messages
-	//cacheMessage      *lru.ARCCache
+	selfMessages      *lru.ARCCache // the cache of self messages
 	eventMux          *event.TypeMux
 	events            *event.TypeMuxSubscription
 	stakers           *types.ValidatorList // all validator
@@ -34,6 +34,7 @@ type Certify struct {
 	//messageLock       sync.Mutex
 	//receiveValidatorsSum *big.Int
 	//validators           []common.Address
+	round            uint64
 	voteIndex        int
 	validatorsHeight []string
 	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
@@ -52,15 +53,13 @@ func (c *Certify) subscribeEvents() {
 
 func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 	//otherMsgs, _ := lru.NewARC(remotePeers)
-	//selfMsgs, _ := lru.NewARC(storeMsgs)
-	//cacheMsgs, _ := lru.NewARC(storeMsgs)
+	selfMsgs, _ := lru.NewARC(storeMsgs)
 	certify := &Certify{
 		self:     self,
 		eth:      eth,
 		eventMux: new(event.TypeMux),
 		//otherMessages:     otherMsgs,
-		//selfMessages:      selfMsgs,
-		//cacheMessage:      cacheMsgs,
+		selfMessages:      selfMsgs,
 		miner:             handler,
 		signatureResultCh: make(chan *big.Int),
 		//receiveValidatorsSum: big.NewInt(0),
@@ -73,17 +72,17 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 	return certify
 }
 
-//func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
-//	// Broadcast payload
-//	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-//	//	return err
-//	//}
-//	if miner, ok := c.miner.(*Miner); ok {
-//		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
-//	}
-//
-//	return nil
-//}
+func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
+	// Broadcast payload
+	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+	//	return err
+	//}
+	if miner, ok := c.miner.(*Miner); ok {
+		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
+	}
+
+	return nil
+}
 
 //func (c *Certify) broadcast(msg *types.EmptyMsg) error {
 //	payload, err := c.signMessage(msg)
@@ -183,6 +182,31 @@ func (c *Certify) sign(data []byte) ([]byte, error) {
 	return crypto.Sign(hashData, c.eth.GetNodeKey())
 }
 
+func (c *Certify) assembleMessage(height *big.Int, vote common.Address) (error, []byte) {
+	ques := &types.SignatureData{
+		Vote:   vote,
+		Height: height,
+		Round:  c.round,
+	}
+	encQues, err := Encode(ques)
+	if err != nil {
+		//log.Error("Failed to encode", "subject", err)
+		return err, nil
+	}
+
+	msg := &types.EmptyMsg{
+		Code: SendSignMsg,
+		Msg:  encQues,
+	}
+
+	payload, err := c.signMessage(msg)
+	if err != nil {
+		//log.Error("signMessage err", err)
+		return err, nil
+	}
+	return nil, payload
+}
+
 //func (c *Certify) Address() common.Address {
 //	return c.self
 //}
@@ -201,11 +225,6 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			log.Error("Certify Failed to decode message from payload", "err", err)
 			return true, err
 		}
-		sender, err := msg.RecoverAddress(data)
-		if err != nil {
-			log.Error("Certify.handleEvents", "RecoverAddress error", err)
-			return true, err
-		}
 
 		var signature *types.SignatureData
 		err = msg.Decode(&signature)
@@ -214,67 +233,87 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
-		if c.miner.GetWorker().chain.CurrentHeader().Number.Cmp(signature.Height) >= 0 {
-			return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
+		currentHeight := c.miner.GetWorker().chain.CurrentHeader().Number
+		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) < 0 || currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) > 0 {
+			//return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
+			return true, nil
 		}
 
-		if _, ok := c.messageList.Load(hash); ok {
-			return false, nil
-		} else {
-			//log.Info("azh|handle p2pMessage", "sender", sender, "vote", signature.Vote, "height", signature.Height)
-			c.messageList.Store(hash, types.EmptyMessageEvent{
+		sender, err := msg.RecoverAddress(data)
+		if err != nil {
+			log.Error("Certify.handleEvents", "RecoverAddress error", err)
+			return true, err
+		}
+
+		if c.stakers == nil {
+			return true, nil
+		}
+
+		if c.stakers.GetValidatorAddr(sender) == (common.Address{}) {
+			return true, xerrors.New("Certify.handleEvents the vote is not a miner")
+		}
+
+		c.rebroadcast(addr, data)
+
+		if c.self == signature.Vote && c.miner.GetWorker().isEmpty {
+			ms, ok := c.selfMessages.Get(sender)
+			var m *lru.ARCCache
+			if ok {
+				m, _ = ms.(*lru.ARCCache)
+				if _, ok := m.Get(hash); ok {
+					return true, nil
+				}
+			} else {
+				m, _ = lru.NewARC(storeMsgs)
+				c.selfMessages.Add(sender, m)
+			}
+			m.Add(hash, true)
+
+			emptyMsg := types.EmptyMessageEvent{
 				Sender:  sender,
-				Vote:    signature.Vote,
 				Height:  signature.Height,
 				Payload: data,
-			})
+			}
+			go c.eventMux.Post(emptyMsg)
+			return true, nil
 		}
-		// Mark peer's message
-		//ms, ok := c.otherMessages.Get(addr)
-		//var m *lru.ARCCache
-		//if ok {
-		//	m, _ = ms.(*lru.ARCCache)
-		//} else {
-		//	m, _ = lru.NewARC(remotePeers)
-		//	c.otherMessages.Add(addr, m)
-		//}
-		//m.Add(hash, data)
-		//
-		//// Mark self known message
-		//if _, ok := c.selfMessages.Get(hash); ok {
-		//	return true, nil
-		//}
-		//c.selfMessages.Add(hash, true)
-		//			log.Info("certify handleMsg post", "hash", hash)
-		//go c.eventMux.Post(types.EmptyMessageEvent{
-		//	Code:    SendSignMsg,
-		//	Payload: data,
-		//})
-
 	}
 	return false, nil
 }
 
-func (c *Certify) PostCacheMessage() {
-	messageList := make([]types.EmptyMessageEvent, 0)
-
-	handleMessage := func(hash, value interface{}) bool {
-		emptyMessage := value.(types.EmptyMessageEvent)
-		messageList = append(messageList, emptyMessage)
-		c.messageList.Delete(hash)
-		return true
-	}
-	c.messageList.Range(handleMessage)
-
-	for _, msg := range messageList {
-		//log.Info("PostCacheMessage", "sender", msg.Sender, "vote", msg.Vote, "height", msg.Height)
-		miner, okm := c.miner.(*Miner)
-		if okm {
-			miner.broadcaster.BroadcastEmptyBlockMsg(msg.Payload)
-		}
-		go c.eventMux.Post(msg)
-	}
-}
+//func (c *Certify) PostCacheMessage() {
+//	if c.selfMessages.Len() <= 0 {
+//		return
+//	}
+//
+//	for _, addr := range c.selfMessages.Keys() {
+//		ms, ok := c.selfMessages.Get(addr)
+//		if !ok {
+//			continue
+//		}
+//		var m *lru.ARCCache
+//		m, _ = ms.(*lru.ARCCache)
+//
+//		if m.Len() < 0 {
+//			continue
+//		}
+//
+//		for _, hash := range m.Keys() {
+//			msg, oks := m.Get(hash)
+//			if !oks {
+//				continue
+//			}
+//
+//			emptyMsg, oke := msg.(types.EmptyMessageEvent)
+//			if !oke {
+//				continue
+//			}
+//			m.Remove(hash)
+//			m.Add(hash, true)
+//			go c.eventMux.Post(emptyMsg)
+//		}
+//	}
+//}
 
 func (c *Certify) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 	var data []byte
@@ -334,8 +373,8 @@ func (c *Certify) handleEvents() {
 				//	}
 				//}
 
-				log.Info("handleEvents", "sender", ev.Sender, "vote", ev.Vote, "height", ev.Height)
-				c.GatherOtherPeerSignature(ev.Sender, ev.Vote, ev.Height, ev.Payload)
+				log.Info("handleEvents", "sender", ev.Sender, "height", ev.Height)
+				c.GatherOtherPeerSignature(ev.Sender, ev.Height, ev.Payload)
 			}
 		}
 	}
