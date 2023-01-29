@@ -1,6 +1,6 @@
 #!/bin/bash
 #check docker cmd
-echo "Script version Number: v0.11.6"
+echo "Script version Number: v0.11.7"
 which docker >/dev/null 2>&1
 if  [ $? -ne 0 ] ; then
         echo "docker not found, please install first!"
