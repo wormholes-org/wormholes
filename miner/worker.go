@@ -477,7 +477,7 @@ func (w *worker) emptyLoop() {
 					if totalCondition != 15 {
 						continue
 					}
-					if len(w.engine.OnlineValidators(curBlock.Number().Uint64())) >= 7 {
+					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
 						continue
 					}
 				} else {
