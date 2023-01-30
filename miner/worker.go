@@ -524,14 +524,7 @@ func (w *worker) emptyLoop() {
 					w.emptyHandleFlag = true
 					go w.cerytify.handleEvents()
 				}
-				//if w.cacheHeight.Cmp(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))) != 0 {
-				//	w.cerytify.validators = make([]common.Address, 0)
-				//	w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-				//	w.cerytify.receiveValidatorsSum = big.NewInt(0)
-				//}
 
-				//modification on 20221102 start
-				//w.stop()
 				EmptyEvent := StartEmptyBlockEvent{
 					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
 				}
@@ -540,16 +533,6 @@ func (w *worker) emptyLoop() {
 					//log.Error("emptyTimer.C : post empty event", "err", err)
 					continue
 				}
-				//time.Sleep(10 * time.Second)
-				//if w.isRunning() {
-				//	w.isEmpty = false
-				//	w.emptyTimestamp = time.Now().Unix()
-				//	w.emptyTimer.Reset(120 * time.Second)
-				//	log.Info("generate empty block interupt by downloader", "w.isRunning()", w.isRunning())
-				//	//w.resetEmptyCh <- struct{}{}
-				//	continue
-				//}
-				//modification on 20221102 end
 
 				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
 
@@ -579,10 +562,7 @@ func (w *worker) emptyLoop() {
 					log.Info("emptyLoop", "nil", w.cerytify.stakers == nil)
 					continue
 				}
-				//log.Info("emptyLoop gossipTimer post message")
 				w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-				//w.cerytify.SendSignToOtherPeer(voteAddress, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-				//w.cerytify.PostCacheMessage()
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
@@ -1672,62 +1652,6 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 	log.Info("empty block wirte to localdb", "Number:", w.emptycurrent.header.Number.Uint64())
 	return nil
 }
-
-// commitEmptyWork generates several new sealing tasks based on the parent block.
-/*func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64, validators []common.Address, emptyBlockMessages [][]byte) error {
-	log.Info("caver|commitEmptyWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
-
-	if !w.isEmpty {
-		return errors.New("w.isEmpty == false")
-	}
-
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	parent := w.chain.CurrentBlock()
-	num := parent.Number()
-	header := &types.Header{
-		ParentHash: parent.Hash(),
-		Number:     num.Add(num, common.Big1),
-		GasLimit:   core.CalcGasLimit(parent.GasLimit(), w.config.GasCeil),
-		Extra:      w.extra,
-		Time:       uint64(0),
-		BaseFee:    parent.BaseFee(),
-		Coinbase:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	}
-	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
-	if err := w.engine.PrepareForEmptyBlock(w.chain, header, validators, emptyBlockMessages); err != nil {
-		log.Error("Failed to prepare header for mining", "err", err)
-		return err
-	}
-	err := w.makeEmptyCurrent(parent, header)
-	if err != nil {
-		log.Error("Failed to create mining context", "err", err)
-		return err
-	}
-	// Split the pending transactions into locals and remotes
-	receipts := copyReceipts(w.emptycurrent.receipts)
-	block, err := w.engine.FinalizeAndAssemble(w.chain, w.emptycurrent.header, w.emptycurrent.state, w.emptycurrent.txs, nil, receipts)
-	if err != nil {
-		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.emptycurrent.header.Number.Uint64(), "err", err.Error())
-		return err
-	}
-	w.updateSnapshot()
-	//w.start()
-	emptyblock, err := w.engine.SealforEmptyBlock(w.chain, block, validators)
-
-	if err != nil {
-		log.Warn("Empty Block sealing failed", "err", err, "no", block.NumberU64(), "hash", block.Hash())
-		return err
-	}
-	_, err = w.chain.WriteBlockWithState(emptyblock, receipts, nil, w.emptycurrent.state, true)
-	if err != nil {
-		log.Error("commitEmpty Failed writing block to chain", "err", err)
-		return err
-	}
-	w.mux.Post(core.NewMinedBlockEvent{Block: block})
-	log.Info("empty block wirte to localdb", "Number:", w.current.header.Number.Uint64())
-	return nil
-}*/
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {

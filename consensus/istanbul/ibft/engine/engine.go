@@ -507,12 +507,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-	// use the same difficulty for all blocks
-
-	// modification on 20221102 start
-	//header.Difficulty = istanbulcommon.DefaultDifficulty
 	header.Difficulty = big.NewInt(24)
-	// modification on 20221102 end
 
 	// add validators in snapshot to extraData's validators section
 	extra, err := prepareExtra(header, validator.GetAllVotes(validators.List()), nil, nil, nil, emptyBlockMessages)
@@ -522,23 +517,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	header.Extra = extra
 
 	// set header's timestamp
-
-	if header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + 100
-		if header.Time < uint64(time.Now().Unix()) {
-			header.Time = uint64(time.Now().Unix())
-		}
-	} else {
-		header.Time = parent.Time + e.cfg.BlockPeriod
-		if header.Time < uint64(time.Now().Unix()) {
-			header.Time = uint64(time.Now().Unix())
-		}
-	}
-
-	// prevent future time
-	//if header.Time > uint64(time.Now().Unix()) {
-	//	header.Time = uint64(time.Now().Unix())
-	//}
+	header.Time = uint64(time.Now().Unix())
 
 	return nil
 }
