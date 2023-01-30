@@ -93,6 +93,14 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	// Decode COMMIT message
 	var commit *istanbul.Subject
 	err := msg.Decode(&commit)
+	if err != nil {
+		log.Error("ibftConsensus: handleCommit Decodecommit  err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
+		return istanbulcommon.ErrFailedDecodeCommit
+	}
+
+	// Save the online validator of the current sequence
+	c.PutAddr(commit.View.Sequence.Uint64(), msg.Address)
+
 	roundInfo := RoundInfo{
 		Method:     "handleCommit",
 		Timestamp:  time.Now().UnixNano(),
@@ -113,10 +121,6 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 		},
 	}
 	c.SaveData(consensusData)
-	if err != nil {
-		log.Error("ibftConsensus: handleCommit Decodecommit  err", "no", c.currentView().Sequence, "round", c.currentView().Round, "self", c.Address().Hex())
-		return istanbulcommon.ErrFailedDecodeCommit
-	}
 
 	log.Info("ibftConsensus: handleCommit info", "no", commit.View.Sequence,
 		"round", commit.View.Round,

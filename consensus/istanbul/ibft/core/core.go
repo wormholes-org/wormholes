@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"math"
 	"math/big"
+	"sort"
 	"sync"
 	"time"
 
@@ -76,6 +77,8 @@ func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(co
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
 		commitHeight:       0,
+		onlineValidator:    make(map[uint64][]common.Address),
+		ovMu:               new(sync.Mutex),
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -116,6 +119,9 @@ type core struct {
 
 	consensusTimestamp time.Time
 	commitHeight       uint64
+
+	onlineValidator map[uint64][]common.Address // Online list of recorded altitudes
+	ovMu            *sync.Mutex
 }
 
 type ConsensusData struct {
@@ -209,6 +215,14 @@ func (c *core) IsProposer() bool {
 		return false
 	}
 	return v.IsProposer(c.backend.Address())
+}
+
+func (c *core) MsgIsFromProposer(address common.Address) bool {
+	v := c.valSet
+	if v == nil {
+		return false
+	}
+	return v.IsProposer(address)
 }
 
 func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
@@ -315,6 +329,16 @@ func (c *core) startNewRound(round *big.Int) {
 		if c.valSet == nil {
 			log.Error("ibftConsensus: c.valSet == nil", "no", newView.Sequence, "round", newView.Sequence, "self", c.address.Hex())
 			return
+		}
+		if c.onlineValidator != nil {
+			if len(c.onlineValidator) > 10 {
+				var keys []int
+				for key := range c.onlineValidator {
+					keys = append(keys, int(key))
+				}
+				sort.Sort(sort.IntSlice(keys))
+				c.delAddrs(keys[:1])
+			}
 		}
 	}
 
@@ -495,4 +519,41 @@ func (c *core) SaveData(msg ConsensusData) {
 	miniredis.GetLogCh() <- map[string]interface{}{
 		msg.Height: msg,
 	}
+}
+
+func (c *core) PutAddr(height uint64, addr common.Address) {
+	c.ovMu.Lock()
+	defer c.ovMu.Unlock()
+
+	addrs := c.onlineValidator[height]
+	log.Info("onlineValidators PutAddr", "height", height, "len", len(addrs), "total", len(c.onlineValidator))
+	_, exist := Find(addrs, addr)
+	if !exist {
+		addrs = append(addrs, addr)
+		c.onlineValidator[height] = addrs
+	}
+	return
+}
+
+func (c *core) GetAddrs(height uint64) []common.Address {
+	c.ovMu.Lock()
+	defer c.ovMu.Unlock()
+	return c.onlineValidator[height]
+}
+
+func (c *core) delAddrs(vals []int) {
+	c.ovMu.Lock()
+	defer c.ovMu.Unlock()
+	for _, v := range vals {
+		delete(c.onlineValidator, uint64(v))
+	}
+}
+
+func Find(addrs []common.Address, target common.Address) (int, bool) {
+	for i, v := range addrs {
+		if v == target {
+			return i, true
+		}
+	}
+	return -1, false
 }
