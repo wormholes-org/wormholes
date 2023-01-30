@@ -483,7 +483,7 @@ func (w *worker) emptyLoop() {
 					}
 					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
 				} else {
-					//log.Info("ok empty condition 120", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()),"online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
+					log.Info("ok empty condition 120", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				}
 				totalCondition = 0
 				w.isEmpty = true
