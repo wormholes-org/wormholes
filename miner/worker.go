@@ -474,7 +474,12 @@ func (w *worker) emptyLoop() {
 				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
 				if totalCondition < 120 && curBlock.Number().Uint64() > 0 {
 					//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
-					continue
+					if totalCondition != 15 {
+						continue
+					}
+					if len(w.engine.OnlineValidators(curBlock.Number().Uint64())) >= 7 {
+						continue
+					}
 				} else {
 					log.Info("ok empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
 				}
