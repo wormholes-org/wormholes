@@ -515,6 +515,10 @@ func (c *core) ConsensusInfo() chan map[string]interface{} {
 	return consensusInfo
 }
 
+func (c *core) OnlineValidators(height uint64) []common.Address {
+	return c.onlineValidator[height]
+}
+
 func (c *core) SaveData(msg ConsensusData) {
 	miniredis.GetLogCh() <- map[string]interface{}{
 		msg.Height: msg,

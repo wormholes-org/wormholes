@@ -460,3 +460,7 @@ func (s *remoteSealer) submitWork(nonce types.BlockNonce, mixDigest common.Hash,
 func (ethash *Ethash) ConsensusInfo() map[string]interface{} {
 	return nil
 }
+
+func (ethash *Ethash) OnlineValidators(height uint64) []common.Address {
+	return nil
+}
