@@ -525,10 +525,7 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	// set header's timestamp
 
 	if header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + 100
-		if header.Time < uint64(time.Now().Unix()) {
-			header.Time = uint64(time.Now().Unix())
-		}
+		header.Time = uint64(time.Now().Unix())
 	} else {
 		header.Time = parent.Time + e.cfg.BlockPeriod
 		if header.Time < uint64(time.Now().Unix()) {

@@ -35,7 +35,7 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 	log.Info("ibftConsensus: sendPreprepare",
 		"no", request.Proposal.Number(), "no", c.current.sequence,
 		"round", c.current.round.Uint64(), "isproposer", c.IsProposer(), "slef", c.address.Hex())
-	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
+	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
 		curView := c.currentView()
 
 		var proposal istanbul.Proposal
