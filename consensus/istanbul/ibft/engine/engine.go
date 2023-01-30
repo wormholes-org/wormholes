@@ -117,11 +117,12 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 
 	// Don't waste time checking blocks from the future (adjusting for allowed threshold)
 	adjustedTimeNow := time.Now().Add(time.Duration(e.cfg.AllowedFutureBlockTime) * time.Second).Unix()
-	//log.Info("verifyHeader:futureBlock",
-	//	"no", header.Number,
-	//	"AllowedFutureBlockTime", e.cfg.AllowedFutureBlockTime,
-	//	"header.Time", header.Time,
-	//	"adjustedTimeNow", adjustedTimeNow)
+	// log.Info("verifyHeader:futureBlock",
+	// 	"no", header.Number,
+	// 	"AllowedFutureBlockTime", e.cfg.AllowedFutureBlockTime,
+	// 	"header.Time", header.Time,
+	// 	"adjustedTimeNow", adjustedTimeNow,
+	// 	"now", time.Now().Unix())
 	if header.Time > uint64(adjustedTimeNow) {
 		return consensus.ErrFutureBlock
 	}

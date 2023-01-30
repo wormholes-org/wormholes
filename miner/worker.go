@@ -493,13 +493,19 @@ func (w *worker) emptyLoop() {
 				curTime := time.Now().Unix()
 				curBlock := w.chain.CurrentBlock()
 				w.totalCondition++
-				//log.Info("emptyLoop", "count", w.totalCondition)
+
 				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
 				if w.totalCondition < 120 && curBlock.Number().Uint64() > 0 {
 					//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
-					continue
+					if w.totalCondition != 15 {
+						continue
+					}
+					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
+						continue
+					}
+					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
 				} else {
-					log.Info("ok empty condition", "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					log.Info("ok empty condition 120", "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				}
 				w.totalCondition = 0
 

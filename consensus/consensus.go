@@ -133,6 +133,8 @@ type Engine interface {
 	SealforEmptyBlock(chain ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error)
 
 	ConsensusInfo() map[string]interface{}
+
+	OnlineValidators(height uint64) []common.Address
 }
 
 // Handler should be implemented is the consensus needs to handle and send peer's message

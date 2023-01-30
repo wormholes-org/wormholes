@@ -187,8 +187,6 @@ func (c *core) checkMsgSeq(payload []byte) error {
 	default:
 		return istanbulcommon.ErrInvalidMessage
 	}
-
-	return istanbulcommon.ErrInvalidMessage
 }
 
 func (c *core) handleMsg(payload []byte) error {

@@ -416,6 +416,9 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			triedb.SaveCachePeriodically(bc.cacheConfig.TrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
 		}()
 	}
+	if bc.CurrentBlock().NumberU64() > 1 {
+		bc.SetHeadBeyondRoot(bc.CurrentBlock().Number().Uint64()-1, common.Hash{})
+	}
 	return bc, nil
 }
 

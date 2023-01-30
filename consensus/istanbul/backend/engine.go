@@ -304,8 +304,6 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		return errors.New("seal : ibft engine not active")
 	}
 
-	log.Info("seal : enter", "no", block.Number().String(), "is proposer", sb.core.IsProposer())
-
 	//Get the validatorset for this round
 	istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
 	if err1 != nil {
@@ -682,6 +680,14 @@ func (sb *Backend) ConsensusInfo() map[string]interface{} {
 		} else {
 			return nil
 		}
+	}
+	return nil
+}
+
+func (sb *Backend) OnlineValidators(height uint64) []common.Address {
+	c := sb.GetCore()
+	if c != nil {
+		return c.OnlineValidators(height)
 	}
 	return nil
 }

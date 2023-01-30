@@ -767,3 +767,7 @@ func (c *Clique) Protocol() consensus.Protocol {
 func (c *Clique) ConsensusInfo() map[string]interface{} {
 	return nil
 }
+
+func (c *Clique) OnlineValidators(height uint64) []common.Address {
+	return nil
+}

@@ -20,4 +20,6 @@ type Core interface {
 	RoundInfo() []string
 
 	ConsensusInfo() chan map[string]interface{}
+
+	OnlineValidators(height uint64) []common.Address
 }
