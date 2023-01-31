@@ -577,7 +577,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
-				state.SubValidatorCoefficient(v.Address(), 10)
+				state.SubValidatorCoefficient(v.Address(), 20)
 			}
 
 			voteAddrs := make([]common.Address, 0)
@@ -729,7 +729,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
-				state.SubValidatorCoefficient(v.Address(), 10)
+				state.SubValidatorCoefficient(v.Address(), 20)
 			}
 
 			for _, v := range istanbulExtra.Validators[1:] {

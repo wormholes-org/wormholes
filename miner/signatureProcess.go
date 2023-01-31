@@ -48,50 +48,6 @@ func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
 	//log.Info("AssembleAndBroadcastMessage end")
 }
 
-//func (c *Certify) SendSignToOtherPeer(vote common.Address, height *big.Int) {
-//	log.Info("start SendSignToOtherPeer", "Address", vote.Hex(), "Height:", height)
-//	ques := &types.SignatureData{
-//		Vote:   vote,
-//		Height: height,
-//		//Timestamp: uint64(time.Now().Unix()),
-//	}
-//	encQues, err := Encode(ques)
-//	if err != nil {
-//		log.Error("Failed to encode", "subject", err)
-//		return
-//	}
-//	c.broadcast(&types.EmptyMsg{
-//		Code: SendSignMsg,
-//		Msg:  encQues,
-//	})
-//}
-
-//func (c *Certify) GetSignedMessage(height *big.Int) ([]byte, error) {
-//	ques := &types.SignatureData{
-//		Vote:   c.self,
-//		Height: height,
-//		//Timestamp: uint64(time.Now().Unix()),
-//	}
-//	encQues, err := Encode(ques)
-//	if err != nil {
-//		log.Error("GetSignedMessage Failed to encode", "subject", err)
-//		return nil, err
-//	}
-//
-//	msg := &types.EmptyMsg{
-//		Code: SendSignMsg,
-//		Msg:  encQues,
-//	}
-//
-//	payload, err := c.signMessage(msg)
-//	if err != nil {
-//		log.Error("GetSignedMessage signMessage err", err)
-//		return nil, err
-//	}
-//
-//	return payload, nil
-//}
-
 func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) error {
 	var weightBalance *big.Int
 	log.Info("GatherOtherPeerSignature", "c.proofStatePool", c.proofStatePool)

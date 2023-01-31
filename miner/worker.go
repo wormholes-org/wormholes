@@ -1580,7 +1580,7 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 	//receipts := copyReceipts(w.emptycurrent.receipts)
 
 	// Fill the block with all available pending transactions.
-	pending, err := w.eth.TxPool().Pending(true)
+	pending, err := w.eth.TxPool().Pending(false)
 	if err != nil {
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return err
@@ -1649,13 +1649,16 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		logs = append(logs, receipt.Logs...)
 	}
 
-	_, err = w.chain.WriteBlockWithState(emptyblock, receiptss, logs, s, true)
-	if err != nil {
-		log.Error("commitEmpty Failed writing block to chain", "err", err)
-		return err
-	}
+	//_, err = w.chain.WriteBlockWithState(emptyblock, receiptss, logs, s, true)
+	//if err != nil {
+	//	log.Error("commitEmpty Failed writing block to chain", "err", err)
+	//	return err
+	//}
+	//log.Info("empty block wirte to localdb", "Number:", w.emptycurrent.header.Number.Uint64())
+
+	blocks := []*types.Block{emptyblock}
+	w.eth.BlockChain().InsertChain(blocks)
 	w.mux.Post(core.NewMinedBlockEvent{Block: emptyblock})
-	log.Info("empty block wirte to localdb", "Number:", w.emptycurrent.header.Number.Uint64())
 	return nil
 }
 
@@ -1764,7 +1767,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		w.commit(uncles, nil, false, tstart)
 	}
 	// Fill the block with all available pending transactions.
-	pending, err := w.eth.TxPool().Pending(true)
+	pending, err := w.eth.TxPool().Pending(false)
 	if err != nil {
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return
