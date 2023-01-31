@@ -461,7 +461,6 @@ func (vl *ValidatorList) RandomValidatorV4(k int, randomHash common.Hash, weight
 		return []common.Address{}, err
 	}
 
-	log.Info("RandomValidatorV4", "k", k, "len(validators)", len(validators))
 	// Make up for less than K
 	diffCount := k - len(validators)
 	if diffCount > 0 {
@@ -482,10 +481,10 @@ func (vl *ValidatorList) RandomValidatorV4(k int, randomHash common.Hash, weight
 			if newValSet.Validators[i].Balance.Cmp(newValSet.Validators[i+1].Balance) == 0 {
 				// Calculates the absolute value of the difference between two elements and the specified element
 				randomAmt := randomHash.Big()
-				sub1 := big.NewInt(0).Sub(randomAmt, newValSet.Validators[i].Balance)
+				sub1 := big.NewInt(0).Sub(randomAmt, newValSet.Validators[i].Addr.Hash().Big())
 				sub1 = sub1.Abs(sub1)
 
-				sub2 := big.NewInt(0).Sub(randomAmt, newValSet.Validators[i+1].Balance)
+				sub2 := big.NewInt(0).Sub(randomAmt, newValSet.Validators[i+1].Addr.Hash().Big())
 				sub2 = sub2.Abs(sub2)
 
 				// Whoever enters will be in front
@@ -512,7 +511,6 @@ func (vl *ValidatorList) RandomValidatorV4(k int, randomHash common.Hash, weight
 		}
 	}
 
-	log.Info("RandomValidatorV4", "len", len(validators))
 	tempList := &ValidatorList{
 		Validators: make([]*Validator, 0, len(validators)),
 	}
