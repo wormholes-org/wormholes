@@ -2873,8 +2873,26 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 		return nil, err
 	}
 	log.Info("Random11ValidatorFromPool : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
+
+	// Get the weights of all validators
+	db, err := bc.StateAt(header.Root)
+	if err != nil {
+		log.Error("Random11ValidatorFromPool invalid root", "no", header.Number.Uint64())
+		return nil, errors.New("Random11ValidatorFromPool invalid root")
+	}
+
+	// Get all validator weights
+	var weights []uint8
+	for _, v := range validatorList.Validators {
+		weights = append(weights, db.GetCoefficient(v.Addr))
+	}
+
 	var validators []common.Address
-	validators = validatorList.RandomValidatorV3(11, randomHash)
+	validators, err = validatorList.RandomValidatorV4(11, randomHash, weights)
+	if err != nil {
+		log.Error("Random11ValidatorFromPool err", "err", err.Error())
+		return nil, errors.New("Random11ValidatorFromPool failed pick validators")
+	}
 	//log.Info("random11 validators", "len", len(validators), "validators", validators)
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
 		log.Warn("Random11ValidatorFromPool", "len(validatorList.Validators)", len(validatorList.Validators),
@@ -2922,8 +2940,25 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 	}
 	log.Info("Random11ValidatorWithOutProxy : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
 
+	// Get the weights of all validators
+	db, err := bc.StateAt(header.Root)
+	if err != nil {
+		log.Error("Random11ValidatorWithOutProxy invalid root", "no", header.Number.Uint64())
+		return nil, errors.New("Random11ValidatorWithOutProxy invalid root")
+	}
+
+	// Get all validator weights
+	var weights []uint8
+	for _, v := range validatorList.Validators {
+		weights = append(weights, db.GetCoefficient(v.Addr))
+	}
+
 	var validators []common.Address
-	validators = validatorList.RandomValidatorV3(11, randomHash)
+	validators, err = validatorList.RandomValidatorV4(11, randomHash, weights)
+	if err != nil {
+		log.Error("Random11ValidatorWithOutProxy err", "err", err.Error())
+		return nil, errors.New("Random11ValidatorWithOutProxy failed pick validators")
+	}
 
 	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
 		log.Warn("Random11ValidatorWithOutProxy", "len(validatorList.Validators)", len(validatorList.Validators),
