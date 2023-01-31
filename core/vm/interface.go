@@ -76,7 +76,7 @@ type StateDB interface {
 	ForEachStorage(common.Address, func(common.Hash, common.Hash) bool) error
 
 	// *** modify to support nft transaction 20211215 begin ***
-	ChangeNFTOwner(common.Address, common.Address, int)
+	ChangeNFTOwner(common.Address, common.Address, int, *big.Int)
 	GetNFTOwner(common.Address) common.Address
 	GetNFTOwner16(common.Address) common.Address
 	// *** modify to support nft transaction 20211215 end ***

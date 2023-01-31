@@ -60,7 +60,7 @@ type (
 	// VerifyNFTOwnerFunc is to judge whether the owner own the nft
 	VerifyNFTOwnerFunc func(StateDB, string, common.Address) bool
 	// TransferNFTFunc is the signature of a TransferNFT function
-	TransferNFTFunc func(StateDB, string, common.Address) error
+	TransferNFTFunc func(StateDB, string, common.Address, *big.Int) error
 	//CreateNFTByOfficialFunc     func(StateDB, []common.Address, *big.Int)
 	CreateNFTByUserFunc         func(StateDB, common.Address, common.Address, uint16, string) (common.Address, bool)
 	ChangeApproveAddressFunc    func(StateDB, common.Address, common.Address)
@@ -862,7 +862,7 @@ func (evm *EVM) HandleNFT(
 			//}
 			log.Info("HandleNFT(), TransferNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
-			err := evm.Context.TransferNFT(evm.StateDB, wormholes.NFTAddress, addr)
+			err := evm.Context.TransferNFT(evm.StateDB, wormholes.NFTAddress, addr, evm.Context.BlockNumber)
 			if err != nil {
 				log.Error("HandleNFT(), TransferNFT", "wormholes.Type", wormholes.Type,
 					"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
