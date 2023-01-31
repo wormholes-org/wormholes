@@ -1077,11 +1077,14 @@ func TestRandomValidatorsV3By16Addr(t *testing.T) {
 	for _, vl := range validatorList.Validators {
 		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
 	}
-
+	var weights []uint8
+	for i := 0; i < len(validatorList.Validators); i++ {
+		weights = append(weights, 70)
+	}
 	for i := 0; i < 200; i++ {
 		randomHash := randomHash()
 		fmt.Println("====randomhash===", randomHash)
-		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
+		consensusValidator, _ := validatorList.RandomValidatorV4(11, randomHash, weights)
 		for _, v := range consensusValidator {
 			countMap[v]++
 		}

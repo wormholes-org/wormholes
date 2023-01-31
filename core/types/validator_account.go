@@ -452,29 +452,67 @@ func (vl *ValidatorList) SelectRandom11AddressV2(num int, hash []byte) ([]common
 	return random11Address, nil
 }
 
-func (vl *ValidatorList) RandomValidatorV4(k int, randomHash common.Hash) []common.Address {
+func (vl *ValidatorList) RandomValidatorV4(k int, randomHash common.Hash, weights []uint8) ([]common.Address, error) {
+	if len(vl.Validators) != len(weights) {
+		return nil, errors.New("RandomValidatorV4 invalid length")
+	}
 	err, validators := vl.CollectValidatorsV3(randomHash)
-	log.Info("ccccc", "vl.validators.len", len(vl.Validators), "colleted validators.len", len(validators))
 	if err != nil {
-		return []common.Address{}
+		return []common.Address{}, err
 	}
 
+	log.Info("RandomValidatorV4", "k", k, "len(validators)", len(validators))
 	// Make up for less than K
 	diffCount := k - len(validators)
-	for _, v := range vl.Validators {
-		flg := false
-		for _, vv := range validators {
-			if vv == v.Addr {
-				flg = true
+	if diffCount > 0 {
+		newValSet := &ValidatorList{
+			Validators: make([]*Validator, 0, len(validators)),
+		}
+		// Sort in descending order by amount*weight
+		for i := 0; i < len(vl.Validators); i++ {
+			amounts := big.NewInt(0).Mul(vl.Validators[i].Balance, big.NewInt(int64(weights[i])))
+			newValSet.AddValidator(vl.Validators[i].Addr, amounts, common.Address{})
+		}
+
+		// Special treatment for the same amount -> Whoever is closer to the random number is in front
+		for i := 0; i < len(newValSet.Validators); i++ {
+			if i > len(newValSet.Validators)-2 {
 				break
 			}
+			if newValSet.Validators[i].Balance.Cmp(newValSet.Validators[i+1].Balance) == 0 {
+				// Calculates the absolute value of the difference between two elements and the specified element
+				randomAmt := randomHash.Big()
+				sub1 := big.NewInt(0).Sub(randomAmt, newValSet.Validators[i].Balance)
+				sub1 = sub1.Abs(sub1)
+
+				sub2 := big.NewInt(0).Sub(randomAmt, newValSet.Validators[i+1].Balance)
+				sub2 = sub2.Abs(sub2)
+
+				// Whoever enters will be in front
+				if sub1.Cmp(sub2) < 0 {
+					// swap
+					newValSet.Validators[i], newValSet.Validators[i+1] = newValSet.Validators[i+1], newValSet.Validators[i]
+				}
+			}
 		}
-		if !flg && diffCount > 0 {
-			validators = append(validators, v.Addr)
-			diffCount--
+
+		// Make up for less than K
+		for _, v := range newValSet.Validators {
+			flg := false
+			for _, vv := range validators {
+				if vv == v.Addr {
+					flg = true
+					break
+				}
+			}
+			if !flg && diffCount > 0 {
+				validators = append(validators, v.Addr)
+				diffCount--
+			}
 		}
 	}
 
+	log.Info("RandomValidatorV4", "len", len(validators))
 	tempList := &ValidatorList{
 		Validators: make([]*Validator, 0, len(validators)),
 	}
@@ -490,7 +528,7 @@ func (vl *ValidatorList) RandomValidatorV4(k int, randomHash common.Hash) []comm
 	randombytes := randomHash.Bytes()
 	selectedValidators, _ := tempList.SelectRandom11AddressV2(k, randombytes)
 
-	return selectedValidators
+	return selectedValidators, nil
 }
 
 // CollectValidators Collect the k validators closest to the drop point
