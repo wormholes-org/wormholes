@@ -2278,7 +2278,7 @@ func BatchBuyNFTByApproveExchanger(
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	//db.AddVoteWeight(beneficiaryExchanger, amount)
-	db.ChangeNFTOwner(nftAddress, buyer, level)
+	db.ChangeNFTOwner(nftAddress, buyer, level, blocknumber)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
 	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
