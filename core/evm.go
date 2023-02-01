@@ -240,7 +240,7 @@ func GetNftAddressAndLevel(nftAddress string) (common.Address, int, error) {
 }
 
 // TransferNFT change the NFT's owner
-func TransferNFT(db vm.StateDB, nftAddr string, newOwner common.Address) error {
+func TransferNFT(db vm.StateDB, nftAddr string, newOwner common.Address, blocknumber *big.Int) error {
 	address, level, err := GetNftAddressAndLevel(nftAddr)
 	if err != nil {
 		return err
@@ -256,7 +256,7 @@ func TransferNFT(db vm.StateDB, nftAddr string, newOwner common.Address) error {
 	//	return errors.New("has been pledged")
 	//}
 
-	db.ChangeNFTOwner(address, newOwner, level)
+	db.ChangeNFTOwner(address, newOwner, level, blocknumber)
 	return nil
 }
 
@@ -624,7 +624,7 @@ func BuyNFTBySellerOrExchanger(
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	//db.AddVoteWeight(beneficiaryExchanger, amount)
-	db.ChangeNFTOwner(nftAddress, buyer, level)
+	db.ChangeNFTOwner(nftAddress, buyer, level, blocknumber)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
 	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
@@ -808,7 +808,7 @@ func BuyNFTByBuyer(
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	//db.AddVoteWeight(beneficiaryExchanger, amount)
-	db.ChangeNFTOwner(nftAddress, caller, level)
+	db.ChangeNFTOwner(nftAddress, caller, level, blocknumber)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
 	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
@@ -938,7 +938,7 @@ func BuyAndMintNFTByBuyer(
 	db.AddBalance(seller, nftOwnerAmount)
 	//db.AddBalance(exchanger, exchangerAmount)
 	//db.AddVoteWeight(exchanger, amount)
-	db.ChangeNFTOwner(nftAddress, caller, 0)
+	db.ChangeNFTOwner(nftAddress, caller, 0, blocknumber)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
 	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
@@ -1141,7 +1141,7 @@ func BuyAndMintNFTByExchanger(
 	db.AddBalance(seller, nftOwnerAmount)
 	//db.AddBalance(caller, exchangerAmount)
 	//db.AddVoteWeight(caller, amount)
-	db.ChangeNFTOwner(nftAddress, buyer, 0)
+	db.ChangeNFTOwner(nftAddress, buyer, 0, blocknumber)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
 	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
@@ -1342,7 +1342,7 @@ func BuyNFTByApproveExchanger(
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	//db.AddVoteWeight(beneficiaryExchanger, amount)
-	db.ChangeNFTOwner(nftAddress, buyer, level)
+	db.ChangeNFTOwner(nftAddress, buyer, level, blocknumber)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
 	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
@@ -1600,7 +1600,7 @@ func BuyAndMintNFTByApprovedExchanger(
 	db.AddBalance(seller, nftOwnerAmount)
 	//db.AddBalance(originalExchanger, exchangerAmount)
 	//db.AddVoteWeight(originalExchanger, amount)
-	db.ChangeNFTOwner(nftAddress, buyer, 0)
+	db.ChangeNFTOwner(nftAddress, buyer, 0, blocknumber)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
 	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
@@ -1826,7 +1826,7 @@ func BuyNFTByExchanger(
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	//db.AddVoteWeight(beneficiaryExchanger, amount)
-	db.ChangeNFTOwner(sellerNftAddress, buyer, level)
+	db.ChangeNFTOwner(sellerNftAddress, buyer, level, blocknumber)
 
 	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
 	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))

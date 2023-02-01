@@ -863,7 +863,7 @@ func opNTransferFrom(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContex
 	caller := scope.Contract.Caller()
 	fmt.Println("nft.transferFrom()---", caller.String(), fromAddr.String(), toAddr.String(), nftAddr.String())
 	if owner == fromAddr && owner == caller || interpreter.evm.StateDB.IsApproved(nftAddr, fromAddr) {
-		interpreter.evm.StateDB.ChangeNFTOwner(nftAddr, toAddr, 0)
+		interpreter.evm.StateDB.ChangeNFTOwner(nftAddr, toAddr, 0, interpreter.evm.Context.BlockNumber)
 		return nil, nil
 	} else {
 		return makeRevertRet("NFT Transfer Failed: caller Not owner or approved"), ErrExecutionReverted
