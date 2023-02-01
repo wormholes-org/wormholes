@@ -1943,6 +1943,71 @@ func TestGetByAddress(t *testing.T) {
 	}
 }
 
+func TestMakeUpValidators(t *testing.T) {
+	c, _ := new(big.Int).SetString("750000000000000000000000000", 10)
+	c2, _ := new(big.Int).SetString("70000000000000000000000000", 10)
+
+	stakeAmt := []*big.Int{
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+	}
+
+	addrs := GetSelfAddr()
+
+	// initial count
+	countMap := make(map[common.Address]int, 0)
+	for _, v := range addrs {
+		countMap[v] = 0
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+	var weights []uint8
+	for i := 0; i < len(validatorList.Validators); i++ {
+		weights = append(weights, 70)
+	}
+
+	// collector addrs
+	collectedAddrs := addrs[:7]
+	randomHash := randomHash()
+	res := validatorList.MakeUpValidators(collectedAddrs, weights, randomHash, 11-len(collectedAddrs))
+
+	for _, v := range collectedAddrs {
+		validator := validatorList.GetValidatorByAddr(v)
+		fmt.Println("origin collected addrs", v.Hex(), "balance*weight", big.NewInt(0).Mul(validator.Balance, big.NewInt(70)).String())
+	}
+	fmt.Println("**********************after make up validators", "===len===", len(res), "====***************")
+	for _, v := range res[7:] {
+		validator := validatorList.GetValidatorByAddr(v)
+
+		// Calculate the difference with random number
+		distance := big.NewInt(0).Sub(randomHash.Big(), v.Hash().Big())
+		distance = distance.Abs(distance)
+		fmt.Println("after make up addrs", v.Hex(), "balance*weight", big.NewInt(0).Mul(validator.Balance, big.NewInt(70)).String(), "distance", distance.String())
+	}
+}
+
 // helper func ============================================================== //
 func MockValidator() *ValidatorList {
 	addrs := AddrList()
