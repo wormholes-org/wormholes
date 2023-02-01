@@ -94,6 +94,8 @@ const (
 	maxTimeFutureBlocks = 30
 	TriesInMemory       = 128
 
+	WriteStakersFrequency = 10000
+
 	// BlockChainVersion ensures that an incompatible database forces a resync from scratch.
 	//
 	// Changelog:
@@ -217,7 +219,13 @@ type BlockChain struct {
 	//deep for mint NFT
 	//mintDeep types.MintDeep
 
-	stakerPool *types.StakerList
+	stakerPool     *types.StakerList
+	bytesStakersCh chan BytesStakerList
+}
+
+type BytesStakerList struct {
+	Header     *types.Header
+	StakerList []byte
 }
 
 func (bc *BlockChain) Coinbase() common.Address {
@@ -263,6 +271,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		engine:         engine,
 		vmConfig:       vmConfig,
 		stakerPool:     new(types.StakerList),
+		bytesStakersCh: make(chan BytesStakerList, 100),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -359,6 +368,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 	// load staker pool
 	bc.loadStakerPool()
+	go bc.WriteStakersToDB()
 
 	// The first thing the node will do is reconstruct the verification data for
 	// the head block (ethash cache or clique voting snapshot). Might as well do
@@ -443,11 +453,24 @@ func (bc *BlockChain) empty() bool {
 
 // loadStakerPool loads the latest state of stakerpool
 func (bc *BlockChain) loadStakerPool() error {
+	var header *types.Header
 	currentBlock := bc.CurrentBlock()
 	currentHeight := currentBlock.NumberU64()
-	var header *types.Header
+
+	nums := currentHeight / WriteStakersFrequency
+	var index uint64
+	for i := nums + 1; i >= 1; i-- {
+		header = bc.GetHeaderByNumber((i - 1) * WriteStakersFrequency)
+		stakerList := bc.ReadStakePool(header)
+		if stakerList != nil && len(stakerList.Stakers) > 0 {
+			bc.stakerPool = stakerList
+			index = i - 1
+			break
+		}
+	}
+
 	var dbStakers *types.DBStakerList
-	for i := uint64(0); i <= currentHeight; i++ {
+	for i := uint64(index*WriteStakersFrequency) + 1; i <= currentHeight; i++ {
 		header = bc.GetHeaderByNumber(i)
 		dbStakers = bc.ReadDBStakerPool(header)
 		if dbStakers != nil && len(dbStakers.DBStakers) > 0 {
@@ -462,6 +485,17 @@ func (bc *BlockChain) loadStakerPool() error {
 	}
 
 	return nil
+}
+
+func (bc *BlockChain) WriteStakersToDB() {
+	for {
+		select {
+		case stakers := <-bc.bytesStakersCh:
+			bc.WriteStakerBytes(stakers.Header, stakers.StakerList)
+		case <-bc.quit:
+			return
+		}
+	}
 }
 
 // GetStakerPool return bc.stakerPool
@@ -1644,6 +1678,20 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	bc.WriteValidatorPool(block.Header(), validatorPool)
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 
+	// write the all exchangers to leveldb per WriteStakersFrequency blocks
+	if block.NumberU64()%WriteStakersFrequency == 0 {
+		data, err := rlp.EncodeToBytes(bc.stakerPool)
+		if err == nil {
+			stakers := BytesStakerList{
+				Header:     block.Header(),
+				StakerList: data,
+			}
+			bc.bytesStakersCh <- stakers
+		} else {
+			log.Error("Failed to RLP stakePool", "err", err)
+		}
+	}
+
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
@@ -2815,6 +2863,14 @@ func (bc *BlockChain) ReadStakePool(header *types.Header) *types.StakerList {
 func (bc *BlockChain) WriteStakePool(header *types.Header, stakePool *types.StakerList) {
 	poolBatch := bc.db.NewBatch()
 	rawdb.WriteStakePool(poolBatch, header.Hash(), header.Number.Uint64(), stakePool)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write stakePool disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) WriteStakerBytes(header *types.Header, stakerList []byte) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteStakerBytes(poolBatch, header.Hash(), header.Number.Uint64(), stakerList)
 	if err := poolBatch.Write(); err != nil {
 		log.Crit("Failed to write stakePool disk", "err", err)
 	}
