@@ -469,8 +469,15 @@ func (bc *BlockChain) loadStakerPool() error {
 		}
 	}
 
+	var startBlockNumber uint64
+	if bc.stakerPool != nil && len(bc.stakerPool.Stakers) > 0 {
+		startBlockNumber = uint64(index*WriteStakersFrequency) + 1
+	} else {
+		startBlockNumber = 0
+	}
+
 	var dbStakers *types.DBStakerList
-	for i := uint64(index*WriteStakersFrequency) + 1; i <= currentHeight; i++ {
+	for i := startBlockNumber; i <= currentHeight; i++ {
 		header = bc.GetHeaderByNumber(i)
 		dbStakers = bc.ReadDBStakerPool(header)
 		if dbStakers != nil && len(dbStakers.DBStakers) > 0 {
