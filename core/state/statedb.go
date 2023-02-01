@@ -2322,12 +2322,13 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 
 			initAmount := s.calculateExchangeAmount(0, 1)
 			amount := GetExchangAmount(nftAddr, initAmount)
-			increaseValue, mergedNFTAddress, NFTOwner, mergedNFTLevel, mergedNFTNumber, _ := s.MergeNFT16(nftAddr)
-			emptyAddress := common.Address{}
-			if mergedNFTAddress != emptyAddress {
-				log := s.ConstructLog(mergedNFTAddress, NFTOwner, mergedNFTLevel, mergedNFTNumber, blocknumber)
-				s.AddLog(log)
-			}
+			//increaseValue, mergedNFTAddress, NFTOwner, mergedNFTLevel, mergedNFTNumber, _ := s.MergeNFT16(nftAddr)
+			//emptyAddress := common.Address{}
+			//if mergedNFTAddress != emptyAddress {
+			//	log := s.ConstructLog(mergedNFTAddress, NFTOwner, mergedNFTLevel, mergedNFTNumber, blocknumber)
+			//	s.AddLog(log)
+			//}
+			increaseValue, _, _, _, _, _ := s.MergeNFT16(nftAddr)
 			totalIncreaseValue := new(big.Int).Add(increaseValue, amount)
 			ownerStateObject := s.GetOrNewStateObject(owner)
 			if ownerStateObject != nil {
