@@ -1256,7 +1256,7 @@ func TestMergeNFT16_2(t *testing.T) {
 		t.Log(nftAccount3.NFTOwner().Hex(), nftAccount3.GetNFTMergeLevel(),
 			nftAccount3.GetMergeNumber())
 
-		increaseValue, err := state.MergeNFT16(nftAddr1)
+		increaseValue, _, _, _, _, err := state.MergeNFT16(nftAddr1)
 		t.Log("increase value", increaseValue, "err", err)
 		oldAmount := state.calculateExchangeAmount(0, 16)
 		newAmount := state.calculateExchangeAmount(1, 16)
