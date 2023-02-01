@@ -263,6 +263,15 @@ func (st *StateTransition) buyGas() error {
 			if exchangerBalance.Cmp(balanceCheck) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
 			}
+		case 27:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+			exchangerBalance := st.state.GetBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
+			if exchangerBalance.Cmp(balanceCheck) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
+			}
+
 		default:
 			if st.gasFeeCap != nil {
 				balanceCheck = new(big.Int).SetUint64(st.msg.Gas())
@@ -478,6 +487,34 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
 			}
 		//case 24:
+		case 27:
+			emptyAddress := common.Address{}
+			var buyer common.Address
+			if len(wormholes.BuyerAuth.Exchanger) > 0 &&
+				len(wormholes.BuyerAuth.BlockNumber) > 0 &&
+				len(wormholes.BuyerAuth.Sig) > 0 {
+				buyer, err = RecoverAddress(wormholes.BuyerAuth.Exchanger+wormholes.BuyerAuth.BlockNumber, wormholes.BuyerAuth.Sig)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if buyer == emptyAddress {
+				// recover buyerApproved address
+				msgText := wormholes.Buyer.Amount +
+					wormholes.Buyer.NFTAddress +
+					wormholes.Buyer.Exchanger +
+					wormholes.Buyer.BlockNumber +
+					wormholes.Buyer.Seller
+				buyerApproved, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+				if err != nil {
+					return nil, err
+				}
+				buyer = buyerApproved
+			}
+			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, buyer, msg.Value()) {
+				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			}
 
 		default:
 			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
