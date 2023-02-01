@@ -1036,6 +1036,62 @@ func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc
 	return InjectedList
 }
 
+func (s *PublicBlockChainAPI) GetShouldParticipantsCoefficientByNumber(ctx context.Context, number rpc.BlockNumber) ([]*BlockParticipants, error) {
+	var participants []*BlockParticipants
+	parentHeader, err := s.b.HeaderByNumber(ctx, number-1)
+	if parentHeader == nil || err != nil {
+		return nil, err
+	}
+
+	validators, err := s.b.Random11ValidatorFromPool(ctx, parentHeader)
+	if err != nil {
+		return nil, err
+	}
+	state, _, err := s.b.StateAndHeaderByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range validators.Validators {
+		coe := state.GetCoefficient(v.Addr)
+		participant := &BlockParticipants{
+			Address:     v.Addr,
+			Coefficient: coe,
+		}
+		participants = append(participants, participant)
+	}
+
+	return participants, nil
+}
+
+func (s *PublicBlockChainAPI) GetRealParticipantsByNumber(ctx context.Context, number rpc.BlockNumber) ([]*BlockParticipants, error) {
+	var participants []*BlockParticipants
+	block, err := s.b.BlockByNumber(ctx, number)
+	if block == nil || err != nil {
+		return nil, err
+	}
+
+	header := block.Header()
+	istanbulExtra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return nil, err
+	}
+
+	state, _, err := s.b.StateAndHeaderByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	for _, addr := range istanbulExtra.Validators {
+		coe := state.GetCoefficient(addr)
+		participant := &BlockParticipants{
+			Address:     addr,
+			Coefficient: coe,
+		}
+		participants = append(participants, participant)
+	}
+
+	return participants, nil
+}
+
 func (s *PublicBlockChainAPI) Version(ctx context.Context) string {
 	version := "wormholes v" + params.Version
 	return version
@@ -1456,6 +1512,8 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 				case 22:
 
 				case 24:
+
+				case 27:
 
 				default:
 					if args.Value.ToInt().Cmp(available) >= 0 {
@@ -2271,8 +2329,69 @@ func (w *PublicWormholesAPI) GetInjectedNFTInfo(ctx context.Context, number rpc.
 	return InjectedList
 }
 
+type BlockParticipants struct {
+	Address     common.Address
+	Coefficient uint8
+}
+
+func (w *PublicWormholesAPI) GetShouldParticipantsCoefficientByNumber(ctx context.Context, number rpc.BlockNumber) ([]*BlockParticipants, error) {
+	var participants []*BlockParticipants
+	parentHeader, err := w.b.HeaderByNumber(ctx, number-1)
+	if parentHeader == nil || err != nil {
+		return nil, err
+	}
+
+	validators, err := w.b.Random11ValidatorFromPool(ctx, parentHeader)
+	if err != nil {
+		return nil, err
+	}
+	state, _, err := w.b.StateAndHeaderByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range validators.Validators {
+		coe := state.GetCoefficient(v.Addr)
+		participant := &BlockParticipants{
+			Address:     v.Addr,
+			Coefficient: coe,
+		}
+		participants = append(participants, participant)
+	}
+
+	return participants, nil
+}
+
+func (w *PublicWormholesAPI) GetRealParticipantsByNumber(ctx context.Context, number rpc.BlockNumber) ([]*BlockParticipants, error) {
+	var participants []*BlockParticipants
+	block, err := w.b.BlockByNumber(ctx, number)
+	if block == nil || err != nil {
+		return nil, err
+	}
+
+	header := block.Header()
+	istanbulExtra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return nil, err
+	}
+
+	state, _, err := w.b.StateAndHeaderByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	for _, addr := range istanbulExtra.Validators {
+		coe := state.GetCoefficient(addr)
+		participant := &BlockParticipants{
+			Address:     addr,
+			Coefficient: coe,
+		}
+		participants = append(participants, participant)
+	}
+
+	return participants, nil
+}
+
 func (w *PublicWormholesAPI) Version(ctx context.Context) string {
-	version := "wormholes v0.9.3"
+	version := "wormholes v" + params.Version
 	return version
 }
 
