@@ -17,8 +17,8 @@
 package core
 
 import (
-	"time"
 	"reflect"
+	"time"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulcommon "github.com/ethereum/go-ethereum/consensus/istanbul/common"
@@ -41,7 +41,7 @@ func (c *core) sendPrepare() {
 				Sequence:   sub.View.Sequence.Uint64(),
 				Round:      sub.View.Round.Int64(),
 				Hash:       sub.Digest,
-				Miner:	    c.valSet.GetProposer().Address(),
+				Miner:      c.valSet.GetProposer().Address(),
 				Error:      err,
 				IsProposal: c.IsProposer(),
 			},
@@ -69,16 +69,22 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 	// Decode PREPARE message
 	var prepare *istanbul.Subject
 	err := msg.Decode(&prepare)
+	if err != nil {
+		return istanbulcommon.ErrFailedDecodePrepare
+	}
+	// Save the online validator of the current sequence
+	c.PutAddr(prepare.View.Sequence.Uint64(), msg.Address)
+
 	roundInfo := RoundInfo{
 		Method:     "handlePrepare",
 		Timestamp:  time.Now().UnixNano(),
-		Sender:	    src.Address(),
+		Sender:     src.Address(),
 		Receiver:   c.address,
 		Sequence:   prepare.View.Sequence.Uint64(),
 		Round:      prepare.View.Round.Int64(),
 		Hash:       prepare.Digest,
 		Miner:      c.valSet.GetProposer().Address(),
-		Error:	    err,
+		Error:      err,
 		IsProposal: c.IsProposer(),
 	}
 
@@ -89,9 +95,6 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 		},
 	}
 	c.SaveData(consensusData)
-	if err != nil {
-		return istanbulcommon.ErrFailedDecodePrepare
-	}
 
 	log.Info("ibftConsensus: handlePrepare", "no", prepare.View.Sequence,
 		"round", prepare.View.Round,
@@ -104,8 +107,8 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 	roundInfo.Timestamp = time.Now().UnixNano()
 	roundInfo.Error = err
 	consensusData.Rounds = map[int64]RoundInfo{
-                        prepare.View.Round.Int64(): roundInfo,
-                }
+		prepare.View.Round.Int64(): roundInfo,
+	}
 	c.SaveData(consensusData)
 	if err != nil {
 		log.Error("ibftConsensus: handlePrepare checkMessage",
@@ -126,8 +129,8 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 	roundInfo.Timestamp = time.Now().UnixNano()
 	roundInfo.Error = err
 	consensusData.Rounds = map[int64]RoundInfo{
-                        prepare.View.Round.Int64(): roundInfo,
-                }
+		prepare.View.Round.Int64(): roundInfo,
+	}
 	c.SaveData(consensusData)
 	if err != nil {
 		log.Info("ibftConsensus: handlePrepare verifyPrepare",

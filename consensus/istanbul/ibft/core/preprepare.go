@@ -35,11 +35,18 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 	log.Info("ibftConsensus: sendPreprepare",
 		"no", request.Proposal.Number(), "no", c.current.sequence,
 		"round", c.current.round.Uint64(), "isproposer", c.IsProposer(), "slef", c.address.Hex())
-	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
+	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
 		curView := c.currentView()
+
+		var proposal istanbul.Proposal
+		if c.IsProposer() {
+			proposal = request.Proposal
+		} else {
+			proposal = nil
+		}
 		preprepare, err := ibfttypes.Encode(&istanbul.Preprepare{
 			View:     curView,
-			Proposal: request.Proposal,
+			Proposal: proposal,
 		})
 
 		consensusData := ConsensusData{
@@ -87,6 +94,7 @@ func (c *core) simpleCheckPreprepare(msg *ibfttypes.Message, _ istanbul.Validato
 	if preprepare.Proposal.Number().Uint64() < c.backend.CurrentNumber() {
 		return istanbulcommon.ErrOldMessage
 	}
+	c.PutAddr(preprepare.View.Sequence.Uint64(), msg.Address)
 	return nil
 }
 
@@ -98,6 +106,7 @@ func (c *core) simpleCheckSubject(msg *ibfttypes.Message, _ istanbul.Validator) 
 	if rc.View.Sequence.Uint64() < c.backend.CurrentNumber() {
 		return istanbulcommon.ErrOldMessage
 	}
+	c.PutAddr(rc.View.Sequence.Uint64(), msg.Address)
 	return nil
 }
 
@@ -107,6 +116,18 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 	// Decode PRE-PREPARE
 	var preprepare *istanbul.Preprepare
 	err := msg.Decode(&preprepare)
+	if err != nil {
+		return istanbulcommon.ErrFailedDecodePreprepare
+	}
+
+	// Save the online validator of the current sequence
+	c.PutAddr(preprepare.View.Sequence.Uint64(), msg.Address)
+
+	// Not the prepare message sent by the proposer, return nil directly
+	if preprepare.Proposal == nil {
+		return nil
+	}
+
 	roundInfo := RoundInfo{
 		Method:     "handlePreprepare",
 		Timestamp:  time.Now().UnixNano(),
@@ -127,10 +148,6 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 		},
 	}
 	c.SaveData(consensusData)
-
-	if err != nil {
-		return istanbulcommon.ErrFailedDecodePreprepare
-	}
 
 	log.Info("ibftConsensus: handlePreprepare",
 		"no", preprepare.Proposal.Number().Uint64(),

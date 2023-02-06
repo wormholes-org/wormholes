@@ -331,7 +331,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	)
 }
 
-func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet, emptyBlockMessages [][]byte) error {
 	return nil
 }
 

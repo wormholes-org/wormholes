@@ -44,14 +44,14 @@ func (psp *ProofStatePool) Put(height *big.Int, proposer, validator common.Addre
 			if p.onlineValidator.Has(validator) {
 				return false
 			}
-			p.onlineValidator.Add(validator)
+			p.onlineValidator = append(p.onlineValidator, validator)
 			p.receiveValidatorsSum = new(big.Int).Add(p.receiveValidatorsSum, vl.StakeBalance(validator))
 			p.count++
 			return true
 		}
 	}
 	// No proof data exists for this height
-	ps := newProofState(proposer, validator)
+	ps := newProofState(proposer, []byte{}, height)
 	psp.proofs[height.Uint64()] = ps
 	ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, vl.StakeBalance(validator))
 	ps.count++
@@ -74,34 +74,55 @@ type ProofState struct {
 	height               *big.Int
 	receiveValidatorsSum *big.Int
 	proposer             common.Address
+	proposerMessage      []byte
 	onlineValidator      OnlineValidator // The highly online validator of this block & reward addr
+	emptyBlockMessages   [][]byte
 }
 
-func newProofState(proposer, validator common.Address) *ProofState {
-	vals := make(OnlineValidator)
-	vals.Add(validator)
-	return &ProofState{count: 0, proposer: proposer, onlineValidator: vals}
-}
-
-type OnlineValidator map[common.Address]struct{}
-
-func (ov OnlineValidator) Has(addr common.Address) bool {
-	_, ok := ov[addr]
-	return ok
-}
-
-func (ov OnlineValidator) Add(addr common.Address) {
-	ov[addr] = struct{}{}
-}
-
-func (ov OnlineValidator) Delete(addr common.Address) {
-	delete(ov, addr)
-}
-
-func (ov OnlineValidator) GetAllAddress() []common.Address {
-	var addrs []common.Address
-	for address, _ := range ov {
-		addrs = append(addrs, address)
+func newProofState(proposer common.Address, proposerMessage []byte, height *big.Int) *ProofState {
+	vals := make(OnlineValidator, 0)
+	emptyMessage := make([][]byte, 0)
+	return &ProofState{
+		count:              0,
+		height:             height,
+		proposer:           proposer,
+		proposerMessage:    proposerMessage,
+		onlineValidator:    vals,
+		emptyBlockMessages: emptyMessage,
 	}
+}
+
+func (ps ProofState) GetAllAddress(validators *types.ValidatorList) []common.Address {
+	addrs := make([]common.Address, len(ps.onlineValidator)+1)
+	addrs[0] = validators.GetValidatorAddr(ps.proposer)
+	for i, val := range ps.onlineValidator {
+		addrs[i+1] = validators.GetValidatorAddr(val)
+	}
+
 	return addrs
 }
+
+func (ps ProofState) GetAllEmptyMessage() [][]byte {
+	emptyMessages := make([][]byte, 1)
+	emptyMessages[0] = ps.proposerMessage
+	return append(emptyMessages, ps.emptyBlockMessages...)
+}
+
+type OnlineValidator []common.Address
+
+func (ov OnlineValidator) Has(addr common.Address) bool {
+	for _, val := range ov {
+		if val == addr {
+			return true
+		}
+	}
+	return false
+}
+
+//func (ov OnlineValidator) Add(addr common.Address) {
+//	ov[addr] = struct{}{}
+//}
+//
+//func (ov OnlineValidator) Delete(addr common.Address) {
+//	delete(ov, addr)
+//}

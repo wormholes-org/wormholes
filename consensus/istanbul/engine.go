@@ -21,7 +21,7 @@ type Engine interface {
 	VerifyUncles(chain consensus.ChainReader, block *types.Block) error
 	VerifySeal(chain consensus.ChainHeaderReader, header *types.Header, validators ValidatorSet) error
 	Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators ValidatorSet) error
-	PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators ValidatorSet) error
+	PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators ValidatorSet, emptyBlockMessages [][]byte) error
 	Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header)
 	FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error)
 	Seal(chain consensus.ChainHeaderReader, block *types.Block, validators ValidatorSet) (*types.Block, error)

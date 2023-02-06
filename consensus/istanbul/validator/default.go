@@ -73,6 +73,31 @@ func newDefaultSet(addrs []common.Address, policy *istanbul.ProposerPolicy) *def
 	return valSet
 }
 
+func newEmptySet(addrs []common.Address, policy *istanbul.ProposerPolicy) *defaultSet {
+	valSet := &defaultSet{}
+
+	valSet.policy = policy
+	// init validators
+	valSet.validators = make([]istanbul.Validator, len(addrs))
+	for i, addr := range addrs {
+		valSet.validators[i] = New(addr)
+	}
+
+	//valSet.SortValidators()
+	// init proposer
+	if valSet.Size() > 0 {
+		valSet.proposer = valSet.GetByIndex(0)
+	}
+	//valSet.selector = roundRobinProposer
+	//if policy.Id == istanbul.Sticky {
+	//	valSet.selector = stickyProposer
+	//}
+
+	policy.RegisterValidatorSet(valSet)
+
+	return valSet
+}
+
 func (valSet *defaultSet) Size() int {
 	valSet.validatorMu.RLock()
 	defer valSet.validatorMu.RUnlock()

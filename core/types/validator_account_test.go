@@ -1077,11 +1077,14 @@ func TestRandomValidatorsV3By16Addr(t *testing.T) {
 	for _, vl := range validatorList.Validators {
 		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
 	}
-
+	var weights []uint8
+	for i := 0; i < len(validatorList.Validators); i++ {
+		weights = append(weights, 70)
+	}
 	for i := 0; i < 200; i++ {
 		randomHash := randomHash()
 		fmt.Println("====randomhash===", randomHash)
-		consensusValidator := validatorList.RandomValidatorV3(11, randomHash)
+		consensusValidator, _ := validatorList.RandomValidatorV4(11, randomHash, weights)
 		for _, v := range consensusValidator {
 			countMap[v]++
 		}
@@ -1937,6 +1940,71 @@ func TestGetByAddress(t *testing.T) {
 				t.Fatalf("expected %d, but %d got", c.Expected, index)
 			}
 		})
+	}
+}
+
+func TestMakeUpValidators(t *testing.T) {
+	c, _ := new(big.Int).SetString("750000000000000000000000000", 10)
+	c2, _ := new(big.Int).SetString("70000000000000000000000000", 10)
+
+	stakeAmt := []*big.Int{
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+		c,
+		c2,
+	}
+
+	addrs := GetSelfAddr()
+
+	// initial count
+	countMap := make(map[common.Address]int, 0)
+	for _, v := range addrs {
+		countMap[v] = 0
+	}
+
+	var validators []*Validator
+	for i := 0; i < len(addrs); i++ {
+		validators = append(validators, NewValidator(addrs[i], stakeAmt[i], common.Address{}))
+	}
+	validatorList := NewValidatorList(validators)
+
+	for _, vl := range validatorList.Validators {
+		validatorList.CalculateAddressRange(vl.Addr, validatorList.StakeBalance(vl.Addr))
+	}
+	var weights []uint8
+	for i := 0; i < len(validatorList.Validators); i++ {
+		weights = append(weights, 70)
+	}
+
+	// collector addrs
+	collectedAddrs := addrs[:7]
+	randomHash := randomHash()
+	res := validatorList.MakeUpValidators(collectedAddrs, weights, randomHash, 11-len(collectedAddrs))
+
+	for _, v := range collectedAddrs {
+		validator := validatorList.GetValidatorByAddr(v)
+		fmt.Println("origin collected addrs", v.Hex(), "balance*weight", big.NewInt(0).Mul(validator.Balance, big.NewInt(70)).String())
+	}
+	fmt.Println("**********************after make up validators", "===len===", len(res), "====***************")
+	for _, v := range res[7:] {
+		validator := validatorList.GetValidatorByAddr(v)
+
+		// Calculate the difference with random number
+		distance := big.NewInt(0).Sub(randomHash.Big(), v.Hash().Big())
+		distance = distance.Abs(distance)
+		fmt.Println("after make up addrs", v.Hex(), "balance*weight", big.NewInt(0).Mul(validator.Balance, big.NewInt(70)).String(), "distance", distance.String())
 	}
 }
 

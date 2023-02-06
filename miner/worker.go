@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"golang.org/x/xerrors"
 	"math"
 	"math/big"
 	"sync"
@@ -209,6 +210,7 @@ type worker struct {
 	onlineValidators *types.OnlineValidatorList
 
 	//empty block
+	totalCondition      int
 	emptyTimestamp      int64
 	emptyHandleFlag     bool
 	cacheHeight         *big.Int
@@ -251,6 +253,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		emptyTimestamp:      time.Now().Unix(),
 		emptyHandleFlag:     false,
 		resetEmptyCh:        make(chan struct{}, 1),
+		totalCondition:      0,
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -381,6 +384,17 @@ func (w *worker) close() {
 	close(w.exitCh)
 }
 
+func (w *worker) resetEmptyCondition() {
+	w.isEmpty = false
+	w.emptyTimestamp = time.Now().Unix()
+	w.totalCondition = 0
+	w.emptyTimer.Reset(1 * time.Second)
+
+	w.cerytify.voteIndex = 0
+	w.cerytify.round = 0
+	w.cerytify.selfMessages.Purge()
+}
+
 // recalcRecommit recalculates the resubmitting interval upon feedback.
 func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) time.Duration {
 	var (
@@ -410,7 +424,6 @@ type StartEmptyBlockEvent struct {
 //type DoneEmptyBlockEvent struct{}
 
 func (w *worker) emptyLoop() {
-
 	w.emptyTimer = time.NewTimer(0)
 	defer w.emptyTimer.Stop()
 	<-w.emptyTimer.C // discard the initial tick
@@ -426,16 +439,25 @@ func (w *worker) emptyLoop() {
 	<-checkTimer.C // discard the initial tick
 	checkTimer.Reset(1 * time.Second)
 
-	totalCondition := 0
 	for {
 		select {
 		case <-w.resetEmptyCh:
-			w.isEmpty = false
-			w.emptyTimestamp = time.Now().Unix()
-			//w.emptyTimer.Reset(120 * time.Second)
-			totalCondition = 0
-			w.emptyTimer.Reset(1 * time.Second)
-
+			w.resetEmptyCondition()
+		//	w.isEmpty = false
+		//	w.emptyTimestamp = time.Now().Unix()
+		//	w.totalCondition = 0
+		//	w.emptyTimer.Reset(1 * time.Second)
+		//
+		//	//w.cerytify.stakers = nil
+		//	w.cerytify.voteIndex = 0
+		//	w.cerytify.round = 0
+		//
+		//	//w.cerytify.messageList.Range(func(msg, value interface{}) bool {
+		//	//	w.cerytify.messageList.Delete(msg)
+		//	//	return true
+		//	//})
+		//	//w.cerytify.Purge()
+		//	w.cerytify.selfMessages.Purge()
 		case <-checkTimer.C:
 			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
@@ -444,11 +466,12 @@ func (w *worker) emptyLoop() {
 			}
 			//log.Info("checkTimer.C", "w.cacheHeight", w.cacheHeight, "w.chain.CurrentHeader().Number", w.chain.CurrentHeader().Number)
 			if w.cacheHeight.Cmp(w.chain.CurrentHeader().Number) <= 0 {
-				w.isEmpty = false
-				w.emptyTimestamp = time.Now().Unix()
-				//w.emptyTimer.Reset(120 * time.Second)
-				totalCondition = 0
-				w.emptyTimer.Reset(1 * time.Second)
+				w.resetEmptyCondition()
+				//w.isEmpty = false
+				//w.emptyTimestamp = time.Now().Unix()
+				////w.emptyTimer.Reset(120 * time.Second)
+				//totalCondition = 0
+				//w.emptyTimer.Reset(1 * time.Second)
 				//w.resetEmptyCh <- struct{}{}
 			}
 
@@ -457,7 +480,6 @@ func (w *worker) emptyLoop() {
 				w.emptyTimer.Reset(1 * time.Second)
 				if !w.isRunning() {
 					w.emptyTimestamp = time.Now().Unix()
-					//log.Info("!w.isRunning()", "w.isRunning()", w.isRunning())
 					continue
 				}
 				if w.isEmpty {
@@ -470,38 +492,45 @@ func (w *worker) emptyLoop() {
 				*/
 				curTime := time.Now().Unix()
 				curBlock := w.chain.CurrentBlock()
-				totalCondition++
-				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
-				if totalCondition < 120 && curBlock.Number().Uint64() > 0 {
-					//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
-					continue
-				} else {
-					log.Info("ok empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
-				}
-				totalCondition = 0
-				w.isEmpty = true
-				w.emptyCh <- struct{}{}
-				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+				w.totalCondition++
 
-				stakers, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
+				if w.totalCondition < 120 && curBlock.Number().Uint64() > 0 {
+					//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
+					if w.totalCondition != 15 {
+						continue
+					}
+					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
+						continue
+					}
+					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
+				} else {
+					log.Info("ok empty condition 120", "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
+				}
+				w.totalCondition = 0
+
+				stakes, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
 				if err != nil {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
-				w.cerytify.stakers = stakers
+				//log.Info("emptyLoop", "validators.len", len(stakes.Validators), "stake", w.cerytify.addr)
+				if stakes.GetValidatorAddr(w.cerytify.self) == (common.Address{}) {
+					w.emptyTimer.Stop()
+					continue
+				}
+				w.cerytify.stakers = stakes
+
+				w.emptyCh <- struct{}{}
+				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
+				//w.cerytify.lock.Lock()
+				//w.cerytify.lock.Unlock()
 
 				if !w.emptyHandleFlag {
 					w.emptyHandleFlag = true
 					go w.cerytify.handleEvents()
 				}
-				//if w.cacheHeight.Cmp(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))) != 0 {
-				//	w.cerytify.validators = make([]common.Address, 0)
-				//	w.cerytify.proofStatePool.ClearPrev(w.current.header.Number)
-				//	w.cerytify.receiveValidatorsSum = big.NewInt(0)
-				//}
 
-				//modification on 20221102 start
-				//w.stop()
 				EmptyEvent := StartEmptyBlockEvent{
 					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
 				}
@@ -510,41 +539,46 @@ func (w *worker) emptyLoop() {
 					//log.Error("emptyTimer.C : post empty event", "err", err)
 					continue
 				}
-				time.Sleep(10 * time.Second)
-				//if w.isRunning() {
-				//	w.isEmpty = false
-				//	w.emptyTimestamp = time.Now().Unix()
-				//	w.emptyTimer.Reset(120 * time.Second)
-				//	log.Info("generate empty block interupt by downloader", "w.isRunning()", w.isRunning())
-				//	//w.resetEmptyCh <- struct{}{}
-				//	continue
-				//}
-				//modification on 20221102 end
 
 				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
 
 				totalWeightBalance, err := w.targetSizeWithWeight()
+
 				if err != nil {
-					//log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
+					log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
 				w.targetWeightBalance = totalWeightBalance
 
+				w.isEmpty = true
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
+
+				//log.Info("emptyLoop start empty")
 			}
+
 		case <-gossipTimer.C:
 			{
-				gossipTimer.Reset(10 * time.Second)
+				//log.Info("emptyLoop gossipTimer", "w.isEmpty", w.isEmpty)
+				gossipTimer.Reset(time.Second * 5)
 				if !w.isEmpty {
 					continue
 				}
-				w.cerytify.SendSignToOtherPeer(w.coinbase, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+				if w.cerytify.stakers == nil {
+					log.Info("emptyLoop", "nil", w.cerytify.stakers == nil)
+					continue
+				}
+				w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				if w.cerytify.proofStatePool == nil ||
+				if !w.isEmpty {
+					continue
+				}
+				//log.Info("emptyLoop.signatureResultCh start")
+				if w.cerytify == nil ||
+					w.cerytify.proofStatePool == nil ||
 					w.cerytify.proofStatePool.proofs == nil ||
 					rs == nil ||
 					w.cacheHeight == nil ||
@@ -561,15 +595,12 @@ func (w *worker) emptyLoop() {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now())
-						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].onlineValidator.GetAllAddress()
-						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators); err != nil {
-							//log.Error("emptyLoop.commitEmptyWork error", "err", err)
+						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].GetAllAddress(w.cerytify.stakers)
+						emptyBlockMessages := w.cerytify.proofStatePool.proofs[rs.Uint64()].GetAllEmptyMessage()
+						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators, emptyBlockMessages); err != nil {
+							log.Error("emptyLoop.commitEmptyWork error", "err", err)
 						} else {
-							w.isEmpty = false
-							w.emptyTimestamp = time.Now().Unix()
-							//w.emptyTimer.Reset(120 * time.Second)
-							totalCondition = 0
-							w.emptyTimer.Reset(1 * time.Second)
+							w.resetEmptyCondition()
 							//w.resetEmptyCh <- struct{}{}
 						}
 						//sgiccommon.Sigc <- syscall.SIGTERM
@@ -1041,8 +1072,8 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 
 	// Swap out the old work with the new one, terminating any leftover prefetcher
 	// processes in the mean time and starting a new one.
-	if w.current != nil && w.current.state != nil {
-		w.current.state.StopPrefetcher()
+	if w.emptycurrent != nil && w.emptycurrent.state != nil {
+		w.emptycurrent.state.StopPrefetcher()
 	}
 	w.emptycurrent = env
 	return nil
@@ -1206,6 +1237,52 @@ func (w *worker) updateSnapshot() {
 	w.snapshotState = w.current.state.Copy()
 }
 
+func (w *worker) updateEmptySnapshot() {
+	w.snapshotMu.Lock()
+	defer w.snapshotMu.Unlock()
+
+	var uncles []*types.Header
+	//w.current.uncles.Each(func(item interface{}) bool {
+	//	hash, ok := item.(common.Hash)
+	//	if !ok {
+	//		return false
+	//	}
+	//	uncle, exist := w.localUncles[hash]
+	//	if !exist {
+	//		uncle, exist = w.remoteUncles[hash]
+	//	}
+	//	if !exist {
+	//		return false
+	//	}
+	//	uncles = append(uncles, uncle.Header())
+	//	return false
+	//})
+
+	w.snapshotBlock = types.NewBlock(
+		w.emptycurrent.header,
+		w.emptycurrent.txs,
+		uncles,
+		w.emptycurrent.receipts,
+		trie.NewStackTrie(nil),
+	)
+	w.snapshotReceipts = copyReceipts(w.emptycurrent.receipts)
+	w.snapshotState = w.emptycurrent.state.Copy()
+}
+
+func (w *worker) commitTransactionForEmpty(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
+	snap := w.emptycurrent.state.Snapshot()
+
+	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.emptycurrent.gasPool, w.emptycurrent.state, w.emptycurrent.header, tx, &w.emptycurrent.header.GasUsed, *w.chain.GetVMConfig())
+	if err != nil {
+		w.emptycurrent.state.RevertToSnapshot(snap)
+		return nil, err
+	}
+	w.emptycurrent.txs = append(w.emptycurrent.txs, tx)
+	w.emptycurrent.receipts = append(w.emptycurrent.receipts, receipt)
+
+	return receipt.Logs, nil
+}
+
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
 
@@ -1218,6 +1295,126 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	w.current.receipts = append(w.current.receipts, receipt)
 
 	return receipt.Logs, nil
+}
+
+func (w *worker) commitTransactionsForEmpty(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
+	// Short circuit if current is nil
+	if w.emptycurrent == nil {
+		return true
+	}
+
+	gasLimit := w.emptycurrent.header.GasLimit
+	if w.emptycurrent.gasPool == nil {
+		w.emptycurrent.gasPool = new(core.GasPool).AddGas(gasLimit)
+	}
+
+	var coalescedLogs []*types.Log
+
+	for {
+		// In the following three cases, we will interrupt the execution of the transaction.
+		// (1) new head block event arrival, the interrupt signal is 1
+		// (2) worker start or restart, the interrupt signal is 1
+		// (3) worker recreate the mining block with any newly arrived transactions, the interrupt signal is 2.
+		// For the first two cases, the semi-finished work will be discarded.
+		// For the third case, the semi-finished work will be submitted to the consensus engine.
+		if interrupt != nil && atomic.LoadInt32(interrupt) != commitInterruptNone {
+			// Notify resubmit loop to increase resubmitting interval due to too frequent commits.
+			if atomic.LoadInt32(interrupt) == commitInterruptResubmit {
+				ratio := float64(gasLimit-w.emptycurrent.gasPool.Gas()) / float64(gasLimit)
+				if ratio < 0.1 {
+					ratio = 0.1
+				}
+				w.resubmitAdjustCh <- &intervalAdjust{
+					ratio: ratio,
+					inc:   true,
+				}
+			}
+			return atomic.LoadInt32(interrupt) == commitInterruptNewHead
+		}
+		// If we don't have enough gas for any further transactions then we're done
+		if w.emptycurrent.gasPool.Gas() < params.TxGas {
+			log.Trace("Not enough gas for further transactions", "have", w.current.gasPool, "want", params.TxGas)
+			break
+		}
+		// Retrieve the next transaction and abort if all done
+		tx := txs.Peek()
+		if tx == nil {
+			break
+		}
+		// Error may be ignored here. The error has already been checked
+		// during transaction acceptance is the transaction pool.
+		//
+		// We use the eip155 signer regardless of the current hf.
+		from, _ := types.Sender(w.emptycurrent.signer, tx)
+		// Check whether the tx is replay protected. If we're not in the EIP155 hf
+		// phase, start ignoring the sender until we do.
+		if tx.Protected() && !w.chainConfig.IsEIP155(w.emptycurrent.header.Number) {
+			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash(), "eip155", w.chainConfig.EIP155Block)
+
+			txs.Pop()
+			continue
+		}
+		// Start executing the transaction
+		w.emptycurrent.state.Prepare(tx.Hash(), w.emptycurrent.tcount)
+
+		log.Info("worker|commitTransaction", "no", w.emptycurrent.header.Number.String(), "hash", tx.Hash().Hex())
+		logs, err := w.commitTransactionForEmpty(tx, coinbase)
+		switch {
+		case errors.Is(err, core.ErrGasLimitReached):
+			// Pop the current out-of-gas transaction without shifting in the next from the account
+			log.Trace("Gas limit exceeded for current block", "sender", from)
+			txs.Pop()
+
+		case errors.Is(err, core.ErrNonceTooLow):
+			// New head notification data race between the transaction pool and miner, shift
+			log.Trace("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
+			txs.Shift()
+
+		case errors.Is(err, core.ErrNonceTooHigh):
+			// Reorg notification data race between the transaction pool and miner, skip account =
+			log.Trace("Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
+			txs.Pop()
+
+		case errors.Is(err, nil):
+			// Everything ok, collect the logs and shift in the next transaction from the same account
+			coalescedLogs = append(coalescedLogs, logs...)
+			w.emptycurrent.tcount++
+			txs.Shift()
+
+		case errors.Is(err, core.ErrTxTypeNotSupported):
+			// Pop the unsupported transaction without shifting in the next from the account
+			log.Trace("Skipping unsupported transaction type", "sender", from, "type", tx.Type())
+			txs.Pop()
+
+		default:
+			// Strange error, discard the transaction and get the next in line (note, the
+			// nonce-too-high clause will prevent us from executing in vain).
+			log.Debug("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
+			txs.Shift()
+		}
+	}
+
+	if !w.isRunning() && !w.isEmpty && len(coalescedLogs) > 0 {
+		// We don't push the pendingLogsEvent while we are mining. The reason is that
+		// when we are mining, the worker will regenerate a mining block every 3 seconds.
+		// In order to avoid pushing the repeated pendingLog, we disable the pending log pushing.
+
+		// make a copy, the state caches the logs and these logs get "upgraded" from pending to mined
+		// logs by filling in the block hash when the block was mined by the local miner. This can
+		// cause a race condition if a log was "upgraded" before the PendingLogsEvent is processed.
+		cpy := make([]*types.Log, len(coalescedLogs))
+		for i, l := range coalescedLogs {
+			cpy[i] = new(types.Log)
+			*cpy[i] = *l
+		}
+		w.pendingLogsFeed.Send(cpy)
+	}
+	// Notify resubmit loop to decrease resubmitting interval if current interval is larger
+	// than the user-specified one.
+	if interrupt != nil {
+		w.resubmitAdjustCh <- &intervalAdjust{inc: false}
+	}
+	return false
 }
 
 func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
@@ -1341,7 +1538,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 }
 
 // commitEmptyWork generates several new sealing tasks based on the parent block.
-func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64, validators []common.Address) error {
+func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64, validators []common.Address, emptyBlockMessages [][]byte) error {
 	log.Info("caver|commitEmptyWork|enter", "currentNo", w.chain.CurrentHeader().Number.Uint64())
 
 	if !w.isEmpty {
@@ -1361,8 +1558,17 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		BaseFee:    parent.BaseFee(),
 		Coinbase:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
 	}
+	// Set baseFee and GasLimit if we are on an EIP-1559 chain
+	if w.chainConfig.IsLondon(header.Number) {
+		header.BaseFee = misc.CalcBaseFee(w.chainConfig, parent.Header())
+		if !w.chainConfig.IsLondon(parent.Number()) {
+			parentGasLimit := parent.GasLimit() * params.ElasticityMultiplier
+			header.GasLimit = core.CalcGasLimit(parentGasLimit, w.config.GasCeil)
+		}
+	}
+
 	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
-	if err := w.engine.PrepareForEmptyBlock(w.chain, header); err != nil {
+	if err := w.engine.PrepareForEmptyBlock(w.chain, header, validators, emptyBlockMessages); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
 		return err
 	}
@@ -1371,28 +1577,88 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 		log.Error("Failed to create mining context", "err", err)
 		return err
 	}
+	//receipts := copyReceipts(w.emptycurrent.receipts)
+
+	// Fill the block with all available pending transactions.
+	pending, err := w.eth.TxPool().Pending(false)
+	if err != nil {
+		log.Error("Failed to fetch pending transactions", "err", err)
+		return err
+	}
+
 	// Split the pending transactions into locals and remotes
+	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+	for _, account := range w.eth.TxPool().Locals() {
+		if txs := remoteTxs[account]; len(txs) > 0 {
+			delete(remoteTxs, account)
+			localTxs[account] = txs
+		}
+	}
+
+	if len(localTxs) > 0 {
+		log.Info("azh|commitNewWork|localTxs", "no", header.Number, "len", len(localTxs))
+		txs := types.NewTransactionsByPriceAndNonce(w.emptycurrent.signer, localTxs, header.BaseFee)
+		if w.commitTransactionsForEmpty(txs, common.Address{}, interrupt) {
+			return xerrors.New("commit transactions err")
+		}
+	}
+	if len(remoteTxs) > 0 {
+		log.Info("azh|commitNewWork|remoteTxs", "no", header.Number, "len", len(remoteTxs))
+		txs := types.NewTransactionsByPriceAndNonce(w.emptycurrent.signer, remoteTxs, header.BaseFee)
+		if w.commitTransactionsForEmpty(txs, common.Address{}, interrupt) {
+			return xerrors.New("commit transactions err")
+		}
+	}
+
+	// Deep copy receipts here
+	//to avoid interaction between different tasks.
 	receipts := copyReceipts(w.emptycurrent.receipts)
-	block, err := w.engine.FinalizeAndAssemble(w.chain, w.emptycurrent.header, w.emptycurrent.state, w.emptycurrent.txs, nil, receipts)
+	s := w.emptycurrent.state.Copy()
+
+	block, err := w.engine.FinalizeAndAssemble(w.chain, w.emptycurrent.header, s, w.emptycurrent.txs, nil, receipts)
+	//block, err := w.engine.FinalizeAndAssemble(w.chain, w.emptycurrent.header, s, w.emptycurrent.txs, nil, receipts
 	if err != nil {
 		log.Info("caver|commit|w.engine.FinalizeAndAssemble", "no", w.emptycurrent.header.Number.Uint64(), "err", err.Error())
 		return err
 	}
-	w.updateSnapshot()
+	w.updateEmptySnapshot()
 	//w.start()
 	emptyblock, err := w.engine.SealforEmptyBlock(w.chain, block, validators)
-
 	if err != nil {
 		log.Warn("Empty Block sealing failed", "err", err, "no", block.NumberU64(), "hash", block.Hash())
 		return err
 	}
-	_, err = w.chain.WriteBlockWithState(emptyblock, receipts, nil, w.emptycurrent.state, true)
-	if err != nil {
-		log.Error("commitEmpty Failed writing block to chain", "err", err)
-		return err
+	hash := emptyblock.Hash()
+	var (
+		receiptss = make([]*types.Receipt, len(receipts))
+		logs      []*types.Log
+	)
+	for i, receipt := range receipts {
+		// add block location fields
+		receipt.BlockHash = hash
+		receipt.BlockNumber = block.Number()
+		receipt.TransactionIndex = uint(i)
+
+		receiptss[i] = new(types.Receipt)
+		*receiptss[i] = *receipt
+		// Update the block hash in all logs since it is now available and not when the
+		// receipt/log of individual transactions were created.
+		for _, log := range receipt.Logs {
+			log.BlockHash = hash
+		}
+		logs = append(logs, receipt.Logs...)
 	}
-	w.mux.Post(core.NewMinedBlockEvent{Block: block})
-	log.Info("empty block wirte to localdb", "Number:", w.current.header.Number.Uint64())
+
+	//_, err = w.chain.WriteBlockWithState(emptyblock, receiptss, logs, s, true)
+	//if err != nil {
+	//	log.Error("commitEmpty Failed writing block to chain", "err", err)
+	//	return err
+	//}
+	//log.Info("empty block wirte to localdb", "Number:", w.emptycurrent.header.Number.Uint64())
+
+	blocks := []*types.Block{emptyblock}
+	w.eth.BlockChain().InsertChain(blocks)
+	w.mux.Post(core.NewMinedBlockEvent{Block: emptyblock})
 	return nil
 }
 
@@ -1501,7 +1767,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		w.commit(uncles, nil, false, tstart)
 	}
 	// Fill the block with all available pending transactions.
-	pending, err := w.eth.TxPool().Pending(true)
+	pending, err := w.eth.TxPool().Pending(false)
 	if err != nil {
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return

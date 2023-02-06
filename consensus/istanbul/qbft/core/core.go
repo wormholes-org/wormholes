@@ -289,3 +289,6 @@ func (c *core) RoundInfo() []string {
 func (c *core) ConsensusInfo() chan map[string]interface{} {
 	return nil
 }
+func (c *core) OnlineValidators(height uint64) []common.Address {
+	return nil
+}

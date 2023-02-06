@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
@@ -12,20 +13,20 @@ import (
 
 func TestDecodeMsg(t *testing.T) {
 	// assemble onlinezkQuestion
-	q := &OnlineZkQuestion{Height: big.NewInt(100)}
+	q := &types.OnlineZkQuestion{Height: big.NewInt(100)}
 	enq, _ := Encode(q)
-	msg := &Msg{
+	msg := &types.EmptyMsg{
 		//Code: MsgOnlineQuestion,
 		Msg: enq,
 	}
 	enqMsg, _ := Encode(msg)
-	var msg2 Msg
+	var msg2 types.EmptyMsg
 	err := rlp.DecodeBytes(enqMsg, &msg2)
 	if err != nil {
 		fmt.Println("err1", err)
 	}
 
-	var q2 OnlineZkQuestion
+	var q2 types.OnlineZkQuestion
 
 	err = rlp.DecodeBytes(msg2.Msg, &q2)
 	if err != nil {
@@ -47,17 +48,17 @@ func TestRlpDecode(t *testing.T) {
 	if err != nil {
 		t.Log("err", err)
 	}
-	msg := &Msg{
+	msg := &types.EmptyMsg{
 		Code: SendSignMsg,
 		Msg:  encQues,
 	}
 
 	payload, err := msg.Payload()
-	msg2 := new(Msg)
+	msg2 := new(types.EmptyMsg)
 	if err := msg2.FromPayload(payload); err != nil {
 		t.Log("msg.FromPayload  error", err)
 	}
-	var signature *SignatureData
+	var signature *types.SignatureData
 	err = msg2.Decode(&signature)
 	if err != nil {
 		t.Log("err 2", err)
@@ -70,7 +71,7 @@ func TestRlpDecode2(t *testing.T) {
 		Address common.Address
 		Height  *big.Int
 	}
-	ques := &SignatureData{
+	ques := &types.SignatureData{
 		Address: common.HexToAddress("0x2000000000000000000000000000000000000002"),
 		Height:  big.NewInt(2),
 		//Timestamp: uint64(time.Now().Unix()),
@@ -79,13 +80,13 @@ func TestRlpDecode2(t *testing.T) {
 	if err != nil {
 		t.Log("err", err)
 	}
-	msg := &Msg{
+	msg := &types.EmptyMsg{
 		Code: SendSignMsg,
 		Msg:  encQues,
 	}
 
 	payload, err := msg.Payload()
-	msg2 := new(Msg)
+	msg2 := new(types.EmptyMsg)
 	if err := msg2.FromPayload(payload); err != nil {
 		t.Log("msg.FromPayload  error", err)
 	}
@@ -98,7 +99,7 @@ func TestRlpDecode2(t *testing.T) {
 }
 
 func TestMsgSignature(t *testing.T) {
-	ques := &SignatureData{
+	ques := &types.SignatureData{
 		Address: common.HexToAddress("0x2000000000000000000000000000000000000002"),
 		Height:  big.NewInt(2),
 		//Timestamp: uint64(time.Now().Unix()),
@@ -107,7 +108,7 @@ func TestMsgSignature(t *testing.T) {
 	if err != nil {
 		t.Log("err", err)
 	}
-	msg := &Msg{
+	msg := &types.EmptyMsg{
 		Code: SendSignMsg,
 		Msg:  encQues,
 	}
@@ -123,6 +124,16 @@ func TestMsgSignature(t *testing.T) {
 		msg.Signature, _ = crypto.Sign(hashData, prv)
 		t.Log(hex.EncodeToString(msg.Signature))
 		bytes, _ := msg.Payload()
+
+		//recover address
+		msg := &types.EmptyMsg{}
+		address, err := msg.RecoverAddress(bytes)
+		if err != nil {
+			t.Error(err)
+		} else {
+			t.Log("address= ", address)
+		}
+
 		toString := hex.EncodeToString(bytes)
 		t.Log(toString)
 	}

@@ -86,7 +86,7 @@ type Engine interface {
 
 	// PrepareForEmptyBlock initializes the consensus fields of a block header according to the
 	// rules of a particular engine. The changes are executed inline.
-	PrepareForEmptyBlock(chain ChainHeaderReader, header *types.Header) error
+	PrepareForEmptyBlock(chain ChainHeaderReader, header *types.Header, validators []common.Address, emptyBlockMessage [][]byte) error
 
 	// Finalize runs any post-transaction state modifications (e.g. block rewards)
 	// but does not assemble the block.
@@ -133,6 +133,8 @@ type Engine interface {
 	SealforEmptyBlock(chain ChainHeaderReader, block *types.Block, validators []common.Address) (*types.Block, error)
 
 	ConsensusInfo() map[string]interface{}
+
+	OnlineValidators(height uint64) []common.Address
 }
 
 // Handler should be implemented is the consensus needs to handle and send peer's message

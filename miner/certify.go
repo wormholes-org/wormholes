@@ -1,29 +1,28 @@
 package miner
 
 import (
-	"math/big"
-	"sync"
-
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
+	"golang.org/x/xerrors"
+	"math/big"
+	"sync"
 )
 
 const (
-	remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
-	storeMsgs   = 2500 // Number of messages stored by yourself
+	//remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
+	storeMsgs = 2500 // Number of messages stored by yourself
 )
 
 type Certify struct {
-	mu                sync.Mutex
-	self              common.Address
-	eth               Backend
-	otherMessages     *lru.ARCCache // the cache of peer's messages
+	mu   sync.Mutex
+	self common.Address
+	eth  Backend
+	//otherMessages     *lru.ARCCache // the cache of peer's messages
 	selfMessages      *lru.ARCCache // the cache of self messages
 	eventMux          *event.TypeMux
 	events            *event.TypeMuxSubscription
@@ -31,8 +30,12 @@ type Certify struct {
 	signatureResultCh chan *big.Int
 	miner             Handler // Apply some of the capabilities of the parent class
 	lock              sync.Mutex
+	//messageList       sync.Map
+	//messageLock       sync.Mutex
 	//receiveValidatorsSum *big.Int
 	//validators           []common.Address
+	round            uint64
+	voteIndex        int
 	validatorsHeight []string
 	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
 	//msgHeight        *big.Int
@@ -41,25 +44,27 @@ type Certify struct {
 func (c *Certify) Start() {
 	c.subscribeEvents()
 }
+
 func (c *Certify) subscribeEvents() {
 	c.events = c.eventMux.Subscribe(
-		MessageEvent{},
+		types.EmptyMessageEvent{},
 	)
 }
 
 func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
-	otherMsgs, _ := lru.NewARC(remotePeers)
+	//otherMsgs, _ := lru.NewARC(remotePeers)
 	selfMsgs, _ := lru.NewARC(storeMsgs)
 	certify := &Certify{
-		self:              self,
-		eth:               eth,
-		eventMux:          new(event.TypeMux),
-		otherMessages:     otherMsgs,
+		self:     self,
+		eth:      eth,
+		eventMux: new(event.TypeMux),
+		//otherMessages:     otherMsgs,
 		selfMessages:      selfMsgs,
 		miner:             handler,
 		signatureResultCh: make(chan *big.Int),
 		//receiveValidatorsSum: big.NewInt(0),
 		//validators:           make([]common.Address, 0),
+		voteIndex:        0,
 		validatorsHeight: make([]string, 0),
 		proofStatePool:   NewProofStatePool(),
 		//msgHeight:        new(big.Int),
@@ -69,67 +74,20 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 
 func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
 	// Broadcast payload
-	if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Certify) broadcast(from common.Address, msg *Msg) error {
-	payload, err := c.signMessage(from, msg)
-	if err != nil {
-		log.Error("signMessage err", err)
-		return err
-	}
-	// Broadcast payload
-	if err = c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-		return err
-	}
-	// send to self
-	go c.eventMux.Post(msg)
-	return nil
-}
-
-// Gossip Broadcast message to all stakers
-func (c *Certify) Gossip(valSet *types.ValidatorList, code uint64, payload []byte) error {
-	hash := istanbul.RLPHash(payload)
-	c.selfMessages.Add(hash, true)
-
-	targets := make(map[common.Address]bool)
-	for _, val := range valSet.Validators {
-		if val.Address() != c.Address() {
-			targets[val.Address()] = true
-		}
-	}
-	var ps map[common.Address]Peer
+	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+	//	return err
+	//}
 	if miner, ok := c.miner.(*Miner); ok {
-		ps = miner.broadcaster.FindPeerSet(targets)
+		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
 	}
-	log.Info("certify gossip worker msg", "len", len(ps), "code", code)
-	for addr, p := range ps {
-		ms, ok := c.otherMessages.Get(addr)
-		var m *lru.ARCCache
-		if ok {
-			m, _ = ms.(*lru.ARCCache)
-			if _, k := m.Get(hash); k {
-				// This peer had this event, skip it
-				continue
-			}
-		} else {
-			m, _ = lru.NewARC(remotePeers)
-		}
 
-		m.Add(hash, true)
-		c.otherMessages.Add(addr, m)
-		go p.SendWorkerMsg(WorkerMsg, payload)
-	}
 	return nil
 }
 
-func (c *Certify) signMessage(coinbase common.Address, msg *Msg) ([]byte, error) {
+func (c *Certify) signMessage(msg *types.EmptyMsg) ([]byte, error) {
 	var err error
 	// Add sender address
-	msg.Address = coinbase
+	msg.Address = c.self
 
 	// Sign message
 	data, err := msg.PayloadNoSig()
@@ -155,42 +113,138 @@ func (c *Certify) sign(data []byte) ([]byte, error) {
 	return crypto.Sign(hashData, c.eth.GetNodeKey())
 }
 
-func (c *Certify) Address() common.Address {
-	return c.self
+func (c *Certify) assembleMessage(height *big.Int, vote common.Address) (error, []byte) {
+	ques := &types.SignatureData{
+		Vote:   vote,
+		Height: height,
+		Round:  c.round,
+	}
+	encQues, err := Encode(ques)
+	if err != nil {
+		//log.Error("Failed to encode", "subject", err)
+		return err, nil
+	}
+
+	msg := &types.EmptyMsg{
+		Code: SendSignMsg,
+		Msg:  encQues,
+	}
+
+	payload, err := c.signMessage(msg)
+	if err != nil {
+		//log.Error("signMessage err", err)
+		return err, nil
+	}
+	return nil, payload
 }
+
+//func (c *Certify) Address() common.Address {
+//	return c.self
+//}
 
 // HandleMsg handles a message from peer
 func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	if msg.Code == WorkerMsg {
 		data, hash, err := c.decode(msg)
-		log.Info("certify handleMsg", "code", msg.Code, "payload", data)
+		//log.Info("certify handleMsg", "code", msg.Code, "payload", data)
 		if err != nil {
 			return true, err
 		}
-		// Mark peer's message
-		ms, ok := c.otherMessages.Get(addr)
-		var m *lru.ARCCache
-		if ok {
-			m, _ = ms.(*lru.ARCCache)
-		} else {
-			m, _ = lru.NewARC(remotePeers)
-			c.otherMessages.Add(addr, m)
-		}
-		m.Add(hash, true)
 
-		// Mark self known message
-		if _, ok := c.selfMessages.Get(hash); ok {
+		msg := new(types.EmptyMsg)
+		if err := msg.FromPayload(data); err != nil {
+			log.Error("Certify Failed to decode message from payload", "err", err)
+			return true, err
+		}
+
+		var signature *types.SignatureData
+		err = msg.Decode(&signature)
+		if err != nil {
+			log.Error("Certify.handleEvents", "msg.Decode error", err)
+			return true, err
+		}
+
+		currentHeight := c.miner.GetWorker().chain.CurrentHeader().Number
+		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) < 0 || currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) > 0 {
+			//return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
 			return true, nil
 		}
-		c.selfMessages.Add(hash, true)
 
-		go c.eventMux.Post(MessageEvent{
-			Code:    msg.Code,
-			Payload: data,
-		})
+		sender, err := msg.RecoverAddress(data)
+		if err != nil {
+			log.Error("Certify.handleEvents", "RecoverAddress error", err)
+			return true, err
+		}
+
+		if c.stakers == nil {
+			return true, nil
+		}
+
+		if c.stakers.GetValidatorAddr(sender) == (common.Address{}) {
+			return true, xerrors.New("Certify.handleEvents the vote is not a miner")
+		}
+
+		c.rebroadcast(addr, data)
+
+		if c.self == signature.Vote && c.miner.GetWorker().isEmpty {
+			ms, ok := c.selfMessages.Get(sender)
+			var m *lru.ARCCache
+			if ok {
+				m, _ = ms.(*lru.ARCCache)
+				if _, ok := m.Get(hash); ok {
+					return true, nil
+				}
+			} else {
+				m, _ = lru.NewARC(storeMsgs)
+				c.selfMessages.Add(sender, m)
+			}
+			m.Add(hash, true)
+
+			emptyMsg := types.EmptyMessageEvent{
+				Sender:  sender,
+				Height:  signature.Height,
+				Payload: data,
+			}
+			go c.eventMux.Post(emptyMsg)
+			return true, nil
+		}
 	}
 	return false, nil
 }
+
+//func (c *Certify) PostCacheMessage() {
+//	if c.selfMessages.Len() <= 0 {
+//		return
+//	}
+//
+//	for _, addr := range c.selfMessages.Keys() {
+//		ms, ok := c.selfMessages.Get(addr)
+//		if !ok {
+//			continue
+//		}
+//		var m *lru.ARCCache
+//		m, _ = ms.(*lru.ARCCache)
+//
+//		if m.Len() < 0 {
+//			continue
+//		}
+//
+//		for _, hash := range m.Keys() {
+//			msg, oks := m.Get(hash)
+//			if !oks {
+//				continue
+//			}
+//
+//			emptyMsg, oke := msg.(types.EmptyMessageEvent)
+//			if !oke {
+//				continue
+//			}
+//			m.Remove(hash)
+//			m.Add(hash, true)
+//			go c.eventMux.Post(emptyMsg)
+//		}
+//	}
+//}
 
 func (c *Certify) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 	var data []byte
@@ -210,38 +264,48 @@ func (c *Certify) handleEvents() {
 			}
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
-			case MessageEvent:
+			case types.EmptyMessageEvent:
 				//log.Info("Certify handle events")
-				msg := new(Msg)
-				if err := msg.FromPayload(ev.Payload); err != nil {
-					log.Error("Certify Failed to decode message from payload", "err", err)
-					break
-				}
-				var signature *SignatureData
-				err := msg.Decode(&signature)
-				if err != nil {
-					log.Error("Certify.handleEvents", "msg.Decode error", err)
-					break
-				}
+				//msg := new(types.EmptyMsg)
+				//if err := msg.FromPayload(ev.Payload); err != nil {
+				//	log.Error("Certify Failed to decode message from payload", "err", err)
+				//	break
+				//}
+				//sender, err := msg.RecoverAddress(ev.Payload)
+				//if err != nil {
+				//	log.Error("Certify.handleEvents", "RecoverAddress error", err)
+				//	break
+				//}
+				//
+				//var signature *types.SignatureData
+				//err = msg.Decode(&signature)
+				//if err != nil {
+				//	log.Error("Certify.handleEvents", "msg.Decode error", err)
+				//	break
+				//}
+				//
+				//_, err = Encode(signature)
+				//if err != nil {
+				//	log.Error("Failed to encode", "subject", err)
+				//	break
+				//}
+				//
+				////c.msgHeight = signature.Height
+				////log.Info("Certify.handleEvents", "msg.Code", msg.Code, "SendSignMsg", SendSignMsg, "Height", signature.Height)
+				//
+				//log.Info("azh|handleEvents", "self", c.self, "sender", sender, "vote", signature.Vote, "height", signature.Height)
+				//if msg.Code == SendSignMsg {
+				//	//log.Info("Certify.handleEvents", "SendSignMsg", SendSignMsg, "msg.Address", msg.Address.Hex(),
+				//	//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
+				//	//	"c.stakers number", len(c.stakers.Validators))
+				//	//If the GatherOtherPeerSignature is ok, gossip message directly
+				//	if err := c.GatherOtherPeerSignature(sender, signature.Vote, signature.Height, ev.Payload); err == nil {
+				//		c.rebroadcast(c.self, ev.Payload)
+				//	}
+				//}
 
-				encQues, err := Encode(signature)
-				if err != nil {
-					log.Error("Failed to encode", "subject", err)
-					break
-				}
-
-				//c.msgHeight = signature.Height
-				//log.Info("Certify.handleEvents", "msg.Code", msg.Code, "SendSignMsg", SendSignMsg, "Height", signature.Height)
-
-				if msg.Code == SendSignMsg {
-					//log.Info("Certify.handleEvents", "SendSignMsg", SendSignMsg, "msg.Address", msg.Address.Hex(),
-					//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
-					//	"c.stakers number", len(c.stakers.Validators))
-					//If the GatherOtherPeerSignature is ok, gossip message directly
-					if err := c.GatherOtherPeerSignature(msg.Address, signature.Height, encQues); err == nil {
-						c.rebroadcast(c.Address(), ev.Payload)
-					}
-				}
+				log.Info("handleEvents", "sender", ev.Sender, "height", ev.Height)
+				c.GatherOtherPeerSignature(ev.Sender, ev.Height, ev.Payload)
 			}
 		}
 	}

@@ -447,7 +447,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals)
+	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals, nil)
 	if err != nil {
 		return err
 	}
@@ -493,7 +493,7 @@ func getPreHash(chain consensus.ChainHeaderReader, header *types.Header) (*types
 	return preHeader, nil
 }
 
-func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
+func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet, emptyBlockMessages [][]byte) error {
 
 	if header.Coinbase != common.HexToAddress("0x0000000000000000000000000000000000000000") {
 		return errors.New("not a empty block")
@@ -508,43 +508,22 @@ func (e *Engine) PrepareEmpty(chain consensus.ChainHeaderReader, header *types.H
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-	// use the same difficulty for all blocks
-
-	// modification on 20221102 start
-	//header.Difficulty = istanbulcommon.DefaultDifficulty
 	header.Difficulty = big.NewInt(24)
-	// modification on 20221102 end
 
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), nil, nil, nil)
+	extra, err := prepareExtra(header, validator.GetAllVotes(validators.List()), nil, nil, nil, emptyBlockMessages)
 	if err != nil {
 		return err
 	}
 	header.Extra = extra
 
 	// set header's timestamp
-
-	if header.Number.Cmp(common.Big0) > 0 {
-		header.Time = parent.Time + 100
-		if header.Time < uint64(time.Now().Unix()) {
-			header.Time = uint64(time.Now().Unix())
-		}
-	} else {
-		header.Time = parent.Time + e.cfg.BlockPeriod
-		if header.Time < uint64(time.Now().Unix()) {
-			header.Time = uint64(time.Now().Unix())
-		}
-	}
-
-	// prevent future time
-	// if header.Time > uint64(time.Now().Unix()) {
-	// 	header.Time = uint64(time.Now().Unix())
-	// }
+	header.Time = uint64(time.Now().Unix())
 
 	return nil
 }
 
-func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address, rewardSeals [][]byte) ([]byte, error) {
+func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []common.Address, rewardSeals [][]byte, emptyBlockMessages [][]byte) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
@@ -554,12 +533,13 @@ func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []com
 	buf.Write(header.Extra[:types.IstanbulExtraVanity])
 
 	ist := &types.IstanbulExtra{
-		Validators:    vals,
-		Seal:          []byte{},
-		CommittedSeal: [][]byte{},
-		ExchangerAddr: exchangerAddr,
-		ValidatorAddr: validatorAddr,
-		RewardSeal:    rewardSeals,
+		Validators:         vals,
+		Seal:               []byte{},
+		CommittedSeal:      [][]byte{},
+		ExchangerAddr:      exchangerAddr,
+		ValidatorAddr:      validatorAddr,
+		RewardSeal:         rewardSeals,
+		EmptyBlockMessages: emptyBlockMessages,
 	}
 
 	payload, err := rlp.EncodeToBytes(&ist)
@@ -597,7 +577,40 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
-				state.SubValidatorCoefficient(v.Address(), 10)
+				state.SubValidatorCoefficient(v.Address(), 20)
+			}
+
+			voteAddrs := make([]common.Address, 0)
+			emptyMsg := new(types.EmptyMsg)
+			for _, emptyMessage := range istanbulExtra.EmptyBlockMessages {
+				if err := emptyMsg.FromPayload(emptyMessage); err != nil {
+					log.Error("Certify Failed to decode message from payload", "err", err)
+					continue
+				}
+				//var signature *types.SignatureData
+				//err = emptyMsg.Decode(&signature)
+				//if err !=nil {
+				//	log.Info("recoverMsg", "err", err)
+				//	continue
+				//}
+				sender, err := emptyMsg.RecoverAddress(emptyMessage)
+				//log.Info("recoverAddress", "msg", signature.Vote, "height", signature.Height, "sender", sender)
+				if err != nil {
+					log.Info("recover emptyMessage", "err", err)
+					continue
+				}
+
+				for _, val := range state.ValidatorPool {
+					if val.Addr == sender || val.Proxy == sender {
+						voteAddrs = append(voteAddrs, val.Addr)
+						break
+					}
+				}
+			}
+
+			for _, vote := range voteAddrs[1:] {
+				log.Info("AddValidatorCoefficient", "addr", vote)
+				state.AddValidatorCoefficient(vote, 70)
 			}
 		} else {
 			// add 2 weight
@@ -716,8 +729,14 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
-				state.SubValidatorCoefficient(v.Address(), 10)
+				state.SubValidatorCoefficient(v.Address(), 20)
 			}
+
+			for _, v := range istanbulExtra.Validators[1:] {
+				log.Info("AddValidatorCoefficient", "addr", v)
+				state.AddValidatorCoefficient(v, 70)
+			}
+
 		} else {
 			// add 2 weight
 			for _, v := range istanbulExtra.ValidatorAddr {

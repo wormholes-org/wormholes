@@ -185,23 +185,25 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 
 // PrepareForEmptyBlock initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
-func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header) error {
+func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header, validators []common.Address, emptyBlockMessages [][]byte) error {
 	var valSet istanbul.ValidatorSet
-	if c, ok := chain.(*core.BlockChain); ok {
-		log.Info("Prepare", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number.String())
-		cHeader := c.CurrentBlock().Header()
-		if cHeader == nil {
-			return errors.New("prepare err: current header is nil")
-		}
-		validatorList, err := c.ReadValidatorPool(cHeader)
-		if err != nil {
-			log.Error("PrepareForEmptyBlock : err", "err", err)
-			return err
-		}
-		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
-	}
+	//if c, ok := chain.(*core.BlockChain); ok {
+	//	log.Info("Prepare", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number.String())
+	//	cHeader := c.CurrentBlock().Header()
+	//	if cHeader == nil {
+	//		return errors.New("prepare err: current header is nil")
+	//	}
+	//	validatorList, err := c.ReadValidatorPool(cHeader)
+	//	if err != nil {
+	//		log.Error("PrepareForEmptyBlock : err", "err", err)
+	//		return err
+	//	}
+	//
+	//	valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+	//}
+	valSet = validator.NewEmptySet(validators, sb.config.ProposerPolicy)
 
-	err := sb.EngineForBlockNumber(header.Number).PrepareEmpty(chain, header, valSet)
+	err := sb.EngineForBlockNumber(header.Number).PrepareEmpty(chain, header, valSet, emptyBlockMessages)
 	if err != nil {
 		return err
 	}
@@ -277,7 +279,7 @@ func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *t
 	//	return emptyBlock, err1
 	//}
 	//valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
-	valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
+	valSet := validator.NewEmptySet(validators, sb.config.ProposerPolicy)
 
 	emptyBlock, err := sb.EngineForBlockNumber(header.Number).Seal(chain, block, valSet)
 	if err != nil {
@@ -301,8 +303,6 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	if sb.core == nil {
 		return errors.New("seal : ibft engine not active")
 	}
-
-	log.Info("seal : enter", "no", block.Number().String(), "is proposer", sb.core.IsProposer())
 
 	//Get the validatorset for this round
 	istanbulExtra, err1 := types.ExtractIstanbulExtra(header)
@@ -680,6 +680,14 @@ func (sb *Backend) ConsensusInfo() map[string]interface{} {
 		} else {
 			return nil
 		}
+	}
+	return nil
+}
+
+func (sb *Backend) OnlineValidators(height uint64) []common.Address {
+	c := sb.GetCore()
+	if c != nil {
+		return c.OnlineValidators(height)
 	}
 	return nil
 }

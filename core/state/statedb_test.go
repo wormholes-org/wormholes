@@ -1188,7 +1188,7 @@ func TestMergeNFT16(t *testing.T) {
 	//nftAddr := common.HexToAddress("2000000000000000000000000000000003000000")
 	fmt.Println("before", nftAccount1)
 	fmt.Println("before", nftAccount2)
-	state.MergeNFT16(nftAddr1)
+	state.MergeNFT16(nftAddr1, big.NewInt(0))
 	fmt.Println("after", nftAccount1)
 	fmt.Println("after", nftAccount2)
 
@@ -1256,7 +1256,7 @@ func TestMergeNFT16_2(t *testing.T) {
 		t.Log(nftAccount3.NFTOwner().Hex(), nftAccount3.GetNFTMergeLevel(),
 			nftAccount3.GetMergeNumber())
 
-		increaseValue, err := state.MergeNFT16(nftAddr1)
+		increaseValue, err := state.MergeNFT16(nftAddr1, big.NewInt(0))
 		t.Log("increase value", increaseValue, "err", err)
 		oldAmount := state.calculateExchangeAmount(0, 16)
 		newAmount := state.calculateExchangeAmount(1, 16)
@@ -1330,7 +1330,7 @@ func TestSplitNFT16(t *testing.T) {
 	nftAccount2 := state.getStateObject(nftAddr2)
 	fmt.Println("before", nftAccount1)
 	fmt.Println("before", nftAccount2)
-	state.MergeNFT16(nftAddr1)
+	state.MergeNFT16(nftAddr1, big.NewInt(0))
 	state.SplitNFT16(nftAddr1, 0)
 
 	addr := common.HexToAddress("0000000000000000000000000000000000000000")
@@ -1338,7 +1338,7 @@ func TestSplitNFT16(t *testing.T) {
 		addrBytes := addr.Bytes()
 		addrBytes[18] = byte(i)
 		addr = common.BytesToAddress(addrBytes)
-		state.MergeNFT16(addr)
+		state.MergeNFT16(addr, big.NewInt(0))
 	}
 	addr = common.HexToAddress("8000000000000000000000000000000000000001")
 	address, owner, ok := state.GetNFTStoreAddress(addr, 0)
@@ -1479,7 +1479,7 @@ func TestGetExistAddress(t *testing.T) {
 
 		if (i+1)%16 == 0 {
 			newAccount := common.HexToAddress(bigiS)
-			state.MergeNFT16(newAccount)
+			state.MergeNFT16(newAccount, big.NewInt(0))
 		}
 
 	}
@@ -1546,7 +1546,7 @@ func TestGetExistAddress2(t *testing.T) {
 
 		if (i+1)%16 == 0 {
 			newAccount := common.HexToAddress(bigiS)
-			state.MergeNFT16(newAccount)
+			state.MergeNFT16(newAccount, big.NewInt(0))
 		}
 
 	}

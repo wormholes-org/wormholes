@@ -33,6 +33,10 @@ func NewSet(addrs []common.Address, policy *istanbul.ProposerPolicy) istanbul.Va
 	return newDefaultSet(addrs, policy)
 }
 
+func NewEmptySet(addrs []common.Address, policy *istanbul.ProposerPolicy) istanbul.ValidatorSet {
+	return newEmptySet(addrs, policy)
+}
+
 func ExtractValidators(extraData []byte) []common.Address {
 	// get the validator addresses
 	addrs := make([]common.Address, (len(extraData) / common.AddressLength))
@@ -46,6 +50,14 @@ func ExtractValidators(extraData []byte) []common.Address {
 // Check whether the extraData is presented in prescribed form
 func ValidExtraData(extraData []byte) bool {
 	return len(extraData)%common.AddressLength == 0
+}
+
+func GetAllVotes(validators []istanbul.Validator) []common.Address {
+	addrs := make([]common.Address, len(validators))
+	for i, validator := range validators {
+		addrs[i] = validator.Address()
+	}
+	return addrs
 }
 
 func SortedAddresses(validators []istanbul.Validator) []common.Address {
