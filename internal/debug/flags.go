@@ -193,7 +193,7 @@ func Setup(ctx *cli.Context) error {
 	logMerge := ctx.GlobalBool(mergeLogeFlag.Name)
 	if logMerge {
 		rotatingFile := log.MergeLog(logPath, log.TerminalFormat(false))
-		glogger.SetHandler(log.MultiHandler(ostream, rotatingFile))
+		glogger.SetHandler(rotatingFile)
 	} else {
 		if logPath != "" {
 			f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)

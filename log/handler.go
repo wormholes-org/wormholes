@@ -287,20 +287,21 @@ func MergeLog(path string, fmtr Format) Handler {
 			select {
 			case record := <-rds:
 				num := record.BlockNumber
+				records := fmtr.Format(record)
 				if num == 0 && len(filess) > 0 {
 					filename := filess[0].Name()
 					f, _ = os.OpenFile(filepath.Join(logPath, filename), os.O_APPEND|os.O_RDWR, 0600)
-					_, err = f.Write(fmtr.Format(record))
+					_, err = f.Write(records)
 					f.Close()
 					if err != nil {
-						os.Stderr.Write(fmtr.Format(record))
+						os.Stderr.Write(records)
 					}
 				} else {
 					f, _ = os.OpenFile(filepath.Join(logPath, "block"+strconv.FormatUint(num, 10))+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
-					_, err = f.Write(fmtr.Format(record))
+					_, err = f.Write(records)
 					f.Close()
 					if err != nil {
-						os.Stderr.Write(fmtr.Format(record))
+						os.Stderr.Write(records)
 					}
 				}
 			}
