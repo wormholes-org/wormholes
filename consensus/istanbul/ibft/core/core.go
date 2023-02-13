@@ -77,7 +77,7 @@ func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(co
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
 		commitHeight:       0,
-		onlineValidator:    make(map[uint64][]common.Address),
+		onlineValidator:    make(map[uint64][]*types.OnlineMsg),
 		ovMu:               new(sync.Mutex),
 	}
 
@@ -120,7 +120,7 @@ type core struct {
 	consensusTimestamp time.Time
 	commitHeight       uint64
 
-	onlineValidator map[uint64][]common.Address // Online list of recorded altitudes
+	onlineValidator map[uint64][]*types.OnlineMsg // Online list of recorded altitudes
 	ovMu            *sync.Mutex
 }
 
@@ -337,7 +337,7 @@ func (c *core) startNewRound(round *big.Int) {
 					keys = append(keys, int(key))
 				}
 				sort.Sort(sort.IntSlice(keys))
-				c.delAddrs(keys[:1])
+				c.delMsgs(keys[:1])
 			}
 		}
 	}
@@ -515,37 +515,44 @@ func (c *core) ConsensusInfo() chan map[string]interface{} {
 	return consensusInfo
 }
 
-func (c *core) OnlineValidators(height uint64) []common.Address {
-	return c.onlineValidator[height]
-}
-
 func (c *core) SaveData(msg ConsensusData) {
 	miniredis.GetLogCh() <- map[string]interface{}{
 		msg.Height: msg,
 	}
 }
 
-func (c *core) PutAddr(height uint64, addr common.Address) {
+func (c *core) OnlineValidators(height uint64) []*types.OnlineMsg {
+	return c.onlineValidator[height]
+}
+
+func (c *core) PutMsg(height uint64, msg *ibfttypes.Message) {
 	c.ovMu.Lock()
 	defer c.ovMu.Unlock()
 
-	addrs := c.onlineValidator[height]
-	log.Info("onlineValidators PutAddr", "height", height, "len", len(addrs), "total", len(c.onlineValidator))
-	_, exist := Find(addrs, addr)
+	msgs := c.onlineValidator[height]
+	log.Info("onlineValidators PutMsg", "height", height, "len", len(msgs), "total", len(c.onlineValidator))
+	_, exist := Find(msgs, msg)
 	if !exist {
-		addrs = append(addrs, addr)
-		c.onlineValidator[height] = addrs
+		bftMsg := &types.BftMsg{
+			Code:          msg.Code,
+			Msg:           msg.Msg,
+			Address:       msg.Address,
+			Signature:     msg.Signature,
+			CommittedSeal: msg.CommittedSeal,
+		}
+		msgs = append(msgs, &types.OnlineMsg{Addr: msg.Address, Msg: bftMsg})
+		c.onlineValidator[height] = msgs
 	}
 	return
 }
 
-func (c *core) GetAddrs(height uint64) []common.Address {
+func (c *core) GetMsgs(height uint64) []*types.OnlineMsg {
 	c.ovMu.Lock()
 	defer c.ovMu.Unlock()
 	return c.onlineValidator[height]
 }
 
-func (c *core) delAddrs(vals []int) {
+func (c *core) delMsgs(vals []int) {
 	c.ovMu.Lock()
 	defer c.ovMu.Unlock()
 	for _, v := range vals {
@@ -553,9 +560,9 @@ func (c *core) delAddrs(vals []int) {
 	}
 }
 
-func Find(addrs []common.Address, target common.Address) (int, bool) {
-	for i, v := range addrs {
-		if v == target {
+func Find(msgs []*types.OnlineMsg, target *ibfttypes.Message) (int, bool) {
+	for i, m := range msgs {
+		if m.Addr == target.Address {
 			return i, true
 		}
 	}

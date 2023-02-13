@@ -73,7 +73,7 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 		return istanbulcommon.ErrFailedDecodePrepare
 	}
 	// Save the online validator of the current sequence
-	c.PutAddr(prepare.View.Sequence.Uint64(), msg.Address)
+	c.PutMsg(prepare.View.Sequence.Uint64(), msg)
 
 	roundInfo := RoundInfo{
 		Method:     "handlePrepare",

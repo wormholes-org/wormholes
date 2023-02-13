@@ -2,6 +2,7 @@ package istanbul
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Core interface {
@@ -21,5 +22,5 @@ type Core interface {
 
 	ConsensusInfo() chan map[string]interface{}
 
-	OnlineValidators(height uint64) []common.Address
+	OnlineValidators(height uint64) []*types.OnlineMsg
 }

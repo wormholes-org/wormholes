@@ -99,7 +99,7 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 	}
 
 	// Save the online validator of the current sequence
-	c.PutAddr(commit.View.Sequence.Uint64(), msg.Address)
+	c.PutMsg(commit.View.Sequence.Uint64(), msg)
 
 	roundInfo := RoundInfo{
 		Method:     "handleCommit",

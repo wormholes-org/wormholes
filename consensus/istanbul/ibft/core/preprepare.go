@@ -94,7 +94,7 @@ func (c *core) simpleCheckPreprepare(msg *ibfttypes.Message, _ istanbul.Validato
 	if preprepare.Proposal.Number().Uint64() < c.backend.CurrentNumber() {
 		return istanbulcommon.ErrOldMessage
 	}
-	c.PutAddr(preprepare.View.Sequence.Uint64(), msg.Address)
+	c.PutMsg(preprepare.View.Sequence.Uint64(), msg)
 	return nil
 }
 
@@ -106,7 +106,7 @@ func (c *core) simpleCheckSubject(msg *ibfttypes.Message, _ istanbul.Validator) 
 	if rc.View.Sequence.Uint64() < c.backend.CurrentNumber() {
 		return istanbulcommon.ErrOldMessage
 	}
-	c.PutAddr(rc.View.Sequence.Uint64(), msg.Address)
+	c.PutMsg(rc.View.Sequence.Uint64(), msg)
 	return nil
 }
 
@@ -121,7 +121,7 @@ func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) 
 	}
 
 	// Save the online validator of the current sequence
-	c.PutAddr(preprepare.View.Sequence.Uint64(), msg.Address)
+	c.PutMsg(preprepare.View.Sequence.Uint64(), msg)
 
 	// Not the prepare message sent by the proposer, return nil directly
 	if preprepare.Proposal == nil {

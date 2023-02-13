@@ -134,7 +134,7 @@ type Engine interface {
 
 	ConsensusInfo() map[string]interface{}
 
-	OnlineValidators(height uint64) []common.Address
+	OnlineValidators(height uint64) []*types.OnlineMsg
 }
 
 // Handler should be implemented is the consensus needs to handle and send peer's message

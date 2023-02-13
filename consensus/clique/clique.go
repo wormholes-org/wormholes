@@ -768,6 +768,6 @@ func (c *Clique) ConsensusInfo() map[string]interface{} {
 	return nil
 }
 
-func (c *Clique) OnlineValidators(height uint64) []common.Address {
+func (c *Clique) OnlineValidators(height uint64) []*types.OnlineMsg {
 	return nil
 }

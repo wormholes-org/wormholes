@@ -461,6 +461,6 @@ func (ethash *Ethash) ConsensusInfo() map[string]interface{} {
 	return nil
 }
 
-func (ethash *Ethash) OnlineValidators(height uint64) []common.Address {
+func (ethash *Ethash) OnlineValidators(height uint64) []*types.OnlineMsg {
 	return nil
 }
