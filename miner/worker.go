@@ -439,6 +439,8 @@ func (w *worker) emptyLoop() {
 	<-checkTimer.C // discard the initial tick
 	checkTimer.Reset(1 * time.Second)
 
+	var valiTotal int
+
 	for {
 		select {
 		case <-w.resetEmptyCh:
@@ -494,10 +496,17 @@ func (w *worker) emptyLoop() {
 				curBlock := w.chain.CurrentBlock()
 				w.totalCondition++
 
+				rs, err := w.chain.IsValidatorByHight(w.chain.CurrentHeader(), w.cerytify.self)
+				if err == nil && rs {
+					valiTotal = 15
+				} else {
+					valiTotal = 16
+				}
+
 				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
 				if w.totalCondition < 120 && curBlock.Number().Uint64() > 0 {
 					//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
-					if w.totalCondition != 15 {
+					if w.totalCondition != valiTotal {
 						continue
 					}
 					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
@@ -554,6 +563,9 @@ func (w *worker) emptyLoop() {
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
 
+				w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+
+				gossipTimer.Reset(time.Second * 5)
 				//log.Info("emptyLoop start empty")
 			}
 
