@@ -165,7 +165,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		}
 
 		currentHeight := c.miner.GetWorker().chain.CurrentHeader().Number
-		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) < 0 || currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) > 0 {
+		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) < 0 {
 			//return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
 			return true, nil
 		}
@@ -186,7 +186,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 
 		c.rebroadcast(addr, data)
 
-		if c.self == signature.Vote && c.miner.GetWorker().isEmpty {
+		if c.self == signature.Vote {
 			ms, ok := c.selfMessages.Get(sender)
 			var m *lru.ARCCache
 			if ok {
@@ -211,40 +211,6 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	}
 	return false, nil
 }
-
-//func (c *Certify) PostCacheMessage() {
-//	if c.selfMessages.Len() <= 0 {
-//		return
-//	}
-//
-//	for _, addr := range c.selfMessages.Keys() {
-//		ms, ok := c.selfMessages.Get(addr)
-//		if !ok {
-//			continue
-//		}
-//		var m *lru.ARCCache
-//		m, _ = ms.(*lru.ARCCache)
-//
-//		if m.Len() < 0 {
-//			continue
-//		}
-//
-//		for _, hash := range m.Keys() {
-//			msg, oks := m.Get(hash)
-//			if !oks {
-//				continue
-//			}
-//
-//			emptyMsg, oke := msg.(types.EmptyMessageEvent)
-//			if !oke {
-//				continue
-//			}
-//			m.Remove(hash)
-//			m.Add(hash, true)
-//			go c.eventMux.Post(emptyMsg)
-//		}
-//	}
-//}
 
 func (c *Certify) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 	var data []byte
