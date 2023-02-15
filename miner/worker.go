@@ -563,9 +563,10 @@ func (w *worker) emptyLoop() {
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
 
-				w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-
-				gossipTimer.Reset(time.Second * 5)
+				if valiTotal == 15 {
+					w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+					gossipTimer.Reset(time.Second * 5)
+				}
 				//log.Info("emptyLoop start empty")
 			}
 
