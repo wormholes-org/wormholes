@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math"
 	"math/big"
 	"time"
@@ -580,51 +579,12 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			//for _, v := range random11Validators.Validators {
 			//	state.SubValidatorCoefficient(v.Address(), 20)
 			//}
-			onlineAddr := make(map[common.Address]bool)
-			for _, v := range random11Validators.Validators {
-				onlineAddr[v.Address()] = true
-			}
 
 			validators, _ := c.ReadValidatorPool(parent.Header())
-
-			log.Info("azh|Finalize", "EmptyBlockMessages len", len(istanbulExtra.EmptyBlockMessages), "len(istanbulExtra.Validators)", len(istanbulExtra.Validators))
-			for _, msg := range istanbulExtra.EmptyBlockMessages[len(istanbulExtra.Validators):] {
-				var normalMsg *types.OnlineMsg
-				err := rlp.DecodeBytes(msg, &normalMsg)
-				log.Info("azh|Finalize", "DecodeBytes err", err)
-				if err == nil {
-
-					data, err := normalMsg.Msg.PayloadNoSig()
-					log.Info("azh|Finalize", "err", err)
-					if err != nil {
-						continue
-					}
-
-					hash := crypto.Keccak256(data)
-					pub, err := crypto.SigToPub(hash, normalMsg.Msg.Signature)
-					if err != nil {
-						continue
-					}
-					address := crypto.PubkeyToAddress(*pub)
-					log.Info("azh|Finalize", "addr", normalMsg.Addr, "sign Addr", address)
-
-					addr :=validators.GetValidatorAddr(address)
-					if values, oks := onlineAddr[addr]; oks && values {
-						onlineAddr[addr] = false
-					}
-				}
-			}
-
-			for addr, okss := range onlineAddr {
-				if okss {
-					state.SubValidatorCoefficient(addr, 20)
-				}
-			}
-
-			voteAddrs := make([]common.Address, 0)
-			emptyMsg := new(types.EmptyMsg)
-			for _, emptyMessage := range istanbulExtra.EmptyBlockMessages {
-				if err := emptyMsg.FromPayload(emptyMessage); err != nil {
+			onlineAddr := make([]common.Address, 0)
+			for _, msg := range istanbulExtra.EmptyBlockMessages {
+				normalMsg := new(types.BlockMessage)
+				if err := normalMsg.FromPayload(msg); err != nil {
 					log.Error("Certify Failed to decode message from payload", "err", err)
 					continue
 				}
@@ -634,22 +594,31 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 				//	log.Info("recoverMsg", "err", err)
 				//	continue
 				//}
-				sender, err := emptyMsg.RecoverAddress(emptyMessage)
-				//log.Info("recoverAddress", "msg", signature.Vote, "height", signature.Height, "sender", sender)
+				address, err := normalMsg.RecoverAddress(msg)
 				if err != nil {
-					log.Info("recover emptyMessage", "err", err)
+					log.Info("recover normalMessage", "err", err)
 					continue
 				}
+				log.Info("azh|Finalize", "addr", normalMsg.Address, "sign Addr", address)
 
-				for _, val := range state.ValidatorPool {
-					if val.Addr == sender || val.Proxy == sender {
-						voteAddrs = append(voteAddrs, val.Addr)
-						break
+				addr := validators.GetValidatorAddr(address)
+				onlineAddr = append(onlineAddr, addr)
+			}
+
+			for _, v := range random11Validators.Validators {
+				var exist bool
+				for _, n := range onlineAddr[len(istanbulExtra.Validators)+1:] {
+					if v.Addr == n {
+						exist = true
 					}
+				}
+
+				if !exist {
+					state.SubValidatorCoefficient(v.Addr, 20)
 				}
 			}
 
-			for _, vote := range voteAddrs[1:] {
+			for _, vote := range onlineAddr[1:len(istanbulExtra.Validators)] {
 				log.Info("AddValidatorCoefficient", "addr", vote)
 				state.AddValidatorCoefficient(vote, 70)
 			}
@@ -774,7 +743,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 				onlineAddr[v.Address()] = true
 			}
 
-			for _, msg := range istanbulExtra.EmptyBlockMessages[len(istanbulExtra.Validators)-1:] {
+			for _, msg := range istanbulExtra.EmptyBlockMessages[len(istanbulExtra.Validators):] {
 				var normalMsg *types.OnlineMsg
 				err := rlp.DecodeBytes(msg, normalMsg)
 				if err == nil {

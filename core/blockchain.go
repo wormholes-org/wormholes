@@ -2244,7 +2244,7 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 
 		var validators []common.Address
 		for _, emptyBlockMessage := range istanbulExtra.EmptyBlockMessages[1:len(istanbulExtra.Validators)] {
-			msg := &types.EmptyMsg{}
+			msg := &types.BlockMessage{}
 			sender, err := msg.RecoverAddress(emptyBlockMessage)
 			if err != nil {
 				return err

@@ -533,7 +533,7 @@ func (c *core) PutMsg(height uint64, msg *ibfttypes.Message) {
 	log.Info("onlineValidators PutMsg", "height", height, "len", len(msgs), "total", len(c.onlineValidator))
 	_, exist := Find(msgs, msg)
 	if !exist {
-		bftMsg := &types.BftMsg{
+		bftMsg := &types.BlockMessage{
 			Code:          msg.Code,
 			Msg:           msg.Msg,
 			Address:       msg.Address,

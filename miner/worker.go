@@ -600,26 +600,23 @@ func (w *worker) emptyLoop() {
 			{
 				//log.Info("emptyLoop.signatureResultCh start")
 				if w.cerytify == nil ||
-					w.cerytify.proofStatePool == nil ||
-					w.cerytify.proofStatePool.proofs == nil ||
 					rs == nil ||
 					w.cacheHeight == nil ||
-					w.cerytify.proofStatePool.proofs[rs.Uint64()] == nil ||
-					w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum == nil ||
-					w.cerytify.proofStatePool.proofs[rs.Uint64()].targetWeightBalance == nil {
+					rs.receiveValidatorsSum == nil ||
+					rs.targetWeightBalance == nil {
 					log.Error("emptyLoop.signatureResultCh, some items occur nil !!")
 					continue
 				}
 
-				proofstate := w.cerytify.proofStatePool.proofs[rs.Uint64()]
-				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				proofstate := w.cerytify.proofStatePool.proofs[rs.height.Uint64()]
+				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", proofstate.receiveValidatorsSum, "w.TargetSize()", proofstate.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
 				if proofstate.receiveValidatorsSum.Cmp(proofstate.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
+					if w.isEmpty && w.cacheHeight.Cmp(rs.height) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now())
-						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].GetAllAddress(w.cerytify.stakers)
-						emptyBlockMessages := w.cerytify.proofStatePool.proofs[rs.Uint64()].GetAllMessage()
+						validators := rs.GetAllAddress(w.cerytify.stakers)
+						emptyBlockMessages := rs.GetAllMessage()
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators, emptyBlockMessages); err != nil {
 							log.Error("emptyLoop.commitEmptyWork error", "err", err)
 						} else {

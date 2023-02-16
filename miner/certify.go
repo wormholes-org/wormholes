@@ -27,7 +27,7 @@ type Certify struct {
 	eventMux          *event.TypeMux
 	events            *event.TypeMuxSubscription
 	stakers           *types.ValidatorList // all validator
-	signatureResultCh chan *ProofStatePool
+	signatureResultCh chan *ProofState
 	miner             Handler // Apply some of the capabilities of the parent class
 	lock              sync.Mutex
 	//messageList       sync.Map
@@ -84,7 +84,7 @@ func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
 	return nil
 }
 
-func (c *Certify) signMessage(msg *types.EmptyMsg) ([]byte, error) {
+func (c *Certify) signMessage(msg *types.BlockMessage) ([]byte, error) {
 	var err error
 	// Add sender address
 	msg.Address = c.self
@@ -125,7 +125,7 @@ func (c *Certify) assembleMessage(height *big.Int, vote common.Address) (error, 
 		return err, nil
 	}
 
-	msg := &types.EmptyMsg{
+	msg := &types.BlockMessage{
 		Code: SendSignMsg,
 		Msg:  encQues,
 	}
@@ -151,7 +151,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
-		msg := new(types.EmptyMsg)
+		msg := new(types.BlockMessage)
 		if err := msg.FromPayload(data); err != nil {
 			log.Error("Certify Failed to decode message from payload", "err", err)
 			return true, err

@@ -55,6 +55,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	if curProofs.onlineValidator.Has(validator) {
 		return errors.New("GatherOtherPeerSignature: validator exist")
 	}
+	c.proofStatePool.proofs[height.Uint64()].count++
 	c.proofStatePool.proofs[height.Uint64()].onlineValidator = append(c.proofStatePool.proofs[height.Uint64()].onlineValidator, validator)
 	c.proofStatePool.proofs[height.Uint64()].emptyBlockMessages = append(c.proofStatePool.proofs[height.Uint64()].emptyBlockMessages, encQues)
 	//coe, err = c.miner.GetWorker().getValidatorCoefficient(validator)
@@ -68,7 +69,7 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, weightBalance)
 	//log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(), "balance", validatorBalance, "average coe", averageCoefficient, "weightBalance", weightBalance, "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "height", height.Uint64())
 	//log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
-	c.signatureResultCh <- height
+	c.signatureResultCh <- c.proofStatePool.proofs[height.Uint64()]
 	//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
 	return nil
 }

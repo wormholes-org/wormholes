@@ -111,9 +111,11 @@ func (ps ProofState) GetAllAddress(validators *types.ValidatorList) []common.Add
 }
 
 func (ps ProofState) GetAllMessage() [][]byte {
-	emptyMessages := make([][]byte, 1)
-	emptyMessages[0] = ps.proposerMessage
-	return append(emptyMessages, ps.emptyBlockMessages...)
+	messages := make([][]byte, 1)
+	messages[0] = ps.proposerMessage
+	messages = append(messages, ps.emptyBlockMessages...)
+	messages = append(messages, ps.onlineMessages...)
+	return messages
 }
 
 type OnlineValidator []common.Address
