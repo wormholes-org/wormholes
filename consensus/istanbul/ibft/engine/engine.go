@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"github.com/ethereum/go-ethereum/crypto"
 	"math"
 	"math/big"
 	"time"
@@ -576,8 +577,48 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
+			//for _, v := range random11Validators.Validators {
+			//	state.SubValidatorCoefficient(v.Address(), 20)
+			//}
+			onlineAddr := make(map[common.Address]bool)
 			for _, v := range random11Validators.Validators {
-				state.SubValidatorCoefficient(v.Address(), 20)
+				onlineAddr[v.Address()] = true
+			}
+
+			validators, _ := c.ReadValidatorPool(parent.Header())
+
+			log.Info("azh|Finalize", "EmptyBlockMessages len", len(istanbulExtra.EmptyBlockMessages), "len(istanbulExtra.Validators)", len(istanbulExtra.Validators))
+			for _, msg := range istanbulExtra.EmptyBlockMessages[len(istanbulExtra.Validators):] {
+				var normalMsg *types.OnlineMsg
+				err := rlp.DecodeBytes(msg, &normalMsg)
+				log.Info("azh|Finalize", "DecodeBytes err", err)
+				if err == nil {
+
+					data, err := normalMsg.Msg.PayloadNoSig()
+					log.Info("azh|Finalize", "err", err)
+					if err != nil {
+						continue
+					}
+
+					hash := crypto.Keccak256(data)
+					pub, err := crypto.SigToPub(hash, normalMsg.Msg.Signature)
+					if err != nil {
+						continue
+					}
+					address := crypto.PubkeyToAddress(*pub)
+					log.Info("azh|Finalize", "addr", normalMsg.Addr, "sign Addr", address)
+
+					addr :=validators.GetValidatorAddr(address)
+					if values, oks := onlineAddr[addr]; oks && values {
+						onlineAddr[addr] = false
+					}
+				}
+			}
+
+			for addr, okss := range onlineAddr {
+				if okss {
+					state.SubValidatorCoefficient(addr, 20)
+				}
 			}
 
 			voteAddrs := make([]common.Address, 0)
@@ -728,8 +769,25 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		}
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
+			onlineAddr := make(map[common.Address]bool)
 			for _, v := range random11Validators.Validators {
-				state.SubValidatorCoefficient(v.Address(), 20)
+				onlineAddr[v.Address()] = true
+			}
+
+			for _, msg := range istanbulExtra.EmptyBlockMessages[len(istanbulExtra.Validators)-1:] {
+				var normalMsg *types.OnlineMsg
+				err := rlp.DecodeBytes(msg, normalMsg)
+				if err == nil {
+					if values, oks := onlineAddr[normalMsg.Addr]; oks && values {
+						onlineAddr[normalMsg.Addr] = false
+					}
+				}
+			}
+
+			for addr, okss := range onlineAddr {
+				if okss {
+					state.SubValidatorCoefficient(addr, 20)
+				}
 			}
 
 			for _, v := range istanbulExtra.Validators[1:] {

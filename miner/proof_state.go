@@ -51,7 +51,7 @@ func (psp *ProofStatePool) Put(height *big.Int, proposer, validator common.Addre
 		}
 	}
 	// No proof data exists for this height
-	ps := newProofState(proposer, []byte{}, height)
+	ps := newProofState(height, nil, nil, false, proposer, []byte{}, [][]byte{})
 	psp.proofs[height.Uint64()] = ps
 	ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, vl.StakeBalance(validator))
 	ps.count++
@@ -72,23 +72,31 @@ func (psp *ProofStatePool) GetProofCountByHeight(height *big.Int) int {
 type ProofState struct {
 	count                int // Represents the number of proofs collected
 	height               *big.Int
+	validatorList        *types.ValidatorList
+	targetWeightBalance  *big.Int
+	empty                bool
 	receiveValidatorsSum *big.Int
 	proposer             common.Address
 	proposerMessage      []byte
 	onlineValidator      OnlineValidator // The highly online validator of this block & reward addr
+	onlineMessages       [][]byte
 	emptyBlockMessages   [][]byte
 }
 
-func newProofState(proposer common.Address, proposerMessage []byte, height *big.Int) *ProofState {
+func newProofState(height, targetWeightBalance *big.Int, validatorList *types.ValidatorList, empty bool, proposer common.Address, proposerMessage []byte, onlineMessage [][]byte) *ProofState {
 	vals := make(OnlineValidator, 0)
 	emptyMessage := make([][]byte, 0)
 	return &ProofState{
-		count:              0,
-		height:             height,
-		proposer:           proposer,
-		proposerMessage:    proposerMessage,
-		onlineValidator:    vals,
-		emptyBlockMessages: emptyMessage,
+		count:               0,
+		height:              height,
+		validatorList:       validatorList,
+		empty:               empty,
+		targetWeightBalance: targetWeightBalance,
+		proposer:            proposer,
+		proposerMessage:     proposerMessage,
+		onlineValidator:     vals,
+		onlineMessages:      onlineMessage,
+		emptyBlockMessages:  emptyMessage,
 	}
 }
 
@@ -102,7 +110,7 @@ func (ps ProofState) GetAllAddress(validators *types.ValidatorList) []common.Add
 	return addrs
 }
 
-func (ps ProofState) GetAllEmptyMessage() [][]byte {
+func (ps ProofState) GetAllMessage() [][]byte {
 	emptyMessages := make([][]byte, 1)
 	emptyMessages[0] = ps.proposerMessage
 	return append(emptyMessages, ps.emptyBlockMessages...)

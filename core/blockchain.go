@@ -2243,7 +2243,7 @@ func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateD
 		allWeightBalance50 = new(big.Int).Div(allWeightBalance50, big.NewInt(100))
 
 		var validators []common.Address
-		for _, emptyBlockMessage := range istanbulExtra.EmptyBlockMessages[1:] {
+		for _, emptyBlockMessage := range istanbulExtra.EmptyBlockMessages[1:len(istanbulExtra.Validators)] {
 			msg := &types.EmptyMsg{}
 			sender, err := msg.RecoverAddress(emptyBlockMessage)
 			if err != nil {

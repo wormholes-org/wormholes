@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/xerrors"
 	"math"
 	"math/big"
@@ -209,51 +210,54 @@ type worker struct {
 	// onlineValidators
 	onlineValidators *types.OnlineValidatorList
 
+	proofState chan *ProofState
+
 	//empty block
-	totalCondition      int
-	emptyTimestamp      int64
-	emptyHandleFlag     bool
-	cacheHeight         *big.Int
-	targetWeightBalance *big.Int
-	emptyTimer          *time.Timer
-	resetEmptyCh        chan struct{}
+	totalCondition  int
+	emptyTimestamp  int64
+	emptyHandleFlag bool
+	cacheHeight     *big.Int
+	//targetWeightBalance *big.Int
+	emptyTimer   *time.Timer
+	resetEmptyCh chan struct{}
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
 	worker := &worker{
-		config:              config,
-		chainConfig:         chainConfig,
-		engine:              engine,
-		eth:                 eth,
-		mux:                 mux,
-		chain:               eth.BlockChain(),
-		isLocalBlock:        isLocalBlock,
-		localUncles:         make(map[common.Hash]*types.Block),
-		remoteUncles:        make(map[common.Hash]*types.Block),
-		unconfirmed:         newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks:        make(map[common.Hash]*task),
-		txsCh:               make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:         make(chan core.ChainHeadEvent, chainHeadChanSize),
-		chainSideCh:         make(chan core.ChainSideEvent, chainSideChanSize),
-		newWorkCh:           make(chan *newWorkReq),
-		taskCh:              make(chan *task),
-		resultCh:            make(chan *types.Block, resultQueueSize),
-		exitCh:              make(chan struct{}),
-		startCh:             make(chan struct{}, 1),
-		onlineCh:            make(chan struct{}, 1),
-		emptyCh:             make(chan struct{}),
-		cacheHeight:         new(big.Int),
-		targetWeightBalance: new(big.Int),
-		isEmpty:             false,
-		resubmitIntervalCh:  make(chan time.Duration),
-		resubmitAdjustCh:    make(chan *intervalAdjust, resubmitAdjustChanSize),
-		cerytify:            NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
-		miner:               handler,
-		notifyBlockCh:       make(chan *types.OnlineValidatorList, 1),
-		emptyTimestamp:      time.Now().Unix(),
-		emptyHandleFlag:     false,
-		resetEmptyCh:        make(chan struct{}, 1),
-		totalCondition:      0,
+		config:       config,
+		chainConfig:  chainConfig,
+		engine:       engine,
+		eth:          eth,
+		mux:          mux,
+		chain:        eth.BlockChain(),
+		isLocalBlock: isLocalBlock,
+		localUncles:  make(map[common.Hash]*types.Block),
+		remoteUncles: make(map[common.Hash]*types.Block),
+		unconfirmed:  newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		pendingTasks: make(map[common.Hash]*task),
+		txsCh:        make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
+		chainSideCh:  make(chan core.ChainSideEvent, chainSideChanSize),
+		newWorkCh:    make(chan *newWorkReq),
+		taskCh:       make(chan *task),
+		resultCh:     make(chan *types.Block, resultQueueSize),
+		exitCh:       make(chan struct{}),
+		startCh:      make(chan struct{}, 1),
+		onlineCh:     make(chan struct{}, 1),
+		emptyCh:      make(chan struct{}),
+		cacheHeight:  new(big.Int),
+		//targetWeightBalance: new(big.Int),
+		isEmpty:            false,
+		resubmitIntervalCh: make(chan time.Duration),
+		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
+		cerytify:           NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
+		miner:              handler,
+		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
+		proofState:         make(chan *ProofState),
+		emptyTimestamp:     time.Now().Unix(),
+		emptyHandleFlag:    false,
+		resetEmptyCh:       make(chan struct{}, 1),
+		totalCondition:     0,
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -519,7 +523,7 @@ func (w *worker) emptyLoop() {
 					w.emptyTimer.Stop()
 					continue
 				}
-				w.cerytify.stakers = stakes
+				//w.cerytify.stakers = stakes
 
 				w.emptyCh <- struct{}{}
 				//log.Info("generate block time out", "height", w.current.header.Number, "staker:", w.cerytify.stakers)
@@ -529,6 +533,15 @@ func (w *worker) emptyLoop() {
 				if !w.emptyHandleFlag {
 					w.emptyHandleFlag = true
 					go w.cerytify.handleEvents()
+				}
+
+				normalMessages := w.engine.OnlineValidators(w.cacheHeight.Uint64())
+				log.Info("azh|emptyBlock", "message len", len(normalMessages))
+				onlineMessage := make([][]byte, 0)
+				for _, message := range normalMessages {
+					log.Info("azh|emptyBlock", "message", message, "addr", message.Addr, "message.Msg", message.Msg, "addrs", message.Msg.Address)
+					messageByte, _ := rlp.EncodeToBytes(*message)
+					onlineMessage = append(onlineMessage, messageByte)
 				}
 
 				EmptyEvent := StartEmptyBlockEvent{
@@ -548,13 +561,25 @@ func (w *worker) emptyLoop() {
 					log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
-				w.targetWeightBalance = totalWeightBalance
+				//w.targetWeightBalance = totalWeightBalance
+
+				proofState := newProofState(
+					w.cacheHeight,
+					totalWeightBalance,
+					stakes.DeepCopy(),
+					true,
+					w.cerytify.self,
+					nil,
+					nil,
+				)
+				w.proofState <- proofState
 
 				w.isEmpty = true
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
 
 				//log.Info("emptyLoop start empty")
+				w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 			}
 
 		case <-gossipTimer.C:
@@ -573,9 +598,6 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				if !w.isEmpty {
-					continue
-				}
 				//log.Info("emptyLoop.signatureResultCh start")
 				if w.cerytify == nil ||
 					w.cerytify.proofStatePool == nil ||
@@ -584,19 +606,20 @@ func (w *worker) emptyLoop() {
 					w.cacheHeight == nil ||
 					w.cerytify.proofStatePool.proofs[rs.Uint64()] == nil ||
 					w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum == nil ||
-					w.targetWeightBalance == nil {
+					w.cerytify.proofStatePool.proofs[rs.Uint64()].targetWeightBalance == nil {
 					log.Error("emptyLoop.signatureResultCh, some items occur nil !!")
 					continue
 				}
 
+				proofstate := w.cerytify.proofStatePool.proofs[rs.Uint64()]
 				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
-				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
+				if proofstate.receiveValidatorsSum.Cmp(proofstate.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now())
 						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].GetAllAddress(w.cerytify.stakers)
-						emptyBlockMessages := w.cerytify.proofStatePool.proofs[rs.Uint64()].GetAllEmptyMessage()
+						emptyBlockMessages := w.cerytify.proofStatePool.proofs[rs.Uint64()].GetAllMessage()
 						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators, emptyBlockMessages); err != nil {
 							log.Error("emptyLoop.commitEmptyWork error", "err", err)
 						} else {

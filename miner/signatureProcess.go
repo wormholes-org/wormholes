@@ -51,33 +51,6 @@ func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
 func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) error {
 	var weightBalance *big.Int
 	log.Info("GatherOtherPeerSignature", "c.proofStatePool", c.proofStatePool)
-	if _, ok := c.proofStatePool.proofs[height.Uint64()]; !ok {
-		_, proposerMessage := c.assembleMessage(height, c.self)
-		ps := newProofState(c.self, proposerMessage, height)
-		ps.receiveValidatorsSum = big.NewInt(0)
-		//coe, err = c.miner.GetWorker().getValidatorCoefficient(validator)
-		//if err != nil {
-		//	return err
-		//}
-		//weightBalance = new(big.Int).Mul(validatorBalance, big.NewInt(int64(coe)))
-		validatorBalance := c.stakers.StakeBalance(validator)
-		weightBalance = new(big.Int).Mul(validatorBalance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
-		//weightBalance.Div(weightBalance, big.NewInt(10))
-		ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, weightBalance)
-		//log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(), "balance", validatorBalance, "average coe", averageCoefficient, "weightBalance", weightBalance, "receiveValidatorsSum", ps.receiveValidatorsSum, "height", height.Uint64())
-		//ps.onlineValidator.Add(validator)
-		//ps.height = new(big.Int).Set(height)
-		ps.onlineValidator = append(ps.onlineValidator, validator)
-		ps.emptyBlockMessages = append(ps.emptyBlockMessages, encQues)
-
-		c.proofStatePool.proofs[height.Uint64()] = ps
-		//log.Info("GatherOtherPeerSignature", "height", height)
-		c.signatureResultCh <- height
-		//log.Info("GatherOtherPeerSignature end", "height", height)
-		//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 1")
-		return nil
-	}
-
 	curProofs := c.proofStatePool.proofs[height.Uint64()]
 	if curProofs.onlineValidator.Has(validator) {
 		return errors.New("GatherOtherPeerSignature: validator exist")

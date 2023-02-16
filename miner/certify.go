@@ -27,7 +27,7 @@ type Certify struct {
 	eventMux          *event.TypeMux
 	events            *event.TypeMuxSubscription
 	stakers           *types.ValidatorList // all validator
-	signatureResultCh chan *big.Int
+	signatureResultCh chan *ProofStatePool
 	miner             Handler // Apply some of the capabilities of the parent class
 	lock              sync.Mutex
 	//messageList       sync.Map
@@ -59,14 +59,14 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		eth:      eth,
 		eventMux: new(event.TypeMux),
 		//otherMessages:     otherMsgs,
-		selfMessages:      selfMsgs,
-		miner:             handler,
-		signatureResultCh: make(chan *big.Int),
+		selfMessages: selfMsgs,
+		miner:        handler,
 		//receiveValidatorsSum: big.NewInt(0),
 		//validators:           make([]common.Address, 0),
-		voteIndex:        0,
-		validatorsHeight: make([]string, 0),
-		proofStatePool:   NewProofStatePool(),
+		voteIndex:         0,
+		validatorsHeight:  make([]string, 0),
+		signatureResultCh: make(chan *ProofState),
+		proofStatePool:    NewProofStatePool(),
 		//msgHeight:        new(big.Int),
 	}
 	return certify
@@ -307,6 +307,9 @@ func (c *Certify) handleEvents() {
 				log.Info("handleEvents", "sender", ev.Sender, "height", ev.Height)
 				c.GatherOtherPeerSignature(ev.Sender, ev.Height, ev.Payload)
 			}
+
+		case proofState := <-c.miner.GetWorker().proofState:
+			c.proofStatePool.proofs[proofState.height.Uint64()] = proofState
 		}
 	}
 }
