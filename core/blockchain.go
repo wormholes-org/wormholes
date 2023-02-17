@@ -2919,122 +2919,38 @@ func (bc *BlockChain) ReadValidatorPool(header *types.Header) (*types.ValidatorL
 }
 
 func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
-	if header == nil {
-		log.Error("Random11ValidatorFromPool: header is nil", "no", bc.CurrentHeader().Number.Uint64())
-		return nil, errors.New("err Random11ValidatorFromPool invalid header")
+	genesisBlock := bc.GetBlockByNumber(0)
+	valset, _ := bc.ReadValidatorPool(genesisBlock.Header())
+	for i := 2; i < 6; i++ {
+		valset.Validators = valset.Validators[:16-i]
 	}
-	validatorList, err := bc.ReadValidatorPool(header)
-	if err != nil {
-		log.Error("Random11ValidatorFromPool: ReadValidatorPool", "err", err, "no", bc.CurrentHeader().Number.Uint64())
-		return nil, err
-	}
+	log.Info("Random11ValidatorFromPool", "len", len(valset.Validators))
 
-	// Obtain random landing points according to the surrounding chain algorithm
-	randomHash := GetRandomDrop(validatorList, header)
-	if randomHash == (common.Hash{}) {
-		log.Error("Random11ValidatorFromPool : invalid random hash", "no", bc.CurrentHeader().Number.Uint64())
-		return nil, err
-	}
-	log.Info("Random11ValidatorFromPool : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
-
-	// Get the weights of all validators
-	db, err := bc.StateAt(header.Root)
-	if err != nil {
-		log.Error("Random11ValidatorFromPool invalid root", "no", header.Number.Uint64())
-		return nil, errors.New("Random11ValidatorFromPool invalid root")
-	}
-
-	// Get all validator weights
-	var weights []uint8
-	for _, v := range validatorList.Validators {
-		weights = append(weights, db.GetCoefficient(v.Addr))
-	}
-
-	var validators []common.Address
-	validators, err = validatorList.RandomValidatorV4(11, randomHash, weights)
-	if err != nil {
-		log.Error("Random11ValidatorFromPool err", "err", err.Error())
-		return nil, errors.New("Random11ValidatorFromPool failed pick validators")
-	}
-	//log.Info("random11 validators", "len", len(validators), "validators", validators)
-	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
-		log.Warn("Random11ValidatorFromPool", "len(validatorList.Validators)", len(validatorList.Validators),
-			"len(validators)", len(validators))
-	}
-	log.Info("random 11 addr", "len", len(validators))
-	for i, validator := range validators {
-		log.Info("Random11ValidatorFromPool", "RandomValidatorV2 11 address", validator.String(),
-			"blocknumber", header.Number.Uint64(), "i", i)
-	}
 	elevenValidator := new(types.ValidatorList)
-	for _, addr := range validators {
-		//todo proxy all nil
-		proxy, exsist := validatorList.GetProxy(addr)
+	for _, v := range valset.Validators {
+		proxy, exsist := valset.GetProxy(v.Addr)
 
 		if exsist {
-			elevenValidator.AddValidator(proxy, validatorList.StakeBalance(proxy), common.Address{})
+			elevenValidator.AddValidator(proxy, valset.StakeBalance(proxy), common.Address{})
 		} else {
-			elevenValidator.AddValidator(addr, validatorList.StakeBalance(addr), common.Address{})
+			elevenValidator.AddValidator(v.Addr, valset.StakeBalance(v.Addr), common.Address{})
 		}
-	}
-	for i, validator := range elevenValidator.Validators {
-		log.Info("Random11ValidatorFromPool, elevenValidator", "address", validator.Addr.String(),
-			"amount", validator.Balance, "proxy", validator.Proxy.String(), "blocknumber", header.Number.Uint64(), "i", i)
 	}
 	return elevenValidator, nil
 }
 
 func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*types.ValidatorList, error) {
-	if header == nil {
-		log.Error("Random11ValidatorWithOutProxy: header is nil", "no", bc.CurrentHeader().Number.Uint64())
-		return nil, errors.New("err Random11ValidatorFromPool invalid header")
+	genesisBlock := bc.GetBlockByNumber(0)
+	valset, _ := bc.ReadValidatorPool(genesisBlock.Header())
+	for i := 2; i < 6; i++ {
+		valset.Validators = valset.Validators[:16-i]
 	}
-	validatorList, err := bc.ReadValidatorPool(header)
-	if err != nil {
-		log.Error("Random11ValidatorWithOutProxy: ReadValidatorPool", "err", err, "no", bc.CurrentHeader().Number.Uint64())
-		return nil, err
-	}
+	log.Info("Random11ValidatorWithOutProxy", "len", len(valset.Validators))
 
-	// Obtain random landing points according to the surrounding chain algorithm
-	randomHash := GetRandomDrop(validatorList, header)
-	if randomHash == (common.Hash{}) {
-		log.Error("Random11ValidatorWithOutProxy : invalid random hash", "no", bc.CurrentHeader().Number.Uint64())
-		return nil, err
-	}
-	log.Info("Random11ValidatorWithOutProxy : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
-
-	// Get the weights of all validators
-	db, err := bc.StateAt(header.Root)
-	if err != nil {
-		log.Error("Random11ValidatorWithOutProxy invalid root", "no", header.Number.Uint64())
-		return nil, errors.New("Random11ValidatorWithOutProxy invalid root")
-	}
-
-	// Get all validator weights
-	var weights []uint8
-	for _, v := range validatorList.Validators {
-		weights = append(weights, db.GetCoefficient(v.Addr))
-	}
-
-	var validators []common.Address
-	validators, err = validatorList.RandomValidatorV4(11, randomHash, weights)
-	if err != nil {
-		log.Error("Random11ValidatorWithOutProxy err", "err", err.Error())
-		return nil, errors.New("Random11ValidatorWithOutProxy failed pick validators")
-	}
-
-	if len(validatorList.Validators) >= 11 && len(validators) < 11 {
-		log.Warn("Random11ValidatorWithOutProxy", "len(validatorList.Validators)", len(validatorList.Validators),
-			"len(validators)", len(validators))
-	}
-	log.Info("random 11 addr", "len", len(validators))
-	for i, validator := range validators {
-		log.Info("Random11ValidatorWithOutProxy", "RandomValidatorV2 11 address", validator.String(),
-			"blocknumber", header.Number.Uint64(), "i", i)
-	}
 	elevenValidator := new(types.ValidatorList)
-	for _, addr := range validators {
-		elevenValidator.AddValidator(addr, validatorList.StakeBalance(addr), common.Address{})
+	for _, v := range valset.Validators {
+		elevenValidator.AddValidator(v.Addr, valset.StakeBalance(v.Addr), common.Address{})
+
 	}
 	return elevenValidator, nil
 }
