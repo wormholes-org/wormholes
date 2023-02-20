@@ -496,6 +496,8 @@ func (w *worker) emptyLoop() {
 				curBlock := w.chain.CurrentBlock()
 				w.totalCondition++
 
+				log.Info("azh|onlinesLen", "len", len(w.engine.OnlineValidators(w.cacheHeight.Uint64())))
+
 				rs, err := w.chain.IsValidatorByHight(w.chain.CurrentHeader(), w.cerytify.self)
 				if err == nil && rs {
 					valiTotal = 15
@@ -523,6 +525,16 @@ func (w *worker) emptyLoop() {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
+
+				for _, val := range w.engine.OnlineValidators(w.cacheHeight.Uint64()) {
+					log.Info("azh|onlinesAddr", "addr", stakes.GetValidatorAddr(val))
+				}
+
+				v11, _ := w.eth.BlockChain().Random11ValidatorFromPool(w.chain.CurrentBlock().Header())
+				for _, val := range v11.Validators {
+					log.Info("azh|empty", "v11", stakes.GetValidatorAddr(val.Addr))
+				}
+
 				//log.Info("emptyLoop", "validators.len", len(stakes.Validators), "stake", w.cerytify.addr)
 				if stakes.GetValidatorAddr(w.cerytify.self) == (common.Address{}) {
 					w.emptyTimer.Stop()
@@ -588,6 +600,10 @@ func (w *worker) emptyLoop() {
 			{
 				log.Info("emptyLoop.signatureResultCh", "isEmpty", w.isEmpty, "receiveValidatorsSum:", rs.ReceiveSum, "w.TargetSize()", w.targetWeightBalance, "w.cacheHeight", new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)), "msgHeight", rs.Height)
 				if w.isEmpty && new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)).Cmp(rs.Height) == 0 && rs.ReceiveSum.Cmp(w.targetWeightBalance) > 0 {
+					for _, val := range rs.OnlineValidators {
+						log.Info("azh|empty", "vote", val)
+					}
+
 					log.Info("emptyLoop.start produce empty block", "time", time.Now())
 					if err := w.commitEmptyWork(nil, true, time.Now().Unix(), rs.OnlineValidators, rs.EmptyMessages); err != nil {
 						log.Error("emptyLoop.commitEmptyWork error", "err", err)

@@ -172,7 +172,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		}
 
 		currentHeight := c.miner.GetWorker().chain.CurrentHeader().Number
-		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) < 0 {
+		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) > 0 {
 			//return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
 			return true, nil
 		}
