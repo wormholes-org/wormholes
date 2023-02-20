@@ -608,10 +608,9 @@ func (w *worker) emptyLoop() {
 					continue
 				}
 
-				proofstate := w.cerytify.proofStatePool.proofs[rs.height.Uint64()]
-				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", proofstate.receiveValidatorsSum, "w.TargetSize()", proofstate.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
+				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", rs.receiveValidatorsSum, "w.TargetSize()", rs.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
 				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
-				if proofstate.receiveValidatorsSum.Cmp(proofstate.targetWeightBalance) > 0 {
+				if rs.receiveValidatorsSum.Cmp(rs.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
 					if w.isEmpty && w.cacheHeight.Cmp(rs.height) == 0 {
 						log.Info("emptyLoop.start produce empty block", "time", time.Now())
