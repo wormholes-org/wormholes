@@ -183,11 +183,11 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
-		//if c.stakers == nil {
-		//	return true, nil
-		//}
-
 		c.rebroadcast(addr, data)
+
+		if c.stakers == nil {
+			return true, nil
+		}
 
 		if c.stakers.GetValidatorAddr(sender) == (common.Address{}) {
 			return true, xerrors.New("Certify.handleEvents the vote is not a miner")

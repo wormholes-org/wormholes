@@ -586,6 +586,7 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
+				log.Info("emptyLoop.signatureResultCh", "isEmpty", w.isEmpty, "receiveValidatorsSum:", rs.ReceiveSum, "w.TargetSize()", w.targetWeightBalance, "w.cacheHeight", new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)), "msgHeight", rs.Height)
 				if w.isEmpty && new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)).Cmp(rs.Height) == 0 && rs.ReceiveSum.Cmp(w.targetWeightBalance) > 0 {
 					log.Info("emptyLoop.start produce empty block", "time", time.Now())
 					if err := w.commitEmptyWork(nil, true, time.Now().Unix(), rs.OnlineValidators, rs.EmptyMessages); err != nil {
