@@ -100,11 +100,20 @@ func newProofState(height, targetWeightBalance *big.Int, validatorList *types.Va
 	}
 }
 
-func (ps ProofState) GetAllAddress(validators *types.ValidatorList) []common.Address {
+func (ps ProofState) CalculateReceiveSum() {
+	ps.receiveValidatorsSum = nil
+	for _, val := range ps.onlineValidator {
+		validatorBalance := ps.validatorList.StakeBalance(val)
+		weightBalance := new(big.Int).Mul(validatorBalance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
+		ps.receiveValidatorsSum = new(big.Int).Add(ps.receiveValidatorsSum, weightBalance)
+	}
+}
+
+func (ps ProofState) GetAllAddress() []common.Address {
 	addrs := make([]common.Address, len(ps.onlineValidator)+1)
-	addrs[0] = validators.GetValidatorAddr(ps.proposer)
+	addrs[0] = ps.validatorList.GetValidatorAddr(ps.proposer)
 	for i, val := range ps.onlineValidator {
-		addrs[i+1] = validators.GetValidatorAddr(val)
+		addrs[i+1] = ps.validatorList.GetValidatorAddr(val)
 	}
 
 	return addrs
@@ -114,7 +123,7 @@ func (ps ProofState) GetAllMessage() [][]byte {
 	messages := make([][]byte, 1)
 	messages[0] = ps.proposerMessage
 	messages = append(messages, ps.emptyBlockMessages...)
-	messages = append(messages, ps.onlineMessages...)
+	//messages = append(messages, ps.onlineMessages...)
 	return messages
 }
 

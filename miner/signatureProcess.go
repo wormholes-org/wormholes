@@ -9,9 +9,9 @@ import (
 	"math/big"
 )
 
-func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
+func (c *Certify) AssembleAndBroadcastMessage(stakes *types.ValidatorList, height *big.Int) {
 	//log.Info("AssembleAndBroadcastMessage", "validators len", len(c.stakers.Validators), "sender", c.addr, "vote index", c.voteIndex, "round", c.round)
-	vote := c.stakers.Validators[c.voteIndex]
+	vote := stakes.Validators[c.voteIndex]
 	var voteAddress common.Address
 	if vote.Proxy == (common.Address{}) {
 		voteAddress = vote.Addr
@@ -19,12 +19,12 @@ func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
 		voteAddress = vote.Proxy
 	}
 	c.voteIndex++
-	if c.voteIndex == len(c.stakers.Validators) {
+	if c.voteIndex == len(stakes.Validators) {
 		c.voteIndex = 0
 		c.round++
 	}
 
-	log.Info("azh|start to vote", "validators", len(c.stakers.Validators), "vote", vote, "height:", height)
+	log.Info("azh|start to vote", "validators", len(stakes.Validators), "vote", vote, "height:", height)
 	err, payload := c.assembleMessage(height, voteAddress)
 	if err != nil {
 		return
@@ -49,27 +49,34 @@ func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
 }
 
 func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big.Int, encQues []byte) error {
-	var weightBalance *big.Int
 	log.Info("GatherOtherPeerSignature", "c.proofStatePool", c.proofStatePool)
-	curProofs := c.proofStatePool.proofs[height.Uint64()]
-	if curProofs.onlineValidator.Has(validator) {
-		return errors.New("GatherOtherPeerSignature: validator exist")
+	if proof, ok := c.proofStatePool.proofs[height.Uint64()]; !ok {
+		proof = newProofState(height, nil, nil, false, c.self, nil, nil)
+		proof.count = 0
+		proof.onlineValidator = append(proof.onlineValidator, validator)
+		proof.emptyBlockMessages = append(proof.emptyBlockMessages, encQues)
+		return nil
+	} else {
+		if proof.onlineValidator.Has(validator) {
+			return errors.New("GatherOtherPeerSignature: validator exist")
+		}
+		proof.onlineValidator = append(proof.onlineValidator, validator)
+		proof.emptyBlockMessages = append(proof.emptyBlockMessages, encQues)
+		if proof.validatorList != nil {
+			proof.count++
+			validatorBalance := proof.validatorList.StakeBalance(validator)
+			weightBalance := new(big.Int).Mul(validatorBalance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
+			proof.receiveValidatorsSum = new(big.Int).Add(proof.receiveValidatorsSum, weightBalance)
+		}
+		if proof.receiveValidatorsSum.Cmp(proof.targetWeightBalance) > 0 && len(proof.onlineValidator) == proof.count {
+			proof.empty = true
+			c.signatureResultCh <- VoteResult{
+				proof.height,
+				proof.empty,
+				proof.GetAllAddress(),
+				proof.GetAllMessage(),
+			}
+		}
+		return nil
 	}
-	c.proofStatePool.proofs[height.Uint64()].count++
-	c.proofStatePool.proofs[height.Uint64()].onlineValidator = append(c.proofStatePool.proofs[height.Uint64()].onlineValidator, validator)
-	c.proofStatePool.proofs[height.Uint64()].emptyBlockMessages = append(c.proofStatePool.proofs[height.Uint64()].emptyBlockMessages, encQues)
-	//coe, err = c.miner.GetWorker().getValidatorCoefficient(validator)
-	//if err != nil {
-	//	return err
-	//}
-	//weightBalance = new(big.Int).Mul(validatorBalance, big.NewInt(int64(coe)))
-	validatorBalance := c.stakers.StakeBalance(validator)
-	weightBalance = new(big.Int).Mul(validatorBalance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
-	//weightBalance.Div(weightBalance, big.NewInt(10))
-	c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, weightBalance)
-	//log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(), "balance", validatorBalance, "average coe", averageCoefficient, "weightBalance", weightBalance, "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "height", height.Uint64())
-	//log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
-	c.signatureResultCh <- c.proofStatePool.proofs[height.Uint64()]
-	//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
-	return nil
 }

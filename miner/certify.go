@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
-	"golang.org/x/xerrors"
 	"math/big"
 	"sync"
 )
@@ -26,19 +25,22 @@ type Certify struct {
 	selfMessages      *lru.ARCCache // the cache of self messages
 	eventMux          *event.TypeMux
 	events            *event.TypeMuxSubscription
-	stakers           *types.ValidatorList // all validator
-	signatureResultCh chan *ProofState
+	signatureResultCh chan VoteResult
 	miner             Handler // Apply some of the capabilities of the parent class
 	lock              sync.Mutex
-	//messageList       sync.Map
-	//messageLock       sync.Mutex
-	//receiveValidatorsSum *big.Int
-	//validators           []common.Address
-	round            uint64
-	voteIndex        int
-	validatorsHeight []string
-	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
+	proofState        chan *ProofState
+	round             uint64
+	voteIndex         int
+	validatorsHeight  []string
+	proofStatePool    *ProofStatePool // Currently highly collected validators that have sent online proofs
 	//msgHeight        *big.Int
+}
+
+type VoteResult struct {
+	Height       *big.Int
+	Empty        bool
+	Validators   []common.Address
+	EmptyMessage [][]byte
 }
 
 func (c *Certify) Start() {
@@ -65,7 +67,7 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		//validators:           make([]common.Address, 0),
 		voteIndex:         0,
 		validatorsHeight:  make([]string, 0),
-		signatureResultCh: make(chan *ProofState),
+		signatureResultCh: make(chan VoteResult),
 		proofStatePool:    NewProofStatePool(),
 		//msgHeight:        new(big.Int),
 	}
@@ -165,7 +167,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		}
 
 		currentHeight := c.miner.GetWorker().chain.CurrentHeader().Number
-		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) < 0 || currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) > 0 {
+		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) < 0 {
 			//return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
 			return true, nil
 		}
@@ -176,13 +178,13 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
-		if c.stakers == nil {
-			return true, nil
-		}
+		//if c.stakers == nil {
+		//	return true, nil
+		//}
 
-		if c.stakers.GetValidatorAddr(sender) == (common.Address{}) {
-			return true, xerrors.New("Certify.handleEvents the vote is not a miner")
-		}
+		//if c.stakers.GetValidatorAddr(sender) == (common.Address{}) {
+		//	return true, xerrors.New("Certify.handleEvents the vote is not a miner")
+		//}
 
 		c.rebroadcast(addr, data)
 
@@ -308,7 +310,16 @@ func (c *Certify) handleEvents() {
 				c.GatherOtherPeerSignature(ev.Sender, ev.Height, ev.Payload)
 			}
 
-		case proofState := <-c.miner.GetWorker().proofState:
+		case proofState := <-c.proofState:
+			if proof, ok := c.proofStatePool.proofs[proofState.height.Uint64()]; ok && len(proof.onlineValidator) > 0 && proof.receiveValidatorsSum.Cmp(big.NewInt(0)) == 0 {
+				proofState.onlineValidator = proof.onlineValidator
+				proofState.emptyBlockMessages = proof.emptyBlockMessages
+				proofState.CalculateReceiveSum()
+				proofState.count = len(proof.onlineValidator)
+			}
+
+			_, emptyMessage := c.assembleMessage(proofState.height, c.self)
+			proofState.emptyBlockMessages = append(proofState.emptyBlockMessages, emptyMessage)
 			c.proofStatePool.proofs[proofState.height.Uint64()] = proofState
 		}
 	}

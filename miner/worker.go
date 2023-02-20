@@ -210,8 +210,6 @@ type worker struct {
 	// onlineValidators
 	onlineValidators *types.OnlineValidatorList
 
-	proofState chan *ProofState
-
 	//empty block
 	totalCondition  int
 	emptyTimestamp  int64
@@ -253,7 +251,6 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		cerytify:           NewCertify(ethcrypto.PubkeyToAddress(eth.GetNodeKey().PublicKey), eth, handler),
 		miner:              handler,
 		notifyBlockCh:      make(chan *types.OnlineValidatorList, 1),
-		proofState:         make(chan *ProofState),
 		emptyTimestamp:     time.Now().Unix(),
 		emptyHandleFlag:    false,
 		resetEmptyCh:       make(chan struct{}, 1),
@@ -442,6 +439,7 @@ func (w *worker) emptyLoop() {
 	defer checkTimer.Stop()
 	<-checkTimer.C // discard the initial tick
 	checkTimer.Reset(1 * time.Second)
+	var stakes *types.ValidatorList
 
 	for {
 		select {
@@ -509,7 +507,7 @@ func (w *worker) emptyLoop() {
 					}
 					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
 				} else {
-					log.Info("ok empty condition 120", "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
+					log.Info("ok empty condition 120", "height", w.cacheHeight, "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				}
 				w.totalCondition = 0
 
@@ -555,7 +553,7 @@ func (w *worker) emptyLoop() {
 
 				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
 
-				totalWeightBalance, err := w.targetSizeWithWeight()
+				totalWeightBalance, err := w.targetSizeWithWeight(stakes)
 
 				if err != nil {
 					log.Error("emptyTimer.C : get targetWeightBalance error", "current block number", w.chain.CurrentBlock().NumberU64())
@@ -567,19 +565,19 @@ func (w *worker) emptyLoop() {
 					w.cacheHeight,
 					totalWeightBalance,
 					stakes.DeepCopy(),
-					true,
-					w.cerytify.self,
+					false,
+					common.Address{},
 					nil,
 					nil,
 				)
-				w.proofState <- proofState
+				w.cerytify.proofState <- proofState
 
 				w.isEmpty = true
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
 
 				//log.Info("emptyLoop start empty")
-				w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+				w.cerytify.AssembleAndBroadcastMessage(stakes, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 			}
 
 		case <-gossipTimer.C:
@@ -589,41 +587,21 @@ func (w *worker) emptyLoop() {
 				if !w.isEmpty {
 					continue
 				}
-				if w.cerytify.stakers == nil {
-					log.Info("emptyLoop", "nil", w.cerytify.stakers == nil)
+				if stakes == nil {
+					log.Info("emptyLoop", "nil", stakes == nil)
 					continue
 				}
-				w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+				w.cerytify.AssembleAndBroadcastMessage(stakes, new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 			}
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				//log.Info("emptyLoop.signatureResultCh start")
-				if w.cerytify == nil ||
-					rs == nil ||
-					w.cacheHeight == nil ||
-					rs.receiveValidatorsSum == nil ||
-					rs.targetWeightBalance == nil {
-					log.Error("emptyLoop.signatureResultCh, some items occur nil !!")
-					continue
-				}
-
-				proofstate := w.cerytify.proofStatePool.proofs[rs.height.Uint64()]
-				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", proofstate.receiveValidatorsSum, "w.TargetSize()", proofstate.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
-				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
-				if proofstate.receiveValidatorsSum.Cmp(proofstate.targetWeightBalance) > 0 {
-					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-					if w.isEmpty && w.cacheHeight.Cmp(rs.height) == 0 {
-						log.Info("emptyLoop.start produce empty block", "time", time.Now())
-						validators := rs.GetAllAddress(w.cerytify.stakers)
-						emptyBlockMessages := rs.GetAllMessage()
-						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators, emptyBlockMessages); err != nil {
-							log.Error("emptyLoop.commitEmptyWork error", "err", err)
-						} else {
-							w.resetEmptyCondition()
-							//w.resetEmptyCh <- struct{}{}
-						}
-						//sgiccommon.Sigc <- syscall.SIGTERM
+				if w.isEmpty && rs.Empty && rs.Height.Cmp(w.cacheHeight) == 0 {
+					if err := w.commitEmptyWork(nil, true, time.Now().Unix(), rs.Validators, rs.EmptyMessage); err != nil {
+						log.Error("emptyLoop.commitEmptyWork error", "err", err)
+					} else {
+						w.resetEmptyCondition()
+						//w.resetEmptyCh <- struct{}{}
 					}
 				}
 				w.cerytify.proofStatePool.ClearPrev(w.chain.CurrentHeader().Number)
@@ -1895,11 +1873,11 @@ func GetBFTSize(len int) int {
 	return 2*(int(math.Ceil(float64(len)/3))-1) + 1
 }
 
-func (w *worker) targetSize() *big.Int {
-	return w.cerytify.stakers.TargetSize()
-}
+//func (w *worker) targetSize() *big.Int {
+//	return w.cerytify.stakers.TargetSize()
+//}
 
-func (w *worker) targetSizeWithWeight() (*big.Int, error) {
+func (w *worker) targetSizeWithWeight(stakes *types.ValidatorList) (*big.Int, error) {
 	var total = big.NewInt(0)
 	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
 	if err != nil {
@@ -1908,7 +1886,7 @@ func (w *worker) targetSizeWithWeight() (*big.Int, error) {
 	var voteBalance *big.Int
 	var coe uint8
 	//log.Info("targetSizeWithWeight:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
-	for _, voter := range w.cerytify.stakers.Validators {
+	for _, voter := range stakes.Validators {
 		coe = currentState.GetValidatorCoefficient(voter.Addr)
 		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
 		total.Add(total, voteBalance)
@@ -1919,46 +1897,46 @@ func (w *worker) targetSizeWithWeight() (*big.Int, error) {
 	return b, nil
 }
 
-func (w *worker) getValidatorCoefficient(address common.Address) (uint8, error) {
-	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
-	if err != nil {
-		return 0, err
-	}
-	validatorAddress := w.cerytify.stakers.GetValidatorAddr(address)
-	//log.Info("worker.getValidatorCoefficient", "address", address.Hex(), "validator address", validatorAddress.Hex())
-	coe := currentState.GetValidatorCoefficient(validatorAddress)
-	return coe, nil
-}
+//func (w *worker) getValidatorCoefficient(address common.Address) (uint8, error) {
+//	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
+//	if err != nil {
+//		return 0, err
+//	}
+//	validatorAddress := w.cerytify.stakers.GetValidatorAddr(address)
+//	//log.Info("worker.getValidatorCoefficient", "address", address.Hex(), "validator address", validatorAddress.Hex())
+//	coe := currentState.GetValidatorCoefficient(validatorAddress)
+//	return coe, nil
+//}
 
-func (w *worker) GetAverageCoefficient() (uint64, error) {
-	var total = big.NewInt(0)
-	var maxTotal = big.NewInt(0)
-	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
-	if err != nil {
-		return 0, err
-	}
-	var voteBalance *big.Int
-	var maxVoteBalance *big.Int
-	var coe uint8
-	//log.Info("GetAverageCoefficient:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
-	for _, voter := range w.cerytify.stakers.Validators {
-		coe = currentState.GetValidatorCoefficient(voter.Addr)
-		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
-		total.Add(total, voteBalance)
-		maxVoteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
-		maxTotal.Add(maxTotal, maxVoteBalance)
-		//log.Info("GetAverageCoefficient:info", "height", w.chain.CurrentBlock().NumberU64()+1,
-		//	"coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total,
-		//	"maxVoteBalance", maxVoteBalance, "maxTotal", maxTotal)
-	}
-
-	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
-	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(types.DEFAULT_VALIDATOR_COEFFICIENT))
-	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
-	log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
-		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe, "height", w.chain.CurrentBlock().NumberU64()+1)
-	return averageCoe, nil
-}
+//func (w *worker) GetAverageCoefficient() (uint64, error) {
+//	var total = big.NewInt(0)
+//	var maxTotal = big.NewInt(0)
+//	currentState, err := w.chain.StateAt(w.chain.CurrentBlock().Root())
+//	if err != nil {
+//		return 0, err
+//	}
+//	var voteBalance *big.Int
+//	var maxVoteBalance *big.Int
+//	var coe uint8
+//	//log.Info("GetAverageCoefficient:w.cerytify.stakers.Validators", "height", w.chain.CurrentBlock().NumberU64()+1, "len", len(w.cerytify.stakers.Validators))
+//	for _, voter := range w.cerytify.stakers.Validators {
+//		coe = currentState.GetValidatorCoefficient(voter.Addr)
+//		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
+//		total.Add(total, voteBalance)
+//		maxVoteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
+//		maxTotal.Add(maxTotal, maxVoteBalance)
+//		//log.Info("GetAverageCoefficient:info", "height", w.chain.CurrentBlock().NumberU64()+1,
+//		//	"coe", coe, "voter.Balance", voter.Balance, "voteBalance", voteBalance, "total", total,
+//		//	"maxVoteBalance", maxVoteBalance, "maxTotal", maxTotal)
+//	}
+//
+//	ratio := new(big.Float).Quo(new(big.Float).SetInt(total), new(big.Float).SetInt(maxTotal))
+//	bigFloatCoefficient := new(big.Float).Mul(ratio, big.NewFloat(types.DEFAULT_VALIDATOR_COEFFICIENT))
+//	averageCoe, _ := new(big.Float).Mul(bigFloatCoefficient, big.NewFloat(10)).Uint64()
+//	log.Info("GetAverageCoefficient: average coefficient", "total", total, "maxTotal", maxTotal,
+//		"ratio", ratio, "bigFloatCoefficient", bigFloatCoefficient, "averageCoe", averageCoe, "height", w.chain.CurrentBlock().NumberU64()+1)
+//	return averageCoe, nil
+//}
 
 func (w *worker) getNodeAddr() common.Address {
 	return ethcrypto.PubkeyToAddress(w.eth.GetNodeKey().PublicKey)
