@@ -27,7 +27,7 @@ type Certify struct {
 	eventMux          *event.TypeMux
 	events            *event.TypeMuxSubscription
 	stakers           *types.ValidatorList // all validator
-	signatureResultCh chan *big.Int
+	signatureResultCh chan VoteResult
 	miner             Handler // Apply some of the capabilities of the parent class
 	lock              sync.Mutex
 	//messageList       sync.Map
@@ -61,7 +61,7 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		//otherMessages:     otherMsgs,
 		selfMessages:      selfMsgs,
 		miner:             handler,
-		signatureResultCh: make(chan *big.Int),
+		signatureResultCh: make(chan VoteResult),
 		//receiveValidatorsSum: big.NewInt(0),
 		//validators:           make([]common.Address, 0),
 		voteIndex:        0,
@@ -70,6 +70,13 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		//msgHeight:        new(big.Int),
 	}
 	return certify
+}
+
+type VoteResult struct {
+	Height           *big.Int
+	ReceiveSum       *big.Int
+	OnlineValidators []common.Address
+	EmptyMessages    [][]byte
 }
 
 func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
@@ -176,15 +183,15 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
-		if c.stakers == nil {
-			return true, nil
-		}
+		//if c.stakers == nil {
+		//	return true, nil
+		//}
+
+		c.rebroadcast(addr, data)
 
 		if c.stakers.GetValidatorAddr(sender) == (common.Address{}) {
 			return true, xerrors.New("Certify.handleEvents the vote is not a miner")
 		}
-
-		c.rebroadcast(addr, data)
 
 		if c.self == signature.Vote {
 			ms, ok := c.selfMessages.Get(sender)

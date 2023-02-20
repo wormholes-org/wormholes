@@ -71,8 +71,15 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 		ps.emptyBlockMessages = append(ps.emptyBlockMessages, encQues)
 
 		c.proofStatePool.proofs[height.Uint64()] = ps
+
+		c.signatureResultCh <- VoteResult{
+			height,
+			ps.receiveValidatorsSum,
+			ps.GetAllAddress(c.stakers),
+			ps.GetAllEmptyMessage(),
+		}
 		//log.Info("GatherOtherPeerSignature", "height", height)
-		c.signatureResultCh <- height
+		//c.signatureResultCh <- height
 		//log.Info("GatherOtherPeerSignature end", "height", height)
 		//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 1")
 		return nil
@@ -82,8 +89,8 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	if curProofs.onlineValidator.Has(validator) {
 		return errors.New("GatherOtherPeerSignature: validator exist")
 	}
-	c.proofStatePool.proofs[height.Uint64()].onlineValidator = append(c.proofStatePool.proofs[height.Uint64()].onlineValidator, validator)
-	c.proofStatePool.proofs[height.Uint64()].emptyBlockMessages = append(c.proofStatePool.proofs[height.Uint64()].emptyBlockMessages, encQues)
+	curProofs.onlineValidator = append(curProofs.onlineValidator, validator)
+	curProofs.emptyBlockMessages = append(curProofs.emptyBlockMessages, encQues)
 	//coe, err = c.miner.GetWorker().getValidatorCoefficient(validator)
 	//if err != nil {
 	//	return err
@@ -92,10 +99,16 @@ func (c *Certify) GatherOtherPeerSignature(validator common.Address, height *big
 	validatorBalance := c.stakers.StakeBalance(validator)
 	weightBalance = new(big.Int).Mul(validatorBalance, big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
 	//weightBalance.Div(weightBalance, big.NewInt(10))
-	c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum = new(big.Int).Add(c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, weightBalance)
+	curProofs.receiveValidatorsSum = new(big.Int).Add(curProofs.receiveValidatorsSum, weightBalance)
+	c.signatureResultCh <- VoteResult{
+		height,
+		curProofs.receiveValidatorsSum,
+		curProofs.GetAllAddress(c.stakers),
+		curProofs.GetAllEmptyMessage(),
+	}
 	//log.Info("Certify.GatherOtherPeerSignature", "validator", validator.Hex(), "balance", validatorBalance, "average coe", averageCoefficient, "weightBalance", weightBalance, "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "height", height.Uint64())
 	//log.Info("Certify.GatherOtherPeerSignature", "receiveValidatorsSum", c.proofStatePool.proofs[height.Uint64()].receiveValidatorsSum, "heigh", height)
-	c.signatureResultCh <- height
+	//c.signatureResultCh <- height
 	//log.Info("Certify.GatherOtherPeerSignature <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 2")
 	return nil
 }
