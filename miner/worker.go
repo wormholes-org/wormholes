@@ -21,12 +21,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -500,6 +501,7 @@ func (w *worker) emptyLoop() {
 					if w.totalCondition != 15 {
 						continue
 					}
+					log.Info("len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1))", "len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)), "height", curBlock.Number().Uint64()+1)
 					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
 						continue
 					}

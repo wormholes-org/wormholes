@@ -70,11 +70,13 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
 		notifyBlockCh:    make(chan *types.OnlineValidatorList, 1),
+		rePostMsgs:       make([]istanbul.MessageEvent, 16),
 	}
 
 	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
 	sb.ibftEngine = ibftengine.NewEngine(sb.config, sb.address, sb.Sign, sb)
 
+	go sb.RePostMsgLoop()
 	return sb
 }
 
@@ -124,6 +126,8 @@ type Backend struct {
 	qbftConsensusEnabled bool // qbft consensus
 
 	notifyBlockCh chan *types.OnlineValidatorList // Notify worker modules to produce blocks
+	rePostMsgs    []istanbul.MessageEvent         // Cached engine unhandled messages
+	rePostMsgsMu  sync.Mutex
 }
 
 func (sb *Backend) Engine() istanbul.Engine {

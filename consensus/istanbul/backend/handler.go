@@ -19,19 +19,19 @@ package backend
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"reflect"
 	"time"
-	"fmt"
 
-	"github.com/ethereum/go-ethereum/miniredis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/miniredis"
 	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
 )
@@ -69,18 +69,58 @@ func (sb *Backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 	return data, istanbul.RLPHash(data), nil
 }
 
+func (sb *Backend) RePostMsgLoop() {
+	tick := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-tick.C:
+			log.Info("RePostMsgLoop sb.RePostMsg()")
+			if sb.coreStarted {
+				sb.RePostMsg()
+			}
+		}
+	}
+}
+
+func (sb *Backend) RePostMsg() (bool, error) {
+	sb.rePostMsgsMu.Lock()
+	defer sb.rePostMsgsMu.Unlock()
+
+	log.Info("RePostMsg() start", "len", len(sb.rePostMsgs), "height", sb.CurrentNumber())
+	for _, event := range sb.rePostMsgs {
+		sb.istanbulEventMux.Post(event)
+	}
+	sb.rePostMsgs = sb.rePostMsgs[len(sb.rePostMsgs):]
+	log.Info("RePostMsg() end", "len", len(sb.rePostMsgs))
+	return true, nil
+}
+
 // HandleMsg implements consensus.Handler.HandleMsg
 func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
+	sb.rePostMsgsMu.Lock()
 	defer sb.coreMu.Unlock()
+	defer sb.rePostMsgsMu.Unlock()
 
 	miniredis.GetLogCh() <- map[string]interface{}{
-		fmt.Sprintf("t %v",time.Now().UTC().Unix()): addr.Hex()+" "+sb.address.Hex(),
+		fmt.Sprintf("t %v", time.Now().UTC().Unix()): addr.Hex() + " " + sb.address.Hex(),
 	}
 
 	if _, ok := qbfttypes.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {
 		if !sb.coreStarted {
-			sb.logger.Info("caver|HandleMsg|ErrStoppedEngine", "!sb.coreStarted", !sb.coreStarted)
+			log.Info("HandleMsg rePostMsgs start", "height", sb.CurrentNumber(), "len", len(sb.rePostMsgs))
+
+			data, _, err := sb.decode(msg)
+			if err != nil {
+				return true, errDecodeFailed
+			}
+			msgEvent := istanbul.MessageEvent{
+				Code:    msg.Code,
+				Payload: data,
+			}
+			sb.rePostMsgs = append(sb.rePostMsgs, msgEvent)
+
+			log.Info("HandleMsg rePostMsgs end", "height", sb.CurrentNumber(), "len", len(sb.rePostMsgs))
 			return true, nil
 		}
 
@@ -109,6 +149,7 @@ func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			Code:    msg.Code,
 			Payload: data,
 		})
+
 		return true, nil
 	}
 	//https://github.com/ConsenSys/quorum/pull/539
