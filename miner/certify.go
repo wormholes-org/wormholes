@@ -30,15 +30,10 @@ type Certify struct {
 	signatureResultCh chan VoteResult
 	miner             Handler // Apply some of the capabilities of the parent class
 	lock              sync.Mutex
-	//messageList       sync.Map
-	//messageLock       sync.Mutex
-	//receiveValidatorsSum *big.Int
-	//validators           []common.Address
-	round            uint64
-	voteIndex        int
-	validatorsHeight []string
-	proofStatePool   *ProofStatePool // Currently highly collected validators that have sent online proofs
-	//msgHeight        *big.Int
+	round             uint64
+	voteIndex         int
+	validatorsHeight  []string
+	proofStatePool    *ProofStatePool // Currently highly collected validators that have sent online proofs
 }
 
 func (c *Certify) Start() {
@@ -55,19 +50,15 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 	//otherMsgs, _ := lru.NewARC(remotePeers)
 	selfMsgs, _ := lru.NewARC(storeMsgs)
 	certify := &Certify{
-		self:     self,
-		eth:      eth,
-		eventMux: new(event.TypeMux),
-		//otherMessages:     otherMsgs,
+		self:              self,
+		eth:               eth,
+		eventMux:          new(event.TypeMux),
 		selfMessages:      selfMsgs,
 		miner:             handler,
 		signatureResultCh: make(chan VoteResult),
-		//receiveValidatorsSum: big.NewInt(0),
-		//validators:           make([]common.Address, 0),
-		voteIndex:        0,
-		validatorsHeight: make([]string, 0),
-		proofStatePool:   NewProofStatePool(),
-		//msgHeight:        new(big.Int),
+		voteIndex:         0,
+		validatorsHeight:  make([]string, 0),
+		proofStatePool:    NewProofStatePool(),
 	}
 	return certify
 }
@@ -183,6 +174,8 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
+		log.Info("azh|emptyMessage", "height", signature.Height, "from", sender, "vote", signature.Vote, "round", signature.Round)
+
 		c.rebroadcast(addr, data)
 
 		if c.stakers == nil {
@@ -238,45 +231,6 @@ func (c *Certify) handleEvents() {
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
 			case types.EmptyMessageEvent:
-				//log.Info("Certify handle events")
-				//msg := new(types.EmptyMsg)
-				//if err := msg.FromPayload(ev.Payload); err != nil {
-				//	log.Error("Certify Failed to decode message from payload", "err", err)
-				//	break
-				//}
-				//sender, err := msg.RecoverAddress(ev.Payload)
-				//if err != nil {
-				//	log.Error("Certify.handleEvents", "RecoverAddress error", err)
-				//	break
-				//}
-				//
-				//var signature *types.SignatureData
-				//err = msg.Decode(&signature)
-				//if err != nil {
-				//	log.Error("Certify.handleEvents", "msg.Decode error", err)
-				//	break
-				//}
-				//
-				//_, err = Encode(signature)
-				//if err != nil {
-				//	log.Error("Failed to encode", "subject", err)
-				//	break
-				//}
-				//
-				////c.msgHeight = signature.Height
-				////log.Info("Certify.handleEvents", "msg.Code", msg.Code, "SendSignMsg", SendSignMsg, "Height", signature.Height)
-				//
-				//log.Info("azh|handleEvents", "self", c.self, "sender", sender, "vote", signature.Vote, "height", signature.Height)
-				//if msg.Code == SendSignMsg {
-				//	//log.Info("Certify.handleEvents", "SendSignMsg", SendSignMsg, "msg.Address", msg.Address.Hex(),
-				//	//	"signature.Address", signature.Address, "signature.Height", signature.Height, "signature.Timestamp", signature.Timestamp,
-				//	//	"c.stakers number", len(c.stakers.Validators))
-				//	//If the GatherOtherPeerSignature is ok, gossip message directly
-				//	if err := c.GatherOtherPeerSignature(sender, signature.Vote, signature.Height, ev.Payload); err == nil {
-				//		c.rebroadcast(c.self, ev.Payload)
-				//	}
-				//}
-
 				log.Info("handleEvents", "sender", ev.Sender, "height", ev.Height)
 				c.GatherOtherPeerSignature(ev.Sender, ev.Height, ev.Payload)
 			}
