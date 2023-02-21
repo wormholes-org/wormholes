@@ -2936,6 +2936,9 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 			elevenValidator.AddValidator(v.Addr, valset.StakeBalance(v.Addr), common.Address{})
 		}
 	}
+	for _, v := range valset.Validators {
+		log.Info("Random11ValidatorFromPool info", "addr", v.Addr.Hex(), "height", bc.CurrentHeader().Number.Uint64())
+	}
 	return elevenValidator, nil
 }
 

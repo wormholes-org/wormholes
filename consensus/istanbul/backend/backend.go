@@ -259,7 +259,7 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	// -- if success, the ChainHeadEvent event will be broadcasted, try to build
 	//    the next block and the previous Seal() will be stopped.
 	// -- otherwise, a error will be returned and a round change event will be fired.
-	log.Info("caver|Commit|commitCh", "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
+	log.Info("caver|Commit|commitCh", "proposer", sb.core.IsProposer(), "number", proposal.Number().Uint64(), "round", round.Uint64(), "author", sb.Address(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "block.Hash()", block.Hash().Hex())
 	if sb.proposedBlockHash == block.Hash() {
 		// feed block hash to Seal() and wait the Seal() result
 		sb.commitCh <- block
@@ -267,6 +267,7 @@ func (sb *Backend) Commit(proposal istanbul.Proposal, seals [][]byte, round *big
 	}
 
 	if sb.broadcaster != nil {
+		log.Info("sb.broadcaster.Enqueue", "number", block.NumberU64(), "sb.proposedBlockHash", sb.proposedBlockHash.Hex(), "blk.hash", block.Hash().Hex())
 		sb.broadcaster.Enqueue(fetcherID, block)
 	}
 

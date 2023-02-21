@@ -935,11 +935,16 @@ func sigHash(header *types.Header) (hash common.Hash) {
 
 func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 	if len(committedSeals) == 0 {
+		log.Error("writeCommittedSeals len(committedSeals) == 0", "height", h.Number.Uint64())
 		return istanbulcommon.ErrInvalidCommittedSeals
 	}
 
 	for _, seal := range committedSeals {
+		log.Info("xxxx commitseal", "len", len(seal), "height", h.Number.Uint64())
+	}
+	for _, seal := range committedSeals {
 		if len(seal) != types.IstanbulExtraSeal {
+			log.Error("len(seal) != types.IstanbulExtraSeal", "height", h.Number.Uint64(), "len(seal)", len(seal))
 			return istanbulcommon.ErrInvalidCommittedSeals
 		}
 	}
