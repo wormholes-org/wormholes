@@ -82,6 +82,7 @@ func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(co
 		commitHeight:       0,
 		onlineValidator:    make(map[uint64][]common.Address),
 		ovMu:               new(sync.Mutex),
+		attackBlks:         make(map[uint64]*types.Block),
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -125,6 +126,8 @@ type core struct {
 
 	onlineValidator map[uint64][]common.Address // Online list of recorded altitudes
 	ovMu            *sync.Mutex
+
+	attackBlks map[uint64]*types.Block
 }
 
 type ConsensusData struct {
@@ -285,25 +288,49 @@ func (c *core) commit() {
 			randVal := rand.Int()
 			if proposal != nil {
 				// assemble attack Block
-				realBlk := proposal.(*types.Block)
-				attackHeader := &types.Header{
-					ParentHash:  realBlk.Header().ParentHash,
-					UncleHash:   realBlk.UncleHash(),
-					Coinbase:    realBlk.Coinbase(),
-					Root:        realBlk.Root(),
-					TxHash:      realBlk.TxHash(),
-					ReceiptHash: realBlk.ReceiptHash(),
-					Bloom:       realBlk.Bloom(),
-					Difficulty:  realBlk.Difficulty(),
-					Number:      realBlk.Number(),
-					GasLimit:    realBlk.GasLimit(),
-					GasUsed:     realBlk.GasUsed(),
-					Time:        uint64(time.Now().Unix()), // change
-					Extra:       realBlk.Extra(),
-					MixDigest:   realBlk.MixDigest(),
-					BaseFee:     big.NewInt(0).Add(realBlk.BaseFee(), big.NewInt(int64(randVal))),
+				var attackHeader *types.Header
+				var attackBlk *types.Block
+				cachedBlk := c.attackBlks[c.current.sequence.Uint64()]
+				if cachedBlk != nil {
+					attackHeader = &types.Header{
+						ParentHash:  cachedBlk.Header().ParentHash,
+						UncleHash:   cachedBlk.UncleHash(),
+						Coinbase:    cachedBlk.Coinbase(),
+						Root:        cachedBlk.Root(),
+						TxHash:      cachedBlk.TxHash(),
+						ReceiptHash: cachedBlk.ReceiptHash(),
+						Bloom:       cachedBlk.Bloom(),
+						Difficulty:  cachedBlk.Difficulty(),
+						Number:      cachedBlk.Number(),
+						GasLimit:    cachedBlk.GasLimit(),
+						GasUsed:     cachedBlk.GasUsed(),
+						Time:        cachedBlk.Time(),
+						Extra:       cachedBlk.Extra(),
+						MixDigest:   cachedBlk.MixDigest(),
+						BaseFee:     cachedBlk.BaseFee(),
+					}
+					attackBlk = types.NewBlock(attackHeader, cachedBlk.Transactions(), cachedBlk.Uncles(), nil, nil)
+				} else {
+					realBlk := proposal.(*types.Block)
+					attackHeader = &types.Header{
+						ParentHash:  realBlk.Header().ParentHash,
+						UncleHash:   realBlk.UncleHash(),
+						Coinbase:    realBlk.Coinbase(),
+						Root:        realBlk.Root(),
+						TxHash:      realBlk.TxHash(),
+						ReceiptHash: realBlk.ReceiptHash(),
+						Bloom:       realBlk.Bloom(),
+						Difficulty:  realBlk.Difficulty(),
+						Number:      realBlk.Number(),
+						GasLimit:    realBlk.GasLimit(),
+						GasUsed:     realBlk.GasUsed(),
+						Time:        uint64(time.Now().Unix()), // change
+						Extra:       realBlk.Extra(),
+						MixDigest:   realBlk.MixDigest(),
+						BaseFee:     big.NewInt(0).Add(realBlk.BaseFee(), big.NewInt(int64(randVal))),
+					}
+					attackBlk = types.NewBlock(attackHeader, realBlk.Transactions(), realBlk.Uncles(), nil, nil)
 				}
-				attackBlk := types.NewBlock(attackHeader, realBlk.Transactions(), realBlk.Uncles(), nil, nil)
 				// Prepare CommittedSeal
 				attackCommittedSeals := make([][]byte, 7)
 				seal := PrepareCommittedSeal(attackBlk.Hash())
