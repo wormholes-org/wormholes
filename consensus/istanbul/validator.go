@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 )
 
 type Validator interface {
@@ -30,6 +31,9 @@ type Validator interface {
 
 	// String representation of Validator
 	String() string
+
+	// coefficient
+	Coefficient() uint8
 }
 
 // ----------------------------------------------------------------------------
@@ -67,6 +71,16 @@ func ValidatorSortByByte() ValidatorSortByFunc {
 	}
 }
 
+// Priority coefficient sorting, followed by address byte sorting
+func ValidatorSortByCoefficient() ValidatorSortByFunc {
+	return func(v1 Validator, v2 Validator) bool {
+		if v1.Coefficient() == v2.Coefficient() {
+			return strings.Compare(v1.String(), v2.String()) < 0
+		}
+		return v1.Coefficient() > v2.Coefficient()
+	}
+}
+
 func (by ValidatorSortByFunc) Sort(validators []Validator) {
 	v := &validatorSorter{
 		validators: validators,
@@ -98,7 +112,7 @@ type ValidatorSet interface {
 	// Remove validator
 	RemoveValidator(address common.Address) bool
 	// Copy validator set
-	Copy() ValidatorSet
+	Copy(stateDb *state.StateDB) ValidatorSet
 	// Get the maximum number of faulty nodes
 	F() int
 	// Get proposer policy
