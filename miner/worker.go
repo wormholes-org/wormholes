@@ -217,6 +217,7 @@ type worker struct {
 	targetWeightBalance *big.Int
 	emptyTimer          *time.Timer
 	resetEmptyCh        chan struct{}
+	startEmptyBlockCh   chan uint64
 }
 
 func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
@@ -254,6 +255,7 @@ func newWorker(handler Handler, config *Config, chainConfig *params.ChainConfig,
 		emptyHandleFlag:     false,
 		resetEmptyCh:        make(chan struct{}, 1),
 		totalCondition:      0,
+		startEmptyBlockCh:   make(chan uint64, 1),
 	}
 
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
@@ -537,16 +539,17 @@ func (w *worker) emptyLoop() {
 					go w.cerytify.handleEvents()
 				}
 
-				EmptyEvent := StartEmptyBlockEvent{
-					BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
-				}
-				err = w.mux.Post(EmptyEvent)
-				if err != nil {
-					//log.Error("emptyTimer.C : post empty event", "err", err)
-					continue
-				}
+				//EmptyEvent := StartEmptyBlockEvent{
+				//	BlockNumber: new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)),
+				//}
+				//err = w.mux.Post(EmptyEvent)
+				//if err != nil {
+				//	//log.Error("emptyTimer.C : post empty event", "err", err)
+				//	continue
+				//}
 
 				w.cacheHeight = new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1))
+				w.startEmptyBlockCh <- w.cacheHeight.Uint64()
 
 				totalWeightBalance, err := w.targetSizeWithWeight()
 
