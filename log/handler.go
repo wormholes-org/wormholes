@@ -265,6 +265,53 @@ func (f logFile) Swap(i, j int) {
 	f[i], f[j] = f[j], f[i]
 }
 
+func SplitLog(path string, fmtr Format) Handler {
+	logPath := filepath.Join(path, "logs")
+	files, err := ioutil.ReadDir(logPath)
+	if err != nil {
+		os.MkdirAll(logPath, 0700)
+	}
+
+	var f *os.File
+	var preNum uint64
+	first := true
+
+	h := FuncHandler(func(r *Record) error {
+		if first {
+			preNum = r.BlockNumber
+			first = false
+		}
+		if r.BlockNumber == 0 && len(files) > 0 {
+			var filess logFile
+			re := regexp.MustCompile(`^block\d+\.log$`)
+			for _, file := range files {
+				if re.MatchString(file.Name()) {
+					filess = append(filess, file)
+				}
+			}
+			sort.Sort(filess)
+
+			filename := filess[0].Name()
+			f, _ = os.OpenFile(filepath.Join(logPath, filename), os.O_APPEND|os.O_RDWR, 0600)
+		} else {
+			if r.BlockNumber == 0 {
+				f, _ = os.OpenFile(filepath.Join(logPath, "block0.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+			}
+
+			if r.BlockNumber != preNum {
+				f.Close()
+				preNum = r.BlockNumber
+				f, _ = os.OpenFile(filepath.Join(logPath, "block"+strconv.FormatUint(r.BlockNumber, 10))+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+			}
+		}
+
+		_, err = f.Write(fmtr.Format(r))
+		return err
+	})
+
+	return LazyHandler(SyncHandler(h))
+}
+
 func MergeLog(path string, fmtr Format) Handler {
 	logPath := filepath.Join(path, "logs")
 	files, err := ioutil.ReadDir(logPath)
@@ -281,31 +328,38 @@ func MergeLog(path string, fmtr Format) Handler {
 		os.MkdirAll(logPath, 0700)
 	}
 	recs := make(chan *Record, 1024)
-	go func(rds chan *Record) {
+	go func() {
+		var first bool
+		var preNum uint64
 		var f *os.File
+		defer f.Close()
 		for {
 			select {
-			case record := <-rds:
+			case record := <-recs:
 				num := record.BlockNumber
+				if !first {
+					preNum = num
+					first = true
+				}
 				if num == 0 && len(filess) > 0 {
 					filename := filess[0].Name()
 					f, _ = os.OpenFile(filepath.Join(logPath, filename), os.O_APPEND|os.O_RDWR, 0600)
-					_, err = f.Write(fmtr.Format(record))
-					f.Close()
-					if err != nil {
-						os.Stderr.Write(fmtr.Format(record))
-					}
 				} else {
-					f, _ = os.OpenFile(filepath.Join(logPath, "block"+strconv.FormatUint(num, 10))+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
-					_, err = f.Write(fmtr.Format(record))
-					f.Close()
-					if err != nil {
-						os.Stderr.Write(fmtr.Format(record))
+					if record.BlockNumber == 0 {
+						f, _ = os.OpenFile(filepath.Join(logPath, "block0.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+					}
+
+					if num != preNum {
+						f.Close()
+						preNum = num
+						f, _ = os.OpenFile(filepath.Join(logPath, "block"+strconv.FormatUint(num, 10))+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
 					}
 				}
+
+				_, err = f.Write(fmtr.Format(record))
 			}
 		}
-	}(recs)
+	}()
 	return ChannelHandler(recs)
 }
 
