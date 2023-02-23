@@ -20,6 +20,7 @@ package state
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	gomath "math"
@@ -1646,7 +1647,7 @@ func (s *StateDB) ConstructLog(mergedNFTAddress common.Address,
 	mergedNFTLevel uint8,
 	mergedNFTNumber uint32,
 	blockNumber *big.Int,
-	mergedAddrs []byte) *types.Log {
+	mergedNFTs []*MergedNFT) *types.Log {
 	var temp string = ""
 	//event hash: MergeSNFT(address indexed snft,address indexed owner,uint256 pieces)
 	hash1 := common.HexToHash("2b2711f6ad8adbb2fc8751c8400b9c6ebdaf9ea371995641808a7c692d89d46a")
@@ -1671,7 +1672,11 @@ func (s *StateDB) ConstructLog(mergedNFTAddress common.Address,
 		BlockNumber: blockNumber.Uint64(),
 	}
 
-	log.Data = append(log.Data, mergedAddrs...)
+	nftsData, err := json.Marshal(mergedNFTs)
+	if err == nil {
+		toString := hex.EncodeToString(nftsData)
+		log.Data = append(log.Data, []byte(toString)...)
+	}
 
 	return log
 }
@@ -1894,6 +1899,11 @@ func (s *StateDB) GetExistAddress(nftAddr common.Address, mergeLevel uint8) comm
 	return s.GetExistAddress(parentAddr, mergeLevel+1)
 }
 
+type MergedNFT struct {
+	Address common.Address `json:"address"`
+	Number  uint32         `json:"number"`
+}
+
 // MergeNFT16 merge snfts and return the increase of value because of merging.
 func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big.Int, error) {
 	if !s.IsCanMergeNFT16(nftAddr) {
@@ -1921,7 +1931,7 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 
 	// 3. retrieve all the sibling leaf nodes of nftAddr
 	siblingInt := big.NewInt(0)
-	var mergedAddrs []byte
+	var mergedNFTs []*MergedNFT
 	//nftAddrSLen := len(nftAddrS)
 	var mergeNumber uint32 = 0
 	for i := 0; i < 16; i++ {
@@ -1950,7 +1960,11 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 		if siblingStateObject.NFTOwner() != emptyAddress {
 			mergeNumber = mergeNumber + siblingStateObject.GetMergeNumber()
 			siblingStateObject.CleanNFT()
-			mergedAddrs = append(mergedAddrs, siblingAddr.Bytes()...)
+			mergedNFT := &MergedNFT{
+				Address: siblingAddr,
+				Number:  siblingStateObject.GetMergeNumber(),
+			}
+			mergedNFTs = append(mergedNFTs, mergedNFT)
 		}
 		//s.deleteStateObject(siblingStateObject)
 		//s.updateStateObject(siblingStateObject)
@@ -2026,7 +2040,7 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 		newMergeStateObject.data.MergeLevel,
 		mergeNumber,
 		blocknumber,
-		mergedAddrs)
+		mergedNFTs)
 	s.AddLog(log)
 
 	tempValue, _ := s.MergeNFT16(newMergedAddr, blocknumber)
