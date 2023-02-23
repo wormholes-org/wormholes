@@ -71,6 +71,8 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		knownMessages:    knownMessages,
 		notifyBlockCh:    make(chan *types.OnlineValidatorList, 1),
 		rePostMsgs:       make([]istanbul.MessageEvent, 16),
+		onlineValidator:  make(map[uint64][]common.Address),
+		ovMu:             new(sync.Mutex),
 	}
 
 	sb.qbftEngine = qbftengine.NewEngine(sb.config, sb.address, sb.Sign)
@@ -128,6 +130,9 @@ type Backend struct {
 	notifyBlockCh chan *types.OnlineValidatorList // Notify worker modules to produce blocks
 	rePostMsgs    []istanbul.MessageEvent         // Cached engine unhandled messages
 	rePostMsgsMu  sync.Mutex
+
+	onlineValidator map[uint64][]common.Address // Online list of recorded altitudes
+	ovMu            *sync.Mutex
 }
 
 func (sb *Backend) Engine() istanbul.Engine {
@@ -505,4 +510,34 @@ func (sb *Backend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorL
 
 func (sb *Backend) GetCore() istanbul.Core {
 	return sb.core
+}
+
+func (sb *Backend) PutAddr(height uint64, addr common.Address) {
+	sb.ovMu.Lock()
+	defer sb.ovMu.Unlock()
+
+	addrs := sb.onlineValidator[height]
+	_, exist := Find(addrs, addr)
+	if !exist {
+		addrs = append(addrs, addr)
+		sb.onlineValidator[height] = addrs
+		log.Info("onlineValidators PutAddr", "height", height, "addr", addr.Hex(), "len", len(addrs), "total", len(sb.onlineValidator))
+	}
+}
+
+func (sb *Backend) delAddrs(vals []int) {
+	sb.ovMu.Lock()
+	defer sb.ovMu.Unlock()
+	for _, v := range vals {
+		delete(sb.onlineValidator, uint64(v))
+	}
+}
+
+func Find(addrs []common.Address, target common.Address) (int, bool) {
+	for i, v := range addrs {
+		if v == target {
+			return i, true
+		}
+	}
+	return -1, false
 }

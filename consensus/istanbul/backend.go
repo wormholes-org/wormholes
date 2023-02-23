@@ -89,4 +89,6 @@ type Backend interface {
 	GetCore() Core
 
 	CurrentNumber() uint64
+
+	PutAddr(height uint64, addr common.Address)
 }

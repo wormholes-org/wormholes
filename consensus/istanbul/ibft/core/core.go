@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"math"
 	"math/big"
-	"sort"
 	"sync"
 	"time"
 
@@ -330,16 +329,6 @@ func (c *core) startNewRound(round *big.Int) {
 			log.Error("ibftConsensus: c.valSet == nil", "no", newView.Sequence, "round", newView.Sequence, "self", c.address.Hex())
 			return
 		}
-		if c.onlineValidator != nil {
-			if len(c.onlineValidator) > 10 {
-				var keys []int
-				for key := range c.onlineValidator {
-					keys = append(keys, int(key))
-				}
-				sort.Sort(sort.IntSlice(keys))
-				c.delAddrs(keys[:1])
-			}
-		}
 	}
 
 	// If new round is 0, then check if qbftConsensus needs to be enabled
@@ -515,10 +504,6 @@ func (c *core) ConsensusInfo() chan map[string]interface{} {
 	return consensusInfo
 }
 
-func (c *core) OnlineValidators(height uint64) []common.Address {
-	return c.onlineValidator[height]
-}
-
 func (c *core) SaveData(msg ConsensusData) {
 	miniredis.GetLogCh() <- map[string]interface{}{
 		msg.Height: msg,
@@ -526,38 +511,5 @@ func (c *core) SaveData(msg ConsensusData) {
 }
 
 func (c *core) PutAddr(height uint64, addr common.Address) {
-	c.ovMu.Lock()
-	defer c.ovMu.Unlock()
-
-	addrs := c.onlineValidator[height]
-	log.Info("onlineValidators PutAddr", "height", height, "len", len(addrs), "total", len(c.onlineValidator))
-	_, exist := Find(addrs, addr)
-	if !exist {
-		addrs = append(addrs, addr)
-		c.onlineValidator[height] = addrs
-	}
-	return
-}
-
-func (c *core) GetAddrs(height uint64) []common.Address {
-	c.ovMu.Lock()
-	defer c.ovMu.Unlock()
-	return c.onlineValidator[height]
-}
-
-func (c *core) delAddrs(vals []int) {
-	c.ovMu.Lock()
-	defer c.ovMu.Unlock()
-	for _, v := range vals {
-		delete(c.onlineValidator, uint64(v))
-	}
-}
-
-func Find(addrs []common.Address, target common.Address) (int, bool) {
-	for i, v := range addrs {
-		if v == target {
-			return i, true
-		}
-	}
-	return -1, false
+	c.backend.PutAddr(height, addr)
 }

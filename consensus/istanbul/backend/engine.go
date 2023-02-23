@@ -685,9 +685,5 @@ func (sb *Backend) ConsensusInfo() map[string]interface{} {
 }
 
 func (sb *Backend) OnlineValidators(height uint64) []common.Address {
-	c := sb.GetCore()
-	if c != nil {
-		return c.OnlineValidators(height)
-	}
-	return nil
+	return sb.onlineValidator[height]
 }

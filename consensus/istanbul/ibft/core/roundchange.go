@@ -79,6 +79,8 @@ func (c *core) handleRoundChange(msg *ibfttypes.Message, src istanbul.Validator)
 		return istanbulcommon.ErrInvalidMessage
 	}
 
+	// Save the online validator of the current sequence
+	c.PutAddr(rc.View.Sequence.Uint64(), msg.Address)
 	log.Info("carver|handleRoundChange|baseinfo", "no", rc.View.Sequence,
 		"round", rc.View.Round,
 		"from", src.Address().Hex(),
