@@ -147,6 +147,8 @@ type handler struct {
 
 	// miner
 	miner miner.Handler
+
+	quitRandomRemovePeersCh chan struct{}
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
@@ -156,18 +158,19 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		config.EventMux = new(event.TypeMux) // Nicety initialization for tests
 	}
 	h := &handler{
-		networkID:  config.Network,
-		forkFilter: forkid.NewFilter(config.Chain),
-		eventMux:   config.EventMux,
-		database:   config.Database,
-		txpool:     config.TxPool,
-		chain:      config.Chain,
-		peers:      newPeerSet(),
-		whitelist:  config.Whitelist,
-		txsyncCh:   make(chan *txsync),
-		quitSync:   make(chan struct{}),
-		engine:     config.Engine,
-		miner:      config.miner,
+		networkID:               config.Network,
+		forkFilter:              forkid.NewFilter(config.Chain),
+		eventMux:                config.EventMux,
+		database:                config.Database,
+		txpool:                  config.TxPool,
+		chain:                   config.Chain,
+		peers:                   newPeerSet(),
+		whitelist:               config.Whitelist,
+		txsyncCh:                make(chan *txsync),
+		quitSync:                make(chan struct{}),
+		engine:                  config.Engine,
+		miner:                   config.miner,
+		quitRandomRemovePeersCh: make(chan struct{}),
 	}
 
 	// Quorum
@@ -459,6 +462,7 @@ func (h *handler) Stop() {
 
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
+	close(h.quitRandomRemovePeersCh)
 	close(h.quitSync)
 	h.wg.Wait()
 
@@ -836,6 +840,7 @@ func (h *handler) RandomRemovePeers() {
 					h.removePeer(peerID)
 				}
 			}
+		case <-h.quitRandomRemovePeersCh:
 		}
 	}
 }
