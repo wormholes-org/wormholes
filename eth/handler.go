@@ -146,8 +146,6 @@ type handler struct {
 
 	// miner
 	miner miner.Handler
-
-	//quitRandomRemovePeersCh chan struct{}
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
@@ -169,7 +167,6 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		quitSync:   make(chan struct{}),
 		engine:     config.Engine,
 		miner:      config.miner,
-		//quitRandomRemovePeersCh: make(chan struct{}),
 	}
 
 	// Quorum
@@ -461,7 +458,6 @@ func (h *handler) Stop() {
 
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
-	//close(h.quitRandomRemovePeersCh)
 	close(h.quitSync)
 	h.wg.Wait()
 
@@ -819,51 +815,3 @@ func (h *handler) BroadcastEmptyBlockMsg(msg []byte) {
 		p.WriteQueueEmptyBlockMsg(msg)
 	}
 }
-
-//func (h *handler) RandomRemovePeers() {
-//	RemovePeersInterval := 30 * time.Minute
-//	RemovePeers := time.NewTicker(RemovePeersInterval)
-//	for {
-//		select {
-//		case <-RemovePeers.C:
-//			if len(h.peers.peers) > 50 {
-//				h.peers.lock.RLock()
-//				defer h.peers.lock.RUnlock()
-//				var peerIDs []string
-//				for k, _ := range h.peers.peers {
-//					peerIDs = append(peerIDs, k)
-//				}
-//				removePeerIDs := h.SelectRemovePeers(peerIDs, len(peerIDs)-50)
-//				for _, peerID := range removePeerIDs {
-//					h.unregisterPeer(peerID)
-//					h.removePeer(peerID)
-//				}
-//			}
-//		case <-h.quitRandomRemovePeersCh:
-//		}
-//	}
-//}
-//
-//func (h *handler) SelectRemovePeers(peerIDs []string, num int) []string {
-//	var removePeerIDs []string
-//	var index int
-//	var exist bool
-//	randRange := len(peerIDs)
-//	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-//	for {
-//		index = r.Intn(randRange)
-//		for _, peerID := range peerIDs {
-//			if peerID == peerIDs[index] {
-//				exist = true
-//				break
-//			}
-//		}
-//		if !exist {
-//			removePeerIDs = append(removePeerIDs, peerIDs[index])
-//		}
-//		if len(removePeerIDs) >= num {
-//			break
-//		}
-//	}
-//	return removePeerIDs
-//}
