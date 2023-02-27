@@ -22,7 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math"
 	"math/big"
-	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -148,7 +147,7 @@ type handler struct {
 	// miner
 	miner miner.Handler
 
-	quitRandomRemovePeersCh chan struct{}
+	//quitRandomRemovePeersCh chan struct{}
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
@@ -158,19 +157,19 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		config.EventMux = new(event.TypeMux) // Nicety initialization for tests
 	}
 	h := &handler{
-		networkID:               config.Network,
-		forkFilter:              forkid.NewFilter(config.Chain),
-		eventMux:                config.EventMux,
-		database:                config.Database,
-		txpool:                  config.TxPool,
-		chain:                   config.Chain,
-		peers:                   newPeerSet(),
-		whitelist:               config.Whitelist,
-		txsyncCh:                make(chan *txsync),
-		quitSync:                make(chan struct{}),
-		engine:                  config.Engine,
-		miner:                   config.miner,
-		quitRandomRemovePeersCh: make(chan struct{}),
+		networkID:  config.Network,
+		forkFilter: forkid.NewFilter(config.Chain),
+		eventMux:   config.EventMux,
+		database:   config.Database,
+		txpool:     config.TxPool,
+		chain:      config.Chain,
+		peers:      newPeerSet(),
+		whitelist:  config.Whitelist,
+		txsyncCh:   make(chan *txsync),
+		quitSync:   make(chan struct{}),
+		engine:     config.Engine,
+		miner:      config.miner,
+		//quitRandomRemovePeersCh: make(chan struct{}),
 	}
 
 	// Quorum
@@ -452,8 +451,8 @@ func (h *handler) Start(maxPeers int) {
 	go h.chainSync.loop()
 	go h.txsyncLoop64() // TODO(karalabe): Legacy initial tx echange, drop with eth/64.
 
-	h.wg.Add(1)
-	go h.RandomRemovePeers()
+	//h.wg.Add(1)
+	//go h.RandomRemovePeers()
 }
 
 func (h *handler) Stop() {
@@ -462,7 +461,7 @@ func (h *handler) Stop() {
 
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
-	close(h.quitRandomRemovePeersCh)
+	//close(h.quitRandomRemovePeersCh)
 	close(h.quitSync)
 	h.wg.Wait()
 
@@ -821,50 +820,50 @@ func (h *handler) BroadcastEmptyBlockMsg(msg []byte) {
 	}
 }
 
-func (h *handler) RandomRemovePeers() {
-	RemovePeersInterval := 30 * time.Minute
-	RemovePeers := time.NewTicker(RemovePeersInterval)
-	for {
-		select {
-		case <-RemovePeers.C:
-			if len(h.peers.peers) > 50 {
-				h.peers.lock.RLock()
-				defer h.peers.lock.RUnlock()
-				var peerIDs []string
-				for k, _ := range h.peers.peers {
-					peerIDs = append(peerIDs, k)
-				}
-				removePeerIDs := h.SelectRemovePeers(peerIDs, len(peerIDs)-50)
-				for _, peerID := range removePeerIDs {
-					h.unregisterPeer(peerID)
-					h.removePeer(peerID)
-				}
-			}
-		case <-h.quitRandomRemovePeersCh:
-		}
-	}
-}
-
-func (h *handler) SelectRemovePeers(peerIDs []string, num int) []string {
-	var removePeerIDs []string
-	var index int
-	var exist bool
-	randRange := len(peerIDs)
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for {
-		index = r.Intn(randRange)
-		for _, peerID := range peerIDs {
-			if peerID == peerIDs[index] {
-				exist = true
-				break
-			}
-		}
-		if !exist {
-			removePeerIDs = append(removePeerIDs, peerIDs[index])
-		}
-		if len(removePeerIDs) >= num {
-			break
-		}
-	}
-	return removePeerIDs
-}
+//func (h *handler) RandomRemovePeers() {
+//	RemovePeersInterval := 30 * time.Minute
+//	RemovePeers := time.NewTicker(RemovePeersInterval)
+//	for {
+//		select {
+//		case <-RemovePeers.C:
+//			if len(h.peers.peers) > 50 {
+//				h.peers.lock.RLock()
+//				defer h.peers.lock.RUnlock()
+//				var peerIDs []string
+//				for k, _ := range h.peers.peers {
+//					peerIDs = append(peerIDs, k)
+//				}
+//				removePeerIDs := h.SelectRemovePeers(peerIDs, len(peerIDs)-50)
+//				for _, peerID := range removePeerIDs {
+//					h.unregisterPeer(peerID)
+//					h.removePeer(peerID)
+//				}
+//			}
+//		case <-h.quitRandomRemovePeersCh:
+//		}
+//	}
+//}
+//
+//func (h *handler) SelectRemovePeers(peerIDs []string, num int) []string {
+//	var removePeerIDs []string
+//	var index int
+//	var exist bool
+//	randRange := len(peerIDs)
+//	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+//	for {
+//		index = r.Intn(randRange)
+//		for _, peerID := range peerIDs {
+//			if peerID == peerIDs[index] {
+//				exist = true
+//				break
+//			}
+//		}
+//		if !exist {
+//			removePeerIDs = append(removePeerIDs, peerIDs[index])
+//		}
+//		if len(removePeerIDs) >= num {
+//			break
+//		}
+//	}
+//	return removePeerIDs
+//}
