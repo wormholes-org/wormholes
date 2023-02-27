@@ -23,7 +23,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"sort"
 	"sync"
@@ -1160,10 +1159,23 @@ func (srv *Server) RandomRemovePeers() {
 	}
 }
 
+//func (srv *Server) SelectRemovePeers(peers []*Peer) *Peer {
+//	var index int
+//	randRange := len(peers)
+//	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+//	index = r.Intn(randRange)
+//	return peers[index]
+//}
+
 func (srv *Server) SelectRemovePeers(peers []*Peer) *Peer {
-	var index int
-	randRange := len(peers)
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	index = r.Intn(randRange)
-	return peers[index]
+	var removePeer *Peer
+	removePeer = peers[0]
+	for _, peer := range peers[1:] {
+		if enode.DistCmp(srv.localnode.ID(), removePeer.ID(), peer.ID()) < 0 {
+			removePeer = peer
+		}
+	}
+
+	return removePeer
 }
+
