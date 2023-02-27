@@ -1145,7 +1145,9 @@ func (srv *Server) RandomRemovePeers() {
 		case <-RemovePeers.C:
 			if srv.PeerCount() > 50 {
 				peers := srv.Peers()
+				srv.log.Info("Server.RandomRemovePeers()", "peers number", len(peers))
 				removePeers := srv.SelectRemovePeers(peers, len(peers)-50)
+				srv.log.Info("Server.RandomRemovePeers()", "remove peers number", len(removePeers))
 				for _, peer := range removePeers {
 					srv.RemovePeer(peer.rw.node)
 				}
@@ -1163,7 +1165,7 @@ func (srv *Server) SelectRemovePeers(peers []*Peer, num int) []*Peer {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for {
 		index = r.Intn(randRange)
-		for _, peer := range peers {
+		for _, peer := range removePeers {
 			if peer.ID() == peers[index].ID() {
 				exist = true
 				break
