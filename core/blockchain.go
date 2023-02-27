@@ -2918,6 +2918,22 @@ func (bc *BlockChain) ReadValidatorPool(header *types.Header) (*types.ValidatorL
 	return validators, nil
 }
 
+// @Dev Judge whether it is the verifier of the current height
+// @param header is the latest height of the specification chain
+// @param addr is node address to be checked
+func (bc *BlockChain) IsValidatorByHight(header *types.Header, addr common.Address) (bool, error) {
+	valset, err := bc.Random11ValidatorFromPool(header)
+	if err != nil {
+		return false, err
+	}
+	for _, v := range valset.Validators {
+		if v.Addr == addr {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
 	genesisBlock := bc.GetBlockByNumber(0)
 	valset, _ := bc.ReadValidatorPool(genesisBlock.Header())

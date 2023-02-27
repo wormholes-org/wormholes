@@ -439,25 +439,12 @@ func (w *worker) emptyLoop() {
 	<-checkTimer.C // discard the initial tick
 	checkTimer.Reset(1 * time.Second)
 
+	var valiTotal int
+
 	for {
 		select {
 		case <-w.resetEmptyCh:
 			w.resetEmptyCondition()
-		//	w.isEmpty = false
-		//	w.emptyTimestamp = time.Now().Unix()
-		//	w.totalCondition = 0
-		//	w.emptyTimer.Reset(1 * time.Second)
-		//
-		//	//w.cerytify.stakers = nil
-		//	w.cerytify.voteIndex = 0
-		//	w.cerytify.round = 0
-		//
-		//	//w.cerytify.messageList.Range(func(msg, value interface{}) bool {
-		//	//	w.cerytify.messageList.Delete(msg)
-		//	//	return true
-		//	//})
-		//	//w.cerytify.Purge()
-		//	w.cerytify.selfMessages.Purge()
 		case <-checkTimer.C:
 			//log.Info("checkTimer.C", "no", w.chain.CurrentHeader().Number, "w.isEmpty", w.isEmpty)
 			checkTimer.Reset(1 * time.Second)
@@ -494,10 +481,19 @@ func (w *worker) emptyLoop() {
 				curBlock := w.chain.CurrentBlock()
 				w.totalCondition++
 
+				//log.Info("azh|onlinesLen", "len", len(w.engine.OnlineValidators(w.cacheHeight.Uint64())))
+
+				rs, err := w.chain.IsValidatorByHight(w.chain.CurrentHeader(), w.cerytify.self)
+				if err == nil && rs {
+					valiTotal = 15
+				} else {
+					valiTotal = 16
+				}
+
 				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
 				if w.totalCondition < 120 && curBlock.Number().Uint64() > 0 {
 					//log.Info("wait empty condition", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()))
-					if w.totalCondition != 15 {
+					if w.totalCondition != valiTotal {
 						continue
 					}
 					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
@@ -505,7 +501,7 @@ func (w *worker) emptyLoop() {
 					}
 					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
 				} else {
-					log.Info("ok empty condition 120", "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
+					log.Info("ok empty condition 120", "height", new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)), "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				}
 				w.totalCondition = 0
 
@@ -514,6 +510,16 @@ func (w *worker) emptyLoop() {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
+
+				//for _, val := range w.engine.OnlineValidators(w.cacheHeight.Uint64()) {
+				//	log.Info("azh|onlinesAddr", "addr", stakes.GetValidatorAddr(val))
+				//}
+
+				//v11, _ := w.eth.BlockChain().Random11ValidatorFromPool(w.chain.CurrentBlock().Header())
+				//for _, val := range v11.Validators {
+				//	log.Info("azh|empty", "v11", stakes.GetValidatorAddr(val.Addr))
+				//}
+
 				//log.Info("emptyLoop", "validators.len", len(stakes.Validators), "stake", w.cerytify.addr)
 				if stakes.GetValidatorAddr(w.cerytify.self) == (common.Address{}) {
 					w.emptyTimer.Stop()
@@ -554,6 +560,10 @@ func (w *worker) emptyLoop() {
 				//w.onlineCh <- struct{}{}
 				w.emptyTimer.Stop()
 
+				if valiTotal == 15 {
+					w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
+					gossipTimer.Reset(time.Second * 5)
+				}
 				//log.Info("emptyLoop start empty")
 			}
 
@@ -573,38 +583,20 @@ func (w *worker) emptyLoop() {
 
 		case rs := <-w.cerytify.signatureResultCh:
 			{
-				if !w.isEmpty {
-					continue
-				}
-				//log.Info("emptyLoop.signatureResultCh start")
-				if w.cerytify == nil ||
-					w.cerytify.proofStatePool == nil ||
-					w.cerytify.proofStatePool.proofs == nil ||
-					rs == nil ||
-					w.cacheHeight == nil ||
-					w.cerytify.proofStatePool.proofs[rs.Uint64()] == nil ||
-					w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum == nil ||
-					w.targetWeightBalance == nil {
-					log.Error("emptyLoop.signatureResultCh, some items occur nil !!")
-					continue
-				}
+				log.Info("emptyLoop.signatureResultCh", "isEmpty", w.isEmpty, "receiveValidatorsSum:", rs.ReceiveSum, "w.TargetSize()", w.targetWeightBalance, "w.cacheHeight", new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)), "msgHeight", rs.Height)
+				if w.isEmpty && new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)).Cmp(rs.Height) == 0 && rs.ReceiveSum.Cmp(w.targetWeightBalance) > 0 {
+					//for _, val := range rs.OnlineValidators {
+					//	log.Info("azh|empty", "vote", val)
+					//}
 
-				log.Info("emptyLoop.signatureResultCh", "receiveValidatorsSum:", w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum, "w.TargetSize()", w.targetWeightBalance, "w.cacheHeight", w.cacheHeight, "msgHeight", rs)
-				//if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetSize()) > 0 {
-				if w.cerytify.proofStatePool.proofs[rs.Uint64()].receiveValidatorsSum.Cmp(w.targetWeightBalance) > 0 {
-					log.Info("emptyLoop.Collected total validator pledge amount exceeds 51% of the total", "time", time.Now())
-					if w.isEmpty && w.cacheHeight.Cmp(rs) == 0 {
-						log.Info("emptyLoop.start produce empty block", "time", time.Now())
-						validators := w.cerytify.proofStatePool.proofs[rs.Uint64()].GetAllAddress(w.cerytify.stakers)
-						emptyBlockMessages := w.cerytify.proofStatePool.proofs[rs.Uint64()].GetAllEmptyMessage()
-						if err := w.commitEmptyWork(nil, true, time.Now().Unix(), validators, emptyBlockMessages); err != nil {
-							log.Error("emptyLoop.commitEmptyWork error", "err", err)
-						} else {
-							w.resetEmptyCondition()
-							//w.resetEmptyCh <- struct{}{}
-						}
-						//sgiccommon.Sigc <- syscall.SIGTERM
+					log.Info("emptyLoop.start produce empty block", "time", time.Now())
+					if err := w.commitEmptyWork(nil, true, time.Now().Unix(), rs.OnlineValidators, rs.EmptyMessages); err != nil {
+						log.Error("emptyLoop.commitEmptyWork error", "err", err)
+					} else {
+						w.resetEmptyCondition()
+						//w.resetEmptyCh <- struct{}{}
 					}
+					//sgiccommon.Sigc <- syscall.SIGTERM
 				}
 				w.cerytify.proofStatePool.ClearPrev(w.chain.CurrentHeader().Number)
 			}
