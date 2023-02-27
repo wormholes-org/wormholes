@@ -1155,6 +1155,7 @@ func (srv *Server) RandomRemovePeers() {
 				}
 			}
 		case <-srv.quitRandomRemovePeersCh:
+			return
 		}
 	}
 }
@@ -1178,4 +1179,3 @@ func (srv *Server) SelectRemovePeers(peers []*Peer) *Peer {
 
 	return removePeer
 }
-
