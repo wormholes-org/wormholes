@@ -1521,6 +1521,7 @@ func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 
 	current := bc.CurrentBlock()
 	if block.ParentHash() != current.Hash() {
+		log.Info("runorg1", "blkno", block.NumberU64(), "curNo", current.NumberU64())
 		if err := bc.reorg(current, block); err != nil {
 			return err
 		}
@@ -1720,6 +1721,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if reorg {
 		// Reorganise the chain if the parent is not the head block
 		if block.ParentHash() != currentBlock.Hash() {
+			log.Info("runorg2", "blkno", block.NumberU64(), "curNo", currentBlock.NumberU64())
 			if err := bc.reorg(currentBlock, block); err != nil {
 				return NonStatTy, err
 			}
