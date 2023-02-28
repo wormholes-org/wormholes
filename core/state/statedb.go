@@ -1958,13 +1958,13 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 		siblingStateObject := s.getStateObject(siblingAddr)
 		//siblingStateObject.data.AccountNFT = AccountNFT{}
 		if siblingStateObject.NFTOwner() != emptyAddress {
-			mergeNumber = mergeNumber + siblingStateObject.GetMergeNumber()
-			siblingStateObject.CleanNFT()
 			mergedNFT := &MergedNFT{
 				Address: siblingAddr,
 				Number:  siblingStateObject.GetMergeNumber(),
 			}
 			mergedNFTs = append(mergedNFTs, mergedNFT)
+			mergeNumber = mergeNumber + siblingStateObject.GetMergeNumber()
+			siblingStateObject.CleanNFT()
 		}
 		//s.deleteStateObject(siblingStateObject)
 		//s.updateStateObject(siblingStateObject)
