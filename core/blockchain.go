@@ -1720,6 +1720,15 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if reorg {
 		// Reorganise the chain if the parent is not the head block
 		if block.ParentHash() != currentBlock.Hash() {
+			// get two headers of the same height
+			remoteParentHeader := bc.GetHeaderByHash(block.ParentHash())
+			if remoteParentHeader == nil {
+				return NonStatTy, errors.New("invalid parent")
+			}
+
+			fraudHeader := types.NewFraudHeader(remoteParentHeader, currentBlock.Header())
+			bc.WriteFraudHeader(currentBlock.NumberU64(), fraudHeader)
+
 			if err := bc.reorg(currentBlock, block); err != nil {
 				return NonStatTy, err
 			}
@@ -3314,3 +3323,11 @@ func getSurroundingChainNo(i, Nr, Np int) []int {
 //		vm.FrozenAcconts = tempFrozenAccounts
 //	}
 //}
+
+func (bc *BlockChain) WriteFraudHeader(no uint64, fh *types.FraudHeader) {
+	batch := bc.db.NewBatch()
+	rawdb.WriteFraudHeader(batch, no, fh)
+	if err := batch.Write(); err != nil {
+		log.Crit("Failed to write fraud header disk", "err", err)
+	}
+}

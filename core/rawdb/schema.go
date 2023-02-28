@@ -30,6 +30,7 @@ var (
 	stakePoolKeyPrefix     = []byte("stake-pool")
 	dbStakerPoolKeyPrefix  = []byte("db-stake-pool")
 	validatorPoolKeyPrefix = []byte("validator-pool")
+	fraudHeaderKey         = []byte("FraudHeader")
 	// databaseVersionKey tracks the current database version.
 	databaseVersionKey = []byte("DatabaseVersion")
 
@@ -269,4 +270,8 @@ func officialNFTPoolKey(number uint64, hash common.Hash) []byte {
 // nominatedOfficialNFTPoolKey = nominatedOfficialNFTPrefix + num (uint64 big endian) + hash
 func nominatedOfficialNFTPoolKey(number uint64, hash common.Hash) []byte {
 	return append(append(nominatedOfficialNFTPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+func FraudHeaderKey(number uint64) []byte {
+	return append(append(fraudHeaderKey, encodeBlockNumber(number)...))
 }

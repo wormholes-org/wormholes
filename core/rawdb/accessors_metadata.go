@@ -227,3 +227,14 @@ func ReadValidatorPool(db ethdb.Reader, hash common.Hash, number uint64) (*types
 	}
 	return validatorList, nil
 }
+
+func WriteFraudHeader(db ethdb.KeyValueWriter, number uint64, fh *types.FraudHeader) {
+	data, err := rlp.EncodeToBytes(fh)
+	if err != nil {
+		log.Crit("Failed to RLP fraud header", "err", err)
+	}
+
+	if err := db.Put(FraudHeaderKey(number), data); err != nil {
+		log.Crit("Failed to store fraud header", "err", err)
+	}
+}
