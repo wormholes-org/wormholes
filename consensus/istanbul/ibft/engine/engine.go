@@ -37,7 +37,6 @@ type Option func(*types.IstanbulExtra)
 
 func withValidators(vals []common.Address) Option {
 	return func(ie *types.IstanbulExtra) {
-		log.Info("withValidators", "vals", vals)
 		ie.Validators = vals
 	}
 }
@@ -387,6 +386,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		validatorAddr []common.Address
 		exchangerAddr []common.Address
 		rewardSeals   [][]byte
+		fh            *types.FraudHeader
 	)
 	if c, ok := chain.(*core.BlockChain); ok {
 		if header.Number.Uint64() == 1 {
@@ -495,6 +495,13 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				}
 			}
 		}
+
+		fh, err = e.getFraudHeader(c, parent.Number.Uint64())
+		if err != nil {
+			log.Error("err prepare fraud header")
+			return err
+		}
+
 	}
 
 	extra, err := prepareExtraAdvanced(
@@ -503,6 +510,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		withExchangerAddr(exchangerAddr),
 		withValidatorAddr(validatorAddr),
 		withValidators(validator.SortedAddresses(validators.List())),
+		withFraudHeader(fh),
 	)
 
 	if err != nil {
@@ -519,6 +527,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	return nil
+}
+
+func (e *Engine) getFraudHeader(bc *core.BlockChain, no uint64) (*types.FraudHeader, error) {
+	return bc.ReadFraudHeader(no)
 }
 
 // copy commit seal to reward seals
@@ -599,7 +611,7 @@ func prepareExtraAdvanced(header *types.Header, options ...Option) ([]byte, erro
 		ValidatorAddr:      []common.Address{},
 		RewardSeal:         [][]byte{},
 		EmptyBlockMessages: [][]byte{},
-		Fh:                 &types.FraudHeader{},
+		Fh:                 nil,
 	}
 
 	for _, option := range options {
@@ -790,6 +802,9 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 			state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
+			// Punish the verifier who signs more
+			e.punishEvilValidators(istanbulExtra, state)
+
 			/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 			header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 			header.UncleHash = nilUncleHash
@@ -845,12 +860,66 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
+	// Punish the verifier who signs more
+	e.punishEvilValidators(istanbulExtra, state)
+
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
+}
+
+// @dev Punish the verifier who signs more
+func (e *Engine) punishEvilValidators(extra *types.IstanbulExtra, state *state.StateDB) {
+	// Pick out the evil validators
+	evilValidators := e.pickEvilValidators(extra)
+	log.Info("PunishEvilValidators", "len", len(evilValidators))
+
+	for _, v := range evilValidators {
+		log.Info("PunishEvilValidators", "evilValidator", v.Hex(), e.backend.CurrentNumber())
+		balance := state.GetBalance(v)
+		state.SubBalance(v, balance)
+		state.AddBalance(common.HexToAddress("0x0"), balance)
+	}
+}
+
+func (e *Engine) pickEvilValidators(extra *types.IstanbulExtra) []common.Address {
+	if extra.Fh == nil ||
+		extra.Fh.LocalHeader == nil ||
+		extra.Fh.RemoteParentHeader == nil {
+		return []common.Address{}
+	}
+
+	signers1, err := e.Signers(extra.Fh.LocalHeader)
+	if err != nil {
+		return []common.Address{}
+	}
+
+	signers2, err := e.Signers(extra.Fh.RemoteParentHeader)
+	if err != nil {
+		return []common.Address{}
+	}
+
+	duplicateElements := duplicateRemoval(signers1, signers2)
+	return duplicateElements
+}
+
+// @dev Use map to return duplicate elements
+func duplicateRemoval(target, compare []common.Address) (duplicateElements []common.Address) {
+	mergedSigners := append(target, compare...)
+	temp := make(map[common.Address]struct{})
+
+	for _, v := range mergedSigners {
+		_, ok := temp[v]
+		if !ok {
+			temp[v] = struct{}{}
+		} else {
+			duplicateElements = append(duplicateElements, v)
+		}
+	}
+	return duplicateElements
 }
 
 // Seal generates a new block for the given input block with the local miner's

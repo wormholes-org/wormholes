@@ -68,6 +68,9 @@ func (ist *IstanbulExtra) EncodeRLP(w io.Writer) error {
 }
 
 // DecodeRLP implements rlp.Decoder, and load the istanbul fields from a RLP stream.
+// fix rlp: too few elements for xxx
+// https://www.jianshu.com/p/13ddc606af9f?utm_campaign=maleskine&utm_content=note&utm_medium=seo_notes&utm_source=recommendation
+
 func (ist *IstanbulExtra) DecodeRLP(s *rlp.Stream) error {
 	var istanbulExtra struct {
 		Validators         []common.Address
@@ -77,12 +80,12 @@ func (ist *IstanbulExtra) DecodeRLP(s *rlp.Stream) error {
 		ValidatorAddr      []common.Address
 		RewardSeal         [][]byte
 		EmptyBlockMessages [][]byte
-		Fh                 *FraudHeader
+		Fh                 *FraudHeader `rlp:"nil"`
 	}
 	if err := s.Decode(&istanbulExtra); err != nil {
 		return err
 	}
-	ist.Validators, ist.Seal, ist.CommittedSeal, ist.ExchangerAddr, ist.ValidatorAddr, ist.RewardSeal, ist.EmptyBlockMessages, ist.Fh = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr, istanbulExtra.RewardSeal, istanbulExtra.EmptyBlockMessages, ist.Fh
+	ist.Validators, ist.Seal, ist.CommittedSeal, ist.ExchangerAddr, ist.ValidatorAddr, ist.RewardSeal, ist.EmptyBlockMessages, ist.Fh = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal, istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr, istanbulExtra.RewardSeal, istanbulExtra.EmptyBlockMessages, istanbulExtra.Fh
 	return nil
 }
 

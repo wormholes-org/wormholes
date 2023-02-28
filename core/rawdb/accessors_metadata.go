@@ -242,7 +242,8 @@ func WriteFraudHeader(db ethdb.KeyValueWriter, number uint64, fh *types.FraudHea
 func ReadFraudHeader(db ethdb.Reader, number uint64) (*types.FraudHeader, error) {
 	data, err := db.Get(FraudHeaderKey(number))
 	if err != nil {
-		return nil, err
+		// "not fund err" does not throw up
+		return nil, nil
 	}
 
 	var fh *types.FraudHeader

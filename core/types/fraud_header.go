@@ -3,14 +3,14 @@ package types
 import "github.com/ethereum/go-ethereum/rlp"
 
 type FraudHeader struct {
-	remoteParentHeader *Header // Represents the parent header of the remote block
-	localHeader        *Header // The node header representing the latest local block
+	RemoteParentHeader *Header // Represents the parent header of the remote block
+	LocalHeader        *Header // The node header representing the latest local block
 }
 
 func NewFraudHeader(rh, lh *Header) *FraudHeader {
 	return &FraudHeader{
-		remoteParentHeader: rh,
-		localHeader:        lh,
+		RemoteParentHeader: rh,
+		LocalHeader:        lh,
 	}
 }
 
