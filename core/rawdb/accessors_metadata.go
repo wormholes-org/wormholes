@@ -238,3 +238,17 @@ func WriteFraudHeader(db ethdb.KeyValueWriter, number uint64, fh *types.FraudHea
 		log.Crit("Failed to store fraud header", "err", err)
 	}
 }
+
+func ReadFraudHeader(db ethdb.Reader, number uint64) (*types.FraudHeader, error) {
+	data, err := db.Get(FraudHeaderKey(number))
+	if err != nil {
+		return nil, err
+	}
+
+	var fh *types.FraudHeader
+	if err := rlp.Decode(bytes.NewReader(data), fh); err != nil {
+		log.Error("Invalid fraud header RLP", "err", err)
+		return nil, err
+	}
+	return fh, nil
+}

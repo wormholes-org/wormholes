@@ -21,12 +21,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -1172,6 +1173,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	if w.current != nil && w.current.state != nil {
 		w.current.state.StopPrefetcher()
 	}
+
 	w.current = env
 	return nil
 }

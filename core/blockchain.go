@@ -3331,3 +3331,7 @@ func (bc *BlockChain) WriteFraudHeader(no uint64, fh *types.FraudHeader) {
 		log.Crit("Failed to write fraud header disk", "err", err)
 	}
 }
+
+func (bc *BlockChain) ReadFraudHeader(no uint64) (*types.FraudHeader, error) {
+	return rawdb.ReadFraudHeader(bc.db, no)
+}
