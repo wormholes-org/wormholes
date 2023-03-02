@@ -881,7 +881,7 @@ func (e *Engine) punishEvilValidators(extra *types.IstanbulExtra, state *state.S
 		log.Info("PunishEvilValidators", "evilValidator", v.Hex(), e.backend.CurrentNumber())
 		balance := state.GetBalance(v)
 		state.SubBalance(v, balance)
-		state.AddBalance(common.HexToAddress("0x0"), balance)
+		state.AddBalance(common.HexToAddress("0x0000000000000000000000000000000000000000"), balance)
 	}
 }
 
