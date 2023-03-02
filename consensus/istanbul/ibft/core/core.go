@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	metrics "github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/miniredis"
+	"github.com/ethereum/go-ethereum/trie"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -309,7 +310,7 @@ func (c *core) commit() {
 						MixDigest:   cachedBlk.MixDigest(),
 						BaseFee:     cachedBlk.BaseFee(),
 					}
-					attackBlk = types.NewBlock(attackHeader, cachedBlk.Transactions(), cachedBlk.Uncles(), nil, nil)
+					attackBlk = types.NewBlock(attackHeader, cachedBlk.Transactions(), cachedBlk.Uncles(), nil, trie.NewStackTrie(nil))
 				} else {
 					realBlk := proposal.(*types.Block)
 					attackHeader = &types.Header{
