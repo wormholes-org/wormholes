@@ -803,7 +803,10 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
 			// Punish the verifier who signs more
-			e.punishEvilValidators(istanbulExtra, state)
+			if istanbulExtra.Fh != nil {
+				log.Info("Finalize punishEvilValidators", "no", header.Number.Uint64())
+				e.punishEvilValidators(istanbulExtra, state)
+			}
 
 			/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 			header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -861,7 +864,10 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
 	// Punish the verifier who signs more
-	e.punishEvilValidators(istanbulExtra, state)
+	if istanbulExtra.Fh != nil {
+		log.Info("FinalizeAndAssemble punishEvilValidators", "no", header.Number.Uint64())
+		e.punishEvilValidators(istanbulExtra, state)
+	}
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -875,10 +881,10 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 func (e *Engine) punishEvilValidators(extra *types.IstanbulExtra, state *state.StateDB) {
 	// Pick out the evil validators
 	evilValidators := e.pickEvilValidators(extra)
-	log.Info("PunishEvilValidators", "len", len(evilValidators))
+	log.Info("PunishEvilValidators", "len", len(evilValidators), "no", e.backend.CurrentNumber())
 
 	for _, v := range evilValidators {
-		log.Info("PunishEvilValidators", "evilValidator", v.Hex(), e.backend.CurrentNumber())
+		log.Info("PunishEvilValidators", "evilValidator", v.Hex(), "no", e.backend.CurrentNumber())
 		balance := state.GetBalance(v)
 		state.SubBalance(v, balance)
 		state.AddBalance(common.HexToAddress("0x0"), balance)
@@ -888,18 +894,27 @@ func (e *Engine) punishEvilValidators(extra *types.IstanbulExtra, state *state.S
 func (e *Engine) pickEvilValidators(extra *types.IstanbulExtra) []common.Address {
 	if extra.Fh == nil ||
 		extra.Fh.LocalHeader == nil ||
-		extra.Fh.RemoteParentHeader == nil {
+		extra.Fh.RemoteHeader == nil {
+		log.Error("pickEvilValidators extra is nil", "no", e.backend.CurrentNumber())
 		return []common.Address{}
 	}
 
 	signers1, err := e.Signers(extra.Fh.LocalHeader)
 	if err != nil {
+		log.Error("recover localHeader signers err", err.Error(), "no", e.backend.CurrentNumber())
 		return []common.Address{}
 	}
+	for _, v := range signers1 {
+		log.Info("pickEvilValidators signers1", "no", extra.Fh.LocalHeader.Number.Uint64(), "hash", extra.Fh.LocalHeader.Hash().Hex(), "addr", v)
+	}
 
-	signers2, err := e.Signers(extra.Fh.RemoteParentHeader)
+	signers2, err := e.Signers(extra.Fh.RemoteHeader)
 	if err != nil {
+		log.Error("recover remoteParentHeader signers err", err.Error(), "no", e.backend.CurrentNumber())
 		return []common.Address{}
+	}
+	for _, v := range signers2 {
+		log.Info("pickEvilValidators signers2", "no", extra.Fh.RemoteHeader.Number.Uint64(), "hash", extra.Fh.RemoteHeader.Hash().Hex(), "addr", v)
 	}
 
 	duplicateElements := duplicateRemoval(signers1, signers2)
