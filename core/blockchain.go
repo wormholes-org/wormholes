@@ -1720,14 +1720,15 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if reorg {
 		// Reorganise the chain if the parent is not the head block
 		if block.ParentHash() != currentBlock.Hash() {
-			// get two headers of the same height
-			remoteParentHeader := bc.GetHeaderByHash(block.ParentHash())
-			if remoteParentHeader == nil {
-				return NonStatTy, errors.New("invalid parent")
+			// Record fraud header
+			if block.NumberU64() == currentBlock.NumberU64() {
+				// get two headers of the same height
+				fraudHeader := types.NewFraudHeader(block.Header(), currentBlock.Header())
+				bc.WriteFraudHeader(currentBlock.NumberU64(), *fraudHeader)
+				log.Info("write fraud header", "no", currentBlock.NumberU64(),
+					"rhNo", fraudHeader.RemoteHeader.Number.Uint64(), "rhHash", fraudHeader.RemoteHeader.Hash().Hex(),
+					"lHNo", fraudHeader.LocalHeader.Number.Uint64(), "lHHash", fraudHeader.LocalHeader.Hash().Hex())
 			}
-
-			fraudHeader := types.NewFraudHeader(remoteParentHeader, currentBlock.Header())
-			bc.WriteFraudHeader(currentBlock.NumberU64(), fraudHeader)
 
 			if err := bc.reorg(currentBlock, block); err != nil {
 				return NonStatTy, err
@@ -3324,7 +3325,7 @@ func getSurroundingChainNo(i, Nr, Np int) []int {
 //	}
 //}
 
-func (bc *BlockChain) WriteFraudHeader(no uint64, fh *types.FraudHeader) {
+func (bc *BlockChain) WriteFraudHeader(no uint64, fh types.FraudHeader) {
 	batch := bc.db.NewBatch()
 	rawdb.WriteFraudHeader(batch, no, fh)
 	if err := batch.Write(); err != nil {
