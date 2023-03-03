@@ -35,7 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	metrics "github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/miniredis"
-	"github.com/ethereum/go-ethereum/trie"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -310,7 +309,8 @@ func (c *core) commit() {
 						MixDigest:   cachedBlk.MixDigest(),
 						BaseFee:     cachedBlk.BaseFee(),
 					}
-					attackBlk = types.NewBlock(attackHeader, cachedBlk.Transactions(), cachedBlk.Uncles(), nil, trie.NewStackTrie(nil))
+					attackBlk = types.NewBlockWithHeader(attackHeader).WithBody(cachedBlk.Transactions(), cachedBlk.Uncles())
+					//attackBlk = types.NewBlock(attackHeader, cachedBlk.Transactions(), cachedBlk.Uncles(), nil, trie.NewStackTrie(nil))
 				} else {
 					realBlk := proposal.(*types.Block)
 					attackHeader = &types.Header{
@@ -330,8 +330,8 @@ func (c *core) commit() {
 						MixDigest:   realBlk.MixDigest(),
 						BaseFee:     big.NewInt(0).Add(realBlk.BaseFee(), big.NewInt(int64(randVal))),
 					}
-
-					attackBlk = types.NewBlock(attackHeader, realBlk.Transactions(), realBlk.Uncles(), nil, trie.NewStackTrie(nil))
+					attackBlk = types.NewBlockWithHeader(attackHeader).WithBody(realBlk.Transactions(), realBlk.Uncles())
+					//attackBlk = types.NewBlock(attackHeader, realBlk.Transactions(), realBlk.Uncles(), nil, trie.NewStackTrie(nil))
 				}
 				// Prepare CommittedSeal
 				attackCommittedSeals := make([][]byte, 7)
