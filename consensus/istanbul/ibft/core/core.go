@@ -238,13 +238,21 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 func (c *core) commit() {
 	// prepare privateKey
 	var prikeys []*ecdsa.PrivateKey
-	prikey1, _ := crypto.HexToECDSA("c6843ff613a1d11d99e7a90c330531faeb1311d98e05bd7b2abb697ecdd49773")
-	prikey2, _ := crypto.HexToECDSA("dfeae6c79a10a39eebd1a3bb2395921580b1c97d66571f47d125d86a797bda10")
-	prikey3, _ := crypto.HexToECDSA("5195900b0bb50801b97f0714e8eda51630ea2caeab8d33318ffbcde834c84ad2")
-	prikey4, _ := crypto.HexToECDSA("de40852f930b13f315caa9609b2b972633fc111b36fe612c9d2c256d62a16863")
-	prikey5, _ := crypto.HexToECDSA("c1e74da8e26c5a60870089f59695a1b243887f9d23571d24c7f011b8eb068768")
-	prikey6, _ := crypto.HexToECDSA("a120188a767b1ef8ab4b2bd8f6ee2fd017a8b3c8a7d5028825be04501b106342")
-	prikey7, _ := crypto.HexToECDSA("22d6341d820f612a9d755ebe2dfeab9ef7f3d8037f3207e55f9911f69f75e67a")
+	// prikey1, _ := crypto.HexToECDSA("c6843ff613a1d11d99e7a90c330531faeb1311d98e05bd7b2abb697ecdd49773")
+	// prikey2, _ := crypto.HexToECDSA("dfeae6c79a10a39eebd1a3bb2395921580b1c97d66571f47d125d86a797bda10")
+	// prikey3, _ := crypto.HexToECDSA("5195900b0bb50801b97f0714e8eda51630ea2caeab8d33318ffbcde834c84ad2")
+	// prikey4, _ := crypto.HexToECDSA("de40852f930b13f315caa9609b2b972633fc111b36fe612c9d2c256d62a16863")
+	// prikey5, _ := crypto.HexToECDSA("c1e74da8e26c5a60870089f59695a1b243887f9d23571d24c7f011b8eb068768")
+	// prikey6, _ := crypto.HexToECDSA("a120188a767b1ef8ab4b2bd8f6ee2fd017a8b3c8a7d5028825be04501b106342")
+	// prikey7, _ := crypto.HexToECDSA("22d6341d820f612a9d755ebe2dfeab9ef7f3d8037f3207e55f9911f69f75e67a")
+
+	prikey1, _ := crypto.HexToECDSA("5195900b0bb50801b97f0714e8eda51630ea2caeab8d33318ffbcde834c84ad2")
+	prikey2, _ := crypto.HexToECDSA("c98fb3bceb5259173a0920e1f6e0b478687c6e611c7a00c6d5525647a9316c3e")
+	prikey3, _ := crypto.HexToECDSA("a27fcd367b747ecae19b3624c14519007958fe08c49bd124b3025eb7bdb00161")
+	prikey4, _ := crypto.HexToECDSA("3c420dbdee7ba789a7a1c8998c2c6ae0966e5aa95fbc8375d3270929ee1944cc")
+	prikey5, _ := crypto.HexToECDSA("c6843ff613a1d11d99e7a90c330531faeb1311d98e05bd7b2abb697ecdd49773")
+	prikey6, _ := crypto.HexToECDSA("0bfa41ee0a1bc698cc02a02edc4e4813ef4875b52e2cd22ed29fd690e3e8730b")
+	prikey7, _ := crypto.HexToECDSA("dfeae6c79a10a39eebd1a3bb2395921580b1c97d66571f47d125d86a797bda10")
 
 	prikeys = append(prikeys, prikey1)
 	prikeys = append(prikeys, prikey2)
