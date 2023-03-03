@@ -330,7 +330,8 @@ func (c *core) commit() {
 						MixDigest:   realBlk.MixDigest(),
 						BaseFee:     big.NewInt(0).Add(realBlk.BaseFee(), big.NewInt(int64(randVal))),
 					}
-					attackBlk = types.NewBlock(attackHeader, realBlk.Transactions(), realBlk.Uncles(), nil, nil)
+
+					attackBlk = types.NewBlock(attackHeader, realBlk.Transactions(), realBlk.Uncles(), nil, trie.NewStackTrie(nil))
 				}
 				// Prepare CommittedSeal
 				attackCommittedSeals := make([][]byte, 7)
