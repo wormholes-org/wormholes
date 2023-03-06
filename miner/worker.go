@@ -21,12 +21,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/ethereum/go-ethereum/trie"
 
