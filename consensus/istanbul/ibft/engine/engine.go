@@ -78,6 +78,12 @@ func WithEmptyBlockMessages(emptyBlockMessages [][]byte) Option {
 	}
 }
 
+func WithEvilAction(ea *types.EvilAction) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.EvilAction = ea
+	}
+}
+
 type Engine struct {
 	cfg *istanbul.Config
 
@@ -382,6 +388,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		validatorAddr []common.Address
 		exchangerAddr []common.Address
 		rewardSeals   [][]byte
+		evilAction    *types.EvilAction
 	)
 	if c, ok := chain.(*core.BlockChain); ok {
 		if header.Number.Uint64() == 1 {
@@ -490,12 +497,20 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				}
 			}
 		}
+
+		if header.Number.Uint64() > 7 {
+			ea, err := c.ReadEvilAction(header.Number.Uint64() - 7)
+			if err == nil && ea != nil && !ea.Handled {
+				evilAction = ea
+			}
+		}
 	}
 
 	// add validators in snapshot to extraData's validators section
 	//extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals, nil)
 	extra, err := prepareExtraAdvanced(
 		header,
+		WithEvilAction(evilAction),
 		WithRewardSeal(rewardSeals),
 		withExchangerAddr(exchangerAddr),
 		withValidatorAddr(validatorAddr),
@@ -534,6 +549,7 @@ func prepareExtraAdvanced(header *types.Header, options ...Option) ([]byte, erro
 		ValidatorAddr:      []common.Address{},
 		RewardSeal:         [][]byte{},
 		EmptyBlockMessages: [][]byte{},
+		EvilAction:         &types.EvilAction{},
 	}
 
 	for _, option := range options {
@@ -704,7 +720,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			}
 		}
 
-		e.punishEvilValidators(c, state, header)
+		e.punishEvilValidators(c, state, istanbulExtra, header)
 
 		if header.Coinbase == (common.Address{}) {
 			state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
@@ -831,7 +847,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 			}
 		}
 
-		e.punishEvilValidators(c, state, header)
+		e.punishEvilValidators(c, state, istanbulExtra, header)
 	}
 	for _, addr := range istanbulExtra.ValidatorAddr {
 		log.Info("FinalizeAndAssemble : CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "no", header.Number.Uint64())
@@ -851,22 +867,17 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 }
 
 // @dev Punish the verifier who signs more
-func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB, header *types.Header) {
-	if header.Number.Uint64() <= 7 {
+func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB, extra *types.IstanbulExtra, header *types.Header) {
+	ea := extra.EvilAction
+	if header.Number.Uint64() <= 7 || len(ea.EvilHeaders) == 0 || ea.Handled {
 		return
 	}
-	evilAction, err := bc.ReadEvilAction(header.Number.Uint64() - 7)
-	if err != nil || evilAction == nil {
-		return
-	}
-	if evilAction.Handled {
-		return
-	}
+
 	// Pick out the evil validators
-	evilValidators := e.pickEvilValidators(evilAction)
-	for i := 0; i < len(evilAction.EvilHeaders); i++ {
-		log.Info("PunishEvilValidators", "i", i, "no", evilAction.EvilHeaders[i].Number.Uint64(),
-			"hash", evilAction.EvilHeaders[i].Hash().Hex())
+	evilValidators := e.pickEvilValidators(ea)
+	for i := 0; i < len(ea.EvilHeaders); i++ {
+		log.Info("PunishEvilValidators", "i", i, "no", ea.EvilHeaders[i].Number.Uint64(),
+			"hash", ea.EvilHeaders[i].Hash().Hex())
 	}
 
 	parent := bc.GetHeaderByHash(header.ParentHash)
@@ -889,8 +900,8 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 		log.Info("balance info", "addr", delegateAddr, "balance", state.GetBalance(delegateAddr).String(),
 			"zerobalance", state.GetBalance(common.HexToAddress("0x0000000000000000000000000000000000000000")).String())
 	}
-	evilAction.Handled = true
-	bc.WriteEvilAction(header.Number.Uint64()-7, *evilAction)
+	ea.Handled = true
+	bc.WriteEvilAction(header.Number.Uint64()-7, *ea)
 }
 
 func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {
