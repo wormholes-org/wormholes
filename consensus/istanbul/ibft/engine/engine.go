@@ -758,7 +758,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	header.UncleHash = nilUncleHash
 
 	// Assemble and return the final block for sealing
-	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
+	return types.NewBlock(header, txs, uncles, receipts, new(trie.Trie)), nil
 }
 
 // Seal generates a new block for the given input block with the local miner's
