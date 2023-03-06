@@ -21,12 +21,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -1192,6 +1193,21 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 		return errors.New("uncle already included")
 	}
 	env.uncles.Add(uncle.Hash())
+
+	// Record bad behavior to local database
+	evilAction, err := w.eth.BlockChain().ReadEvilAction(uncle.Number.Uint64())
+	if err != nil {
+		log.Error("err read evil action", "err", err.Error())
+		return err
+	}
+	if evilAction != nil && !evilAction.Handled {
+		evilAction.EvilHeaders = append(evilAction.EvilHeaders, uncle)
+	} else {
+		evilAction = types.NewEvilAction(uncle)
+	}
+
+	w.eth.BlockChain().WriteEvilAction(uncle.Number.Uint64(), *evilAction)
+
 	return nil
 }
 

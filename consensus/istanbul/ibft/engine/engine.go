@@ -619,6 +619,8 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			}
 		}
 
+		e.punishEvilValidators(c, state, header)
+
 		if header.Coinbase == (common.Address{}) {
 			state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
 
@@ -743,6 +745,8 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 				state.AddValidatorCoefficient(v, 20)
 			}
 		}
+
+		e.punishEvilValidators(c, state, header)
 	}
 	for _, addr := range istanbulExtra.ValidatorAddr {
 		log.Info("FinalizeAndAssemble : CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "no", header.Number.Uint64())
@@ -758,7 +762,61 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	header.UncleHash = nilUncleHash
 
 	// Assemble and return the final block for sealing
-	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
+	return types.NewBlock(header, txs, uncles, receipts, new(trie.Trie)), nil
+}
+
+// @dev Punish the verifier who signs more
+func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB, header *types.Header) {
+	if header.Number.Uint64() <= 7 {
+		return
+	}
+	evilAction, err := bc.ReadEvilAction(header.Number.Uint64() - 7)
+	if err != nil || evilAction == nil {
+		return
+	}
+	if evilAction.Handled {
+		return
+	}
+	// Pick out the evil validators
+	evilValidators := e.pickEvilValidators(evilAction)
+	log.Info("PunishEvilValidators", "len", len(evilValidators))
+
+	for _, v := range evilValidators {
+		log.Info("PunishEvilValidators", "evilValidator", v.Hex(), e.backend.CurrentNumber())
+		balance := state.GetBalance(v)
+		state.SubBalance(v, balance)
+		state.AddBalance(common.HexToAddress("0x0000000000000000000000000000000000000000"), balance)
+	}
+	evilAction.Handled = true
+	bc.WriteEvilAction(header.Number.Uint64()-7, *evilAction)
+}
+
+func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {
+	var totalSigners []common.Address
+	for _, header := range ea.EvilHeaders {
+		signers, err := e.Signers(header)
+		if err != nil {
+			break
+		}
+		totalSigners = append(totalSigners, signers...)
+	}
+	duplicateElements := duplicateRemoval(totalSigners)
+	return duplicateElements
+}
+
+// @dev Use map to return duplicate elements
+func duplicateRemoval(target []common.Address) (duplicateElements []common.Address) {
+	temp := make(map[common.Address]struct{})
+
+	for _, v := range target {
+		_, ok := temp[v]
+		if !ok {
+			temp[v] = struct{}{}
+		} else {
+			duplicateElements = append(duplicateElements, v)
+		}
+	}
+	return duplicateElements
 }
 
 // Seal generates a new block for the given input block with the local miner's

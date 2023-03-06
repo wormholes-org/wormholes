@@ -3235,3 +3235,15 @@ func getSurroundingChainNo(i, Nr, Np int) []int {
 //		vm.FrozenAcconts = tempFrozenAccounts
 //	}
 //}
+
+func (bc *BlockChain) WriteEvilAction(no uint64, ea types.EvilAction) {
+	batch := bc.db.NewBatch()
+	rawdb.WriteEvilAction(batch, no, ea)
+	if err := batch.Write(); err != nil {
+		log.Crit("Failed to write evil action disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) ReadEvilAction(no uint64) (*types.EvilAction, error) {
+	return rawdb.ReadEvilAction(bc.db, no)
+}
