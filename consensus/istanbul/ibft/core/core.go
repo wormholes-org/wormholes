@@ -263,7 +263,7 @@ func (c *core) commit() {
 	prikeys = append(prikeys, prikey7)
 
 	i, _ := c.valSet.GetByAddress(c.address)
-	if c.current.sequence.Uint64() > 5 {
+	if c.current.sequence.Uint64() == 5 {
 		if i > 6 {
 			log.Info("honer node start", "height", c.current.sequence.Uint64(), "addr", c.address.Hex())
 			c.setState(ibfttypes.StateCommitted)
