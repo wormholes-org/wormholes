@@ -133,6 +133,9 @@ type StateDB interface {
 	GetMergeNumber(common.Address) uint32
 	//GetPledgedFlag(common.Address) bool
 	//GetNFTPledgedBlockNumber(common.Address) *big.Int
+	CalculateExchangeAmount(uint8, uint32) *big.Int
+	GetExchangAmount(common.Address, *big.Int) *big.Int
+	IsOfficialNFT(common.Address) bool
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

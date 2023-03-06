@@ -142,7 +142,8 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		GetMergeNumber: GetMergeNumber,
 		//GetPledgedFlag:              GetPledgedFlag,
 		//GetNFTPledgedBlockNumber:    GetNFTPledgedBlockNumber,
-		RecoverValidatorCoefficient: RecoverValidatorCoefficient,
+		RecoverValidatorCoefficient:           RecoverValidatorCoefficient,
+		BatchForcedSaleSNFTByApproveExchanger: BatchForcedSaleSNFTByApproveExchanger,
 	}
 }
 
@@ -2273,6 +2274,194 @@ func BatchBuyNFTByApproveExchanger(
 	royaltyAmount := new(big.Int).Mul(unitAmount, new(big.Int).SetUint64(uint64(royalty)))
 	feeAmount := new(big.Int).Add(exchangerAmount, royaltyAmount)
 	nftOwnerAmount := new(big.Int).Sub(amount, feeAmount)
+	db.SubBalance(buyer, amount)
+	db.AddBalance(nftOwner, nftOwnerAmount)
+	db.AddBalance(creator, royaltyAmount)
+	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	//db.AddVoteWeight(beneficiaryExchanger, amount)
+	db.ChangeNFTOwner(nftAddress, buyer, level, blocknumber)
+
+	mulRewardRate := new(big.Int).Mul(exchangerAmount, new(big.Int).SetInt64(InjectRewardRate))
+	injectRewardAmount := new(big.Int).Div(mulRewardRate, new(big.Int).SetInt64(10000))
+	exchangerAmount = new(big.Int).Sub(exchangerAmount, injectRewardAmount)
+	db.AddBalance(beneficiaryExchanger, exchangerAmount)
+	db.AddBalance(InjectRewardAddress, injectRewardAmount)
+
+	return nil
+}
+
+// BatchForcedSaleSNFTByApproveExchanger is tx that approved exchanger
+func BatchForcedSaleSNFTByApproveExchanger(
+	db vm.StateDB,
+	blocknumber *big.Int,
+	caller common.Address,
+	to common.Address,
+	wormholes *types.Wormholes,
+	amount *big.Int) error {
+
+	emptyAddress := common.Address{}
+
+	nftAddress, level, err := GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
+	if err != nil {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), nft address error", "wormholes.Buyer.NFTAddress", wormholes.Buyer.NFTAddress)
+		return err
+	}
+
+	if !db.IsOfficialNFT(nftAddress) {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), not official nft")
+		return errors.New("not official nft")
+	}
+
+	if level != 0 {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), not snft fragment")
+		return errors.New("not snft fragment")
+	}
+
+	level2 := db.GetNFTMergeLevel(nftAddress)
+	if int(level2) != level {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger()", "wormholes.Type", wormholes.Type, "nft address", wormholes.Buyer.NFTAddress,
+			"input nft level", level, "real nft level", level2)
+		return errors.New("not exist nft")
+	}
+
+	if len(wormholes.BuyerAuth.Exchanger) <= 0 ||
+		len(wormholes.BuyerAuth.BlockNumber) <= 0 {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), no buyer's auth")
+		return errors.New("no buyer's auth")
+	}
+
+	if len(wormholes.BuyerAuth.BlockNumber) > 0 {
+		err := checkBlockNumber(wormholes.BuyerAuth.BlockNumber, blocknumber)
+		if err != nil {
+			log.Error("BatchForcedSaleSNFTByApproveExchanger(), buyer blocknumber error",
+				"wormholes.BuyerAuth.BlockNumber", wormholes.BuyerAuth.BlockNumber,
+				"err", err)
+		}
+	}
+
+	var buyer common.Address
+	if len(wormholes.BuyerAuth.Exchanger) > 0 &&
+		len(wormholes.BuyerAuth.BlockNumber) > 0 &&
+		len(wormholes.BuyerAuth.Sig) > 0 {
+		buyer, err = RecoverAddress(wormholes.BuyerAuth.Exchanger+wormholes.BuyerAuth.BlockNumber, wormholes.BuyerAuth.Sig)
+		if err != nil {
+			log.Error("BatchForcedSaleSNFTByApproveExchanger()", "Get buyer error", err)
+			return err
+		}
+	}
+
+	//2. compare current block number and buyer.blocknumber and exchanger_auth.blocknumber,
+	//return error if current block number is greater than buyer.blocknumber and exchanger_auth.blocknumber.
+	err = checkBlockNumber(wormholes.Buyer.BlockNumber, blocknumber)
+	if err != nil {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), buyer blocknumber error",
+			"wormholes.Buyer.BlockNumber", wormholes.Buyer.BlockNumber,
+			"err", err)
+	}
+
+	buyMsg := wormholes.Buyer.Amount +
+		wormholes.Buyer.NFTAddress +
+		wormholes.Buyer.Exchanger +
+		wormholes.Buyer.BlockNumber +
+		wormholes.Buyer.Seller
+	buyerApproved, err := RecoverAddress(buyMsg, wormholes.Buyer.Sig)
+	if err != nil {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger()", "Get buyerApproved error", err)
+		return err
+	}
+	if buyer == emptyAddress {
+		buyer = buyerApproved
+	}
+
+	initAmount := db.CalculateExchangeAmount(1, 1)
+	amount = db.GetExchangAmount(nftAddress, initAmount)
+
+	buyerBalance := db.GetBalance(buyer)
+	if buyerBalance.Cmp(amount) < 0 {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), insufficient balance",
+			"buyerBalance", buyerBalance.Text(16), "amount", amount.Text(16))
+		return errors.New("insufficient balance")
+	}
+
+	var originalExchanger common.Address
+	if len(wormholes.ExchangerAuth.ExchangerOwner) > 0 &&
+		len(wormholes.ExchangerAuth.To) > 0 &&
+		len(wormholes.ExchangerAuth.BlockNumber) > 0 {
+
+		err = checkBlockNumber(wormholes.ExchangerAuth.BlockNumber, blocknumber)
+		if err != nil {
+			log.Error("BatchForcedSaleSNFTByApproveExchanger(), auth exchanger blocknumber error",
+				"wormholes.ExchangerAuth.BlockNumber", wormholes.ExchangerAuth.BlockNumber,
+				"err", err)
+		}
+
+		exchangerMsg := wormholes.ExchangerAuth.ExchangerOwner +
+			wormholes.ExchangerAuth.To +
+			wormholes.ExchangerAuth.BlockNumber
+		originalExchanger, err = RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
+		if err != nil {
+			log.Error("BatchForcedSaleSNFTByApproveExchanger()", "Get originalExchanger error", err)
+			return ErrRecoverAddress
+		}
+		if originalExchanger != common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner) {
+			return ErrNotMatchAddress
+		}
+	} else {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), ExchangerAuth error")
+		return errors.New("ExchangerAuth error")
+	}
+
+	if originalExchanger != common.HexToAddress(wormholes.BuyerAuth.Exchanger) {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), authorized exchanger error",
+			"originalExchanger", originalExchanger.String(),
+			"wormholes.BuyerAuth.Exchanger", wormholes.BuyerAuth.Exchanger,
+			"wormholes.SellerAuth.Exchanger", wormholes.SellerAuth.Exchanger)
+		return errors.New("authorized exchanger error")
+	}
+
+	//3. check buyer's address and to address as well as exchanger_auth.to and sender ,
+	//return error if they are not same.
+	if to != buyer {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), to of the tx is not buyer!",
+			"to", to.String(), "buyer", buyer.String())
+		return errors.New("to of the tx is not buyer!")
+	}
+
+	approvedAddr := common.HexToAddress(wormholes.ExchangerAuth.To)
+	if approvedAddr != caller {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), from of the tx is not approved!",
+			"caller", caller.String(), "wormholes.ExchangerAuth.To", wormholes.ExchangerAuth.To)
+		return errors.New("from of the tx is not approved!")
+	}
+
+	nftOwner := db.GetNFTOwner16(nftAddress)
+	if nftOwner == emptyAddress {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), Get nft owner error!", "nftAddress", nftAddress.String())
+		return errors.New("Get nft owner error!")
+	}
+
+	var beneficiaryExchanger common.Address
+	exclusiveExchanger := db.GetNFTExchanger(nftAddress)
+	if exclusiveExchanger != emptyAddress {
+		if originalExchanger != exclusiveExchanger {
+			if db.GetExchangerFlag(exclusiveExchanger) {
+				log.Error("BatchForcedSaleSNFTByApproveExchanger(), caller not same as created exclusive Exchanger!",
+					"originalExchanger", originalExchanger.String(), "exclusiveExchanger", exclusiveExchanger.String())
+				return errors.New("need exclusive Exchanger!")
+			}
+		}
+	}
+	beneficiaryExchanger = originalExchanger
+
+	unitAmount := new(big.Int).Div(amount, new(big.Int).SetInt64(10000))
+	feeRate := db.GetFeeRate(beneficiaryExchanger)
+	exchangerAmount := new(big.Int).Mul(unitAmount, new(big.Int).SetUint64(uint64(feeRate)))
+	creator := db.GetNFTCreator(nftAddress)
+	royalty := db.GetNFTRoyalty(nftAddress)
+	royaltyAmount := new(big.Int).Mul(unitAmount, new(big.Int).SetUint64(uint64(royalty)))
+	feeAmount := new(big.Int).Add(exchangerAmount, royaltyAmount)
+	nftOwnerAmount := new(big.Int).Sub(amount, feeAmount)
+	nftOwnerAmount = new(big.Int).Div(nftOwnerAmount, big.NewInt(2))
 	db.SubBalance(buyer, amount)
 	db.AddBalance(nftOwner, nftOwnerAmount)
 	db.AddBalance(creator, royaltyAmount)
