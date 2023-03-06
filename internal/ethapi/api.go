@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	gomath "math"
 	"math/big"
 	"strings"
 	"time"
@@ -1095,6 +1096,60 @@ func (s *PublicBlockChainAPI) GetRealParticipantsByNumber(ctx context.Context, n
 func (s *PublicBlockChainAPI) Version(ctx context.Context) string {
 	version := "wormholes v" + params.Version
 	return version
+}
+
+func (s *PublicBlockChainAPI) GetForcedSaleAmount(ctx context.Context, nftAddress common.Address) (*hexutil.Big, error) {
+	if !s.IsOfficialNFT(nftAddress) {
+		return nil, errors.New("not official nft")
+	}
+	initAmount := s.CalculateExchangeAmount(1, 1)
+	amount := s.GetExchangAmount(nftAddress, initAmount)
+
+	return (*hexutil.Big)(amount), nil
+}
+
+func (s *PublicBlockChainAPI) IsOfficialNFT(nftAddress common.Address) bool {
+	maskByte := byte(128)
+	nftByte := nftAddress[0]
+	result := maskByte & nftByte
+	if result == 128 {
+		return true
+	}
+	return false
+}
+
+var ExchangePeriod = uint64(6160) // 365 * 720 * 24 * 4 / 4096
+func (s *PublicBlockChainAPI) GetExchangAmount(nftaddress common.Address, initamount *big.Int) *big.Int {
+	nftInt := new(big.Int).SetBytes(nftaddress.Bytes())
+	baseInt, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+	nftInt.Sub(nftInt, baseInt)
+	//nftInt.Add(nftInt, big.NewInt(1))
+	nftInt.Div(nftInt, big.NewInt(4096))
+	times := nftInt.Uint64() / ExchangePeriod
+	rewardratio := gomath.Pow(0.88, float64(times))
+	result := big.NewInt(0)
+	new(big.Float).Mul(big.NewFloat(rewardratio), new(big.Float).SetInt(initamount)).Int(result)
+
+	return result
+}
+
+func (s *PublicBlockChainAPI) CalculateExchangeAmount(level uint8, mergenumber uint32) *big.Int {
+	//nftNumber := math.BigPow(16, int64(level))
+	nftNumber := big.NewInt(int64(mergenumber))
+	switch {
+	case level == 0:
+		radix, _ := big.NewInt(0).SetString("30000000000000000", 10)
+		return big.NewInt(0).Mul(nftNumber, radix)
+	case level == 1:
+		radix, _ := big.NewInt(0).SetString("143000000000000000", 10)
+		return big.NewInt(0).Mul(nftNumber, radix)
+	case level == 2:
+		radix, _ := big.NewInt(0).SetString("271000000000000000", 10)
+		return big.NewInt(0).Mul(nftNumber, radix)
+	default:
+		radix, _ := big.NewInt(0).SetString("650000000000000000", 10)
+		return big.NewInt(0).Mul(nftNumber, radix)
+	}
 }
 
 // Result structs for GetProof
