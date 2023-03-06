@@ -33,6 +33,51 @@ var (
 
 type SignerFn func(data []byte) ([]byte, error)
 
+type Option func(*types.IstanbulExtra)
+
+func withValidators(vals []common.Address) Option {
+	return func(ie *types.IstanbulExtra) {
+		log.Info("withValidators", "vals", vals)
+		ie.Validators = vals
+	}
+}
+
+func WithSeal(seal []byte) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.Seal = seal
+	}
+}
+
+func WithCommitSeal(commitSeal [][]byte) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.CommittedSeal = commitSeal
+	}
+}
+
+func withExchangerAddr(exchangerAddr []common.Address) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.ExchangerAddr = exchangerAddr
+	}
+}
+
+func withValidatorAddr(validatorAddr []common.Address) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.ValidatorAddr = validatorAddr
+	}
+}
+
+func WithRewardSeal(rewardSeal [][]byte) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.RewardSeal = rewardSeal
+	}
+}
+
+func WithEmptyBlockMessages(emptyBlockMessages [][]byte) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.EmptyBlockMessages = emptyBlockMessages
+	}
+}
+
 type Engine struct {
 	cfg *istanbul.Config
 
@@ -315,6 +360,7 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 	return e.verifySigner(chain, header, nil, validators)
 }
 
+// Deprecated : use prepareAdvanced
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
 	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") &&
 		header.Number.Cmp(common.Big0) > 0 {
@@ -447,7 +493,14 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals, nil)
+	//extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals, nil)
+	extra, err := prepareExtraAdvanced(
+		header,
+		WithRewardSeal(rewardSeals),
+		withExchangerAddr(exchangerAddr),
+		withValidatorAddr(validatorAddr),
+		withValidators(validator.SortedAddresses(validators.List())),
+	)
 	if err != nil {
 		return err
 	}
@@ -461,6 +514,38 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	return nil
+}
+
+func prepareExtraAdvanced(header *types.Header, options ...Option) ([]byte, error) {
+	var buf bytes.Buffer
+
+	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
+	if len(header.Extra) < types.IstanbulExtraVanity {
+		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
+	}
+	buf.Write(header.Extra[:types.IstanbulExtraVanity])
+
+	h := &types.IstanbulExtra{
+		// default options
+		Validators:         []common.Address{},
+		Seal:               []byte{},
+		CommittedSeal:      [][]byte{},
+		ExchangerAddr:      []common.Address{},
+		ValidatorAddr:      []common.Address{},
+		RewardSeal:         [][]byte{},
+		EmptyBlockMessages: [][]byte{},
+	}
+
+	for _, option := range options {
+		option(h)
+	}
+
+	payload, err := rlp.EncodeToBytes(&h)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(buf.Bytes(), payload...), nil
 }
 
 // copy commit seal to reward seals
