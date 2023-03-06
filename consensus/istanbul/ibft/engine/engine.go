@@ -33,6 +33,57 @@ var (
 
 type SignerFn func(data []byte) ([]byte, error)
 
+type Option func(*types.IstanbulExtra)
+
+func withValidators(vals []common.Address) Option {
+	return func(ie *types.IstanbulExtra) {
+		log.Info("withValidators", "vals", vals)
+		ie.Validators = vals
+	}
+}
+
+func WithSeal(seal []byte) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.Seal = seal
+	}
+}
+
+func WithCommitSeal(commitSeal [][]byte) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.CommittedSeal = commitSeal
+	}
+}
+
+func withExchangerAddr(exchangerAddr []common.Address) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.ExchangerAddr = exchangerAddr
+	}
+}
+
+func withValidatorAddr(validatorAddr []common.Address) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.ValidatorAddr = validatorAddr
+	}
+}
+
+func WithRewardSeal(rewardSeal [][]byte) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.RewardSeal = rewardSeal
+	}
+}
+
+func WithEmptyBlockMessages(emptyBlockMessages [][]byte) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.EmptyBlockMessages = emptyBlockMessages
+	}
+}
+
+func WithEvilAction(ea *types.EvilAction) Option {
+	return func(ie *types.IstanbulExtra) {
+		ie.EvilAction = ea
+	}
+}
+
 type Engine struct {
 	cfg *istanbul.Config
 
@@ -315,6 +366,7 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 	return e.verifySigner(chain, header, nil, validators)
 }
 
+// Deprecated : use prepareAdvanced
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
 	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") &&
 		header.Number.Cmp(common.Big0) > 0 {
@@ -336,6 +388,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		validatorAddr []common.Address
 		exchangerAddr []common.Address
 		rewardSeals   [][]byte
+		evilAction    *types.EvilAction
 	)
 	if c, ok := chain.(*core.BlockChain); ok {
 		if header.Number.Uint64() == 1 {
@@ -444,10 +497,25 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				}
 			}
 		}
+
+		if header.Number.Uint64() > 7 {
+			ea, err := c.ReadEvilAction(header.Number.Uint64() - 7)
+			if err == nil && ea != nil && !ea.Handled {
+				evilAction = ea
+			}
+		}
 	}
 
 	// add validators in snapshot to extraData's validators section
-	extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals, nil)
+	//extra, err := prepareExtra(header, validator.SortedAddresses(validators.List()), exchangerAddr, validatorAddr, rewardSeals, nil)
+	extra, err := prepareExtraAdvanced(
+		header,
+		WithEvilAction(evilAction),
+		WithRewardSeal(rewardSeals),
+		withExchangerAddr(exchangerAddr),
+		withValidatorAddr(validatorAddr),
+		withValidators(validator.SortedAddresses(validators.List())),
+	)
 	if err != nil {
 		return err
 	}
@@ -461,6 +529,39 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	return nil
+}
+
+func prepareExtraAdvanced(header *types.Header, options ...Option) ([]byte, error) {
+	var buf bytes.Buffer
+
+	// compensate the lack bytes if header.Extra is not enough IstanbulExtraVanity bytes.
+	if len(header.Extra) < types.IstanbulExtraVanity {
+		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
+	}
+	buf.Write(header.Extra[:types.IstanbulExtraVanity])
+
+	h := &types.IstanbulExtra{
+		// default options
+		Validators:         []common.Address{},
+		Seal:               []byte{},
+		CommittedSeal:      [][]byte{},
+		ExchangerAddr:      []common.Address{},
+		ValidatorAddr:      []common.Address{},
+		RewardSeal:         [][]byte{},
+		EmptyBlockMessages: [][]byte{},
+		EvilAction:         &types.EvilAction{},
+	}
+
+	for _, option := range options {
+		option(h)
+	}
+
+	payload, err := rlp.EncodeToBytes(&h)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(buf.Bytes(), payload...), nil
 }
 
 // copy commit seal to reward seals
@@ -619,7 +720,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			}
 		}
 
-		e.punishEvilValidators(c, state, header)
+		e.punishEvilValidators(c, state, istanbulExtra, header)
 
 		if header.Coinbase == (common.Address{}) {
 			state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
@@ -746,7 +847,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 			}
 		}
 
-		e.punishEvilValidators(c, state, header)
+		e.punishEvilValidators(c, state, istanbulExtra, header)
 	}
 	for _, addr := range istanbulExtra.ValidatorAddr {
 		log.Info("FinalizeAndAssemble : CreateNFTByOfficial16", "ValidatorAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "no", header.Number.Uint64())
@@ -766,20 +867,18 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 }
 
 // @dev Punish the verifier who signs more
-func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB, header *types.Header) {
-	if header.Number.Uint64() <= 7 {
+func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB, extra *types.IstanbulExtra, header *types.Header) {
+	ea := extra.EvilAction
+	if header.Number.Uint64() <= 7 || len(ea.EvilHeaders) == 0 || ea.Handled {
 		return
 	}
-	evilAction, err := bc.ReadEvilAction(header.Number.Uint64() - 7)
-	if err != nil || evilAction == nil {
-		return
-	}
-	if evilAction.Handled {
-		return
-	}
+
 	// Pick out the evil validators
-	evilValidators := e.pickEvilValidators(evilAction)
-	log.Info("PunishEvilValidators", "len", len(evilValidators))
+	evilValidators := e.pickEvilValidators(ea)
+	for i := 0; i < len(ea.EvilHeaders); i++ {
+		log.Info("PunishEvilValidators", "i", i, "no", ea.EvilHeaders[i].Number.Uint64(),
+			"hash", ea.EvilHeaders[i].Hash().Hex())
+	}
 
 	parent := bc.GetHeaderByHash(header.ParentHash)
 	if parent == nil {
@@ -801,8 +900,8 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 		log.Info("balance info", "addr", delegateAddr, "balance", state.GetBalance(delegateAddr).String(),
 			"zerobalance", state.GetBalance(common.HexToAddress("0x0000000000000000000000000000000000000000")).String())
 	}
-	evilAction.Handled = true
-	bc.WriteEvilAction(header.Number.Uint64()-7, *evilAction)
+	ea.Handled = true
+	bc.WriteEvilAction(header.Number.Uint64()-7, *ea)
 }
 
 func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {
