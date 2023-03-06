@@ -779,7 +779,10 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 	}
 	// Pick out the evil validators
 	evilValidators := e.pickEvilValidators(evilAction)
-	log.Info("PunishEvilValidators", "len", len(evilValidators))
+	for i := 0; i < len(evilAction.EvilHeaders); i++ {
+		log.Info("PunishEvilValidators", "i", i, "no", evilAction.EvilHeaders[i].Number.Uint64(),
+			"hash", evilAction.EvilHeaders[i].Hash().Hex())
+	}
 
 	parent := bc.GetHeaderByHash(header.ParentHash)
 	if parent == nil {

@@ -1206,7 +1206,16 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 	}
 
 	if evilAction != nil && !evilAction.Handled {
-		evilAction.EvilHeaders = append(evilAction.EvilHeaders, uncle)
+		var exsist bool
+		for _, v := range evilAction.EvilHeaders {
+			if v.Hash() == uncle.Hash() {
+				exsist = true
+				break
+			}
+		}
+		if !exsist {
+			evilAction.EvilHeaders = append(evilAction.EvilHeaders, uncle)
+		}
 	} else {
 		evilAction = types.NewEvilAction(uncle)
 	}
