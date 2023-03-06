@@ -242,7 +242,8 @@ func WriteEvilAction(db ethdb.KeyValueWriter, number uint64, ea types.EvilAction
 func ReadEvilAction(db ethdb.Reader, number uint64) (*types.EvilAction, error) {
 	data, err := db.Get(EvilActionKey(number))
 	if err != nil {
-		return nil, err
+		// level db  not found do not return as an error
+		return nil, nil
 	}
 
 	var ea *types.EvilAction
