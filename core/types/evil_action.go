@@ -10,7 +10,7 @@ type EvilAction struct {
 func NewEvilAction(evilHeader *Header) *EvilAction {
 	evilAction := EvilAction{
 		Handled:     false,
-		EvilHeaders: make([]*Header, 6),
+		EvilHeaders: make([]*Header, 0),
 	}
 	evilAction.EvilHeaders = append(evilAction.EvilHeaders, evilHeader)
 	return &evilAction
@@ -20,7 +20,7 @@ func EncodeEvilAction(ea EvilAction) ([]byte, error) {
 	return rlp.EncodeToBytes(ea)
 }
 
-func DecodeEvilAction(data []byte) error {
+func DecodeEvilAction(data []byte) (EvilAction, error) {
 	var ea EvilAction
-	return rlp.DecodeBytes(data, &ea)
+	return ea, rlp.DecodeBytes(data, &ea)
 }

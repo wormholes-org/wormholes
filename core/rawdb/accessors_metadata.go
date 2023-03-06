@@ -246,10 +246,10 @@ func ReadEvilAction(db ethdb.Reader, number uint64) (*types.EvilAction, error) {
 		return nil, nil
 	}
 
-	var ea *types.EvilAction
-	if err := rlp.Decode(bytes.NewReader(data), ea); err != nil {
+	ea, err := types.DecodeEvilAction(data)
+	if err != nil {
 		log.Error("Invalid evil action RLP", "err", err)
 		return nil, err
 	}
-	return ea, nil
+	return &ea, nil
 }
