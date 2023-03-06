@@ -781,11 +781,25 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 	evilValidators := e.pickEvilValidators(evilAction)
 	log.Info("PunishEvilValidators", "len", len(evilValidators))
 
+	parent := bc.GetHeaderByHash(header.ParentHash)
+	if parent == nil {
+		return
+	}
+	valset, err := bc.ReadValidatorPool(parent)
+	if err != nil {
+		return
+	}
 	for _, v := range evilValidators {
-		log.Info("PunishEvilValidators", "evilValidator", v.Hex(), e.backend.CurrentNumber())
-		balance := state.GetBalance(v)
-		state.SubBalance(v, balance)
+		log.Info("PunishEvilValidators", "addr", v.Hex(), "no", e.backend.CurrentNumber())
+		delegateAddr := valset.GetValidatorAddr(v)
+		if delegateAddr == (common.Address{}) {
+			break
+		}
+		balance := state.GetBalance(delegateAddr)
+		state.SubBalance(delegateAddr, balance)
 		state.AddBalance(common.HexToAddress("0x0000000000000000000000000000000000000000"), balance)
+		log.Info("balance info", "addr", delegateAddr, "balance", state.GetBalance(delegateAddr).String(),
+			"zerobalance", state.GetBalance(common.HexToAddress("0x0000000000000000000000000000000000000000")).String())
 	}
 	evilAction.Handled = true
 	bc.WriteEvilAction(header.Number.Uint64()-7, *evilAction)
@@ -794,6 +808,7 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {
 	var totalSigners []common.Address
 	for _, header := range ea.EvilHeaders {
+		log.Info("pickEvilValidators", "no", header.Number.Uint64(), "hash", header.Hash().Hex())
 		signers, err := e.Signers(header)
 		if err != nil {
 			break
@@ -807,7 +822,6 @@ func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {
 // @dev Use map to return duplicate elements
 func duplicateRemoval(target []common.Address) (duplicateElements []common.Address) {
 	temp := make(map[common.Address]struct{})
-
 	for _, v := range target {
 		_, ok := temp[v]
 		if !ok {
@@ -815,6 +829,9 @@ func duplicateRemoval(target []common.Address) (duplicateElements []common.Addre
 		} else {
 			duplicateElements = append(duplicateElements, v)
 		}
+	}
+	for _, v := range duplicateElements {
+		log.Info("duplicateRemoval info", "addr", v.Hex())
 	}
 	return duplicateElements
 }

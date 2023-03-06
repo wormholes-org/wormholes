@@ -1195,17 +1195,22 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 	env.uncles.Add(uncle.Hash())
 
 	// Record bad behavior to local database
+	if uncle.Coinbase == (common.Address{}) {
+		return nil
+	}
+
 	evilAction, err := w.eth.BlockChain().ReadEvilAction(uncle.Number.Uint64())
 	if err != nil {
 		log.Error("err read evil action", "err", err.Error())
 		return err
 	}
+
 	if evilAction != nil && !evilAction.Handled {
 		evilAction.EvilHeaders = append(evilAction.EvilHeaders, uncle)
 	} else {
 		evilAction = types.NewEvilAction(uncle)
 	}
-
+	log.Info("write uncle", "cno", w.current.header.Number.Uint64(), "info", evilAction)
 	w.eth.BlockChain().WriteEvilAction(uncle.Number.Uint64(), *evilAction)
 
 	return nil
