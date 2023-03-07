@@ -388,7 +388,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		validatorAddr []common.Address
 		exchangerAddr []common.Address
 		rewardSeals   [][]byte
-		evilAction    *types.EvilAction
+		evilAction    = &types.EvilAction{}
 	)
 	if c, ok := chain.(*core.BlockChain); ok {
 		if header.Number.Uint64() == 1 {
@@ -502,6 +502,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			ea, err := c.ReadEvilAction(header.Number.Uint64() - 7)
 			if err == nil && ea != nil && !ea.Handled {
 				evilAction = ea
+				evilAction.Handled = true
 			}
 		}
 	}
@@ -549,7 +550,6 @@ func prepareExtraAdvanced(header *types.Header, options ...Option) ([]byte, erro
 		ValidatorAddr:      []common.Address{},
 		RewardSeal:         [][]byte{},
 		EmptyBlockMessages: [][]byte{},
-		EvilAction:         &types.EvilAction{},
 	}
 
 	for _, option := range options {
@@ -877,7 +877,7 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 	evilValidators := e.pickEvilValidators(ea)
 	for i := 0; i < len(ea.EvilHeaders); i++ {
 		log.Info("PunishEvilValidators", "i", i, "no", ea.EvilHeaders[i].Number.Uint64(),
-			"hash", ea.EvilHeaders[i].Hash().Hex())
+			"hash", ea.EvilHeaders[i].Hash().Hex(), "curNo", header.Number.Uint64())
 	}
 
 	parent := bc.GetHeaderByHash(header.ParentHash)
@@ -901,7 +901,6 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 			"zerobalance", state.GetBalance(common.HexToAddress("0x0000000000000000000000000000000000000000")).String())
 	}
 	ea.Handled = true
-	bc.WriteEvilAction(header.Number.Uint64()-7, *ea)
 }
 
 func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {

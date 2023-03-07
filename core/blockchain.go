@@ -1636,7 +1636,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 
 	// modify Pledge list
 	//exchangerPool := bc.ReadStakePool(bc.GetHeaderByHash(block.Header().ParentHash))
-	log.Info("caver|stake-before", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
 	var dbStakers types.DBStakerList
 	if len(state.ExchangerTokenPool) > 0 {
 		for _, v := range state.ExchangerTokenPool {
@@ -1657,14 +1656,11 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	bc.WriteDBStakerPool(block.Header(), &dbStakers)
 	//bc.WriteStakePool(block.Header(), exchangerPool)
 
-	log.Info("caver|stake-after", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
-
 	validatorPool, err := bc.ReadValidatorPool(bc.GetHeaderByHash(block.Header().ParentHash))
 	if err != nil {
 		log.Error("writeBlockWithoutState : invalid validator list", "no", block.Header().Number, "err", err)
 		return NonStatTy, err
 	}
-	log.Info("caver|validator-before", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 	if len(state.PledgedTokenPool) > 0 {
 		for _, v := range state.PledgedTokenPool {
 			if v.Flag {
@@ -1683,7 +1679,15 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 
 	bc.WriteValidatorPool(block.Header(), validatorPool)
-	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
+
+	extra, err := types.ExtractIstanbulExtra(block.Header())
+	if err != nil {
+		log.Error("err extract istanbul extra", "err", err)
+		return status, err
+	}
+	if extra.EvilAction != nil && extra.EvilAction.EvilHeaders != nil && extra.EvilAction.Handled {
+		bc.WriteEvilAction(block.Header().Number.Uint64()-7, *extra.EvilAction)
+	}
 
 	// write the all exchangers to leveldb per WriteStakersFrequency blocks
 	if block.NumberU64()%WriteStakersFrequency == 0 {
