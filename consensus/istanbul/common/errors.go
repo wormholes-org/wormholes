@@ -97,4 +97,6 @@ var (
 	ErrInvalidSigner = errors.New("message not signed by the sender")
 
 	ErrInvalidBenifitedAddr = errors.New("invalid benifited Address ")
+
+	ErrNilStateDb = errors.New("statedb is nil")
 )
