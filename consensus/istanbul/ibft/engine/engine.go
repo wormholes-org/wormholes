@@ -868,7 +868,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 // @dev Punish the verifier who signs more
 func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB, extra *types.IstanbulExtra, header *types.Header) {
 	ea := extra.EvilAction
-	if header.Number.Uint64() <= 7 || len(ea.EvilHeaders) == 0 {
+	if header.Number.Uint64() <= 7 || ea == nil || len(ea.EvilHeaders) == 0 {
 		return
 	}
 
