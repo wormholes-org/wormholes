@@ -227,3 +227,29 @@ func ReadValidatorPool(db ethdb.Reader, hash common.Hash, number uint64) (*types
 	}
 	return validatorList, nil
 }
+
+func WriteEvilAction(db ethdb.KeyValueWriter, number uint64, ea types.EvilAction) {
+	data, err := rlp.EncodeToBytes(ea)
+	if err != nil {
+		log.Crit("Failed to RLP evil action", "err", err)
+	}
+
+	if err := db.Put(EvilActionKey(number), data); err != nil {
+		log.Crit("Failed to store evil action", "err", err)
+	}
+}
+
+func ReadEvilAction(db ethdb.Reader, number uint64) (*types.EvilAction, error) {
+	data, err := db.Get(EvilActionKey(number))
+	if err != nil {
+		// level db  not found do not return as an error
+		return nil, nil
+	}
+
+	ea, err := types.DecodeEvilAction(data)
+	if err != nil {
+		log.Error("Invalid evil action RLP", "err", err)
+		return nil, err
+	}
+	return &ea, nil
+}

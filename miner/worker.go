@@ -21,12 +21,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -1192,7 +1193,33 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 		return errors.New("uncle already included")
 	}
 	env.uncles.Add(uncle.Hash())
+
+	// Record bad behavior to local database
+	w.RecordEvilAction(uncle)
+
 	return nil
+}
+
+func (w *worker) RecordEvilAction(uncle *types.Header) {
+	if uncle.Coinbase == (common.Address{}) { // do not handle empty block forks
+		return
+	}
+
+	evilAction, err := w.eth.BlockChain().ReadEvilAction(uncle.Number.Uint64())
+	if err != nil {
+		log.Error("err read evil action", "err", err.Error())
+		return
+	}
+
+	if evilAction != nil && !evilAction.Handled && !evilAction.Exist(uncle) {
+		evilAction.EvilHeaders = append(evilAction.EvilHeaders, uncle)
+	}
+
+	if evilAction == nil {
+		evilAction = types.NewEvilAction(uncle)
+	}
+
+	w.eth.BlockChain().WriteEvilAction(uncle.Number.Uint64(), *evilAction)
 }
 
 // updateSnapshot updates pending snapshot block and state.
