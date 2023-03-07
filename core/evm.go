@@ -38,6 +38,7 @@ var ErrNotMatchAddress = errors.New("recovered address not match exchanger owner
 
 const InjectRewardRate = 1000 // InjectRewardRate is 10%
 var InjectRewardAddress = common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+var DiscardAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
 
 const VALIDATOR_COEFFICIENT = 70
 
@@ -2461,9 +2462,11 @@ func BatchForcedSaleSNFTByApproveExchanger(
 	royaltyAmount := new(big.Int).Mul(unitAmount, new(big.Int).SetUint64(uint64(royalty)))
 	feeAmount := new(big.Int).Add(exchangerAmount, royaltyAmount)
 	nftOwnerAmount := new(big.Int).Sub(amount, feeAmount)
-	nftOwnerAmount = new(big.Int).Div(nftOwnerAmount, big.NewInt(2))
+	discardAmount := new(big.Int).Div(nftOwnerAmount, big.NewInt(2))
+	nftOwnerAmount = new(big.Int).Sub(nftOwnerAmount, discardAmount)
 	db.SubBalance(buyer, amount)
 	db.AddBalance(nftOwner, nftOwnerAmount)
+	db.AddBalance(DiscardAddress, discardAmount)
 	db.AddBalance(creator, royaltyAmount)
 	//db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	//db.AddVoteWeight(beneficiaryExchanger, amount)
