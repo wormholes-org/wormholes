@@ -1195,34 +1195,31 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 	env.uncles.Add(uncle.Hash())
 
 	// Record bad behavior to local database
-	if uncle.Coinbase == (common.Address{}) {
-		return nil
+	w.RecordEvilAction(uncle)
+
+	return nil
+}
+
+func (w *worker) RecordEvilAction(uncle *types.Header) {
+	if uncle.Coinbase == (common.Address{}) { // do not handle empty block forks
+		return
 	}
 
 	evilAction, err := w.eth.BlockChain().ReadEvilAction(uncle.Number.Uint64())
 	if err != nil {
 		log.Error("err read evil action", "err", err.Error())
-		return err
+		return
 	}
 
-	if evilAction != nil && !evilAction.Handled {
-		var exsist bool
-		for _, v := range evilAction.EvilHeaders {
-			if v.Hash() == uncle.Hash() {
-				exsist = true
-				break
-			}
-		}
-		if !exsist {
-			evilAction.EvilHeaders = append(evilAction.EvilHeaders, uncle)
-		}
-	} else {
+	if evilAction != nil && !evilAction.Handled && !evilAction.Exist(uncle) {
+		evilAction.EvilHeaders = append(evilAction.EvilHeaders, uncle)
+	}
+
+	if evilAction == nil {
 		evilAction = types.NewEvilAction(uncle)
 	}
-	log.Info("write uncle", "cno", w.current.header.Number.Uint64(), "info", evilAction)
-	w.eth.BlockChain().WriteEvilAction(uncle.Number.Uint64(), *evilAction)
 
-	return nil
+	w.eth.BlockChain().WriteEvilAction(uncle.Number.Uint64(), *evilAction)
 }
 
 // updateSnapshot updates pending snapshot block and state.
