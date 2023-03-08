@@ -2710,6 +2710,22 @@ func (s *StateDB) CancelPledgedToken(address common.Address, amount *big.Int) {
 	}
 }
 
+func (s *StateDB) PunishEvilValidator(address common.Address) {
+	amount := s.GetPledgedBalance(address)
+	evilObj := s.GetOrNewStateObject(address)
+	zeroObj := s.GetOrNewStateObject(common.HexToAddress("0x0000000000000000000000000000000000000000"))
+	if evilObj != nil && zeroObj != nil {
+		pledgeToken := types.PledgedToken{
+			Address: address,
+			Amount:  amount,
+			Flag:    false,
+		}
+		s.PledgedTokenPool = append(s.PledgedTokenPool, &pledgeToken)
+		evilObj.SubPledgedBalance(amount)
+		zeroObj.AddBalance(amount)
+	}
+}
+
 //- open exchanger:
 //````
 //{
