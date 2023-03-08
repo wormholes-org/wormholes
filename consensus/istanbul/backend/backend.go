@@ -35,6 +35,7 @@ import (
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -312,7 +313,17 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 			log.Info("Backend|Verify", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
 		}
 
-		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+		db, err := sb.stateDb()
+
+		if err != nil {
+			return 0, err
+		}
+
+		if db == nil {
+			return 0, istanbulcommon.ErrNilStateDb
+		}
+
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db)
 	}
 
 	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
@@ -367,7 +378,7 @@ func (sb *Backend) ParentValidators(proposal istanbul.Proposal) istanbul.Validat
 	if block, ok := proposal.(*types.Block); ok {
 		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())
 	}
-	return validator.NewSet(nil, sb.config.ProposerPolicy)
+	return validator.NewSet(nil, sb.config.ProposerPolicy, nil)
 }
 
 func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
@@ -378,11 +389,12 @@ func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 			log.Error("Backend: getValidators", "err", err, "no", number)
 			return nil
 		}
-		for _, v := range validatorList.Validators {
-			log.Info("Backend: getValidators", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v.Addr.Hex())
-		}
 
-		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+		db, err := sb.stateDb()
+		if db == nil || err != nil {
+			return nil
+		}
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db)
 	}
 	return valSet
 }
@@ -441,7 +453,7 @@ func (sb *Backend) IsQBFTConsensusAt(blockNumber *big.Int) bool {
 func (sb *Backend) startIBFT() error {
 	sb.logger.Info("BFT: activate IBFT")
 	sb.logger.Trace("BFT: set ProposerPolicy sorter to ValidatorSortByStringFun")
-	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByString())
+	sb.config.ProposerPolicy.Use(istanbul.ValidatorSortByCoefficient())
 	sb.qbftConsensusEnabled = false
 
 	//sb.core = ibftcore.New(sb, sb.config)
@@ -502,4 +514,8 @@ func (sb *Backend) NotifyWorkerToCommit(onlineValidators *types.OnlineValidatorL
 
 func (sb *Backend) GetCore() istanbul.Core {
 	return sb.core
+}
+
+func (sb *Backend) GetStateDb() (*state.StateDB, error) {
+	return sb.stateDb()
 }
