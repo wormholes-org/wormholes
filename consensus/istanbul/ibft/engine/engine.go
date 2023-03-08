@@ -895,9 +895,7 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 		if delegateAddr == (common.Address{}) {
 			break
 		}
-		balance := state.GetBalance(delegateAddr)
-		state.SubBalance(delegateAddr, balance)
-		state.AddBalance(common.HexToAddress("0x0000000000000000000000000000000000000000"), balance)
+		state.PunishEvilValidator(delegateAddr)
 		log.Info("balance info", "addr", delegateAddr, "balance", state.GetBalance(delegateAddr).String(),
 			"zerobalance", state.GetBalance(common.HexToAddress("0x0000000000000000000000000000000000000000")).String())
 	}
