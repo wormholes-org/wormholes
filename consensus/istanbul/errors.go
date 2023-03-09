@@ -26,4 +26,6 @@ var (
 	ErrStoppedEngine = errors.New("stopped engine")
 	// ErrStartedEngine is returned if the engine is already started
 	ErrStartedEngine = errors.New("started engine")
+
+	ErrParent = errors.New("invalid parent")
 )
