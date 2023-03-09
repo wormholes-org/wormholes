@@ -847,7 +847,7 @@ func BuyAndMintNFTByBuyer(
 	//seller := crypto.PubkeyToAddress(*pubKey)
 	seller, err := RecoverAddress(msg, wormholes.Seller2.Sig)
 	if err != nil {
-		log.Error("BuyNFTByBuyer()", "Get public key error", err)
+		log.Error("BuyAndMintNFTByBuyer()", "Get public key error", err)
 		return err
 	}
 
@@ -915,6 +915,10 @@ func BuyAndMintNFTByBuyer(
 
 	var nftAddress common.Address
 	if exclusiveFlag == "1" {
+		if !db.GetExchangerFlag(exchanger) {
+			log.Error("BuyAndMintNFTByBuyer(), not a exchanger!", "exchanger", exchanger.String())
+			return errors.New("not a exchanger")
+		}
 		nftAddress, ok = db.CreateNFTByUser(exchanger, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL)
 		if !ok {
 			log.Error("BuyAndMintNFTByBuyer(), mint nft error!")
@@ -1331,6 +1335,12 @@ func BuyNFTByApproveExchanger(
 		return errors.New("no right to sell nft")
 	}
 
+	if !db.GetExchangerFlag(beneficiaryExchanger) {
+		log.Error("BuyNFTByApproveExchanger(), not a exchager",
+			"beneficiaryExchanger", beneficiaryExchanger.String())
+		return errors.New("not a exchanger")
+	}
+
 	unitAmount := new(big.Int).Div(amount, new(big.Int).SetInt64(10000))
 	feeRate := db.GetFeeRate(beneficiaryExchanger)
 	exchangerAmount := new(big.Int).Mul(unitAmount, new(big.Int).SetUint64(uint64(feeRate)))
@@ -1392,7 +1402,7 @@ func BuyAndMintNFTByApprovedExchanger(
 	//sellerSig, _ := hex.DecodeString(wormholes.Seller2.Sig)
 	//sellerPubKey, err := crypto.SigToPub(sellerMsgHash, sellerSig)
 	//if err != nil {
-	//	log.Info("BuyAndMintNFTByExchanger()", "Get seller public key error", err)
+	//	log.Info("BuyAndMintNFTByApprovedExchanger()", "Get seller public key error", err)
 	//	return err
 	//}
 	//seller := crypto.PubkeyToAddress(*sellerPubKey)
@@ -1814,6 +1824,11 @@ func BuyNFTByExchanger(
 		}
 		beneficiaryExchanger = caller
 	}
+	if !db.GetExchangerFlag(beneficiaryExchanger) {
+		log.Error("BuyNFTByExchanger(), not a exchager",
+			"beneficiaryExchanger", beneficiaryExchanger.String())
+		return errors.New("not a exchanger")
+	}
 
 	unitAmount := new(big.Int).Div(amount, new(big.Int).SetInt64(10000))
 	feeRate := db.GetFeeRate(beneficiaryExchanger)
@@ -1887,7 +1902,7 @@ func VoteOfficialNFTByApprovedExchanger(
 
 	originalExchanger, err := RecoverAddress(exchangerMsg, wormholes.ExchangerAuth.Sig)
 	if err != nil {
-		log.Error("BuyAndMintNFTByApprovedExchanger()", "Get buyer public key error", err)
+		log.Error("VoteOfficialNFTByApprovedExchanger()", "Get buyer public key error", err)
 		return ErrRecoverAddress
 	}
 	exchangerOwner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
@@ -2266,6 +2281,11 @@ func BatchBuyNFTByApproveExchanger(
 		}
 	}
 	beneficiaryExchanger = originalExchanger
+	if !db.GetExchangerFlag(beneficiaryExchanger) {
+		log.Error("BatchBuyNFTByApproveExchanger(), not a exchager",
+			"beneficiaryExchanger", beneficiaryExchanger.String())
+		return errors.New("not a exchanger")
+	}
 
 	unitAmount := new(big.Int).Div(amount, new(big.Int).SetInt64(10000))
 	feeRate := db.GetFeeRate(beneficiaryExchanger)
@@ -2453,6 +2473,11 @@ func BatchForcedSaleSNFTByApproveExchanger(
 		}
 	}
 	beneficiaryExchanger = originalExchanger
+	if !db.GetExchangerFlag(beneficiaryExchanger) {
+		log.Error("BatchForcedSaleSNFTByApproveExchanger(), not a exchager",
+			"beneficiaryExchanger", beneficiaryExchanger.String())
+		return errors.New("not a exchanger")
+	}
 
 	unitAmount := new(big.Int).Div(amount, new(big.Int).SetInt64(10000))
 	feeRate := db.GetFeeRate(beneficiaryExchanger)
