@@ -447,6 +447,9 @@ func (h *handler) Start(maxPeers int) {
 	h.wg.Add(2)
 	go h.chainSync.loop()
 	go h.txsyncLoop64() // TODO(karalabe): Legacy initial tx echange, drop with eth/64.
+
+	//h.wg.Add(1)
+	//go h.RandomRemovePeers()
 }
 
 func (h *handler) Stop() {
@@ -767,7 +770,8 @@ func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]
 	//	}
 	//}
 	//return m
-
+	h.peers.lock.RLock()
+	defer h.peers.lock.RUnlock()
 	m := make(map[common.Address]consensus.Peer)
 	for _, p := range h.peers.peers {
 		pubKey := p.Node().Pubkey()

@@ -197,6 +197,8 @@ type Server struct {
 
 	// State of run loop and listenLoop.
 	inboundHistory expHeap
+
+	quitRandomRemovePeersCh chan struct{}
 }
 
 type peerOpFunc func(map[enode.ID]*Peer)
@@ -401,6 +403,9 @@ func (srv *Server) Stop() {
 		srv.listener.Close()
 	}
 	close(srv.quit)
+
+	close(srv.quitRandomRemovePeersCh)
+
 	srv.lock.Unlock()
 	srv.loopWG.Wait()
 }
@@ -485,6 +490,11 @@ func (srv *Server) Start() (err error) {
 
 	srv.loopWG.Add(1)
 	go srv.run()
+
+	srv.quitRandomRemovePeersCh = make(chan struct{})
+	srv.loopWG.Add(1)
+	go srv.RandomRemovePeers()
+
 	return nil
 }
 
@@ -1122,4 +1132,50 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 
 func (srv *Server) PrintRoutingTable() (*discover.TableInfo, error) {
 	return srv.ntab.PrintRoutingTable()
+}
+
+func (srv *Server) RandomRemovePeers() {
+	defer srv.loopWG.Done()
+
+	RemovePeersInterval := 30 * time.Minute
+	RemovePeers := time.NewTicker(RemovePeersInterval)
+	for {
+		select {
+		case <-RemovePeers.C:
+			for {
+				if srv.PeerCount() > 50 {
+					peers := srv.Peers()
+					srv.log.Info("Server.RandomRemovePeers()", "peers number", len(peers))
+					removePeer := srv.SelectRemovePeers(peers)
+					srv.log.Info("Server.RandomRemovePeers()", "remove peer id", removePeer.ID().String())
+					srv.RemovePeer(removePeer.rw.node)
+				} else {
+					srv.log.Info("Server.RandomRemovePeers(), remove peer end")
+					break
+				}
+			}
+		case <-srv.quitRandomRemovePeersCh:
+			return
+		}
+	}
+}
+
+//func (srv *Server) SelectRemovePeers(peers []*Peer) *Peer {
+//	var index int
+//	randRange := len(peers)
+//	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+//	index = r.Intn(randRange)
+//	return peers[index]
+//}
+
+func (srv *Server) SelectRemovePeers(peers []*Peer) *Peer {
+	var removePeer *Peer
+	removePeer = peers[0]
+	for _, peer := range peers[1:] {
+		if enode.DistCmp(srv.localnode.ID(), removePeer.ID(), peer.ID()) < 0 {
+			removePeer = peer
+		}
+	}
+
+	return removePeer
 }
