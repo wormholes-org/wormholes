@@ -19,19 +19,19 @@ package backend
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"reflect"
 	"time"
-	"fmt"
 
-	"github.com/ethereum/go-ethereum/miniredis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/miniredis"
 	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
 )
@@ -75,10 +75,12 @@ func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	defer sb.coreMu.Unlock()
 
 	miniredis.GetLogCh() <- map[string]interface{}{
-		fmt.Sprintf("t %v",time.Now().UTC().Unix()): addr.Hex()+" "+sb.address.Hex(),
+		fmt.Sprintf("t %v", time.Now().UTC().Unix()): addr.Hex() + " " + sb.address.Hex(),
 	}
 
 	if _, ok := qbfttypes.MessageCodes()[msg.Code]; ok || msg.Code == istanbulMsg {
+		log.Info("HandleMsg rePostMsgs start", "height", sb.CurrentNumber(),
+			"sb.coreStarted", sb.coreStarted, "sb.core is nil", sb.core == nil)
 		if !sb.coreStarted {
 			sb.logger.Info("caver|HandleMsg|ErrStoppedEngine", "!sb.coreStarted", !sb.coreStarted)
 			return true, nil

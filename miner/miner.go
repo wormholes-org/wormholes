@@ -173,38 +173,38 @@ func (miner *Miner) update() {
 				// Stop reacting to downloader events
 				events.Unsubscribe()
 
-			case StartEmptyBlockEvent:
-				emptyEvent := ev.Data.(StartEmptyBlockEvent)
-				log.Info("Empty block start", "generating empty block", emptyEvent.BlockNumber.Uint64())
-				if emptyEvent.BlockNumber.Uint64() != miner.worker.chain.CurrentHeader().Number.Uint64()+1 {
-					log.Info("generating empty block, blocknumber is less current block number",
-						"empty block number", emptyEvent.BlockNumber.Uint64(),
-						"current block number", miner.worker.chain.CurrentHeader().Number.Uint64())
-					continue
-				}
-				wasMining := miner.Mining()
-				miner.worker.stop()
-				canStart = false
-				if wasMining {
-					// Resume mining after sync was finished
-					shouldStart = true
-					log.Info("Normal block mining aborted due to mine empty")
-				}
-
-				if miner.emptyBlockNumber == nil ||
-					miner.emptyBlockNumber.Cmp(emptyEvent.BlockNumber) < 0 {
-					miner.emptyBlockNumber = new(big.Int).Set(emptyEvent.BlockNumber)
-				}
-				miner.doneEmptyTimer.Reset(1 * time.Second)
-				//case DoneEmptyBlockEvent:
-				//	log.Info("mining empty block done")
-				//	canStart = true
-				//	if shouldStart {
-				//		miner.SetEtherbase(miner.coinbase)
-				//		miner.worker.start()
+				//case StartEmptyBlockEvent:
+				//	emptyEvent := ev.Data.(StartEmptyBlockEvent)
+				//	log.Info("Empty block start", "generating empty block", emptyEvent.BlockNumber.Uint64())
+				//	if emptyEvent.BlockNumber.Uint64() != miner.worker.chain.CurrentHeader().Number.Uint64()+1 {
+				//		log.Info("generating empty block, blocknumber is less current block number",
+				//			"empty block number", emptyEvent.BlockNumber.Uint64(),
+				//			"current block number", miner.worker.chain.CurrentHeader().Number.Uint64())
+				//		continue
 				//	}
-				//	// Stop reacting to empty block events
-				//	events.Unsubscribe()
+				//	wasMining := miner.Mining()
+				//	miner.worker.stop()
+				//	canStart = false
+				//	if wasMining {
+				//		// Resume mining after sync was finished
+				//		shouldStart = true
+				//		log.Info("Normal block mining aborted due to mine empty")
+				//	}
+				//
+				//	if miner.emptyBlockNumber == nil ||
+				//		miner.emptyBlockNumber.Cmp(emptyEvent.BlockNumber) < 0 {
+				//		miner.emptyBlockNumber = new(big.Int).Set(emptyEvent.BlockNumber)
+				//	}
+				//	miner.doneEmptyTimer.Reset(1 * time.Second)
+				//	//case DoneEmptyBlockEvent:
+				//	//	log.Info("mining empty block done")
+				//	//	canStart = true
+				//	//	if shouldStart {
+				//	//		miner.SetEtherbase(miner.coinbase)
+				//	//		miner.worker.start()
+				//	//	}
+				//	//	// Stop reacting to empty block events
+				//	//	events.Unsubscribe()
 			}
 		case addr := <-miner.startCh:
 			miner.SetEtherbase(addr)
@@ -219,6 +219,29 @@ func (miner *Miner) update() {
 		case <-miner.exitCh:
 			miner.worker.close()
 			return
+		case blockNumber := <-miner.worker.startEmptyBlockCh:
+			log.Info("Empty block start", "generating empty block", blockNumber)
+			if blockNumber != miner.worker.chain.CurrentHeader().Number.Uint64()+1 {
+				log.Info("generating empty block, blocknumber is less current block number",
+					"empty block number", blockNumber,
+					"current block number", miner.worker.chain.CurrentHeader().Number.Uint64())
+				continue
+			}
+			wasMining := miner.Mining()
+			miner.worker.stop()
+			canStart = false
+			if wasMining {
+				// Resume mining after sync was finished
+				shouldStart = true
+				log.Info("Normal block mining aborted due to mine empty")
+			}
+
+			if miner.emptyBlockNumber == nil ||
+				miner.emptyBlockNumber.Uint64() < blockNumber {
+				miner.emptyBlockNumber = new(big.Int).SetUint64(blockNumber)
+			}
+			miner.doneEmptyTimer.Reset(1 * time.Second)
+
 		case <-miner.doneEmptyTimer.C:
 			miner.doneEmptyTimer.Reset(1 * time.Second)
 			if miner.emptyBlockNumber == nil ||
