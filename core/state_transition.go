@@ -611,7 +611,9 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 
 		if wormholes.Type == 18 ||
 			wormholes.Type == 19 ||
-			wormholes.Type == 24 {
+			wormholes.Type == 24 ||
+			wormholes.Type == 27 ||
+			wormholes.Type == 28 {
 			//if vmerr == nil ||
 			//	(vmerr != ErrRecoverAddress &&
 			//		vmerr != ErrNotMatchAddress) {
