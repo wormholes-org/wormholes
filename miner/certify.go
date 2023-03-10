@@ -163,8 +163,9 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		}
 
 		currentHeight := c.miner.GetWorker().chain.CurrentHeader().Number
-		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) > 0 {
-			//return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
+		//deal only current or more than two block message
+		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) > 0 ||
+			currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(3))) < 0{
 			return true, nil
 		}
 
@@ -174,16 +175,27 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
+		if c.round != signature.Round{
+			return true, nil
+		}
+
 		log.Info("azh|emptyMessage", "height", signature.Height, "from", sender, "vote", signature.Vote, "round", signature.Round)
 
 		c.rebroadcast(addr, data)
+
+		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) < 0 {
+			return true, nil
+		}
 
 		if c.stakers == nil {
 			return true, nil
 		}
 
 		if c.stakers.GetValidatorAddr(sender) == (common.Address{}) {
-			return true, xerrors.New("Certify.handleEvents the vote is not a miner")
+			if addr == sender {
+				return true, xerrors.New("Certify.handleEvents the vote is not a miner")
+			}
+			return true, nil
 		}
 
 		if c.self == signature.Vote {

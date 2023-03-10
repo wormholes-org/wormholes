@@ -503,7 +503,7 @@ func (w *worker) emptyLoop() {
 					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
 						continue
 					}
-					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
+					log.Info("ok empty condition 15", "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				} else {
 					log.Info("ok empty condition 120", "height", new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)), "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				}
