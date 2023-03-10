@@ -24,7 +24,7 @@ func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
 		c.round++
 	}
 
-	log.Info("azh|start to vote", "validators", len(c.stakers.Validators), "index", c.voteIndex, "vote", vote, "height:", height)
+	log.Info("azh|start to vote", "validators", len(c.stakers.Validators), "index", c.voteIndex, "round", c.round, "vote", vote, "height:", height)
 	err, payload := c.assembleMessage(height, voteAddress)
 	if err != nil {
 		return

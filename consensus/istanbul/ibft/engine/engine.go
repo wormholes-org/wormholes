@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"time"
@@ -156,11 +157,6 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 		}
 	}
 
-	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-		//return istanbulcommon.ErrEmptyBlock
-		return e.verifyCascadingFields(chain, header, validators, parents)
-	}
-
 	return e.verifyCascadingFields(chain, header, validators, parents)
 }
 
@@ -188,6 +184,14 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return consensus.ErrUnknownAncestor
 	}
 
+	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
+		err := e.verifyEmptyVote(chain, header, parents, validators)
+		if err != nil {
+			return fmt.Errorf("verify empty block %v", err)
+		}
+		return nil
+	}
+
 	// Ensure that the block's timestamp isn't too close to it's parent
 	if parent.Time+e.cfg.BlockPeriod > header.Time {
 		return istanbulcommon.ErrInvalidTimestamp
@@ -199,6 +203,93 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	}
 
 	return e.verifyCommittedSeals(chain, header, parents, validators)
+}
+
+func (e *Engine) verifyEmptyVote(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
+	var allWeightBalance = big.NewInt(0)
+	var voteBalance *big.Int
+	var coe uint8
+
+	log.Info("azh|check empty vote")
+
+	//averageCoefficient := bc.GetAverageCoefficient(statedb)
+	bc, ok := chain.(*core.BlockChain)
+	if !ok {
+		return errors.New("chain assert failed")
+	}
+
+	parent := chain.GetHeaderByHash(header.ParentHash)
+	stateDb, err := bc.StateAt(parent.Root)
+	if err != nil {
+		log.Info("azh|stateDb", "err", err)
+		return errors.New("new statdb failed")
+	}
+
+	log.Info("azh|stateDb", "height", bc.CurrentHeader().Number, "empty height", header.Number)
+	validatorList, err := bc.ReadValidatorPool(parent)
+	if err != nil {
+		log.Info("azh|validatorList", "err", err)
+		return err
+	}
+
+	extra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return err
+	}
+
+	for _, validator := range validatorList.Validators {
+		coe = stateDb.GetValidatorCoefficient(validator.Addr)
+		voteBalance = new(big.Int).Mul(validator.Balance, big.NewInt(int64(coe)))
+		allWeightBalance.Add(allWeightBalance, voteBalance)
+	}
+	allWeightBalance50 := new(big.Int).Mul(big.NewInt(50), allWeightBalance)
+	allWeightBalance50 = new(big.Int).Div(allWeightBalance50, big.NewInt(100))
+
+	var votevValidators []common.Address
+	for _, emptyBlockMessage := range extra.EmptyBlockMessages[1:] {
+		flag, height := CheckHeight(header, emptyBlockMessage)
+		log.Info("empty block check", "block height", header.Number, "vote height", height)
+		if !flag {
+			return errors.New("the vote height doesn`t match the block height")
+		}
+		msg := &types.EmptyMsg{}
+		sender, err := msg.RecoverAddress(emptyBlockMessage)
+		if err != nil {
+			return err
+		}
+		votevValidators = append(votevValidators, sender)
+	}
+
+	var blockWeightBalance = big.NewInt(0)
+	for _, v := range votevValidators {
+		voteBalance = new(big.Int).Mul(validatorList.StakeBalance(v), big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
+		blockWeightBalance.Add(blockWeightBalance, voteBalance)
+	}
+	if blockWeightBalance.Cmp(allWeightBalance50) > 0 {
+		return nil
+	} else {
+		log.Error("BlockChain.VerifyEmptyBlock(), verify validators of empty block error ",
+			"blockWeightBalance", blockWeightBalance, "allWeightBalance50", allWeightBalance50)
+		return errors.New("verify validators of empty block error")
+	}
+}
+
+func CheckHeight(header *types.Header, emptyMsg []byte) (bool, *big.Int) {
+	msg := new(types.EmptyMsg)
+	if err := msg.FromPayload(emptyMsg); err != nil {
+		return false, nil
+	}
+
+	var signature *types.SignatureData
+	err := msg.Decode(&signature)
+	if err != nil {
+		return false, nil
+	}
+
+	if header.Number.Cmp(signature.Height) == 0 {
+		return true, signature.Height
+	}
+	return false, signature.Height
 }
 
 func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
@@ -215,17 +306,12 @@ func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.H
 		return err
 	}
 
-	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-		return nil
-	} else {
-		// Signer should be in the validator set of previous block's extraData.
-		if _, v := validators.GetByAddress(signer); v == nil {
-			log.Error("cavar|verifySigner-signer", "no", header.Number.Text(10), "header", header.Hash().Hex(), "sign", signer.Hex())
-			for _, addr := range validators.List() {
-				log.Error("cavar|verifySigner-val", "no", header.Number.Text(10), "header", header.Hash().Hex(), "val-addr", addr.Address().Hex())
-			}
-			return istanbulcommon.ErrUnauthorized
+	if _, v := validators.GetByAddress(signer); v == nil {
+		log.Error("cavar|verifySigner-signer", "no", header.Number.Text(10), "header", header.Hash().Hex(), "sign", signer.Hex())
+		for _, addr := range validators.List() {
+			log.Error("cavar|verifySigner-val", "no", header.Number.Text(10), "header", header.Hash().Hex(), "val-addr", addr.Address().Hex())
 		}
+		return istanbulcommon.ErrUnauthorized
 	}
 
 	return nil

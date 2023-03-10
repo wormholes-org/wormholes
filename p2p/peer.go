@@ -3,6 +3,7 @@ package p2p
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"io"
 	"net"
 	"sort"
@@ -189,6 +190,17 @@ func (p *Peer) Disconnect(reason DiscReason) {
 
 	select {
 	case p.disc <- reason:
+	case <-p.closed:
+	}
+}
+
+func (p *Peer) DropPeer(id string) {
+	if p.testPipe != nil {
+		p.testPipe.Close()
+	}
+
+	select {
+	case discover.DropChan <- id:
 	case <-p.closed:
 	}
 }

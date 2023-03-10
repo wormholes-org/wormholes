@@ -394,6 +394,8 @@ func (h *handler) runSnapExtension(peer *snap.Peer, handler snap.Handler) error 
 func (h *handler) removePeer(id string) {
 	peer := h.peers.peer(id)
 	if peer != nil {
+		h.unregisterPeer(id)
+		//peer.Peer.DropPeer(id)
 		peer.Peer.Disconnect(p2p.DiscUselessPeer)
 	}
 }
