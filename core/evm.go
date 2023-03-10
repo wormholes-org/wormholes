@@ -2482,6 +2482,13 @@ func BatchForcedSaleSNFTByApproveExchanger(
 	exchangerAmount = new(big.Int).Sub(exchangerAmount, injectRewardAmount)
 	db.AddBalance(beneficiaryExchanger, exchangerAmount)
 	db.AddBalance(InjectRewardAddress, injectRewardAmount)
+	log.Info("BatchForcedSaleSNFTByApproveExchanger()",
+		"buyer amount", amount,
+		"seller amount", nftOwnerAmount,
+		"creator amount", royaltyAmount,
+		"discard amount", discardAmount,
+		"exchanger amount", exchangerAmount,
+		"injectReward amount", injectRewardAmount)
 
 	return nil
 }

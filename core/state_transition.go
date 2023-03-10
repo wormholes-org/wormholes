@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"math"
 	"math/big"
 
@@ -601,7 +602,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 
 	if st.IsWormholesNFTTx() {
 		wormholes, _ := st.GetWormholes()
-
+		log.Info("TransitionDb()", "tx type", wormholes.Type, "gasfee", new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 		//if exchanging nft is successful, tx is free.
 		if wormholes.Type == 6 && vmerr == nil {
 			st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
