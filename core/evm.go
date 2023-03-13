@@ -2666,11 +2666,11 @@ func BatchForcedSaleSNFTByApproveExchanger(
 
 	unitAmount := new(big.Int).Div(amount, new(big.Int).SetInt64(10000))
 	feeRate := db.GetFeeRate(beneficiaryExchanger)
-	exchangerAmount := new(big.Int).Mul(unitAmount, new(big.Int).SetUint64(uint64(feeRate)))
 	for _, nftAddr := range nftAddrs {
 		nftOwner := db.GetNFTOwner16(nftAddr)
 		creator := db.GetNFTCreator(nftAddr)
 		royalty := db.GetNFTRoyalty(nftAddr)
+		exchangerAmount := new(big.Int).Mul(unitAmount, new(big.Int).SetUint64(uint64(feeRate)))
 		royaltyAmount := new(big.Int).Mul(unitAmount, new(big.Int).SetUint64(uint64(royalty)))
 		feeAmount := new(big.Int).Add(exchangerAmount, royaltyAmount)
 		nftOwnerAmount := new(big.Int).Sub(amount, feeAmount)
