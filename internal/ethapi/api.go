@@ -19,6 +19,7 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1150,6 +1151,57 @@ func (s *PublicBlockChainAPI) CalculateExchangeAmount(level uint8, mergenumber u
 		radix, _ := big.NewInt(0).SetString("650000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	}
+}
+
+func (s *PublicBlockChainAPI) GetForcedSaleSNFTAddresses(ctx context.Context,
+	nftParentAddress string, buyer common.Address, blockNrOrHash rpc.BlockNumberOrHash) []common.Address {
+
+	var nftAddrs []common.Address
+	emptyAddress := common.Address{}
+	if strings.HasPrefix(nftParentAddress, "0x") ||
+		strings.HasPrefix(nftParentAddress, "0X") {
+		nftParentAddress = string([]byte(nftParentAddress)[2:])
+	}
+
+	if len(nftParentAddress) != 39 {
+		return nftAddrs
+	}
+
+	st, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if st == nil || err != nil {
+		return nftAddrs
+	}
+
+	addrInt := big.NewInt(0)
+	addrInt.SetString(nftParentAddress, 16)
+	addrInt.Lsh(addrInt, 4)
+
+	// 3. retrieve all the sibling leaf nodes of nftAddr
+	siblingInt := big.NewInt(0)
+	//nftAddrSLen := len(nftAddrS)
+	for i := 0; i < 16; i++ {
+		// 4. convert bigInt to common.Address, and then get Account from the trie.
+		siblingInt.Add(addrInt, big.NewInt(int64(i)))
+		//siblingAddr := common.BigToAddress(siblingInt)
+		siblingAddrS := hex.EncodeToString(siblingInt.Bytes())
+		siblingAddrSLen := len(siblingAddrS)
+		var prefix0 string
+		for i := 0; i < 40-siblingAddrSLen; i++ {
+			prefix0 = prefix0 + "0"
+		}
+		siblingAddrS = prefix0 + siblingAddrS
+		siblingAddr := common.HexToAddress(siblingAddrS)
+		//fmt.Println("siblingAddr=", siblingAddr.String())
+
+		siblingOwner := st.GetNFTOwner16(siblingAddr)
+		if siblingOwner != emptyAddress &&
+			siblingAddr != buyer {
+			nftAddrs = append(nftAddrs, siblingAddr)
+		}
+	}
+
+	return nftAddrs
+
 }
 
 // Result structs for GetProof
