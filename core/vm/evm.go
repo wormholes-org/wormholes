@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -348,6 +349,49 @@ func RecoverAddress(msg string, sigStr string) (common.Address, error) {
 	return crypto.PubkeyToAddress(*rpk), nil
 }
 
+func GetSnftAddrs(db StateDB, nftParentAddress string, addr common.Address) []common.Address {
+	var nftAddrs []common.Address
+	emptyAddress := common.Address{}
+	if strings.HasPrefix(nftParentAddress, "0x") ||
+		strings.HasPrefix(nftParentAddress, "0X") {
+		nftParentAddress = string([]byte(nftParentAddress)[2:])
+	}
+
+	if len(nftParentAddress) != 39 {
+		return nftAddrs
+	}
+
+	addrInt := big.NewInt(0)
+	addrInt.SetString(nftParentAddress, 16)
+	addrInt.Lsh(addrInt, 4)
+
+	// 3. retrieve all the sibling leaf nodes of nftAddr
+	siblingInt := big.NewInt(0)
+	//nftAddrSLen := len(nftAddrS)
+	for i := 0; i < 16; i++ {
+		// 4. convert bigInt to common.Address, and then get Account from the trie.
+		siblingInt.Add(addrInt, big.NewInt(int64(i)))
+		//siblingAddr := common.BigToAddress(siblingInt)
+		siblingAddrS := hex.EncodeToString(siblingInt.Bytes())
+		siblingAddrSLen := len(siblingAddrS)
+		var prefix0 string
+		for i := 0; i < 40-siblingAddrSLen; i++ {
+			prefix0 = prefix0 + "0"
+		}
+		siblingAddrS = prefix0 + siblingAddrS
+		siblingAddr := common.HexToAddress(siblingAddrS)
+		//fmt.Println("siblingAddr=", siblingAddr.String())
+
+		siblingOwner := db.GetNFTOwner16(siblingAddr)
+		if siblingOwner != emptyAddress &&
+			siblingAddr != addr {
+			nftAddrs = append(nftAddrs, siblingAddr)
+		}
+	}
+
+	return nftAddrs
+}
+
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
@@ -528,8 +572,11 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 				return nil, gas, err
 			}
 			initamount := evm.StateDB.CalculateExchangeAmount(1, 1)
-			value := evm.StateDB.GetExchangAmount(nftAddress, initamount)
+			amount := evm.StateDB.GetExchangAmount(nftAddress, initamount)
 
+			snftAddrs := GetSnftAddrs(evm.StateDB, wormholes.Buyer.NFTAddress, buyer)
+			snftNum := len(snftAddrs)
+			value := new(big.Int).Mul(big.NewInt(int64(snftNum)), amount)
 			if !evm.Context.CanTransfer(evm.StateDB, buyer, value) {
 				return nil, gas, ErrInsufficientBalance
 			}
