@@ -1195,7 +1195,7 @@ func (s *PublicBlockChainAPI) GetForcedSaleSNFTAddresses(ctx context.Context,
 
 		siblingOwner := st.GetNFTOwner16(siblingAddr)
 		if siblingOwner != emptyAddress &&
-			siblingAddr != buyer {
+			siblingOwner != buyer {
 			log.Debug("GetForcedSaleSNFTAddresses",
 				"siblingAddr", siblingAddr.String(), "owner", siblingOwner.String(), "buyer", buyer.String())
 			nftAddrs = append(nftAddrs, siblingAddr)

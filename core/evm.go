@@ -2737,7 +2737,7 @@ func GetSnftAddrs(db vm.StateDB, nftParentAddress string, addr common.Address) [
 
 		siblingOwner := db.GetNFTOwner16(siblingAddr)
 		if siblingOwner != emptyAddress &&
-			siblingAddr != addr {
+			siblingOwner != addr {
 			nftAddrs = append(nftAddrs, siblingAddr)
 		}
 	}
