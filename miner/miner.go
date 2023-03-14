@@ -138,13 +138,9 @@ func (miner *Miner) update() {
 				log.Info("downloader start")
 				wasMining := miner.Mining()
 				miner.worker.stop()
-				if miner.worker.isEmpty {
-					//miner.worker.isEmpty = false
-					//miner.worker.emptyTimestamp = time.Now().Unix()
-					//miner.worker.emptyTimer.Reset(120 * time.Second)
-					miner.worker.resetEmptyCh <- struct{}{}
-					miner.doneEmptyTimer.Stop()
-				}
+
+				miner.worker.resetEmptyCh <- struct{}{}
+				miner.doneEmptyTimer.Stop()
 
 				canStart = false
 				if wasMining {
