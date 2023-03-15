@@ -106,11 +106,51 @@ func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	return e.verifyHeader(chain, header, parents, validators)
 }
 
+func pickSkipProposer(parent *types.Block, header *types.Header, validators istanbul.ValidatorSet) []common.Address {
+	round := uint64(0)
+	skipList := make([]common.Address, 0, 12)
+	skipList = PickProposerByRound(skipList, validators, parent, header, round)
+	return skipList
+}
+
+func PickProposerByRound(skipList []common.Address, validators istanbul.ValidatorSet, parent *types.Block, header *types.Header, round uint64) []common.Address {
+	validators.CalcProposer(parent.Coinbase(), round)
+	proposer := validators.GetProposer().Address()
+	if proposer != header.Coinbase && round < 8 {
+		round++
+		skipList = append(skipList, proposer)
+		log.Info("pick skip proposer", "checkNo", header.Number.Uint64(),
+			"checkCoinbase", header.Coinbase,
+			"calProposer", validators.GetProposer().Address(), "round", round, "skipListlen", len(skipList))
+		skipList = PickProposerByRound(skipList, validators, parent, header, round)
+	}
+	return skipList
+}
+
 // verifyHeader checks whether a header conforms to the consensus rules.The
 // caller may optionally pass in a batch of parents (ascending order) to avoid
 // looking those up from the database. This is useful for concurrently verifying
 // a batch of new headers.
 func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
+	if bc, ok := chain.(*core.BlockChain); ok {
+		if header.Coinbase != (common.Address{}) {
+			state, err := bc.State()
+			if err != nil {
+				log.Error("err verifyHeader state", "no", header.Number.Uint64())
+			}
+			parent := bc.GetBlockByHash(header.ParentHash)
+			if parent != nil {
+				skipList := pickSkipProposer(parent, header, validators)
+				for i, v := range skipList {
+					cofficient := state.GetCoefficient(v)
+					log.Info("Query skip proposer cofficient:", "i", i, "checkNo", header.Number.Uint64(),
+						"addr", v, "cofficient", cofficient, "lenSkipList", len(skipList))
+				}
+
+			}
+		}
+	}
+
 	if header.Number == nil {
 		return istanbulcommon.ErrUnknownBlock
 	}
