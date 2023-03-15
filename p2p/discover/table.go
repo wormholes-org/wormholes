@@ -90,6 +90,8 @@ type transport interface {
 	lookupRandom() []*enode.Node
 	lookupSelf() []*enode.Node
 	ping(*enode.Node) (seq uint64, err error)
+	ping2(*enode.Node) (seq uint64, networkid uint64, err error)
+	GetNetworkId() uint64
 }
 
 // bucket contains nodes, ordered by their last activity. the entry

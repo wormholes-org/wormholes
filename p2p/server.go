@@ -156,6 +156,8 @@ type Config struct {
 	Logger log.Logger `toml:",omitempty"`
 
 	clock mclock.Clock
+
+	NetworkId uint64
 }
 
 // Server manages all peer connections.
@@ -594,6 +596,7 @@ func (srv *Server) setupDiscovery() error {
 			Bootnodes:   srv.BootstrapNodes,
 			Unhandled:   unhandled,
 			Log:         srv.log,
+			NetworkId:   srv.NetworkId,
 		}
 		ntab, err := discover.ListenV4(conn, srv.localnode, cfg)
 		if err != nil {

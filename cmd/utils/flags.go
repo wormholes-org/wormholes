@@ -1221,6 +1221,15 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 		cfg.NoDiscovery = true
 		cfg.DiscoveryV5 = false
 	}
+	if ctx.GlobalBool(TestNetFlag.Name) {
+		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = 51888
+		}
+	} else if ctx.GlobalBool(DevNetFlag.Name) {
+		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = 51895
+		}
+	}
 }
 
 // SetNodeConfig applies node-related command line flags to the config.
