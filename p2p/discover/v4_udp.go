@@ -224,7 +224,7 @@ func (t *UDPv4) ping(n *enode.Node) (seq uint64, err error) {
 	rm := t.sendPing(n.ID(), &net.UDPAddr{IP: n.IP(), Port: n.UDP()}, nil)
 	if err = <-rm.errc; err == nil {
 		seq = rm.reply.(*v4wire.Pong).ENRSeq
-		t.log.Trace("UDPv4.ping", "networkid", rm.reply.(*v4wire.Pong).NetworkId, "addr", rm.reply.(*v4wire.Pong).To.IP.String(), "err", err)
+		//t.log.Trace("UDPv4.ping", "networkid", rm.reply.(*v4wire.Pong).NetworkId, "addr", rm.reply.(*v4wire.Pong).To.IP.String(), "err", err)
 	}
 	return seq, err
 }
