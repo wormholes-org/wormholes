@@ -2031,6 +2031,29 @@ func (w *PublicWormholesAPI) GetValidators(ctx context.Context, number rpc.Block
 	return addrs, nil
 }
 
+func (w *PublicWormholesAPI) GetElevenValidatorsWithProxy(ctx context.Context, number rpc.BlockNumber) ([]common.Address, error) {
+	parent, err := w.b.BlockByNumber(ctx, number-1)
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	if parent == nil {
+		return []common.Address{}, err
+	}
+
+	valset, err := w.b.Random11ValidatorFromPoolWithProxy(ctx, parent.Header())
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	var addrs []common.Address
+	for _, v := range valset.Validators {
+		addrs = append(addrs, v.Addr)
+	}
+
+	return addrs, nil
+}
+
 func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (BeneficiaryAddressList, error) {
 	//var address []common.Address
 	//var nftAddress []common.Address
