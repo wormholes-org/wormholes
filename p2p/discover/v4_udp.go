@@ -668,6 +668,7 @@ func (t *UDPv4) verifyPing(h *packetHandlerV4, from *net.UDPAddr, fromID enode.I
 	}
 
 	if req.NetworkId != t.NetworkId {
+		t.log.Debug("verifyPing", "req.NetworkId", req.NetworkId, "t.NetworkId", t.NetworkId, "err", errNetworkId)
 		return errNetworkId
 	}
 
@@ -712,6 +713,7 @@ func (t *UDPv4) verifyPong(h *packetHandlerV4, from *net.UDPAddr, fromID enode.I
 	req := h.Packet.(*v4wire.Pong)
 
 	if req.NetworkId != t.NetworkId {
+		t.log.Debug("verifyPong", "req.NetworkId", req.NetworkId, "t.NetworkId", t.NetworkId, "err", errNetworkId)
 		return errNetworkId
 	}
 
@@ -732,6 +734,7 @@ func (t *UDPv4) verifyFindnode(h *packetHandlerV4, from *net.UDPAddr, fromID eno
 	req := h.Packet.(*v4wire.Findnode)
 
 	if req.NetworkId != t.NetworkId {
+		t.log.Debug("verifyFindnode", "req.NetworkId", req.NetworkId, "t.NetworkId", t.NetworkId, "err", errNetworkId)
 		return errNetworkId
 	}
 
@@ -785,6 +788,7 @@ func (t *UDPv4) verifyNeighbors(h *packetHandlerV4, from *net.UDPAddr, fromID en
 	req := h.Packet.(*v4wire.Neighbors)
 
 	if req.NetworkId != t.NetworkId {
+		t.log.Debug("verifyFindnode", "req.NetworkId", req.NetworkId, "t.NetworkId", t.NetworkId, "err", errNetworkId)
 		return errNetworkId
 	}
 

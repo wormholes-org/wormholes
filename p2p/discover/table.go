@@ -329,6 +329,7 @@ func (tab *Table) doRevalidate(done chan<- struct{}) {
 	// Ping the selected node and wait for a pong.
 	remoteSeq, err := tab.net.ping(unwrapNode(last))
 
+	tab.log.Debug("doRevalidate, ping", "remoteSeq", remoteSeq, "last.Seq", last.Seq, "err", err)
 	// Also fetch record if the node replied and returned a higher sequence number.
 	if last.Seq() < remoteSeq {
 		n, err := tab.net.RequestENR(unwrapNode(last))
