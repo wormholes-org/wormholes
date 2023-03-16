@@ -51,7 +51,7 @@ type (
 		From, To   Endpoint
 		Expiration uint64
 		ENRSeq     uint64 `rlp:"optional"` // Sequence number of local record, added by EIP-868.
-		NetworkId  uint64
+		NetworkId  uint64 `rlp:"optional"`
 
 		// Ignore additional fields (for forward compatibility).
 		Rest []rlp.RawValue `rlp:"tail"`
@@ -66,7 +66,7 @@ type (
 		ReplyTok   []byte // This contains the hash of the ping packet.
 		Expiration uint64 // Absolute timestamp at which the packet becomes invalid.
 		ENRSeq     uint64 `rlp:"optional"` // Sequence number of local record, added by EIP-868.
-		NetworkId  uint64
+		NetworkId  uint64 `rlp:"optional"`
 
 		// Ignore additional fields (for forward compatibility).
 		Rest []rlp.RawValue `rlp:"tail"`
@@ -76,7 +76,7 @@ type (
 	Findnode struct {
 		Target     Pubkey
 		Expiration uint64
-		NetworkId  uint64
+		NetworkId  uint64 `rlp:"optional"`
 		// Ignore additional fields (for forward compatibility).
 		Rest []rlp.RawValue `rlp:"tail"`
 	}
@@ -85,7 +85,7 @@ type (
 	Neighbors struct {
 		Nodes      []Node
 		Expiration uint64
-		NetworkId  uint64
+		NetworkId  uint64 `rlp:"optional"`
 		// Ignore additional fields (for forward compatibility).
 		Rest []rlp.RawValue `rlp:"tail"`
 	}
