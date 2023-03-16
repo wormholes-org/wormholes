@@ -2054,6 +2054,14 @@ func (w *PublicWormholesAPI) GetElevenValidatorsWithProxy(ctx context.Context, n
 	return addrs, nil
 }
 
+func (w *PublicWormholesAPI) GetRealAddr(ctx context.Context, addr common.Address) (common.Address, error) {
+	valset, err := w.b.GetAllValidators(ctx)
+	if err != nil {
+		return common.Address{}, err
+	}
+	return valset.GetValidatorAddr(addr), nil
+}
+
 func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (BeneficiaryAddressList, error) {
 	//var address []common.Address
 	//var nftAddress []common.Address

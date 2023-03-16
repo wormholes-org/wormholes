@@ -233,6 +233,10 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 func (b *EthAPIBackend) GetAllStakers(ctx context.Context) *types.StakerList {
 	return b.eth.BlockChain().GetStakerPool()
 }
+func (b *EthAPIBackend) GetAllValidators(ctx context.Context) (*types.ValidatorList, error) {
+	currentHeader := b.eth.blockchain.CurrentBlock().Header()
+	return b.eth.BlockChain().ReadValidatorPool(currentHeader)
+}
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	return b.eth.txPool.AddLocal(signedTx)

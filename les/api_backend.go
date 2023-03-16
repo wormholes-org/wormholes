@@ -124,6 +124,10 @@ func (b *LesApiBackend) GetAllStakers(ctx context.Context) *types.StakerList {
 	return b.eth.blockchain.GetStakerPool()
 }
 
+func (b *LesApiBackend) GetAllValidators(ctx context.Context) (*types.ValidatorList, error) {
+	return nil, nil
+}
+
 func (b *LesApiBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return b.BlockByNumber(ctx, blockNr)

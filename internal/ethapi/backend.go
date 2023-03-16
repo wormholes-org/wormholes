@@ -72,6 +72,7 @@ type Backend interface {
 	Random11ValidatorFromPool(ctx context.Context, header *types.Header) (*types.ValidatorList, error)
 	Random11ValidatorFromPoolWithProxy(ctx context.Context, header *types.Header) (*types.ValidatorList, error)
 	GetAllStakers(ctx context.Context) *types.StakerList
+	GetAllValidators(ctx context.Context) (*types.ValidatorList, error)
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error
