@@ -105,6 +105,8 @@ type Peer struct {
 	// Quorum
 	EthPeerRegistered   chan struct{}
 	EthPeerDisconnected chan struct{}
+
+	WCreated int64
 }
 
 // NewPeer returns a peer for testing purposes.
@@ -214,6 +216,7 @@ func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {
 		protoErr: make(chan error, len(protomap)+1), // protocols + pingLoop
 		closed:   make(chan struct{}),
 		log:      log.New("id", conn.node.ID(), "conn", conn.flags),
+		WCreated: time.Now().Unix(),
 	}
 	return p
 }
