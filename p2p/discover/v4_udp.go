@@ -45,6 +45,7 @@ var (
 	errClockWarp        = errors.New("reply deadline too far in the future")
 	errClosed           = errors.New("socket closed")
 	errLowPort          = errors.New("low port")
+	errNetworkId        = errors.New(" mismatch network id")
 )
 
 const (
@@ -79,6 +80,8 @@ type UDPv4 struct {
 	gotreply        chan reply
 	closeCtx        context.Context
 	cancelCloseCtx  context.CancelFunc
+	NetworkId       uint64
+	ChainId         uint64
 }
 
 // replyMatcher represents a pending reply.
@@ -140,6 +143,8 @@ func ListenV4(c UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv4, error) {
 		closeCtx:        closeCtx,
 		cancelCloseCtx:  cancel,
 		log:             cfg.Log,
+		NetworkId:       cfg.NetworkId,
+		ChainId:         cfg.ChainId,
 	}
 
 	tab, err := newTable(t, ln.Database(), cfg.Bootnodes, t.log)
@@ -158,6 +163,10 @@ func ListenV4(c UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv4, error) {
 // Self returns the local node.
 func (t *UDPv4) Self() *enode.Node {
 	return t.localNode.Node()
+}
+
+func (t *UDPv4) GetNetworkId() uint64 {
+	return t.NetworkId
 }
 
 // Close shuts down the socket and aborts any running queries.
@@ -217,8 +226,19 @@ func (t *UDPv4) ping(n *enode.Node) (seq uint64, err error) {
 	rm := t.sendPing(n.ID(), &net.UDPAddr{IP: n.IP(), Port: n.UDP()}, nil)
 	if err = <-rm.errc; err == nil {
 		seq = rm.reply.(*v4wire.Pong).ENRSeq
+		//t.log.Trace("UDPv4.ping", "networkid", rm.reply.(*v4wire.Pong).NetworkId, "addr", rm.reply.(*v4wire.Pong).To.IP.String(), "err", err)
 	}
 	return seq, err
+}
+
+// ping2 sends a ping message to the given node and waits for a reply.
+func (t *UDPv4) ping2(n *enode.Node) (seq uint64, networkid uint64, err error) {
+	rm := t.sendPing(n.ID(), &net.UDPAddr{IP: n.IP(), Port: n.UDP()}, nil)
+	if err = <-rm.errc; err == nil {
+		seq = rm.reply.(*v4wire.Pong).ENRSeq
+		networkid = rm.reply.(*v4wire.Pong).NetworkId
+	}
+	return seq, networkid, err
 }
 
 // sendPing sends a ping message to the given node and invokes the callback
@@ -253,6 +273,7 @@ func (t *UDPv4) makePing(toaddr *net.UDPAddr) *v4wire.Ping {
 		To:         v4wire.NewEndpoint(toaddr, 0),
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 		ENRSeq:     t.localNode.Node().Seq(),
+		NetworkId:  t.NetworkId,
 	}
 }
 
@@ -321,6 +342,7 @@ func (t *UDPv4) findnode(toid enode.ID, toaddr *net.UDPAddr, target v4wire.Pubke
 	t.send(toaddr, toid, &v4wire.Findnode{
 		Target:     target,
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
+		NetworkId:  t.NetworkId,
 	})
 	// Ensure that callers don't see a timeout if the node actually responded. Since
 	// findnode can receive more than one neighbors response, the reply matcher will be
@@ -647,6 +669,12 @@ func (t *UDPv4) verifyPing(h *packetHandlerV4, from *net.UDPAddr, fromID enode.I
 	if err != nil {
 		return err
 	}
+
+	if req.NetworkId != t.NetworkId {
+		t.log.Debug("verifyPing", "req.NetworkId", req.NetworkId, "t.NetworkId", t.NetworkId, "err", errNetworkId)
+		return errNetworkId
+	}
+
 	if v4wire.Expired(req.Expiration) {
 		return errExpired
 	}
@@ -663,6 +691,7 @@ func (t *UDPv4) handlePing(h *packetHandlerV4, from *net.UDPAddr, fromID enode.I
 		ReplyTok:   mac,
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 		ENRSeq:     t.localNode.Node().Seq(),
+		NetworkId:  t.NetworkId,
 	})
 
 	// Ping back if our last pong on file is too far in the past.
@@ -671,12 +700,13 @@ func (t *UDPv4) handlePing(h *packetHandlerV4, from *net.UDPAddr, fromID enode.I
 		t.sendPing(fromID, from, func() {
 			t.tab.addVerifiedNode(n)
 		})
+		t.db.UpdateLastPingReceived(n.ID(), from.IP, time.Now())
 	} else {
-		t.tab.addVerifiedNode(n)
+		//t.tab.addVerifiedNode(n)
 	}
 
 	// Update node database and endpoint predictor.
-	t.db.UpdateLastPingReceived(n.ID(), from.IP, time.Now())
+	//t.db.UpdateLastPingReceived(n.ID(), from.IP, time.Now())
 	t.localNode.UDPEndpointStatement(from, &net.UDPAddr{IP: req.To.IP, Port: int(req.To.UDP)})
 }
 
@@ -684,6 +714,11 @@ func (t *UDPv4) handlePing(h *packetHandlerV4, from *net.UDPAddr, fromID enode.I
 
 func (t *UDPv4) verifyPong(h *packetHandlerV4, from *net.UDPAddr, fromID enode.ID, fromKey v4wire.Pubkey) error {
 	req := h.Packet.(*v4wire.Pong)
+
+	if req.NetworkId != t.NetworkId {
+		t.log.Debug("verifyPong", "req.NetworkId", req.NetworkId, "t.NetworkId", t.NetworkId, "err", errNetworkId)
+		return errNetworkId
+	}
 
 	if v4wire.Expired(req.Expiration) {
 		return errExpired
@@ -700,6 +735,11 @@ func (t *UDPv4) verifyPong(h *packetHandlerV4, from *net.UDPAddr, fromID enode.I
 
 func (t *UDPv4) verifyFindnode(h *packetHandlerV4, from *net.UDPAddr, fromID enode.ID, fromKey v4wire.Pubkey) error {
 	req := h.Packet.(*v4wire.Findnode)
+
+	if req.NetworkId != t.NetworkId {
+		t.log.Debug("verifyFindnode", "req.NetworkId", req.NetworkId, "t.NetworkId", t.NetworkId, "err", errNetworkId)
+		return errNetworkId
+	}
 
 	if v4wire.Expired(req.Expiration) {
 		return errExpired
@@ -725,7 +765,10 @@ func (t *UDPv4) handleFindnode(h *packetHandlerV4, from *net.UDPAddr, fromID eno
 
 	// Send neighbors in chunks with at most maxNeighbors per packet
 	// to stay below the packet size limit.
-	p := v4wire.Neighbors{Expiration: uint64(time.Now().Add(expiration).Unix())}
+	p := v4wire.Neighbors{
+		Expiration: uint64(time.Now().Add(expiration).Unix()),
+		NetworkId:  t.NetworkId,
+	}
 	var sent bool
 	for _, n := range closest {
 		if netutil.CheckRelayIP(from.IP, n.IP()) == nil {
@@ -746,6 +789,11 @@ func (t *UDPv4) handleFindnode(h *packetHandlerV4, from *net.UDPAddr, fromID eno
 
 func (t *UDPv4) verifyNeighbors(h *packetHandlerV4, from *net.UDPAddr, fromID enode.ID, fromKey v4wire.Pubkey) error {
 	req := h.Packet.(*v4wire.Neighbors)
+
+	if req.NetworkId != t.NetworkId {
+		t.log.Debug("verifyFindnode", "req.NetworkId", req.NetworkId, "t.NetworkId", t.NetworkId, "err", errNetworkId)
+		return errNetworkId
+	}
 
 	if v4wire.Expired(req.Expiration) {
 		return errExpired
