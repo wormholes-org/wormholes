@@ -124,7 +124,7 @@ func (b *LesApiBackend) GetAllStakers(ctx context.Context) *types.StakerList {
 	return b.eth.blockchain.GetStakerPool()
 }
 
-func (b *LesApiBackend) GetAllValidators(ctx context.Context) (*types.ValidatorList, error) {
+func (b *LesApiBackend) GetAllValidators(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
 	return nil, nil
 }
 
