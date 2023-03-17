@@ -25,6 +25,7 @@ import (
 	"fmt"
 	gomath "math"
 	"math/big"
+	"sort"
 	"strings"
 	"time"
 
@@ -66,6 +67,20 @@ type PublicEthereumAPI struct {
 // NewPublicEthereumAPI creates a new Ethereum protocol API.
 func NewPublicEthereumAPI(b Backend) *PublicEthereumAPI {
 	return &PublicEthereumAPI{b}
+}
+
+type Valset []common.Address
+
+func (v Valset) Len() int {
+	return len(v)
+}
+
+func (v Valset) Swap(i int, j int) {
+	v[i], v[j] = v[j], v[i]
+}
+
+func (v Valset) Less(i int, j int) bool {
+	return v[i].Hex() < v[j].Hex()
 }
 
 // GasPrice returns a suggestion for a gas price for legacy transactions.
@@ -2142,6 +2157,38 @@ func (w *PublicWormholesAPI) GetValidators(ctx context.Context, number rpc.Block
 	return addrs, nil
 }
 
+func (w *PublicWormholesAPI) GetElevenValidatorsWithProxy(ctx context.Context, number rpc.BlockNumber) ([]common.Address, error) {
+	parent, err := w.b.BlockByNumber(ctx, number-1)
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	if parent == nil {
+		return []common.Address{}, err
+	}
+
+	valset, err := w.b.Random11ValidatorFromPoolWithProxy(ctx, parent.Header())
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	var addrs []common.Address
+	for _, v := range valset.Validators {
+		addrs = append(addrs, v.Addr)
+	}
+
+	return addrs, nil
+}
+
+func (w *PublicWormholesAPI) GetRealAddr(ctx context.Context, addr common.Address) (common.Address, error) {
+	header := w.b.CurrentHeader()
+	valset, err := w.b.GetAllValidators(ctx, header)
+	if err != nil {
+		return common.Address{}, err
+	}
+	return valset.GetValidatorAddr(addr), nil
+}
+
 func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (BeneficiaryAddressList, error) {
 	//var address []common.Address
 	//var nftAddress []common.Address
@@ -2469,6 +2516,49 @@ func (w *PublicWormholesAPI) GetShouldParticipantsCoefficientByNumber(ctx contex
 		participants = append(participants, participant)
 	}
 
+	return participants, nil
+}
+
+// GetCoefficientByNumber Obtain the real address weight and return the proxy address
+func (w *PublicWormholesAPI) GetCoefficientByNumber(ctx context.Context, number rpc.BlockNumber) ([]*BlockParticipants, error) {
+	var (
+		participants []*BlockParticipants
+		valset       Valset
+	)
+
+	parentHeader, err := w.b.HeaderByNumber(ctx, number-1)
+	if parentHeader == nil || err != nil {
+		return nil, err
+	}
+
+	validators, err := w.b.Random11ValidatorFromPoolWithProxy(ctx, parentHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	actualAllValidators, err := w.b.GetAllValidators(ctx, parentHeader)
+	if err != nil {
+		return nil, err
+	}
+	state, _, err := w.b.StateAndHeaderByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range validators.Validators {
+		valset = append(valset, v.Addr)
+	}
+	sort.Sort(valset)
+
+	for _, v := range valset {
+		realAddr := actualAllValidators.GetValidatorAddr(v)
+		coe := state.GetCoefficient(realAddr)
+		participant := &BlockParticipants{
+			Address:     v,
+			Coefficient: coe,
+		}
+		participants = append(participants, participant)
+	}
 	return participants, nil
 }
 

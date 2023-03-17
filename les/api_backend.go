@@ -54,6 +54,9 @@ func (b *LesApiBackend) QueryMinerProxy(ctx context.Context, number int64, addr 
 func (b *LesApiBackend) Random11ValidatorFromPool(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
 	return nil, nil
 }
+func (b *LesApiBackend) Random11ValidatorFromPoolWithProxy(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
+	return nil, nil
+}
 
 func (b *LesApiBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.chainConfig
@@ -119,6 +122,10 @@ func (b *LesApiBackend) BlockByHash(ctx context.Context, hash common.Hash) (*typ
 
 func (b *LesApiBackend) GetAllStakers(ctx context.Context) *types.StakerList {
 	return b.eth.blockchain.GetStakerPool()
+}
+
+func (b *LesApiBackend) GetAllValidators(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
+	return nil, nil
 }
 
 func (b *LesApiBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
