@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -120,7 +121,8 @@ type (
 	GetMergeNumberFunc func(StateDB, common.Address) uint32
 	//GetPledgedFlagFunc              func(StateDB, common.Address) bool
 	//GetNFTPledgedBlockNumberFunc    func(StateDB, common.Address) *big.Int
-	RecoverValidatorCoefficientFunc func(StateDB, common.Address) error
+	RecoverValidatorCoefficientFunc           func(StateDB, common.Address) error
+	BatchForcedSaleSNFTByApproveExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -214,7 +216,8 @@ type BlockContext struct {
 	GetMergeNumber GetMergeNumberFunc
 	//GetPledgedFlag              GetPledgedFlagFunc
 	//GetNFTPledgedBlockNumber    GetNFTPledgedBlockNumberFunc
-	RecoverValidatorCoefficient RecoverValidatorCoefficientFunc
+	RecoverValidatorCoefficient           RecoverValidatorCoefficientFunc
+	BatchForcedSaleSNFTByApproveExchanger BatchForcedSaleSNFTByApproveExchangerFunc
 	// Block information
 
 	ParentHeader *types.Header
@@ -344,6 +347,49 @@ func RecoverAddress(msg string, sigStr string) (common.Address, error) {
 		return common.Address{}, err
 	}
 	return crypto.PubkeyToAddress(*rpk), nil
+}
+
+func GetSnftAddrs(db StateDB, nftParentAddress string, addr common.Address) []common.Address {
+	var nftAddrs []common.Address
+	emptyAddress := common.Address{}
+	if strings.HasPrefix(nftParentAddress, "0x") ||
+		strings.HasPrefix(nftParentAddress, "0X") {
+		nftParentAddress = string([]byte(nftParentAddress)[2:])
+	}
+
+	if len(nftParentAddress) != 39 {
+		return nftAddrs
+	}
+
+	addrInt := big.NewInt(0)
+	addrInt.SetString(nftParentAddress, 16)
+	addrInt.Lsh(addrInt, 4)
+
+	// 3. retrieve all the sibling leaf nodes of nftAddr
+	siblingInt := big.NewInt(0)
+	//nftAddrSLen := len(nftAddrS)
+	for i := 0; i < 16; i++ {
+		// 4. convert bigInt to common.Address, and then get Account from the trie.
+		siblingInt.Add(addrInt, big.NewInt(int64(i)))
+		//siblingAddr := common.BigToAddress(siblingInt)
+		siblingAddrS := hex.EncodeToString(siblingInt.Bytes())
+		siblingAddrSLen := len(siblingAddrS)
+		var prefix0 string
+		for i := 0; i < 40-siblingAddrSLen; i++ {
+			prefix0 = prefix0 + "0"
+		}
+		siblingAddrS = prefix0 + siblingAddrS
+		siblingAddr := common.HexToAddress(siblingAddrS)
+		//fmt.Println("siblingAddr=", siblingAddr.String())
+
+		siblingOwner := db.GetNFTOwner16(siblingAddr)
+		if siblingOwner != emptyAddress &&
+			siblingOwner != addr {
+			nftAddrs = append(nftAddrs, siblingAddr)
+		}
+	}
+
+	return nftAddrs
 }
 
 // Call executes the contract associated with the addr with the given input as
@@ -494,6 +540,44 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 				buyer = buyerApproved
 			}
 			if value.Sign() > 0 && !evm.Context.CanTransfer(evm.StateDB, buyer, value) {
+				return nil, gas, ErrInsufficientBalance
+			}
+		case 28:
+			// recover buyer address
+			emptyAddress := common.Address{}
+			var buyer common.Address
+			if len(wormholes.BuyerAuth.Exchanger) > 0 &&
+				len(wormholes.BuyerAuth.BlockNumber) > 0 &&
+				len(wormholes.BuyerAuth.Sig) > 0 {
+				buyer, err = RecoverAddress(wormholes.BuyerAuth.Exchanger+wormholes.BuyerAuth.BlockNumber, wormholes.BuyerAuth.Sig)
+				if err != nil {
+					return nil, gas, err
+				}
+			}
+			if buyer == emptyAddress {
+				msgText := wormholes.Buyer.Amount +
+					wormholes.Buyer.NFTAddress +
+					wormholes.Buyer.Exchanger +
+					wormholes.Buyer.BlockNumber +
+					wormholes.Buyer.Seller
+				buyerApproved, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+				if err != nil {
+					return nil, gas, err
+				}
+				buyer = buyerApproved
+			}
+
+			nftAddress, _, err := evm.Context.GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
+			if err != nil {
+				return nil, gas, err
+			}
+			initamount := evm.StateDB.CalculateExchangeAmount(1, 1)
+			amount := evm.StateDB.GetExchangAmount(nftAddress, initamount)
+
+			snftAddrs := GetSnftAddrs(evm.StateDB, wormholes.Buyer.NFTAddress, buyer)
+			snftNum := len(snftAddrs)
+			value := new(big.Int).Mul(big.NewInt(int64(snftNum)), amount)
+			if !evm.Context.CanTransfer(evm.StateDB, buyer, value) {
 				return nil, gas, ErrInsufficientBalance
 			}
 
@@ -1626,6 +1710,23 @@ func (evm *EVM) HandleNFT(
 			return nil, gas, err
 		}
 		log.Info("HandleNFT(), BatchBuyNFTByApproveExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
+	case 28:
+		log.Info("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
+		err := evm.Context.BatchForcedSaleSNFTByApproveExchanger(
+			evm.StateDB,
+			evm.Context.BlockNumber,
+			caller.Address(),
+			addr,
+			&wormholes,
+			value)
+		if err != nil {
+			log.Error("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger", "wormholes.Type", wormholes.Type,
+				"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, err
+		}
+		log.Info("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 	default:
 		log.Error("HandleNFT()", "wormholes.Type", wormholes.Type, "error", ErrNotExistNFTType,

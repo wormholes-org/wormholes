@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"math"
 	"math/big"
 
@@ -264,6 +265,14 @@ func (st *StateTransition) buyGas() error {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
 			}
 		case 27:
+			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+			}
+			exchangerBalance := st.state.GetBalance(common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner))
+			if exchangerBalance.Cmp(balanceCheck) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, wormholes.ExchangerAuth.ExchangerOwner, exchangerBalance, balanceCheck)
+			}
+		case 28:
 			if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
 			}
@@ -516,6 +525,45 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
 			}
 
+		case 28:
+			emptyAddress := common.Address{}
+			var buyer common.Address
+			if len(wormholes.BuyerAuth.Exchanger) > 0 &&
+				len(wormholes.BuyerAuth.BlockNumber) > 0 &&
+				len(wormholes.BuyerAuth.Sig) > 0 {
+				buyer, err = RecoverAddress(wormholes.BuyerAuth.Exchanger+wormholes.BuyerAuth.BlockNumber, wormholes.BuyerAuth.Sig)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if buyer == emptyAddress {
+				// recover buyerApproved address
+				msgText := wormholes.Buyer.Amount +
+					wormholes.Buyer.NFTAddress +
+					wormholes.Buyer.Exchanger +
+					wormholes.Buyer.BlockNumber +
+					wormholes.Buyer.Seller
+				buyerApproved, err := RecoverAddress(msgText, wormholes.Buyer.Sig)
+				if err != nil {
+					return nil, err
+				}
+				buyer = buyerApproved
+			}
+			nftAddress, _, err := st.evm.Context.GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
+			if err != nil {
+				return nil, err
+			}
+			initamount := st.state.CalculateExchangeAmount(1, 1)
+			amount := st.state.GetExchangAmount(nftAddress, initamount)
+
+			snftAddrs := GetSnftAddrs(st.state, wormholes.Buyer.NFTAddress, buyer)
+			snftNum := len(snftAddrs)
+			value := new(big.Int).Mul(big.NewInt(int64(snftNum)), amount)
+			if !st.evm.Context.CanTransfer(st.state, buyer, value) {
+				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			}
+
 		default:
 			if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
 				return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
@@ -558,7 +606,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 
 	if st.IsWormholesNFTTx() {
 		wormholes, _ := st.GetWormholes()
-
+		log.Info("TransitionDb()", "tx type", wormholes.Type, "gasfee", new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 		//if exchanging nft is successful, tx is free.
 		if wormholes.Type == 6 && vmerr == nil {
 			st.state.AddBalance(st.msg.From(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
@@ -568,7 +616,9 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 
 		if wormholes.Type == 18 ||
 			wormholes.Type == 19 ||
-			wormholes.Type == 24 {
+			wormholes.Type == 24 ||
+			//wormholes.Type == 27 ||
+			wormholes.Type == 28 {
 			//if vmerr == nil ||
 			//	(vmerr != ErrRecoverAddress &&
 			//		vmerr != ErrNotMatchAddress) {

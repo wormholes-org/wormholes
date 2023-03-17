@@ -1684,7 +1684,7 @@ func (s *StateDB) ChangeNFTOwner(nftAddr common.Address,
 			//s.SplitNFT16(nftAddr, level)
 			// subtract old Owner's voteweight
 			initAmount := s.calculateExchangeAmount(stateObject.GetNFTMergeLevel(), stateObject.GetMergeNumber())
-			amount := GetExchangAmount(nftAddr, initAmount)
+			amount := s.GetExchangAmount(nftAddr, initAmount)
 			oldOwnerStateObject := s.GetOrNewStateObject(stateObject.NFTOwner())
 			if oldOwnerStateObject.VoteWeight().Cmp(amount) < 0 {
 				log.Error("StateDB.ChangeNFTOwner()", "old owner's voteweight less nft's value")
@@ -2010,9 +2010,9 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 
 	// calculate the increase of value
 	mergedInitAmount := s.calculateExchangeAmount(newMergeStateObject.GetNFTMergeLevel(), mergeNumber)
-	mergedAmount := GetExchangAmount(newMergedAddr, mergedInitAmount)
+	mergedAmount := s.GetExchangAmount(newMergedAddr, mergedInitAmount)
 	noMergedInitAmount := s.calculateExchangeAmount(newMergeStateObject.GetNFTMergeLevel()-1, mergeNumber)
-	noMergedAmount := GetExchangAmount(newMergedAddr, noMergedInitAmount)
+	noMergedAmount := s.GetExchangAmount(newMergedAddr, noMergedInitAmount)
 	increaseValue := new(big.Int).Sub(mergedAmount, noMergedAmount)
 
 	// add merge snft log
@@ -2324,7 +2324,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 				metaUrl)
 
 			initAmount := s.calculateExchangeAmount(0, 1)
-			amount := GetExchangAmount(nftAddr, initAmount)
+			amount := s.GetExchangAmount(nftAddr, initAmount)
 			//increaseValue, mergedNFTAddress, NFTOwner, mergedNFTLevel, mergedNFTNumber, _ := s.MergeNFT16(nftAddr)
 			//emptyAddress := common.Address{}
 			//if mergedNFTAddress != emptyAddress {
@@ -2480,7 +2480,7 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 		//creator := nftStateObject.GetCreator()
 		//creatorObj := s.GetOrNewStateObject(creator)
 		initAmount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel(), nftStateObject.GetMergeNumber())
-		amount := GetExchangAmount(nftaddress, initAmount)
+		amount := s.GetExchangAmount(nftaddress, initAmount)
 
 		//if creator != emptyAddress && creatorObj != nil {
 		//	creatorObj.AddBalance(big.NewInt(0).Div(amount, big.NewInt(10)))
@@ -2504,7 +2504,7 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 	}
 }
 
-func GetExchangAmount(nftaddress common.Address, initamount *big.Int) *big.Int {
+func (s *StateDB) GetExchangAmount(nftaddress common.Address, initamount *big.Int) *big.Int {
 	nftInt := new(big.Int).SetBytes(nftaddress.Bytes())
 	baseInt, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 	nftInt.Sub(nftInt, baseInt)
@@ -2535,6 +2535,10 @@ func (s *StateDB) calculateExchangeAmount(level uint8, mergenumber uint32) *big.
 		radix, _ := big.NewInt(0).SetString("650000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	}
+}
+
+func (s *StateDB) CalculateExchangeAmount(level uint8, mergenumber uint32) *big.Int {
+	return s.calculateExchangeAmount(level, mergenumber)
 }
 
 //- pledge nft :NFT is pledged.
