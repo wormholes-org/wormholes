@@ -444,7 +444,7 @@ func (srv *Server) Stop() {
 	}
 	close(srv.quit)
 
-	close(srv.quitRandomRemovePeersCh)
+	//close(srv.quitRandomRemovePeersCh)
 
 	srv.lock.Unlock()
 	srv.loopWG.Wait()
@@ -531,9 +531,9 @@ func (srv *Server) Start() (err error) {
 	srv.loopWG.Add(1)
 	go srv.run()
 
-	srv.quitRandomRemovePeersCh = make(chan struct{})
-	srv.loopWG.Add(1)
-	go srv.RandomRemovePeers()
+	//srv.quitRandomRemovePeersCh = make(chan struct{})
+	//srv.loopWG.Add(1)
+	//go srv.RandomRemovePeers()
 
 	return nil
 }
