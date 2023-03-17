@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -158,6 +160,7 @@ type Config struct {
 	clock mclock.Clock
 
 	NetworkId uint64
+	ChainId   uint64
 }
 
 // Server manages all peer connections.
@@ -253,6 +256,41 @@ func (c *conn) String() string {
 	}
 	s += " " + c.fd.RemoteAddr().String()
 	return s
+}
+
+func (c *conn) Name() string {
+	return c.name
+}
+
+func (c *conn) ProgramName() string {
+	fields := strings.Split(c.name, "/")
+	return fields[0]
+}
+
+func (c *conn) NetworkId() (uint64, error) {
+	fields := strings.Split(c.name, "/")
+	for _, field := range fields {
+		if strings.Contains(field, "networkid") {
+			network := strings.Split(field, "-")
+			networkid, err := strconv.Atoi(network[1])
+			return uint64(networkid), err
+		}
+	}
+
+	return 0, errors.New("network id error")
+}
+
+func (c *conn) ChainId() (uint64, error) {
+	fields := strings.Split(c.name, "/")
+	for _, field := range fields {
+		if strings.Contains(field, "chainid") {
+			chain := strings.Split(field, "-")
+			chainid, err := strconv.Atoi(chain[1])
+			return uint64(chainid), err
+		}
+	}
+
+	return 0, errors.New("chain id error")
 }
 
 func (f connFlag) String() string {
@@ -597,6 +635,7 @@ func (srv *Server) setupDiscovery() error {
 			Unhandled:   unhandled,
 			Log:         srv.log,
 			NetworkId:   srv.NetworkId,
+			ChainId:     srv.ChainId,
 		}
 		ntab, err := discover.ListenV4(conn, srv.localnode, cfg)
 		if err != nil {
@@ -995,6 +1034,14 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		return DiscUnexpectedIdentity
 	}
 	c.caps, c.name = phs.Caps, phs.Name
+	networkId, err := c.NetworkId()
+	if err != nil && networkId != srv.NetworkId {
+		return DiscNetworkIdError
+	}
+	chainId, err := c.ChainId()
+	if err != nil && chainId != srv.ChainId {
+		return DiscChainIdError
+	}
 	err = srv.checkpoint(c, srv.checkpointAddPeer)
 	if err != nil {
 		clog.Trace("Rejected peer", "err", err)

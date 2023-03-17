@@ -48,6 +48,7 @@ type Config struct {
 	ValidSchemes enr.IdentityScheme // allowed identity schemes
 	Clock        mclock.Clock
 	NetworkId    uint64
+	ChainId      uint64
 }
 
 func (cfg Config) withDefaults() Config {

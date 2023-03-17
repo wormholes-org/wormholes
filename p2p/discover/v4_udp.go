@@ -81,6 +81,7 @@ type UDPv4 struct {
 	closeCtx        context.Context
 	cancelCloseCtx  context.CancelFunc
 	NetworkId       uint64
+	ChainId         uint64
 }
 
 // replyMatcher represents a pending reply.
@@ -143,6 +144,7 @@ func ListenV4(c UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv4, error) {
 		cancelCloseCtx:  cancel,
 		log:             cfg.Log,
 		NetworkId:       cfg.NetworkId,
+		ChainId:         cfg.ChainId,
 	}
 
 	tab, err := newTable(t, ln.Database(), cfg.Bootnodes, t.log)
