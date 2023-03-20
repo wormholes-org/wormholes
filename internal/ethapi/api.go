@@ -1221,6 +1221,10 @@ func (s *PublicBlockChainAPI) GetForcedSaleSNFTAddresses(ctx context.Context,
 
 }
 
+func (s *PublicBlockChainAPI) SetCurrentBlock(ctx context.Context, number rpc.BlockNumber) {
+	s.b.SetCurrentBlock(ctx, number)
+}
+
 // Result structs for GetProof
 type AccountResult struct {
 	Address      common.Address  `json:"address"`

@@ -108,6 +108,11 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	return b.eth.blockchain.GetBlockByNumber(uint64(number)), nil
 }
 
+func (b *EthAPIBackend) SetCurrentBlock(ctx context.Context, number rpc.BlockNumber) {
+	block := b.eth.blockchain.GetBlockByNumber(uint64(number))
+	b.eth.blockchain.WriteHeadBlock(block)
+}
+
 func (b *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	return b.eth.blockchain.GetBlockByHash(hash), nil
 }

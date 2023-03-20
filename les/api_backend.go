@@ -116,6 +116,15 @@ func (b *LesApiBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	return b.BlockByHash(ctx, header.Hash())
 }
 
+func (b *LesApiBackend) SetCurrentBlock(ctx context.Context, number rpc.BlockNumber) {
+	//header, err := b.HeaderByNumber(ctx, number)
+	//if header == nil || err != nil {
+	//	return
+	//}
+	//block, _ := b.BlockByHash(ctx, header.Hash())
+	//b.eth.blockchain.WriteHeadBlock(block)
+}
+
 func (b *LesApiBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	return b.eth.blockchain.GetBlockByHash(ctx, hash)
 }

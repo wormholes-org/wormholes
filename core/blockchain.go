@@ -892,6 +892,10 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 	headBlockGauge.Update(int64(block.NumberU64()))
 }
 
+func (bc *BlockChain) WriteHeadBlock(block *types.Block) {
+	bc.writeHeadBlock(block)
+}
+
 // Genesis retrieves the chain's genesis block.
 func (bc *BlockChain) Genesis() *types.Block {
 	return bc.genesisBlock
