@@ -688,9 +688,45 @@ func WriteAncientBlock(db ethdb.AncientWriter, block *types.Block, receipts type
 	// Write all blob to flatten files.
 	err = db.AppendAncient(block.NumberU64(), block.Hash().Bytes(), headerBlob, bodyBlob, receiptBlob, tdBlob)
 	if err != nil {
+		if err == errOutOrderInsertion {
+
+		}
 		log.Crit("Failed to write block data to ancient store", "err", err)
 	}
 	return len(headerBlob) + len(bodyBlob) + len(receiptBlob) + len(tdBlob) + common.HashLength
+}
+
+func WriteAncientBlock1(db ethdb.AncientWriter, block *types.Block, receipts types.Receipts, td *big.Int) (int, error) {
+	// Encode all block components to RLP format.
+	headerBlob, err := rlp.EncodeToBytes(block.Header())
+	if err != nil {
+		log.Crit("Failed to RLP encode block header", "err", err)
+	}
+	bodyBlob, err := rlp.EncodeToBytes(block.Body())
+	if err != nil {
+		log.Crit("Failed to RLP encode body", "err", err)
+	}
+	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
+	for i, receipt := range receipts {
+		storageReceipts[i] = (*types.ReceiptForStorage)(receipt)
+	}
+	receiptBlob, err := rlp.EncodeToBytes(storageReceipts)
+	if err != nil {
+		log.Crit("Failed to RLP encode block receipts", "err", err)
+	}
+	tdBlob, err := rlp.EncodeToBytes(td)
+	if err != nil {
+		log.Crit("Failed to RLP encode block total difficulty", "err", err)
+	}
+	// Write all blob to flatten files.
+	err = db.AppendAncient(block.NumberU64(), block.Hash().Bytes(), headerBlob, bodyBlob, receiptBlob, tdBlob)
+	if err != nil {
+		if err == errOutOrderInsertion {
+			return len(headerBlob) + len(bodyBlob) + len(receiptBlob) + len(tdBlob) + common.HashLength, err
+		}
+		log.Crit("Failed to write block data to ancient store", "err", err)
+	}
+	return len(headerBlob) + len(bodyBlob) + len(receiptBlob) + len(tdBlob) + common.HashLength, nil
 }
 
 // DeleteBlock removes all block data associated with a hash.

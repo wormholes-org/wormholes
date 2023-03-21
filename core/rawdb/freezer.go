@@ -217,6 +217,7 @@ func (f *freezer) AppendAncient(number uint64, hash, header, body, receipts, td 
 	}
 	// Ensure the binary blobs we are appending is continuous with freezer.
 	if atomic.LoadUint64(&f.frozen) != number {
+		log.Info("Append ancient atomic", "atomic", atomic.LoadUint64(&f.frozen))
 		return errOutOrderInsertion
 	}
 	// Rollback all inserted data if any insertion below failed to ensure

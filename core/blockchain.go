@@ -303,9 +303,15 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			txIndexBlock = frozen
 		}
 	}
+	f, _ := bc.db.Ancients()
+	log.Info("NewBlockChain", "frozen", f)
+
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
+
+	ff, _ := bc.db.Ancients()
+	log.Info("NewBlockChain", "frozen", ff)
 	// Make sure the state associated with the block is available
 	head := bc.CurrentBlock()
 	if _, err := state.New(head.Root(), bc.stateCache, bc.snaps); err != nil {
@@ -1232,7 +1238,12 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 	var (
 		ancientBlocks, liveBlocks     types.Blocks
 		ancientReceipts, liveReceipts []types.Receipts
+		ignored                       int32
 	)
+	ancientHeight, err := bc.db.Ancients()
+	if err != nil {
+		return 0, err
+	}
 	// Do a sanity check that the provided chain is actually ordered and linked
 	for i := 0; i < len(blockChain); i++ {
 		if i != 0 {
@@ -1244,14 +1255,20 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			}
 		}
 		if blockChain[i].NumberU64() <= ancientLimit {
-			ancientBlocks, ancientReceipts = append(ancientBlocks, blockChain[i]), append(ancientReceipts, receiptChain[i])
+			//ancientBlocks, ancientReceipts = append(ancientBlocks, blockChain[i]), append(ancientReceipts, receiptChain[i])
+			if blockChain[i].NumberU64() >= ancientHeight {
+				ancientBlocks, ancientReceipts = append(ancientBlocks, blockChain[i]), append(ancientReceipts, receiptChain[i])
+			} else {
+				ignored++
+			}
 		} else {
 			liveBlocks, liveReceipts = append(liveBlocks, blockChain[i]), append(liveReceipts, receiptChain[i])
 		}
 	}
 
 	var (
-		stats = struct{ processed, ignored int32 }{}
+		//stats = struct{ processed, ignored int32 }{}
+		stats = struct{ processed, ignored int32 }{0, ignored}
 		start = time.Now()
 		size  = 0
 	)
@@ -1316,8 +1333,12 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 				}
 			}
 			// Flush data into ancient database.
-			size += rawdb.WriteAncientBlock(bc.db, block, receiptChain[i], bc.GetTd(block.Hash(), block.NumberU64()))
-
+			//size += rawdb.WriteAncientBlock(bc.db, block, receiptChain[i], bc.GetTd(block.Hash(), block.NumberU64()))
+			size1, curErr := rawdb.WriteAncientBlock1(bc.db, block, receiptChain[i], bc.GetTd(block.Hash(), block.NumberU64()))
+			size += size1
+			if curErr.Error() == errors.New("the append operation is out-order").Error() {
+				bc.SetHead(block.NumberU64() - 1)
+			}
 			// Write tx indices if any condition is satisfied:
 			// * If user requires to reserve all tx indices(txlookuplimit=0)
 			// * If all ancient tx indices are required to be reserved(txlookuplimit is even higher than ancientlimit)
