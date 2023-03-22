@@ -101,7 +101,7 @@ func (s *Snapshot) copy() *Snapshot {
 		Epoch:  s.Epoch,
 		Number: s.Number,
 		Hash:   s.Hash,
-		ValSet: s.ValSet.Copy(nil),
+		ValSet: s.ValSet.Copy(nil, nil),
 		Votes:  make([]*Vote, len(s.Votes)),
 		Tally:  make(map[common.Address]Tally),
 	}
@@ -212,7 +212,7 @@ func (s *Snapshot) UnmarshalJSON(b []byte) error {
 
 	// Setting the By function to ValidatorSortByStringFunc should be fine, as the validator do not change only the order changes
 	pp := istanbul.NewProposerPolicyByIdAndSortFunc(j.Policy, istanbul.ValidatorSortByString())
-	s.ValSet = validator.NewSet(j.Validators, pp, nil)
+	s.ValSet = validator.NewSet(j.Validators, pp, nil, nil)
 	return nil
 }
 

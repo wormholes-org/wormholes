@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Validator interface {
@@ -112,7 +113,7 @@ type ValidatorSet interface {
 	// Remove validator
 	RemoveValidator(address common.Address) bool
 	// Copy validator set
-	Copy(stateDb *state.StateDB) ValidatorSet
+	Copy(stateDb *state.StateDB, totalValSet *types.ValidatorList) ValidatorSet
 	// Get the maximum number of faulty nodes
 	F() int
 	// Get proposer policy

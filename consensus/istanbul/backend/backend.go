@@ -321,8 +321,12 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		if db == nil {
 			return 0, istanbulcommon.ErrNilStateDb
 		}
+		totalValSet, err := c.ReadValidatorPool(parent.Header())
+		if err != nil {
+			return 0, errors.New("err invalid")
+		}
 
-		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db)
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db, totalValSet)
 	}
 
 	if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
@@ -377,7 +381,7 @@ func (sb *Backend) ParentValidators(proposal istanbul.Proposal) istanbul.Validat
 	if block, ok := proposal.(*types.Block); ok {
 		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())
 	}
-	return validator.NewSet(nil, sb.config.ProposerPolicy, nil)
+	return validator.NewSet(nil, sb.config.ProposerPolicy, nil, nil)
 }
 
 func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
@@ -393,7 +397,13 @@ func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 		if db == nil || err != nil {
 			return nil
 		}
-		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db)
+		totalValSet, _ := c.ReadValidatorPool(c.GetHeaderByHash(hash))
+		if err != nil {
+			log.Error("invalid valset")
+			return nil
+		}
+
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db, totalValSet)
 	}
 	return valSet
 }

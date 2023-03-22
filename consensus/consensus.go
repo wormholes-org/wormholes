@@ -47,6 +47,8 @@ type ChainHeaderReader interface {
 
 	// GetHeaderByHash retrieves a block header from the database by its hash.
 	GetHeaderByHash(hash common.Hash) *types.Header
+
+	ReadValidatorPool(header *types.Header) (*types.ValidatorList, error)
 }
 
 // ChainReader defines a small collection of methods needed to access the local

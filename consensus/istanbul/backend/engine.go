@@ -88,7 +88,13 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 			return istanbulcommon.ErrNilStateDb
 		}
 
-		valSet := validator.NewSet(validators, sb.config.ProposerPolicy, db)
+		totalValSet, err := chain.ReadValidatorPool(chain.GetHeaderByHash(header.ParentHash))
+		if err != nil {
+			log.Error("invalid valset", "error", err.Error())
+			return errors.New("err invalid valset")
+		}
+
+		valSet := validator.NewSet(validators, sb.config.ProposerPolicy, db, totalValSet)
 		return sb.EngineForBlockNumber(header.Number).VerifyHeader(chain, header, parents, valSet)
 	}
 	return nil
@@ -215,7 +221,13 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 			return istanbulcommon.ErrNilStateDb
 		}
 
-		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db)
+		totalValSet, err := c.ReadValidatorPool(parent.Header())
+		if err != nil {
+			log.Error("invalid valset", "error", err.Error())
+			return errors.New("err invalid valset")
+		}
+
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db, totalValSet)
 	}
 
 	return sb.EngineForBlockNumber(header.Number).VerifySeal(chain, header, valSet)
@@ -280,8 +292,13 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		if db == nil {
 			return istanbulcommon.ErrNilStateDb
 		}
+		totalValSet, err := c.ReadValidatorPool(parent.Header())
+		if err != nil {
+			log.Error("invalid valset", "error", err.Error())
+			return errors.New("err invalid valset")
+		}
 
-		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db)
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db, totalValSet)
 	}
 
 	err := sb.EngineForBlockNumber(header.Number).Prepare(chain, header, valSet)
@@ -341,6 +358,10 @@ func (sb *Backend) SealforEmptyBlock(chain consensus.ChainHeaderReader, block *t
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+	bc, ok := chain.(*core.BlockChain)
+	if !ok {
+		return errors.New("err invalid chain")
+	}
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 
@@ -370,7 +391,13 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		return istanbulcommon.ErrNilStateDb
 	}
 
-	valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy, db)
+	totalValSet, err := bc.ReadValidatorPool(bc.GetHeaderByHash(header.ParentHash))
+	if err != nil {
+		log.Error("invalid valset", "error", err.Error())
+		return errors.New("err invalid valset")
+	}
+
+	valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy, db, totalValSet)
 
 	block, err = sb.EngineForBlockNumber(header.Number).Seal(chain, block, valSet)
 	if err != nil {
@@ -555,7 +582,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				return nil, err
 			}
 
-			snap = newSnapshot(sb.config.Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy, nil))
+			snap = newSnapshot(sb.config.Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy, nil, nil))
 			if err := sb.storeSnap(snap); err != nil {
 				return nil, err
 			}

@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -55,13 +56,22 @@ type defaultSet struct {
 	selector    istanbul.ProposalSelector
 }
 
-func newDefaultSet(addrs []common.Address, policy *istanbul.ProposerPolicy, db *state.StateDB) *defaultSet {
+func newDefaultSet(addrs []common.Address, policy *istanbul.ProposerPolicy, db *state.StateDB, totalValset *types.ValidatorList) *defaultSet {
+	if totalValset == nil {
+		log.Info("ZZZZZ", "totalvalset", totalValset, "==nil", totalValset == nil)
+		return nil
+	}
+
+	for _, v := range totalValset.Validators {
+		log.Info("xxxxxxx", "addr", v.Addr, "proxy", v.Proxy)
+	}
 	valSet := &defaultSet{}
 	valSet.policy = policy
 	// init validators
 	valSet.validators = make([]istanbul.Validator, len(addrs))
 	for i, addr := range addrs {
-		valSet.validators[i] = New(addr, db.GetCoefficient(addr))
+		actualAddr := totalValset.GetValidatorAddr(addr)
+		valSet.validators[i] = New(addr, db.GetCoefficient(actualAddr))
 	}
 
 	valSet.SortValidators()
@@ -238,7 +248,7 @@ func (valSet *defaultSet) RemoveValidator(address common.Address) bool {
 	return false
 }
 
-func (valSet *defaultSet) Copy(stateDb *state.StateDB) istanbul.ValidatorSet {
+func (valSet *defaultSet) Copy(stateDb *state.StateDB, totalValSet *types.ValidatorList) istanbul.ValidatorSet {
 	valSet.validatorMu.RLock()
 	defer valSet.validatorMu.RUnlock()
 
@@ -246,7 +256,7 @@ func (valSet *defaultSet) Copy(stateDb *state.StateDB) istanbul.ValidatorSet {
 	for _, v := range valSet.validators {
 		addresses = append(addresses, v.Address())
 	}
-	return NewSet(addresses, valSet.policy, stateDb)
+	return NewSet(addresses, valSet.policy, stateDb, totalValSet)
 }
 
 func (valSet *defaultSet) F() int { return int(math.Ceil(float64(valSet.Size())/3)) - 1 }

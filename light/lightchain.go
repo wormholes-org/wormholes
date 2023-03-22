@@ -590,3 +590,7 @@ func (lc *LightChain) DisableCheckFreq() {
 func (lc *LightChain) EnableCheckFreq() {
 	atomic.StoreInt32(&lc.disableCheckFreq, 0)
 }
+
+func (lc *LightChain) ReadValidatorPool(header *types.Header) (*types.ValidatorList, error) {
+	return nil, nil
+}
