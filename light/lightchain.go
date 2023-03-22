@@ -594,3 +594,7 @@ func (lc *LightChain) EnableCheckFreq() {
 func (lc *LightChain) ReadValidatorPool(header *types.Header) (*types.ValidatorList, error) {
 	return nil, nil
 }
+
+func (lc *LightChain) StateAt(root common.Hash) (*state.StateDB, error) {
+	return nil, nil
+}

@@ -99,4 +99,6 @@ var (
 	ErrInvalidBenifitedAddr = errors.New("invalid benifited Address ")
 
 	ErrNilStateDb = errors.New("statedb is nil")
+
+	ErrInvalidValSet = errors.New("err invalid valset")
 )

@@ -57,14 +57,6 @@ type defaultSet struct {
 }
 
 func newDefaultSet(addrs []common.Address, policy *istanbul.ProposerPolicy, db *state.StateDB, totalValset *types.ValidatorList) *defaultSet {
-	if totalValset == nil {
-		log.Info("ZZZZZ", "totalvalset", totalValset, "==nil", totalValset == nil)
-		return nil
-	}
-
-	for _, v := range totalValset.Validators {
-		log.Info("xxxxxxx", "addr", v.Addr, "proxy", v.Proxy)
-	}
 	valSet := &defaultSet{}
 	valSet.policy = policy
 	// init validators

@@ -49,6 +49,8 @@ type ChainHeaderReader interface {
 	GetHeaderByHash(hash common.Hash) *types.Header
 
 	ReadValidatorPool(header *types.Header) (*types.ValidatorList, error)
+
+	StateAt(root common.Hash) (*state.StateDB, error)
 }
 
 // ChainReader defines a small collection of methods needed to access the local

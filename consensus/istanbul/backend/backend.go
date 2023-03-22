@@ -308,9 +308,6 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 			log.Error("Verify: invalid validator list", "no", c.CurrentBlock().Header().Number, "err", err)
 			return 0, err
 		}
-		for _, v := range validatorList.Validators {
-			log.Info("Backend|Verify", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
-		}
 
 		db, err := sb.stateDb()
 
@@ -323,7 +320,8 @@ func (sb *Backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		}
 		totalValSet, err := c.ReadValidatorPool(parent.Header())
 		if err != nil {
-			return 0, errors.New("err invalid")
+			log.Error("err read valset", "err", err.Error())
+			return 0, istanbulcommon.ErrInvalidValSet
 		}
 
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db, totalValSet)
@@ -397,9 +395,9 @@ func (sb *Backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 		if db == nil || err != nil {
 			return nil
 		}
-		totalValSet, _ := c.ReadValidatorPool(c.GetHeaderByHash(hash))
+		totalValSet, err := c.ReadValidatorPool(c.GetHeaderByHash(hash))
 		if err != nil {
-			log.Error("invalid valset")
+			log.Error("err read valset", "err", err.Error())
 			return nil
 		}
 

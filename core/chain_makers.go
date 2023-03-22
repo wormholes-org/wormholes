@@ -317,3 +317,7 @@ func (cr *fakeChainReader) GetBlock(hash common.Hash, number uint64) *types.Bloc
 func (cr *fakeChainReader) ReadValidatorPool(header *types.Header) (*types.ValidatorList, error) {
 	return nil, nil
 }
+
+func (cr *fakeChainReader) StateAt(root common.Hash) (*state.StateDB, error) {
+	return nil, nil
+}

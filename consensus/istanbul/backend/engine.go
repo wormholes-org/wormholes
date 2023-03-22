@@ -67,7 +67,6 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	if header.Number.Cmp(big.NewInt(0)) == 0 {
 		genesis := chain.GetHeaderByNumber(0)
 		if err := sb.EngineForBlockNumber(big.NewInt(0)).VerifyHeader(chain, genesis, nil, nil); err != nil {
-			sb.logger.Error("caver|verifyHeader|invalid genesis block", "err", err, "hash", genesis.Hash())
 			return err
 		}
 	} else {
@@ -81,17 +80,28 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		db, err := sb.stateDb()
 
 		if err != nil {
-			return err
+			log.Info("err nil statedb")
+			return nil
 		}
 
 		if db == nil {
 			return istanbulcommon.ErrNilStateDb
 		}
 
+		number := header.Number.Uint64()
+		if number == 0 {
+			return nil
+		}
+		parent := chain.GetHeader(header.ParentHash, number-1)
+		if parent == nil {
+			log.Info("err nil parent")
+			return nil
+		}
+
 		totalValSet, err := chain.ReadValidatorPool(chain.GetHeaderByHash(header.ParentHash))
 		if err != nil {
-			log.Error("invalid valset", "error", err.Error())
-			return errors.New("err invalid valset")
+			log.Error("err read valset", "err", err.Error())
+			return istanbulcommon.ErrInvalidValSet
 		}
 
 		valSet := validator.NewSet(validators, sb.config.ProposerPolicy, db, totalValSet)
@@ -223,8 +233,8 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 
 		totalValSet, err := c.ReadValidatorPool(parent.Header())
 		if err != nil {
-			log.Error("invalid valset", "error", err.Error())
-			return errors.New("err invalid valset")
+			log.Error("err read valset", "err", err.Error())
+			return istanbulcommon.ErrInvalidValSet
 		}
 
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db, totalValSet)
@@ -294,8 +304,8 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		}
 		totalValSet, err := c.ReadValidatorPool(parent.Header())
 		if err != nil {
-			log.Error("invalid valset", "error", err.Error())
-			return errors.New("err invalid valset")
+			log.Error("err read valset", "err", err.Error())
+			return istanbulcommon.ErrInvalidValSet
 		}
 
 		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db, totalValSet)
@@ -393,8 +403,8 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 
 	totalValSet, err := bc.ReadValidatorPool(bc.GetHeaderByHash(header.ParentHash))
 	if err != nil {
-		log.Error("invalid valset", "error", err.Error())
-		return errors.New("err invalid valset")
+		log.Error("err read valset", "err", err.Error())
+		return istanbulcommon.ErrInvalidValSet
 	}
 
 	valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy, db, totalValSet)

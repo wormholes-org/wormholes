@@ -255,8 +255,9 @@ func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header 
 		}
 	}
 
-	stateDb, err := e.backend.GetStateDb()
+	parent := chain.GetHeaderByHash(header.ParentHash)
 
+	stateDb, err := e.backend.GetStateDb()
 	if stateDb == nil {
 		return istanbulcommon.ErrNilStateDb
 	}
@@ -266,14 +267,10 @@ func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header 
 		return err
 	}
 
-	bc, ok := chain.(*core.BlockChain)
-	if !ok {
-		return errors.New("err invalid blockchain")
-	}
-	totalValSet, err := bc.ReadValidatorPool(bc.GetHeaderByHash(header.ParentHash))
+	totalValSet, err := chain.ReadValidatorPool(parent)
 	if err != nil {
-		log.Error("invalid valset", "error", err.Error())
-		return errors.New("err invalid valset")
+		log.Error("err read valset", "err", err.Error())
+		return istanbulcommon.ErrInvalidValSet
 	}
 
 	validatorsCpy := validators.Copy(stateDb, totalValSet)

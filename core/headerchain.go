@@ -20,6 +20,7 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/state"
 	"math"
 	"math/big"
 	mrand "math/rand"
@@ -660,5 +661,19 @@ func (hc *HeaderChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 }
 
 func (hc *HeaderChain) ReadValidatorPool(header *types.Header) (*types.ValidatorList, error) {
-	return nil, nil
+	if header == nil {
+		return nil, errors.New("ReadValidatorPool : invalid header, header == nil")
+	}
+	validators, err := rawdb.ReadValidatorPool(hc.chainDb, header.Hash(), header.Number.Uint64())
+	if err != nil {
+		return nil, err
+	}
+	if len(validators.Validators) == 0 {
+		return nil, errors.New("ReadValidatorPool : invalid len")
+	}
+	return validators, nil
+}
+
+func (hc *HeaderChain) StateAt(root common.Hash) (*state.StateDB, error) {
+	return hc.StateAt(root)
 }
