@@ -136,6 +136,8 @@ type StateDB interface {
 	CalculateExchangeAmount(uint8, uint32) *big.Int
 	GetExchangAmount(common.Address, *big.Int) *big.Int
 	IsOfficialNFT(common.Address) bool
+	GetOfficialMint() *big.Int
+	GetUserMint() *big.Int
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

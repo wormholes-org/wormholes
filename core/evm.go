@@ -2714,6 +2714,15 @@ func GetSnftAddrs(db vm.StateDB, nftParentAddress string, addr common.Address) [
 		return nftAddrs
 	}
 
+	bigMaxAddress, ok := new(big.Int).SetString(nftParentAddress+"f", 16)
+	if !ok {
+		return nftAddrs
+	}
+	officialMint := db.GetOfficialMint()
+	if bigMaxAddress.Cmp(officialMint) > 0 {
+		return nftAddrs
+	}
+
 	addrInt := big.NewInt(0)
 	addrInt.SetString(nftParentAddress, 16)
 	addrInt.Lsh(addrInt, 4)

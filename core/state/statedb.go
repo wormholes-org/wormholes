@@ -1757,6 +1757,20 @@ func (s *StateDB) IsCanMergeNFT16(nftAddr common.Address) bool {
 
 	// 2. convert nft Addr to bigInt
 	parentAddrS := string([]byte(nftAddrS)[:len(nftAddrS)-int((mergeLevel+1))])
+
+	maxAddrS := parentAddrS
+	for i := 0; i < int(mergeLevel+1); i++ {
+		maxAddrS = maxAddrS + "f"
+	}
+	bigMaxAddress, ok := new(big.Int).SetString(maxAddrS, 16)
+	if !ok {
+		return false
+	}
+	officialMint := s.GetOfficialMint()
+	if bigMaxAddress.Cmp(officialMint) > 0 {
+		return false
+	}
+
 	addrInt := big.NewInt(0)
 	addrInt.SetString(parentAddrS, 16)
 	addrInt.Lsh(addrInt, 4)
@@ -3263,4 +3277,12 @@ func (s *StateDB) GetValidatorCoefficient(addr common.Address) uint8 {
 		return coe
 	}
 	return 0
+}
+
+func (s *StateDB) GetOfficialMint() *big.Int {
+	return new(big.Int).Set(s.MintDeep.OfficialMint)
+}
+
+func (s *StateDB) GetUserMint() *big.Int {
+	return new(big.Int).Set(s.MintDeep.UserMint)
 }
