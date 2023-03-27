@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 	"time"
 
@@ -605,52 +606,14 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			return nil
 		}
 		// Retrieve the current account and flatten it into the internal format
-		type AccountNFT struct {
-			//Account
-			Name   string
-			Symbol string
-			//Price                 *big.Int
-			//Direction             uint8 // 0:un_tx,1:buy,2:sell
-			Owner                 common.Address
-			NFTApproveAddressList common.Address
-			//Auctions map[string][]common.Address
-			// MergeLevel is the level of NFT merged
-			MergeLevel  uint8
-			MergeNumber uint32
-			//PledgedFlag           bool
-			//NFTPledgedBlockNumber *big.Int
-
-			Creator   common.Address
-			Royalty   uint16
-			Exchanger common.Address
-			MetaURL   string
-		}
 		var acc struct {
 			Nonce    uint64
 			Balance  *big.Int
 			Root     common.Hash
 			CodeHash []byte
 
-			PledgedBalance     *big.Int
-			PledgedBlockNumber *big.Int
-			// whether the account has a NFT exchanger
-			ExchangerFlag    bool
-			BlockNumber      *big.Int
-			ExchangerBalance *big.Int
-			VoteBlockNumber  *big.Int
-			VoteWeight       *big.Int
-			Coefficient      uint8
-			// The ratio that exchanger get.
-			FeeRate       uint16
-			ExchangerName string
-			ExchangerURL  string
-			// ApproveAddress have the right to handle all nfts of the account
-			ApproveAddressList []common.Address
-			// NFTBalance is the nft number that the account have
-			//NFTBalance uint64
-			//RewardFlag uint8
-			AccountNFT
-			//Owner common.Address
+			Worm  *types.WormholesExtension
+			Nft   *types.AccountNFT
 			Extra []byte
 		}
 		if err := rlp.DecodeBytes(val, &acc); err != nil {
@@ -673,34 +636,9 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 					acc.Balance,
 					acc.Root,
 					acc.CodeHash,
-					acc.PledgedBalance,
-					acc.PledgedBlockNumber,
-					acc.ExchangerFlag,
-					acc.BlockNumber,
-					acc.ExchangerBalance,
-					acc.VoteBlockNumber,
-					acc.VoteWeight,
-					acc.Coefficient,
-					acc.FeeRate,
-					acc.ExchangerName,
-					acc.ExchangerURL,
-					acc.ApproveAddressList,
-					//acc.NFTBalance,
-					acc.Extra,
-					acc.Name,
-					acc.Symbol,
-					//acc.Price,
-					//acc.Direction,
-					acc.Owner,
-					acc.NFTApproveAddressList,
-					acc.MergeLevel,
-					acc.MergeNumber,
-					//acc.PledgedFlag,
-					//acc.NFTPledgedBlockNumber,
-					acc.Creator,
-					acc.Royalty,
-					acc.Exchanger,
-					acc.MetaURL)
+					acc.Worm,
+					acc.Nft,
+					acc.Extra)
 				//data := SlimAccountRLP(acc.Nonce, acc.Balance, acc.Root, acc.CodeHash)
 				// *** modify to support nft transaction 20211217 end ***
 				dataLen = len(data)

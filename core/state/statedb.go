@@ -394,7 +394,7 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
 
 // AddBalance adds amount to the account associated with addr.
 func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
-	stateObject := s.GetOrNewStateObject(addr)
+	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount)
 	}
@@ -402,35 +402,35 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 
 // SubBalance subtracts amount from the account associated with addr.
 func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
-	stateObject := s.GetOrNewStateObject(addr)
+	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount)
 	}
 }
 
 func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
-	stateObject := s.GetOrNewStateObject(addr)
+	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetBalance(amount)
 	}
 }
 
 func (s *StateDB) SetNonce(addr common.Address, nonce uint64) {
-	stateObject := s.GetOrNewStateObject(addr)
+	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetNonce(nonce)
 	}
 }
 
 func (s *StateDB) SetCode(addr common.Address, code []byte) {
-	stateObject := s.GetOrNewStateObject(addr)
+	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetCode(crypto.Keccak256Hash(code), code)
 	}
 }
 
 func (s *StateDB) SetState(addr common.Address, key, value common.Hash) {
-	stateObject := s.GetOrNewStateObject(addr)
+	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetState(s.db, key, value)
 	}
@@ -439,7 +439,7 @@ func (s *StateDB) SetState(addr common.Address, key, value common.Hash) {
 // SetStorage replaces the entire storage for the specified account with given
 // storage. This function should only be used for debugging.
 func (s *StateDB) SetStorage(addr common.Address, storage map[common.Hash]common.Hash) {
-	stateObject := s.GetOrNewStateObject(addr)
+	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetStorage(storage)
 	}
@@ -502,34 +502,9 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 			obj.data.Balance,
 			obj.data.Root,
 			obj.data.CodeHash,
-			obj.data.PledgedBalance,
-			obj.data.PledgedBlockNumber,
-			obj.data.ExchangerFlag,
-			obj.data.BlockNumber,
-			obj.data.ExchangerBalance,
-			obj.data.VoteBlockNumber,
-			obj.data.VoteWeight,
-			obj.data.Coefficient,
-			obj.data.FeeRate,
-			obj.data.ExchangerName,
-			obj.data.ExchangerURL,
-			obj.data.ApproveAddressList,
-			//obj.data.NFTBalance,
-			obj.data.Extra,
-			obj.data.Name,
-			obj.data.Symbol,
-			//obj.data.Price,
-			//obj.data.Direction,
-			obj.data.Owner,
-			obj.data.NFTApproveAddressList,
-			obj.data.MergeLevel,
-			obj.data.MergeNumber,
-			//obj.data.PledgedFlag,
-			//obj.data.NFTPledgedBlockNumber,
-			obj.data.Creator,
-			obj.data.Royalty,
-			obj.data.Exchanger,
-			obj.data.MetaURL)
+			obj.data.Worm,
+			obj.data.Nft,
+			obj.data.Extra)
 		//s.snapAccounts[obj.addrHash] = snapshot.SlimAccountRLP(obj.data.Nonce, obj.data.Balance, obj.data.Root, obj.data.CodeHash)
 	}
 }
@@ -581,45 +556,14 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 				return nil
 			}
 			data = &Account{
-				Nonce:              acc.Nonce,
-				Balance:            acc.Balance,
-				CodeHash:           acc.CodeHash,
-				Root:               common.BytesToHash(acc.Root),
-				PledgedBalance:     acc.PledgedBalance,
-				PledgedBlockNumber: acc.PledgedBlockNumber,
-				ExchangerFlag:      acc.ExchangerFlag,
-				BlockNumber:        acc.BlockNumber,
-				ExchangerBalance:   acc.ExchangerBalance,
-				VoteBlockNumber:    acc.VoteBlockNumber,
-				VoteWeight:         acc.VoteWeight,
-				Coefficient:        acc.Coefficient,
-				FeeRate:            acc.FeeRate,
-				ExchangerName:      acc.ExchangerName,
-				ExchangerURL:       acc.ExchangerURL,
-				//NFTBalance:         acc.NFTBalance,
-				Extra: acc.Extra,
-				//RewardFlag:         acc.RewardFlag,
-				// *** modify to support nft transaction 20211217 begin ***
-				AccountNFT: AccountNFT{
-					Name:   acc.Name,
-					Symbol: acc.Symbol,
-					//Price:      acc.Price,
-					//Direction:  acc.Direction,
-					Owner:       acc.Owner,
-					MergeLevel:  acc.MergeLevel,
-					MergeNumber: acc.MergeNumber,
-					//PledgedFlag:           acc.PledgedFlag,
-					//NFTPledgedBlockNumber: acc.NFTPledgedBlockNumber,
-					Creator:   acc.Creator,
-					Royalty:   acc.Royalty,
-					Exchanger: acc.Exchanger,
-					MetaURL:   acc.MetaURL,
-				},
-				// *** modify to support nft transaction 20211217 end ***
+				Nonce:    acc.Nonce,
+				Balance:  acc.Balance,
+				CodeHash: acc.CodeHash,
+				Root:     common.BytesToHash(acc.Root),
+				Worm:     acc.Worm,
+				Nft:      acc.Nft,
+				Extra:    acc.Extra,
 			}
-			data.ApproveAddressList = append(data.ApproveAddressList, acc.ApproveAddressList...)
-			//data.NFTApproveAddressList = append(data.NFTApproveAddressList, acc.NFTApproveAddressList...)
-			data.NFTApproveAddressList = acc.NFTApproveAddressList
 			if len(data.CodeHash) == 0 {
 				data.CodeHash = emptyCodeHash
 			}
@@ -725,23 +669,44 @@ func (s *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	if stateObject == nil {
 		stateObject, _ = s.createObject(addr)
 	}
-	if stateObject.data.PledgedBlockNumber == nil {
-		stateObject.data.PledgedBlockNumber = big.NewInt(0)
+
+	return stateObject
+}
+
+func (s *StateDB) GetOrNewNFTStateObject(addr common.Address) *stateObject {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		stateObject, _ = s.createObject(addr)
+		stateObject.data.Nft = &types.AccountNFT{}
 	}
-	if stateObject.data.PledgedBalance == nil {
-		stateObject.data.PledgedBalance = big.NewInt(0)
+
+	return stateObject
+}
+
+func (s *StateDB) GetOrNewAccountStateObject(addr common.Address) *stateObject {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		stateObject, _ = s.createObject(addr)
+		stateObject.data.Worm = &types.WormholesExtension{}
 	}
-	if stateObject.data.BlockNumber == nil {
-		stateObject.data.BlockNumber = big.NewInt(0)
+
+	if stateObject.data.Worm.PledgedBlockNumber == nil {
+		stateObject.data.Worm.PledgedBlockNumber = big.NewInt(0)
 	}
-	if stateObject.data.ExchangerBalance == nil {
-		stateObject.data.ExchangerBalance = big.NewInt(0)
+	if stateObject.data.Worm.PledgedBalance == nil {
+		stateObject.data.Worm.PledgedBalance = big.NewInt(0)
 	}
-	if stateObject.data.VoteBlockNumber == nil {
-		stateObject.data.VoteBlockNumber = big.NewInt(0)
+	if stateObject.data.Worm.BlockNumber == nil {
+		stateObject.data.Worm.BlockNumber = big.NewInt(0)
 	}
-	if stateObject.data.VoteWeight == nil {
-		stateObject.data.VoteWeight = big.NewInt(0)
+	if stateObject.data.Worm.ExchangerBalance == nil {
+		stateObject.data.Worm.ExchangerBalance = big.NewInt(0)
+	}
+	if stateObject.data.Worm.VoteBlockNumber == nil {
+		stateObject.data.Worm.VoteBlockNumber = big.NewInt(0)
+	}
+	if stateObject.data.Worm.VoteWeight == nil {
+		stateObject.data.Worm.VoteWeight = big.NewInt(0)
 	}
 
 	return stateObject
@@ -1454,8 +1419,8 @@ func (s *StateDB) MergeNFT(nftAddr common.Address) error {
 		newMergedAddrS = newMergedAddrS + "0"
 	}
 	newMergedAddr := common.HexToAddress(newMergedAddrS)
-	index := strings.LastIndex(nftStateObject.data.MetaURL, "/")
-	metaUrl := string([]byte(nftStateObject.data.MetaURL)[:index])
+	index := strings.LastIndex(nftStateObject.data.Nft.MetaURL, "/")
+	metaUrl := string([]byte(nftStateObject.data.Nft.MetaURL)[:index])
 	metaUrl = metaUrl + "/" + newMergedAddr.String()
 	var newMergeStateObject *stateObject
 	if s.Exist(newMergedAddr) {
@@ -1463,21 +1428,21 @@ func (s *StateDB) MergeNFT(nftAddr common.Address) error {
 		//newMergeStateObject.data.MergeLevel = nftStateObject.data.MergeLevel + 1
 		//newMergeStateObject.data.Owner = nftStateObject.data.Owner
 		var mergeNumber uint32 = 0
-		mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.MergeLevel+1)).Uint64())
+		mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.Nft.MergeLevel+1)).Uint64())
 		newMergeStateObject.SetNFTInfo(
-			nftStateObject.data.Name,
-			nftStateObject.data.Symbol,
+			nftStateObject.data.Nft.Name,
+			nftStateObject.data.Nft.Symbol,
 			//nftStateObject.data.Price,
 			//nftStateObject.data.Direction,
-			nftStateObject.data.Owner,
-			nftStateObject.data.NFTApproveAddressList,
-			nftStateObject.data.MergeLevel+1,
+			nftStateObject.data.Nft.Owner,
+			nftStateObject.data.Nft.NFTApproveAddressList,
+			nftStateObject.data.Nft.MergeLevel+1,
 			mergeNumber,
 			//nftStateObject.data.PledgedFlag,
 			//new(big.Int).Set(nftStateObject.data.NFTPledgedBlockNumber),
-			nftStateObject.data.Creator,
-			nftStateObject.data.Royalty,
-			nftStateObject.data.Exchanger,
+			nftStateObject.data.Nft.Creator,
+			nftStateObject.data.Nft.Royalty,
+			nftStateObject.data.Nft.Exchanger,
 			metaUrl)
 	} else {
 		s.CreateAccount(newMergedAddr)
@@ -1485,21 +1450,21 @@ func (s *StateDB) MergeNFT(nftAddr common.Address) error {
 		//newMergeStateObject.data.MergeLevel = nftStateObject.data.MergeLevel + 1
 		//newMergeStateObject.data.Owner = nftStateObject.data.Owner
 		var mergeNumber uint32 = 0
-		mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.MergeLevel+1)).Uint64())
+		mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.Nft.MergeLevel+1)).Uint64())
 		newMergeStateObject.SetNFTInfo(
-			nftStateObject.data.Name,
-			nftStateObject.data.Symbol,
+			nftStateObject.data.Nft.Name,
+			nftStateObject.data.Nft.Symbol,
 			//nftStateObject.data.Price,
 			//nftStateObject.data.Direction,
-			nftStateObject.data.Owner,
-			nftStateObject.data.NFTApproveAddressList,
-			nftStateObject.data.MergeLevel+1,
+			nftStateObject.data.Nft.Owner,
+			nftStateObject.data.Nft.NFTApproveAddressList,
+			nftStateObject.data.Nft.MergeLevel+1,
 			mergeNumber,
 			//nftStateObject.data.PledgedFlag,
 			//new(big.Int).Set(nftStateObject.data.NFTPledgedBlockNumber),
-			nftStateObject.data.Creator,
-			nftStateObject.data.Royalty,
-			nftStateObject.data.Exchanger,
+			nftStateObject.data.Nft.Creator,
+			nftStateObject.data.Nft.Royalty,
+			nftStateObject.data.Nft.Exchanger,
 			metaUrl)
 	}
 	//s.updateStateObject(newMergeStateObject)
@@ -1524,9 +1489,9 @@ func (s *StateDB) GetNFTStoreAddress(address common.Address,
 	if nftStateObj == nil {
 		return common.Address{}, common.Address{}, false
 	}
-	if nftStateObj.data.Owner != emptyNFTAddr &&
+	if nftStateObj.data.Nft.Owner != emptyNFTAddr &&
 		int(nftStateObj.GetNFTMergeLevel()) == depth {
-		return address, nftStateObj.data.Owner, true
+		return address, nftStateObj.data.Nft.Owner, true
 	} else {
 		var parentAddrBytes []byte
 		parentAddrBytes = append(parentAddrBytes, address[:len(address)-(depth+1)]...)
@@ -1589,29 +1554,29 @@ func (s *StateDB) SplitNFT(nftAddr common.Address, level int) {
 			splitAddr = common.BytesToAddress(splitAddrBytes)
 			metaUrl = ""
 			index = 0
-			index = strings.LastIndex(storeStateObject.data.MetaURL, "/")
-			metaUrl = string([]byte(storeStateObject.data.MetaURL)[:index])
+			index = strings.LastIndex(storeStateObject.data.Nft.MetaURL, "/")
+			metaUrl = string([]byte(storeStateObject.data.Nft.MetaURL)[:index])
 			metaUrl = metaUrl + "/" + splitAddr.String()
 			if s.Exist(splitAddr) {
 				newSplitStateObject = s.getStateObject(splitAddr)
 				//newSplitStateObject.data.MergeLevel = storeStateObject.data.MergeLevel - uint8(i + 1)
 				//newSplitStateObject.data.Owner = storeStateObject.data.Owner
 				var mergeNumber uint32 = 0
-				mergeNumber = uint32(math.BigPow(16, int64(storeStateObject.data.MergeLevel-uint8(i+1))).Uint64())
+				mergeNumber = uint32(math.BigPow(16, int64(storeStateObject.data.Nft.MergeLevel-uint8(i+1))).Uint64())
 				newSplitStateObject.SetNFTInfo(
-					storeStateObject.data.Name,
-					storeStateObject.data.Symbol,
+					storeStateObject.data.Nft.Name,
+					storeStateObject.data.Nft.Symbol,
 					//storeStateObject.data.Price,
 					//storeStateObject.data.Direction,
-					storeStateObject.data.Owner,
-					storeStateObject.data.NFTApproveAddressList,
-					storeStateObject.data.MergeLevel-uint8(i+1),
+					storeStateObject.data.Nft.Owner,
+					storeStateObject.data.Nft.NFTApproveAddressList,
+					storeStateObject.data.Nft.MergeLevel-uint8(i+1),
 					mergeNumber,
 					//storeStateObject.data.PledgedFlag,
 					//new(big.Int).Set(storeStateObject.data.NFTPledgedBlockNumber),
-					storeStateObject.data.Creator,
-					storeStateObject.data.Royalty,
-					storeStateObject.data.Exchanger,
+					storeStateObject.data.Nft.Creator,
+					storeStateObject.data.Nft.Royalty,
+					storeStateObject.data.Nft.Exchanger,
 					metaUrl)
 			} else {
 				s.CreateAccount(splitAddr)
@@ -1619,21 +1584,21 @@ func (s *StateDB) SplitNFT(nftAddr common.Address, level int) {
 				//newSplitStateObject.data.MergeLevel = storeStateObject.data.MergeLevel - uint8(i + 1)
 				//newSplitStateObject.data.Owner = storeStateObject.data.Owner
 				var mergeNumber uint32 = 0
-				mergeNumber = uint32(math.BigPow(16, int64(storeStateObject.data.MergeLevel-uint8(i+1))).Uint64())
+				mergeNumber = uint32(math.BigPow(16, int64(storeStateObject.data.Nft.MergeLevel-uint8(i+1))).Uint64())
 				newSplitStateObject.SetNFTInfo(
-					storeStateObject.data.Name,
-					storeStateObject.data.Symbol,
+					storeStateObject.data.Nft.Name,
+					storeStateObject.data.Nft.Symbol,
 					//storeStateObject.data.Price,
 					//storeStateObject.data.Direction,
-					storeStateObject.data.Owner,
-					storeStateObject.data.NFTApproveAddressList,
-					storeStateObject.data.MergeLevel-uint8(i+1),
+					storeStateObject.data.Nft.Owner,
+					storeStateObject.data.Nft.NFTApproveAddressList,
+					storeStateObject.data.Nft.MergeLevel-uint8(i+1),
 					mergeNumber,
 					//storeStateObject.data.PledgedFlag,
 					//new(big.Int).Set(storeStateObject.data.NFTPledgedBlockNumber),
-					storeStateObject.data.Creator,
-					storeStateObject.data.Royalty,
-					storeStateObject.data.Exchanger,
+					storeStateObject.data.Nft.Creator,
+					storeStateObject.data.Nft.Royalty,
+					storeStateObject.data.Nft.Exchanger,
 					metaUrl)
 			}
 			//s.updateStateObject(newSplitStateObject)
@@ -1808,10 +1773,10 @@ func (s *StateDB) IsCanMergeNFT16(nftAddr common.Address) bool {
 		}
 
 		// add new limit by metaurl 2022-06-20
-		nftIndex := strings.LastIndex(nftStateObject.data.MetaURL, "/")
-		nftMetaUrl := string([]byte(nftStateObject.data.MetaURL)[:nftIndex])
-		siblingIndex := strings.LastIndex(siblingStateObject.data.MetaURL, "/")
-		siblingMetaUrl := string([]byte(siblingStateObject.data.MetaURL)[:siblingIndex])
+		nftIndex := strings.LastIndex(nftStateObject.data.Nft.MetaURL, "/")
+		nftMetaUrl := string([]byte(nftStateObject.data.Nft.MetaURL)[:nftIndex])
+		siblingIndex := strings.LastIndex(siblingStateObject.data.Nft.MetaURL, "/")
+		siblingMetaUrl := string([]byte(siblingStateObject.data.Nft.MetaURL)[:siblingIndex])
 		if nftMetaUrl != siblingMetaUrl {
 			return false
 		}
@@ -1958,8 +1923,8 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 		newMergedAddrS = newMergedAddrS + "0"
 	}
 	newMergedAddr := common.HexToAddress(newMergedAddrS)
-	index := strings.LastIndex(nftStateObject.data.MetaURL, "/")
-	metaUrl := string([]byte(nftStateObject.data.MetaURL)[:index])
+	index := strings.LastIndex(nftStateObject.data.Nft.MetaURL, "/")
+	metaUrl := string([]byte(nftStateObject.data.Nft.MetaURL)[:index])
 	metaUrl = metaUrl + "/" + newMergedAddr.String()
 	var newMergeStateObject *stateObject
 	if s.Exist(newMergedAddr) {
@@ -1969,19 +1934,19 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 		//var mergeNumber uint32 = 0
 		//mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.MergeLevel+1)).Uint64())
 		newMergeStateObject.SetNFTInfo(
-			nftStateObject.data.Name,
-			nftStateObject.data.Symbol,
+			nftStateObject.data.Nft.Name,
+			nftStateObject.data.Nft.Symbol,
 			//nftStateObject.data.Price,
 			//nftStateObject.data.Direction,
-			nftStateObject.data.Owner,
-			nftStateObject.data.NFTApproveAddressList,
-			nftStateObject.data.MergeLevel+1,
+			nftStateObject.data.Nft.Owner,
+			nftStateObject.data.Nft.NFTApproveAddressList,
+			nftStateObject.data.Nft.MergeLevel+1,
 			mergeNumber,
 			//nftStateObject.data.PledgedFlag,
 			//new(big.Int).Set(nftStateObject.data.NFTPledgedBlockNumber),
-			nftStateObject.data.Creator,
-			nftStateObject.data.Royalty,
-			nftStateObject.data.Exchanger,
+			nftStateObject.data.Nft.Creator,
+			nftStateObject.data.Nft.Royalty,
+			nftStateObject.data.Nft.Exchanger,
 			metaUrl)
 	} else {
 		s.CreateAccount(newMergedAddr)
@@ -1991,19 +1956,19 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 		//var mergeNumber uint32 = 0
 		//mergeNumber = uint32(math.BigPow(16, int64(nftStateObject.data.MergeLevel+1)).Uint64())
 		newMergeStateObject.SetNFTInfo(
-			nftStateObject.data.Name,
-			nftStateObject.data.Symbol,
+			nftStateObject.data.Nft.Name,
+			nftStateObject.data.Nft.Symbol,
 			//nftStateObject.data.Price,
 			//nftStateObject.data.Direction,
-			nftStateObject.data.Owner,
-			nftStateObject.data.NFTApproveAddressList,
-			nftStateObject.data.MergeLevel+1,
+			nftStateObject.data.Nft.Owner,
+			nftStateObject.data.Nft.NFTApproveAddressList,
+			nftStateObject.data.Nft.MergeLevel+1,
 			mergeNumber,
 			//nftStateObject.data.PledgedFlag,
 			//new(big.Int).Set(nftStateObject.data.NFTPledgedBlockNumber),
-			nftStateObject.data.Creator,
-			nftStateObject.data.Royalty,
-			nftStateObject.data.Exchanger,
+			nftStateObject.data.Nft.Creator,
+			nftStateObject.data.Nft.Royalty,
+			nftStateObject.data.Nft.Exchanger,
 			metaUrl)
 	}
 	//s.updateStateObject(newMergeStateObject)
@@ -2017,8 +1982,8 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 
 	// add merge snft log
 	log := s.ConstructLog(newMergedAddr,
-		newMergeStateObject.data.Owner,
-		newMergeStateObject.data.MergeLevel,
+		newMergeStateObject.data.Nft.Owner,
+		newMergeStateObject.data.Nft.MergeLevel,
 		mergeNumber,
 		blocknumber)
 	s.AddLog(log)
@@ -2044,9 +2009,9 @@ func (s *StateDB) GetNFTStoreAddress16(address common.Address,
 	if nftStateObj == nil {
 		return common.Address{}, common.Address{}, false
 	}
-	if nftStateObj.data.Owner != emptyNFTAddr &&
+	if nftStateObj.data.Nft.Owner != emptyNFTAddr &&
 		int(nftStateObj.GetNFTMergeLevel()) == depth {
-		return address, nftStateObj.data.Owner, true
+		return address, nftStateObj.data.Nft.Owner, true
 	} else {
 		var parentAddrBytes []byte
 		addressBytes16 := []byte(address.String())
@@ -2107,29 +2072,29 @@ func (s *StateDB) SplitNFT16(nftAddr common.Address, level int) {
 			splitAddr = common.HexToAddress(string(splitAddrBytes))
 			metaUrl = ""
 			index = 0
-			index = strings.LastIndex(storeStateObject.data.MetaURL, "/")
-			metaUrl = string([]byte(storeStateObject.data.MetaURL)[:index])
+			index = strings.LastIndex(storeStateObject.data.Nft.MetaURL, "/")
+			metaUrl = string([]byte(storeStateObject.data.Nft.MetaURL)[:index])
 			metaUrl = metaUrl + "/" + splitAddr.String()
 			if s.Exist(splitAddr) {
 				newSplitStateObject = s.getStateObject(splitAddr)
 				//newSplitStateObject.data.MergeLevel = storeStateObject.data.MergeLevel - uint8(i + 1)
 				//newSplitStateObject.data.Owner = storeStateObject.data.Owner
 				var mergeNumber uint32 = 0
-				mergeNumber = uint32(math.BigPow(16, int64(storeStateObject.data.MergeLevel-uint8(i+1))).Uint64())
+				mergeNumber = uint32(math.BigPow(16, int64(storeStateObject.data.Nft.MergeLevel-uint8(i+1))).Uint64())
 				newSplitStateObject.SetNFTInfo(
-					storeStateObject.data.Name,
-					storeStateObject.data.Symbol,
+					storeStateObject.data.Nft.Name,
+					storeStateObject.data.Nft.Symbol,
 					//storeStateObject.data.Price,
 					//storeStateObject.data.Direction,
-					storeStateObject.data.Owner,
-					storeStateObject.data.NFTApproveAddressList,
-					storeStateObject.data.MergeLevel-uint8(i+1),
+					storeStateObject.data.Nft.Owner,
+					storeStateObject.data.Nft.NFTApproveAddressList,
+					storeStateObject.data.Nft.MergeLevel-uint8(i+1),
 					mergeNumber,
 					//storeStateObject.data.PledgedFlag,
 					//new(big.Int).Set(storeStateObject.data.NFTPledgedBlockNumber),
-					storeStateObject.data.Creator,
-					storeStateObject.data.Royalty,
-					storeStateObject.data.Exchanger,
+					storeStateObject.data.Nft.Creator,
+					storeStateObject.data.Nft.Royalty,
+					storeStateObject.data.Nft.Exchanger,
 					metaUrl)
 			} else {
 				s.CreateAccount(splitAddr)
@@ -2137,21 +2102,21 @@ func (s *StateDB) SplitNFT16(nftAddr common.Address, level int) {
 				//newSplitStateObject.data.MergeLevel = storeStateObject.data.MergeLevel - uint8(i + 1)
 				//newSplitStateObject.data.Owner = storeStateObject.data.Owner
 				var mergeNumber uint32 = 0
-				mergeNumber = uint32(math.BigPow(16, int64(storeStateObject.data.MergeLevel-uint8(i+1))).Uint64())
+				mergeNumber = uint32(math.BigPow(16, int64(storeStateObject.data.Nft.MergeLevel-uint8(i+1))).Uint64())
 				newSplitStateObject.SetNFTInfo(
-					storeStateObject.data.Name,
-					storeStateObject.data.Symbol,
+					storeStateObject.data.Nft.Name,
+					storeStateObject.data.Nft.Symbol,
 					//storeStateObject.data.Price,
 					//storeStateObject.data.Direction,
-					storeStateObject.data.Owner,
-					storeStateObject.data.NFTApproveAddressList,
-					storeStateObject.data.MergeLevel-uint8(i+1),
+					storeStateObject.data.Nft.Owner,
+					storeStateObject.data.Nft.NFTApproveAddressList,
+					storeStateObject.data.Nft.MergeLevel-uint8(i+1),
 					mergeNumber,
 					//storeStateObject.data.PledgedFlag,
 					//new(big.Int).Set(storeStateObject.data.NFTPledgedBlockNumber),
-					storeStateObject.data.Creator,
-					storeStateObject.data.Royalty,
-					storeStateObject.data.Exchanger,
+					storeStateObject.data.Nft.Creator,
+					storeStateObject.data.Nft.Royalty,
+					storeStateObject.data.Nft.Exchanger,
 					metaUrl)
 			}
 			//s.updateStateObject(newSplitStateObject)
