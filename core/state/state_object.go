@@ -115,8 +115,8 @@ type Account struct {
 	Balance  *big.Int
 	Root     common.Hash // merkle root of the storage trie
 	CodeHash []byte
-	Worm     *types.WormholesExtension
-	Nft      *types.AccountNFT
+	Worm     *types.WormholesExtension `rlp:"nil"`
+	Nft      *types.AccountNFT         `rlp:"nil"`
 	Extra    []byte
 }
 

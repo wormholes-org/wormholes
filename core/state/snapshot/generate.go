@@ -612,8 +612,8 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			Root     common.Hash
 			CodeHash []byte
 
-			Worm  *types.WormholesExtension
-			Nft   *types.AccountNFT
+			Worm  *types.WormholesExtension `rlp:"nil"`
+			Nft   *types.AccountNFT         `rlp:"nil"`
 			Extra []byte
 		}
 		if err := rlp.DecodeBytes(val, &acc); err != nil {
