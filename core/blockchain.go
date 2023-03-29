@@ -220,12 +220,14 @@ type BlockChain struct {
 	//mintDeep types.MintDeep
 
 	stakerPool     *types.StakerList
-	bytesStakersCh chan BytesStakerList
+	bytesStakersCh chan BytesValidatorAndStakerList
+	validatorPool  *types.ValidatorList
 }
 
-type BytesStakerList struct {
-	Header     *types.Header
-	StakerList []byte
+type BytesValidatorAndStakerList struct {
+	Header        *types.Header
+	StakerList    []byte
+	ValidatorList []byte
 }
 
 func (bc *BlockChain) Coinbase() common.Address {
@@ -271,7 +273,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		engine:         engine,
 		vmConfig:       vmConfig,
 		stakerPool:     new(types.StakerList),
-		bytesStakersCh: make(chan BytesStakerList, 100),
+		bytesStakersCh: make(chan BytesValidatorAndStakerList, 100),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -367,7 +369,10 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// load staker pool
-	bc.loadStakerPool()
+	err = bc.loadStakerPool()
+	if err != nil {
+		return nil, err
+	}
 	go bc.WriteStakersToDB()
 
 	// The first thing the node will do is reconstruct the verification data for
@@ -454,32 +459,45 @@ func (bc *BlockChain) empty() bool {
 // loadStakerPool loads the latest state of stakerpool
 func (bc *BlockChain) loadStakerPool() error {
 	var header *types.Header
+	var err error
 	currentBlock := bc.CurrentBlock()
 	currentHeight := currentBlock.NumberU64()
 
 	nums := currentHeight / WriteStakersFrequency
 	var index uint64
-	for i := nums + 1; i >= 1; i-- {
-		header = bc.GetHeaderByNumber((i - 1) * WriteStakersFrequency)
+	for i := nums; i >= 0; i-- {
+		header = bc.GetHeaderByNumber(i * WriteStakersFrequency)
 		stakerList := bc.ReadStakePool(header)
-		if stakerList != nil && len(stakerList.Stakers) > 0 {
+		validatorList, err := bc.ReadValidatorPool(header)
+		if err != nil {
+			continue
+		}
+		if stakerList != nil && len(stakerList.Stakers) > 0 &&
+			validatorList != nil && len(validatorList.Validators) > 0 {
 			bc.stakerPool = stakerList
-			index = i - 1
+			bc.validatorPool = validatorList
+			index = i
 			break
 		}
 	}
 
 	var startBlockNumber uint64
-	if bc.stakerPool != nil && len(bc.stakerPool.Stakers) > 0 {
+	if bc.stakerPool != nil && len(bc.stakerPool.Stakers) > 0 &&
+		bc.validatorPool != nil && len(bc.validatorPool.Validators) > 0 {
 		startBlockNumber = uint64(index*WriteStakersFrequency) + 1
 	} else {
 		startBlockNumber = 0
 	}
 
 	var dbStakers *types.DBStakerList
+	var pledgedTokens *types.PledgedTokenList
 	for i := startBlockNumber; i <= currentHeight; i++ {
 		header = bc.GetHeaderByNumber(i)
 		dbStakers = bc.ReadDBStakerPool(header)
+		pledgedTokens, err = bc.ReadIncrementalValidators(header)
+		if err != nil {
+			return err
+		}
 		if dbStakers != nil && len(dbStakers.DBStakers) > 0 {
 			for _, staker := range dbStakers.DBStakers {
 				if staker.DeleteFlag {
@@ -488,6 +506,23 @@ func (bc *BlockChain) loadStakerPool() error {
 					bc.stakerPool.AddStaker(staker.Address(), staker.Balance)
 				}
 			}
+		}
+		if pledgedTokens != nil && len(pledgedTokens.PledgedTokens) > 0 {
+			for _, pledgedToken := range pledgedTokens.PledgedTokens {
+				if pledgedToken.Flag {
+					bc.validatorPool.AddValidator(pledgedToken.Address, pledgedToken.Amount, pledgedToken.ProxyAddress)
+				} else {
+					bc.validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
+				}
+			}
+		}
+		st, err := bc.StateAt(header.Root)
+		if err != nil {
+			return err
+		}
+		for _, account := range bc.validatorPool.Validators {
+			coefficient := st.GetValidatorCoefficient(account.Addr)
+			bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 		}
 	}
 
@@ -499,6 +534,7 @@ func (bc *BlockChain) WriteStakersToDB() {
 		select {
 		case stakers := <-bc.bytesStakersCh:
 			bc.WriteStakerBytes(stakers.Header, stakers.StakerList)
+			bc.WriteValidatorBytes(stakers.Header, stakers.ValidatorList)
 		case <-bc.quit:
 			return
 		}
@@ -508,6 +544,48 @@ func (bc *BlockChain) WriteStakersToDB() {
 // GetStakerPool return bc.stakerPool
 func (bc *BlockChain) GetStakerPool() *types.StakerList {
 	return bc.stakerPool
+}
+
+func (bc *BlockChain) GetCurrentValidatorPool() *types.ValidatorList {
+	return bc.validatorPool.DeepCopy()
+}
+
+func (bc *BlockChain) GetValidatorPoolByHeader(header *types.Header) (*types.ValidatorList, error) {
+	tempHeader := bc.CurrentHeader()
+	validatorPool := bc.GetCurrentValidatorPool()
+
+	if header.Number.Cmp(tempHeader.Number) > 0 {
+		return nil, errors.New("greater than current header")
+	}
+
+	for {
+		if tempHeader.Number.Cmp(header.Number) <= 0 {
+			break
+		}
+		pledgedTokens, err := bc.ReadIncrementalValidators(tempHeader)
+		if err != nil {
+			return nil, err
+		}
+		if pledgedTokens != nil && len(pledgedTokens.PledgedTokens) > 0 {
+			for _, pledgedToken := range pledgedTokens.PledgedTokens {
+				if !pledgedToken.Flag {
+					bc.validatorPool.AddValidator(pledgedToken.Address, pledgedToken.Amount, pledgedToken.ProxyAddress)
+				} else {
+					bc.validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
+				}
+			}
+		}
+		st, err := bc.StateAt(header.Root)
+		if err != nil {
+			return nil, err
+		}
+		for _, account := range bc.validatorPool.Validators {
+			coefficient := st.GetValidatorCoefficient(account.Addr)
+			bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+		}
+		tempHeader = bc.GetHeaderByNumber(tempHeader.Number.Uint64() - 1)
+	}
+	return validatorPool, nil
 }
 
 // loadLastState loads the last known chain state from the database. This method
@@ -1659,41 +1737,46 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 
 	log.Info("caver|stake-after", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
 
-	validatorPool, err := bc.ReadValidatorPool(bc.GetHeaderByHash(block.Header().ParentHash))
-	if err != nil {
-		log.Error("writeBlockWithoutState : invalid validator list", "no", block.Header().Number, "err", err)
-		return NonStatTy, err
-	}
-	log.Info("caver|validator-before", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
+	//validatorPool, err := bc.ReadValidatorPool(bc.GetHeaderByHash(block.Header().ParentHash))
+	//if err != nil {
+	//	log.Error("writeBlockWithoutState : invalid validator list", "no", block.Header().Number, "err", err)
+	//	return NonStatTy, err
+	//}
+	log.Info("caver|validator-before", "no", block.Header().Number, "len", bc.validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
+	var pledgedTokens types.PledgedTokenList
 	if len(state.PledgedTokenPool) > 0 {
 		for _, v := range state.PledgedTokenPool {
 			if v.Flag {
-				validatorPool.AddValidator(v.Address, v.Amount, v.ProxyAddress)
+				bc.validatorPool.AddValidator(v.Address, v.Amount, v.ProxyAddress)
 			} else {
-				validatorPool.RemoveValidator(v.Address, v.Amount)
+				bc.validatorPool.RemoveValidator(v.Address, v.Amount)
 			}
+			pledgedTokens.PledgedTokens = append(pledgedTokens.PledgedTokens, v)
 		}
 		state.PledgedTokenPool = state.PledgedTokenPool[:0]
 	}
+	bc.WriteIncrementalValidators(block.Header(), &pledgedTokens)
 
 	// Recalculate the weight, which needs to be calculated after the list is determined
-	for _, account := range validatorPool.Validators {
+	for _, account := range bc.validatorPool.Validators {
 		coefficient := state.GetValidatorCoefficient(account.Addr)
-		validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+		bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
 
-	bc.WriteValidatorPool(block.Header(), validatorPool)
-	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
+	//bc.WriteValidatorPool(block.Header(), validatorPool)
+	log.Info("caver|validator-after", "no", block.Header().Number, "len", bc.validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 
 	// write the all exchangers to leveldb per WriteStakersFrequency blocks
 	if block.NumberU64()%WriteStakersFrequency == 0 {
-		data, err := rlp.EncodeToBytes(bc.stakerPool)
-		if err == nil {
-			stakers := BytesStakerList{
-				Header:     block.Header(),
-				StakerList: data,
+		stakersData, err1 := rlp.EncodeToBytes(bc.stakerPool)
+		validatorsData, err2 := rlp.EncodeToBytes(bc.stakerPool)
+		if err1 == nil && err2 == nil {
+			validatorAndStakers := BytesValidatorAndStakerList{
+				Header:        block.Header(),
+				StakerList:    stakersData,
+				ValidatorList: validatorsData,
 			}
-			bc.bytesStakersCh <- stakers
+			bc.bytesStakersCh <- validatorAndStakers
 		} else {
 			log.Error("Failed to RLP stakePool", "err", err)
 		}
@@ -2090,7 +2173,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			statedb.NominatedOfficialNFT = nominatedOfficialNFT
 		}
 
-		valList, err := bc.ReadValidatorPool(parent)
+		//valList, err := bc.ReadValidatorPool(parent)
+		valList, err := bc.GetValidatorPoolByHeader(parent)
 		if err != nil {
 			log.Error("insertChain: invalid validator list", "err", err)
 			return it.index, err
@@ -2904,6 +2988,14 @@ func (bc *BlockChain) WriteValidatorPool(header *types.Header, validatorPool *ty
 	}
 }
 
+func (bc *BlockChain) WriteValidatorBytes(header *types.Header, validatorPool []byte) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteValidatorBytes(poolBatch, header.Hash(), header.Number.Uint64(), validatorPool)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write validator disk", "err", err)
+	}
+}
+
 func (bc *BlockChain) ReadValidatorPool(header *types.Header) (*types.ValidatorList, error) {
 	if header == nil {
 		return nil, errors.New("ReadValidatorPool : invalid header")
@@ -2916,6 +3008,28 @@ func (bc *BlockChain) ReadValidatorPool(header *types.Header) (*types.ValidatorL
 		return nil, errors.New("ReadValidatorPool : invalid len")
 	}
 	return validators, nil
+}
+
+func (bc *BlockChain) WriteIncrementalValidators(header *types.Header, pledgedTokens *types.PledgedTokenList) {
+	poolBatch := bc.db.NewBatch()
+	rawdb.WriteIncrementalValidators(poolBatch, header.Hash(), header.Number.Uint64(), pledgedTokens)
+	if err := poolBatch.Write(); err != nil {
+		log.Crit("Failed to write IncrementalValidators disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) ReadIncrementalValidators(header *types.Header) (*types.PledgedTokenList, error) {
+	if header == nil {
+		return nil, errors.New("ReadIncrementalValidators : invalid header")
+	}
+	pledgedTokens, err := rawdb.ReadIncrementalValidators(bc.db, header.Hash(), header.Number.Uint64())
+	if err != nil {
+		return nil, err
+	}
+	if len(pledgedTokens.PledgedTokens) == 0 {
+		return nil, errors.New("ReadIncrementalValidators : invalid len")
+	}
+	return pledgedTokens, nil
 }
 
 // @Dev Judge whether it is the verifier of the current height
@@ -2939,7 +3053,8 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 		log.Error("Random11ValidatorFromPool: header is nil", "no", bc.CurrentHeader().Number.Uint64())
 		return nil, errors.New("err Random11ValidatorFromPool invalid header")
 	}
-	validatorList, err := bc.ReadValidatorPool(header)
+	//validatorList, err := bc.ReadValidatorPool(header)
+	validatorList, err := bc.GetValidatorPoolByHeader(header)
 	if err != nil {
 		log.Error("Random11ValidatorFromPool: ReadValidatorPool", "err", err, "no", bc.CurrentHeader().Number.Uint64())
 		return nil, err
@@ -3005,7 +3120,8 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 		log.Error("Random11ValidatorWithOutProxy: header is nil", "no", bc.CurrentHeader().Number.Uint64())
 		return nil, errors.New("err Random11ValidatorFromPool invalid header")
 	}
-	validatorList, err := bc.ReadValidatorPool(header)
+	//validatorList, err := bc.ReadValidatorPool(header)
+	validatorList, err := bc.GetValidatorPoolByHeader(header)
 	if err != nil {
 		log.Error("Random11ValidatorWithOutProxy: ReadValidatorPool", "err", err, "no", bc.CurrentHeader().Number.Uint64())
 		return nil, err
@@ -3112,7 +3228,8 @@ func (bc *BlockChain) ReadNominatedOfficialNFT(header *types.Header) (*types.Nom
 
 func (bc *BlockChain) QueryMinerProxy(ctx context.Context, number int64, minerAddress *common.Address) (*types.ValidatorList, error) {
 	log.Info("QueryMinerProxy", "number", number, "minerAddress", minerAddress.Hex())
-	vList, err := bc.ReadValidatorPool(bc.GetHeaderByNumber(uint64(number)))
+	//vList, err := bc.ReadValidatorPool(bc.GetHeaderByNumber(uint64(number)))
+	vList, err := bc.GetValidatorPoolByHeader(bc.GetHeaderByNumber(uint64(number)))
 	if err != nil {
 		return nil, err
 	}

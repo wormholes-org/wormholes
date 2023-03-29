@@ -214,6 +214,17 @@ func WriteValidatorPool(db ethdb.KeyValueWriter, hash common.Hash, number uint64
 	}
 }
 
+func WriteValidatorBytes(db ethdb.KeyValueWriter, hash common.Hash, number uint64, validatorList []byte) {
+	//data, err := rlp.EncodeToBytes(validatorList)
+	//if err != nil {
+	//	log.Crit("Failed to RLP validatorPool", "err", err)
+	//}
+
+	if err := db.Put(ValidatorPoolKey(number, hash), validatorList); err != nil {
+		log.Crit("Failed to store validatorPool", "err", err)
+	}
+}
+
 func ReadValidatorPool(db ethdb.Reader, hash common.Hash, number uint64) (*types.ValidatorList, error) {
 	data, err := db.Get(ValidatorPoolKey(number, hash))
 	if err != nil {
@@ -226,4 +237,29 @@ func ReadValidatorPool(db ethdb.Reader, hash common.Hash, number uint64) (*types
 		return nil, err
 	}
 	return validatorList, nil
+}
+
+func WriteIncrementalValidators(db ethdb.KeyValueWriter, hash common.Hash, number uint64, pledgedTokens *types.PledgedTokenList) {
+	data, err := rlp.EncodeToBytes(pledgedTokens)
+	if err != nil {
+		log.Crit("Failed to RLP PledgedTokenList", "err", err)
+	}
+
+	if err := db.Put(PledgedTokensKey(number, hash), data); err != nil {
+		log.Crit("Failed to store PledgedTokenList", "err", err)
+	}
+}
+
+func ReadIncrementalValidators(db ethdb.Reader, hash common.Hash, number uint64) (*types.PledgedTokenList, error) {
+	data, err := db.Get(PledgedTokensKey(number, hash))
+	if err != nil {
+		return nil, err
+	}
+
+	pledgedTokens := new(types.PledgedTokenList)
+	if err := rlp.Decode(bytes.NewReader(data), pledgedTokens); err != nil {
+		log.Error("Invalid PledgedTokenList RLP", "hash", hash, "err", err)
+		return nil, err
+	}
+	return pledgedTokens, nil
 }

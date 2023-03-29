@@ -400,7 +400,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		stakeList := c.GetStakerPool()
 		var benifitedStakers []common.Address
 
-		validatorList, err := c.ReadValidatorPool(parent)
+		validatorList, err := c.GetValidatorPoolByHeader(parent)
 		if err != nil {
 			log.Error("Engine: Prepare", "err", err, "no", c.CurrentHeader().Number.Uint64())
 			return err
@@ -423,11 +423,12 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		exchangerAddr = append(exchangerAddr, benifitedStakers...)
 
 		//new&update  at 20220523
-		validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
-		if err != nil {
-			log.Error("Prepare : validator pool err", err, err)
-			return err
-		}
+		//validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
+		validatorPool := c.GetCurrentValidatorPool()
+		//if err != nil {
+		//	log.Error("Prepare : validator pool err", err, err)
+		//	return err
+		//}
 		if validatorPool != nil && len(validatorPool.Validators) > 0 {
 			//k:proxy,v:validator
 			mp := make(map[string]*types.Validator, 0)
@@ -668,11 +669,12 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 					validatorAddr = append(validatorAddr, v)
 				}
 
-				validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
-				if err != nil {
-					log.Error("Finalize : validator pool err", err, err)
-					return
-				}
+				//validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
+				validatorPool := c.GetCurrentValidatorPool()
+				//if err != nil {
+				//	log.Error("Finalize : validator pool err", err, err)
+				//	return
+				//}
 				if validatorPool != nil && len(validatorPool.Validators) > 0 {
 					//k:proxy,v:validator
 					mp := make(map[string]*types.Validator, 0)

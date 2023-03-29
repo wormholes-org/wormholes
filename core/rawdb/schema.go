@@ -30,6 +30,7 @@ var (
 	stakePoolKeyPrefix     = []byte("stake-pool")
 	dbStakerPoolKeyPrefix  = []byte("db-stake-pool")
 	validatorPoolKeyPrefix = []byte("validator-pool")
+	pledgedTokensKeyPrefix = []byte("pledged-tokens")
 	// databaseVersionKey tracks the current database version.
 	databaseVersionKey = []byte("DatabaseVersion")
 
@@ -249,6 +250,10 @@ func DBStakerPoolKey(number uint64, hash common.Hash) []byte {
 
 func ValidatorPoolKey(number uint64, hash common.Hash) []byte {
 	return append(append(validatorPoolKeyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+func PledgedTokensKey(number uint64, hash common.Hash) []byte {
+	return append(append(pledgedTokensKeyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }
 
 // mintDeepKey = mintDeepPrefix + num (uint64 big endian) + hash

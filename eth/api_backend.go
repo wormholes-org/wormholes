@@ -234,7 +234,8 @@ func (b *EthAPIBackend) GetAllStakers(ctx context.Context) *types.StakerList {
 	return b.eth.BlockChain().GetStakerPool()
 }
 func (b *EthAPIBackend) GetAllValidators(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
-	return b.eth.BlockChain().ReadValidatorPool(header)
+	//return b.eth.BlockChain().ReadValidatorPool(header)
+	return b.eth.BlockChain().GetValidatorPoolByHeader(header)
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {

@@ -505,11 +505,12 @@ func (w *worker) emptyLoop() {
 				}
 				w.totalCondition = 0
 
-				stakes, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
-				if err != nil {
-					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
-					continue
-				}
+				//stakes, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+				stakes := w.chain.GetCurrentValidatorPool()
+				//if err != nil {
+				//	log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
+				//	continue
+				//}
 
 				//for _, val := range w.engine.OnlineValidators(w.cacheHeight.Uint64()) {
 				//	log.Info("azh|onlinesAddr", "addr", stakes.GetValidatorAddr(val))
@@ -1035,7 +1036,8 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	//vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	vallist, err := w.chain.GetValidatorPoolByHeader(parent.Header())
 	if err != nil {
 		log.Error("makeEmptyCurrent : invalid validator list", "no", header.Number, "err", err)
 		return err
@@ -1141,7 +1143,8 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	//vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	vallist, err := w.chain.GetValidatorPoolByHeader(parent.Header())
 	if err != nil {
 		log.Error("makeCurrent : invalid validator list", "no", header.Number, "err", err)
 		return err
@@ -2011,7 +2014,8 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	//vallist, err := w.chain.ReadValidatorPool(parent.Header())
+	vallist, err := w.chain.GetValidatorPoolByHeader(parent.Header())
 	if err != nil {
 		log.Error("makeProofCurrent : invalid validator list", "no", header.Number, "err", err)
 		return err
