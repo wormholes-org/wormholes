@@ -530,7 +530,7 @@ func (c *core) PutAddr(height uint64, addr common.Address) {
 	defer c.ovMu.Unlock()
 
 	addrs := c.onlineValidator[height]
-	log.Info("onlineValidators PutAddr", "height", height, "len", len(addrs), "total", len(c.onlineValidator))
+	log.Info("onlineValidators PutAddr", "height", height, "len", len(addrs), "total", len(c.onlineValidator), "addr", addr.Hex())
 	_, exist := Find(addrs, addr)
 	if !exist {
 		addrs = append(addrs, addr)
