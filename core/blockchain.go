@@ -1754,15 +1754,14 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			pledgedTokens.PledgedTokens = append(pledgedTokens.PledgedTokens, v)
 		}
 		state.PledgedTokenPool = state.PledgedTokenPool[:0]
+	}
 
-		// Recalculate the weight, which needs to be calculated after the list is determined
-		for _, account := range bc.validatorPool.Validators {
-			coefficient := state.GetValidatorCoefficient(account.Addr)
-			bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
-		}
+	// Recalculate the weight, which needs to be calculated after the list is determined
+	for _, account := range bc.validatorPool.Validators {
+		coefficient := state.GetValidatorCoefficient(account.Addr)
+		bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
 	bc.WriteIncrementalValidators(block.Header(), &pledgedTokens)
-
 	//bc.WriteValidatorPool(block.Header(), validatorPool)
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", bc.validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 
