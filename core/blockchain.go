@@ -515,14 +515,14 @@ func (bc *BlockChain) loadStakerPool() error {
 					bc.validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
 				}
 			}
-		}
-		st, err := bc.StateAt(header.Root)
-		if err != nil {
-			return err
-		}
-		for _, account := range bc.validatorPool.Validators {
-			coefficient := st.GetValidatorCoefficient(account.Addr)
-			bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+			st, err := bc.StateAt(header.Root)
+			if err != nil {
+				return err
+			}
+			for _, account := range bc.validatorPool.Validators {
+				coefficient := st.GetValidatorCoefficient(account.Addr)
+				bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+			}
 		}
 	}
 
@@ -1754,14 +1754,14 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			pledgedTokens.PledgedTokens = append(pledgedTokens.PledgedTokens, v)
 		}
 		state.PledgedTokenPool = state.PledgedTokenPool[:0]
+
+		// Recalculate the weight, which needs to be calculated after the list is determined
+		for _, account := range bc.validatorPool.Validators {
+			coefficient := state.GetValidatorCoefficient(account.Addr)
+			bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+		}
 	}
 	bc.WriteIncrementalValidators(block.Header(), &pledgedTokens)
-
-	// Recalculate the weight, which needs to be calculated after the list is determined
-	for _, account := range bc.validatorPool.Validators {
-		coefficient := state.GetValidatorCoefficient(account.Addr)
-		bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
-	}
 
 	//bc.WriteValidatorPool(block.Header(), validatorPool)
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", bc.validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
@@ -1769,7 +1769,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// write the all exchangers to leveldb per WriteStakersFrequency blocks
 	if block.NumberU64()%WriteStakersFrequency == 0 {
 		stakersData, err1 := rlp.EncodeToBytes(bc.stakerPool)
-		validatorsData, err2 := rlp.EncodeToBytes(bc.stakerPool)
+		validatorsData, err2 := rlp.EncodeToBytes(bc.validatorPool)
 		if err1 == nil && err2 == nil {
 			validatorAndStakers := BytesValidatorAndStakerList{
 				Header:        block.Header(),
@@ -3026,9 +3026,9 @@ func (bc *BlockChain) ReadIncrementalValidators(header *types.Header) (*types.Pl
 	if err != nil {
 		return nil, err
 	}
-	if len(pledgedTokens.PledgedTokens) == 0 {
-		return nil, errors.New("ReadIncrementalValidators : invalid len")
-	}
+	//if len(pledgedTokens.PledgedTokens) == 0 {
+	//	return nil, errors.New("ReadIncrementalValidators : invalid len")
+	//}
 	return pledgedTokens, nil
 }
 

@@ -361,8 +361,8 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	rawdb.WriteChainConfig(db, block.Hash(), config)
 
 	var (
-		//stakerList    types.StakerList
-		stakerList    types.DBStakerList
+		stakerList    types.StakerList
+		dbStakerList  types.DBStakerList
 		validatorList types.ValidatorList
 	)
 
@@ -371,13 +371,22 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 		dbStaker.Addr = addr
 		dbStaker.Balance = account.Balance
 		dbStaker.DeleteFlag = false
-		stakerList.DBStakers = append(stakerList.DBStakers, &dbStaker)
-		//stakerList.AddStaker(addr, account.Balance)
+		dbStakerList.DBStakers = append(dbStakerList.DBStakers, &dbStaker)
+		stakerList.AddStaker(addr, account.Balance)
 	}
 
+	var pledgedTokens types.PledgedTokenList
 	for addr, account := range g.Validator {
 		proxy := common.HexToAddress(account.Proxy)
 		validatorList.AddValidator(addr, account.Balance, proxy)
+
+		pledgeToken := &types.PledgedToken{
+			Address:      addr,
+			Amount:       new(big.Int).Set(account.Balance),
+			Flag:         true,
+			ProxyAddress: proxy,
+		}
+		pledgedTokens.PledgedTokens = append(pledgedTokens.PledgedTokens, pledgeToken)
 	}
 	// Recalculate the weight, which needs to be calculated after the list is determined
 	for addr, account := range g.Validator {
@@ -387,9 +396,10 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	for _, v := range validatorList.Validators {
 		log.Info("genesis|validator|weight", "addr", v.Addr, "balance", v.Balance, "weight", v.Weight)
 	}
-	//rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
-	rawdb.WriteDBStakerPool(db, block.Hash(), block.NumberU64(), &stakerList)
+	rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
+	rawdb.WriteDBStakerPool(db, block.Hash(), block.NumberU64(), &dbStakerList)
 	rawdb.WriteValidatorPool(db, block.Hash(), block.NumberU64(), &validatorList)
+	rawdb.WriteIncrementalValidators(db, block.Hash(), block.NumberU64(), &pledgedTokens)
 
 	officialNFT := types.InjectedOfficialNFT{
 		Dir:        g.Dir,
