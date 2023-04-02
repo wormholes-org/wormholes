@@ -393,6 +393,7 @@ func (w *worker) resetEmptyCondition() {
 	w.cerytify.voteIndex = 0
 	w.cerytify.round = 0
 	w.cerytify.selfMessages.Purge()
+	w.cerytify.purge <- struct{}{}
 }
 
 // recalcRecommit recalculates the resubmitting interval upon feedback.
@@ -562,7 +563,7 @@ func (w *worker) emptyLoop() {
 
 				if valiTotal == 15 {
 					w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-					gossipTimer.Reset(time.Second * 5)
+					gossipTimer.Reset(time.Second * 15)
 				}
 				//log.Info("emptyLoop start empty")
 			}
@@ -570,7 +571,7 @@ func (w *worker) emptyLoop() {
 		case <-gossipTimer.C:
 			{
 				//log.Info("emptyLoop gossipTimer", "w.isEmpty", w.isEmpty)
-				gossipTimer.Reset(time.Second * 5)
+				gossipTimer.Reset(time.Second * 15)
 				if !w.isEmpty {
 					continue
 				}

@@ -14,16 +14,21 @@ import (
 )
 
 const (
-	//remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
-	storeMsgs = 2500 // Number of messages stored by yourself
+	remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
+	storeMsgs   = 2500 // Number of messages stored by yourself
+)
+
+const (
+	normal = iota
+	plug
 )
 
 type Certify struct {
-	mu   sync.Mutex
-	self common.Address
-	eth  Backend
-	//otherMessages     *lru.ARCCache // the cache of peer's messages
-	selfMessages      *lru.ARCCache // the cache of self messages
+	mu                sync.Mutex
+	self              common.Address
+	eth               Backend
+	recentMessages    map[string]*EmptyPeerInfo // the cache of peer's messages
+	selfMessages      *lru.ARCCache             // the cache of self messages
 	eventMux          *event.TypeMux
 	events            *event.TypeMuxSubscription
 	stakers           *types.ValidatorList // all validator
@@ -34,6 +39,23 @@ type Certify struct {
 	voteIndex         int
 	validatorsHeight  []string
 	proofStatePool    *ProofStatePool // Currently highly collected validators that have sent online proofs
+	requestEmpty      chan []byte
+	responseEmpty     chan string
+	dropPeers         chan string
+	purge             chan struct{}
+}
+
+type VoteResult struct {
+	Height           *big.Int
+	ReceiveSum       *big.Int
+	OnlineValidators []common.Address
+	EmptyMessages    [][]byte
+}
+
+type EmptyPeerInfo struct {
+	Status  int
+	Peer    Peer
+	Message [][]byte
 }
 
 func (c *Certify) Start() {
@@ -47,40 +69,115 @@ func (c *Certify) subscribeEvents() {
 }
 
 func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
-	//otherMsgs, _ := lru.NewARC(remotePeers)
 	selfMsgs, _ := lru.NewARC(storeMsgs)
 	certify := &Certify{
 		self:              self,
 		eth:               eth,
 		eventMux:          new(event.TypeMux),
 		selfMessages:      selfMsgs,
+		recentMessages:    make(map[string]*EmptyPeerInfo),
 		miner:             handler,
 		signatureResultCh: make(chan VoteResult),
 		voteIndex:         0,
 		validatorsHeight:  make([]string, 0),
 		proofStatePool:    NewProofStatePool(),
+		requestEmpty:      make(chan []byte, 1000),
+		responseEmpty:     make(chan string, 1000),
+		dropPeers:         make(chan string, 100),
+		purge:             make(chan struct{}, 1),
 	}
 	return certify
 }
 
-type VoteResult struct {
-	Height           *big.Int
-	ReceiveSum       *big.Int
-	OnlineValidators []common.Address
-	EmptyMessages    [][]byte
-}
-
-func (c *Certify) rebroadcast(from common.Address, payload []byte) error {
-	// Broadcast payload
-	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
-	//	return err
-	//}
-	if miner, ok := c.miner.(*Miner); ok {
-		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
+func (c *Certify) RequestEmptyMessage() {
+	miner, ok := c.miner.(*Miner)
+	if !ok {
+		return
 	}
+	var count int
 
-	return nil
+	for {
+		select {
+		case msg := <-c.requestEmpty:
+			ps := miner.broadcaster.FindPeerSet()
+			for id, p := range ps {
+				info, ok := c.recentMessages[id]
+				if !ok {
+					infos := &EmptyPeerInfo{
+						Status:  0,
+						Peer:    p,
+						Message: [][]byte{msg},
+					}
+					c.recentMessages[id] = infos
+				} else {
+					info.Message = append(info.Message, msg)
+				}
+			}
+
+		case id := <-c.responseEmpty:
+			if info, ok := c.recentMessages[id]; ok {
+				info.Status = 0
+				count--
+				if len(info.Message) > 1 {
+					info.Message = info.Message[1:]
+				} else {
+					delete(c.recentMessages, id)
+				}
+			}
+
+		case <-c.purge:
+			c.recentMessages = make(map[string]*EmptyPeerInfo)
+			count = 0
+
+		default:
+			if len(c.recentMessages) == 0 {
+				break
+			}
+			//log.Info("azh|cache message", "len", len(c.recentMessages))
+			if len(c.recentMessages) > 15 {
+				if count < 5 {
+					for _, info := range c.recentMessages {
+						if info.Status == 0 {
+							go info.Peer.SendMsgWithResponse(WorkerMsg, info.Message[0], c.responseEmpty)
+							info.Status = 1
+							count++
+							break
+						}
+					}
+				} else {
+					break
+				}
+			}
+
+			if len(c.recentMessages) < 15 {
+				if count < 11 {
+					for _, info := range c.recentMessages {
+						if info.Status == 0 {
+							go info.Peer.SendMsgWithResponse(WorkerMsg, info.Message[0], c.responseEmpty)
+							info.Status = 1
+							count++
+							break
+						}
+					}
+				} else {
+					break
+				}
+			}
+		}
+	}
 }
+
+//func (c *Certify) rebroadcast(height uint64, payload []byte) error {
+//	// Broadcast payload
+//	//if err := c.Gossip(c.stakers, SendSignMsg, payload); err != nil {
+//	//	return err
+//	//}
+//	if miner, ok := c.miner.(*Miner); ok {
+//		miner.broadcaster.BroadcastEmptyBlockMsg(payload)
+//	}
+//
+//	return nil
+//}
 
 func (c *Certify) signMessage(msg *types.EmptyMsg) ([]byte, error) {
 	var err error
@@ -163,7 +260,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		}
 
 		currentHeight := c.miner.GetWorker().chain.CurrentHeader().Number
-		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) > 0 {
+		if currentHeight.Cmp(new(big.Int).Sub(signature.Height, big.NewInt(1))) != 0 {
 			//return true, errors.New("GatherOtherPeerSignature: msg height < chain Number")
 			return true, nil
 		}
@@ -176,7 +273,7 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 
 		log.Info("azh|emptyMessage", "height", signature.Height, "from", sender, "vote", signature.Vote, "round", signature.Round)
 
-		c.rebroadcast(addr, data)
+		c.requestEmpty <- data
 
 		if c.stakers == nil {
 			return true, nil

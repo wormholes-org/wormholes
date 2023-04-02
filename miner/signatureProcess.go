@@ -41,9 +41,7 @@ func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
 		}
 		go c.eventMux.Post(emptyMsg)
 	} else {
-		if miner, ok := c.miner.(*Miner); ok {
-			miner.broadcaster.BroadcastEmptyBlockMsg(payload)
-		}
+		c.requestEmpty <- payload
 	}
 	//log.Info("AssembleAndBroadcastMessage end")
 }
