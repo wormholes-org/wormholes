@@ -527,12 +527,10 @@ func (bc *BlockChain) DeleteExpiredCoefficents() {
 	}
 }
 
-func (bc *BlockChain) DeleteCoefficients(height uint64) {
+func (bc *BlockChain) DeleteCoefficients() {
 	var deleteItems []uint64
 	for k, _ := range bc.coefficients {
-		if k >= height {
-			deleteItems = append(deleteItems, k)
-		}
+		deleteItems = append(deleteItems, k)
 	}
 
 	for _, v := range deleteItems {
@@ -1710,26 +1708,15 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			}
 		}
 		state.PledgedTokenPool = state.PledgedTokenPool[:0]
-		// Recalculate the weight, which needs to be calculated after the list is determined
-		for _, account := range validatorPool.Validators {
-			coefficient := state.GetValidatorCoefficient(account.Addr)
-			validatorsCoe[account.Addr] = coefficient
-			validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
-		}
 	}
 
-	if _, ok := bc.coefficients[block.NumberU64()]; ok {
-		// handle the fork problem
-		bc.DeleteCoefficients(block.NumberU64())
-	} else {
-		if len(validatorsCoe) > 0 {
-			bc.coefficients[block.NumberU64()] = validatorsCoe
-		} else {
-			if _, ok := bc.coefficients[block.NumberU64()-1]; ok {
-				bc.coefficients[block.NumberU64()] = bc.coefficients[block.NumberU64()-1]
-			}
-		}
+	// Recalculate the weight, which needs to be calculated after the list is determined
+	for _, account := range validatorPool.Validators {
+		coefficient := state.GetValidatorCoefficient(account.Addr)
+		validatorsCoe[account.Addr] = coefficient
+		validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
+	bc.coefficients[block.NumberU64()] = validatorsCoe
 	bc.DeleteExpiredCoefficents()
 
 	bc.WriteValidatorPool(block.Header(), validatorPool)
@@ -1773,6 +1760,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			if err := bc.reorg(currentBlock, block); err != nil {
 				return NonStatTy, err
 			}
+			// handle the fork problem
+			bc.DeleteCoefficients()
 		}
 		status = CanonStatTy
 	} else {
@@ -3012,8 +3001,14 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 
 	// Get all validator weights
 	var weights []uint8
-	for _, v := range validatorList.Validators {
-		weights = append(weights, db.GetCoefficient(v.Addr))
+	if validatorsCoe, ok := bc.coefficients[header.Number.Uint64()]; ok {
+		for _, v := range validatorList.Validators {
+			weights = append(weights, validatorsCoe[v.Addr])
+		}
+	} else {
+		for _, v := range validatorList.Validators {
+			weights = append(weights, db.GetCoefficient(v.Addr))
+		}
 	}
 
 	var validators []common.Address
