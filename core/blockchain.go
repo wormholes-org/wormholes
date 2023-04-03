@@ -529,6 +529,121 @@ func (bc *BlockChain) loadStakerPool() error {
 	return nil
 }
 
+// loadStakerPool loads the latest state of stakerpool
+func (bc *BlockChain) loadStakerPoolByHeader(startHeader *types.Header) (*types.StakerList, *types.ValidatorList, error) {
+	var header *types.Header
+	var err error
+	var stakerPool *types.StakerList
+	var validatorPool *types.ValidatorList
+	startHeight := startHeader.Number.Uint64()
+
+	nums := startHeight / WriteStakersFrequency
+	var index uint64
+	for i := nums; i >= 0; i-- {
+		header = bc.GetHeaderByNumber(i * WriteStakersFrequency)
+		stakerList := bc.ReadStakePool(header)
+		validatorList, err := bc.ReadValidatorPool(header)
+		if err != nil {
+			continue
+		}
+		if stakerList != nil && len(stakerList.Stakers) > 0 &&
+			validatorList != nil && len(validatorList.Validators) > 0 {
+			stakerPool = stakerList
+			validatorPool = validatorList
+			index = i
+			break
+		}
+	}
+
+	var startBlockNumber uint64
+	if stakerPool != nil && len(stakerPool.Stakers) > 0 &&
+		validatorPool != nil && len(validatorPool.Validators) > 0 {
+		startBlockNumber = uint64(index*WriteStakersFrequency) + 1
+	} else {
+		startBlockNumber = 0
+	}
+
+	var dbStakers *types.DBStakerList
+	var pledgedTokens *types.PledgedTokenList
+	for i := startBlockNumber; i <= startHeight; i++ {
+		header = bc.GetHeaderByNumber(i)
+		dbStakers = bc.ReadDBStakerPool(header)
+		pledgedTokens, err = bc.ReadIncrementalValidators(header)
+		if err != nil {
+			return nil, nil, err
+		}
+		if dbStakers != nil && len(dbStakers.DBStakers) > 0 {
+			for _, staker := range dbStakers.DBStakers {
+				if staker.DeleteFlag {
+					stakerPool.RemoveStaker(staker.Address(), staker.Balance)
+				} else {
+					stakerPool.AddStaker(staker.Address(), staker.Balance)
+				}
+			}
+		}
+		if pledgedTokens != nil && len(pledgedTokens.PledgedTokens) > 0 {
+			for _, pledgedToken := range pledgedTokens.PledgedTokens {
+				if pledgedToken.Flag {
+					validatorPool.AddValidator(pledgedToken.Address, pledgedToken.Amount, pledgedToken.ProxyAddress)
+				} else {
+					validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
+				}
+			}
+			st, err := bc.StateAt(header.Root)
+			if err != nil {
+				return nil, nil, err
+			}
+			for _, account := range validatorPool.Validators {
+				coefficient := st.GetValidatorCoefficient(account.Addr)
+				validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+			}
+		}
+	}
+
+	return stakerPool, validatorPool, nil
+}
+
+func (bc *BlockChain) updateStakerPool(stakerPool *types.StakerList,
+	validatorPool *types.ValidatorList,
+	header *types.Header) (*types.StakerList, *types.ValidatorList, error) {
+	var dbStakers *types.DBStakerList
+	var pledgedTokens *types.PledgedTokenList
+	var err error
+	dbStakers = bc.ReadDBStakerPool(header)
+	pledgedTokens, err = bc.ReadIncrementalValidators(header)
+	if err != nil {
+		return nil, nil, err
+	}
+	if dbStakers != nil && len(dbStakers.DBStakers) > 0 {
+		for _, staker := range dbStakers.DBStakers {
+			if staker.DeleteFlag {
+				stakerPool.RemoveStaker(staker.Address(), staker.Balance)
+			} else {
+				stakerPool.AddStaker(staker.Address(), staker.Balance)
+			}
+		}
+	}
+	if pledgedTokens != nil && len(pledgedTokens.PledgedTokens) > 0 {
+		for _, pledgedToken := range pledgedTokens.PledgedTokens {
+			if pledgedToken.Flag {
+				validatorPool.AddValidator(pledgedToken.Address, pledgedToken.Amount, pledgedToken.ProxyAddress)
+			} else {
+				validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
+			}
+		}
+		st, err := bc.StateAt(header.Root)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, account := range validatorPool.Validators {
+			coefficient := st.GetValidatorCoefficient(account.Addr)
+			validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+		}
+	}
+
+	return stakerPool, validatorPool, nil
+}
+
 func (bc *BlockChain) WriteStakersToDB() {
 	for {
 		select {
@@ -1765,22 +1880,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	//bc.WriteValidatorPool(block.Header(), validatorPool)
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", bc.validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 
-	// write the all exchangers to leveldb per WriteStakersFrequency blocks
-	if block.NumberU64()%WriteStakersFrequency == 0 {
-		stakersData, err1 := rlp.EncodeToBytes(bc.stakerPool)
-		validatorsData, err2 := rlp.EncodeToBytes(bc.validatorPool)
-		if err1 == nil && err2 == nil {
-			validatorAndStakers := BytesValidatorAndStakerList{
-				Header:        block.Header(),
-				StakerList:    stakersData,
-				ValidatorList: validatorsData,
-			}
-			bc.bytesStakersCh <- validatorAndStakers
-		} else {
-			log.Error("Failed to RLP stakePool", "err", err)
-		}
-	}
-
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
@@ -1815,6 +1914,22 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		bc.writeHeadBlock(block)
 	}
 	bc.futureBlocks.Remove(block.Hash())
+
+	// write the all exchangers to leveldb per WriteStakersFrequency blocks
+	if block.NumberU64()%WriteStakersFrequency == 0 {
+		stakersData, err1 := rlp.EncodeToBytes(bc.stakerPool)
+		validatorsData, err2 := rlp.EncodeToBytes(bc.validatorPool)
+		if err1 == nil && err2 == nil {
+			validatorAndStakers := BytesValidatorAndStakerList{
+				Header:        bc.CurrentBlock().Header(),
+				StakerList:    stakersData,
+				ValidatorList: validatorsData,
+			}
+			bc.bytesStakersCh <- validatorAndStakers
+		} else {
+			log.Error("Failed to RLP stakePool", "err", err)
+		}
+	}
 
 	if status == CanonStatTy {
 		bc.chainFeed.Send(ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
@@ -2606,6 +2721,13 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 			return fmt.Errorf("invalid new chain")
 		}
 	}
+
+	// reset bc.stakerPool and bc.validatorPoor
+	stakerPool, validatorPool, err := bc.loadStakerPoolByHeader(commonBlock.Header())
+	if err != nil {
+		return err
+	}
+
 	// Ensure the user sees large reorgs
 	if len(oldChain) > 0 && len(newChain) > 0 {
 		logFn := log.Info
@@ -2633,7 +2755,17 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 
 		// Collect the new added transactions.
 		addedTxs = append(addedTxs, newChain[i].Transactions()...)
+
+		// update bc.stakerPool and bc.validatorPool
+		_, _, err := bc.updateStakerPool(stakerPool, validatorPool, newChain[i].Header())
+		if err != nil {
+			return err
+		}
 	}
+	// reset bc.stakerPool and bc.validatorPoor
+	bc.stakerPool = stakerPool
+	bc.validatorPool = validatorPool
+
 	// Delete useless indexes right now which includes the non-canonical
 	// transaction indexes, canonical chain indexes which above the head.
 	indexesBatch := bc.db.NewBatch()
