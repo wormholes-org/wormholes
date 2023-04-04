@@ -721,3 +721,25 @@ func (vl *ValidatorList) GetValidatorAddr(address common.Address) common.Address
 	}
 	return common.Address{}
 }
+
+func (vl *ValidatorList) Compare(tempValidators *ValidatorList) bool {
+	if len(vl.Validators) != len(tempValidators.Validators) {
+		return false
+	}
+
+	for k, v := range vl.Validators {
+		if v.Addr != tempValidators.Validators[k].Addr ||
+			v.Balance.Cmp(tempValidators.Validators[k].Balance) != 0 ||
+			v.Proxy != tempValidators.Validators[k].Proxy {
+			return false
+		}
+
+		for i, w := range v.Weight {
+			if w.Cmp(tempValidators.Validators[k].Weight[i]) != 0 {
+				return false
+			}
+		}
+	}
+
+	return true
+}

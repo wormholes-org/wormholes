@@ -274,6 +274,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		vmConfig:       vmConfig,
 		stakerPool:     new(types.StakerList),
 		bytesStakersCh: make(chan BytesValidatorAndStakerList, 100),
+		validatorPool:  new(types.ValidatorList),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -561,6 +562,93 @@ func (bc *BlockChain) loadStakerPoolByHeader(startHeader *types.Header) (*types.
 		startBlockNumber = uint64(index*WriteStakersFrequency) + 1
 	} else {
 		startBlockNumber = 0
+	}
+
+	if stakerPool == nil {
+		stakerPool = new(types.StakerList)
+	}
+	if validatorPool == nil {
+		validatorPool = new(types.ValidatorList)
+	}
+
+	var dbStakers *types.DBStakerList
+	var pledgedTokens *types.PledgedTokenList
+	for i := startBlockNumber; i <= startHeight; i++ {
+		header = bc.GetHeaderByNumber(i)
+		dbStakers = bc.ReadDBStakerPool(header)
+		pledgedTokens, err = bc.ReadIncrementalValidators(header)
+		if err != nil {
+			return nil, nil, err
+		}
+		if dbStakers != nil && len(dbStakers.DBStakers) > 0 {
+			for _, staker := range dbStakers.DBStakers {
+				if staker.DeleteFlag {
+					stakerPool.RemoveStaker(staker.Address(), staker.Balance)
+				} else {
+					stakerPool.AddStaker(staker.Address(), staker.Balance)
+				}
+			}
+		}
+		if pledgedTokens != nil && len(pledgedTokens.PledgedTokens) > 0 {
+			for _, pledgedToken := range pledgedTokens.PledgedTokens {
+				if pledgedToken.Flag {
+					validatorPool.AddValidator(pledgedToken.Address, pledgedToken.Amount, pledgedToken.ProxyAddress)
+				} else {
+					validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
+				}
+			}
+			st, err := bc.StateAt(header.Root)
+			if err != nil {
+				return nil, nil, err
+			}
+			for _, account := range validatorPool.Validators {
+				coefficient := st.GetValidatorCoefficient(account.Addr)
+				validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+			}
+		}
+	}
+
+	return stakerPool, validatorPool, nil
+}
+
+func (bc *BlockChain) verifyStakerPoolByHeader(startHeader *types.Header) (*types.StakerList, *types.ValidatorList, error) {
+	var header *types.Header
+	var err error
+	var stakerPool *types.StakerList
+	var validatorPool *types.ValidatorList
+	startHeight := startHeader.Number.Uint64()
+
+	//nums := startHeight / WriteStakersFrequency
+	//var index uint64
+	//for i := nums; i >= 0; i-- {
+	//	header = bc.GetHeaderByNumber(i * WriteStakersFrequency)
+	//	stakerList := bc.ReadStakePool(header)
+	//	validatorList, err := bc.ReadValidatorPool(header)
+	//	if err != nil {
+	//		continue
+	//	}
+	//	if stakerList != nil && len(stakerList.Stakers) > 0 &&
+	//		validatorList != nil && len(validatorList.Validators) > 0 {
+	//		stakerPool = stakerList
+	//		validatorPool = validatorList
+	//		index = i
+	//		break
+	//	}
+	//}
+
+	var startBlockNumber uint64
+	//if stakerPool != nil && len(stakerPool.Stakers) > 0 &&
+	//	validatorPool != nil && len(validatorPool.Validators) > 0 {
+	//	startBlockNumber = uint64(index*WriteStakersFrequency) + 1
+	//} else {
+	//	startBlockNumber = 0
+	//}
+
+	if stakerPool == nil {
+		stakerPool = new(types.StakerList)
+	}
+	if validatorPool == nil {
+		validatorPool = new(types.ValidatorList)
 	}
 
 	var dbStakers *types.DBStakerList
@@ -1898,12 +1986,27 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			reorg = !currentPreserve && (blockPreserve || mrand.Float64() < 0.5)
 		}
 	}
+
+	var oldStakerPool *types.StakerList       //for test
+	var newStakerPool *types.StakerList       //for test
+	var oldValidatorPool *types.ValidatorList //for test
+	var newValidatorPool *types.ValidatorList //for test
+	var fork bool
+
 	if reorg {
 		// Reorganise the chain if the parent is not the head block
 		if block.ParentHash() != currentBlock.Hash() {
+
+			oldStakerPool = bc.stakerPool.DeepCopy()       //for test
+			oldValidatorPool = bc.validatorPool.DeepCopy() //for test
+
 			if err := bc.reorg(currentBlock, block); err != nil {
 				return NonStatTy, err
 			}
+
+			newStakerPool = bc.stakerPool.DeepCopy()       //for test
+			newValidatorPool = bc.validatorPool.DeepCopy() //for test
+			fork = true                                    //for test
 		}
 		status = CanonStatTy
 	} else {
@@ -1914,6 +2017,26 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		bc.writeHeadBlock(block)
 	}
 	bc.futureBlocks.Remove(block.Hash())
+
+	if fork { // for test
+		verifyStakerPool, verifyValidatorPool, _ := bc.verifyStakerPoolByHeader(bc.CurrentBlock().Header()) //for test
+		if !verifyStakerPool.Compare(oldStakerPool) {
+			log.Info("verify staker pool and validator pool", "verifyStakerPool is not same oldStakerPool")
+		}
+		if !verifyStakerPool.Compare(newStakerPool) {
+			log.Error("verify staker pool and validator pool", "verifyStakerPool is not same newStakerPool")
+			log.Error("verify staker pool and validator pool", "verifyStakerPool", verifyStakerPool,
+				"newStakerPool", newStakerPool)
+		}
+		if !verifyValidatorPool.Compare(oldValidatorPool) {
+			log.Info("verify staker pool and validator pool", "verifyValidatorPool is not same oldValidatorPool")
+		}
+		if !verifyValidatorPool.Compare(newValidatorPool) {
+			log.Error("verify staker pool and validator pool", "verifyValidatorPool is not same newValidatorPool")
+			log.Error("verify staker pool and validator pool", "verifyValidatorPool", verifyValidatorPool,
+				"newValidatorPool", newValidatorPool)
+		}
+	}
 
 	// write the all exchangers to leveldb per WriteStakersFrequency blocks
 	if block.NumberU64()%WriteStakersFrequency == 0 {

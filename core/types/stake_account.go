@@ -190,6 +190,21 @@ func (sl *StakerList) SelectRandom4Address(num int, hash []byte) ([]common.Addre
 	return random4Address, nil
 }
 
+func (sl *StakerList) Compare(tempStakers *StakerList) bool {
+	if len(sl.Stakers) != len(tempStakers.Stakers) {
+		return false
+	}
+
+	for k, v := range sl.Stakers {
+		if v.Addr != tempStakers.Stakers[k].Addr ||
+			v.Balance.Cmp(tempStakers.Stakers[k].Balance) != 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
 func rankByWordCount(wordFrequencies map[*big.Int]*big.Int) PairList {
 	pl := make(PairList, len(wordFrequencies))
 	i := 0
