@@ -144,7 +144,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 	receipt.BlockHash = blockHash
 	receipt.BlockNumber = blockNumber
 	receipt.TransactionIndex = uint(statedb.TxIndex())
-	log.Info("applyTransaction info end ", "root", receipt.PostState, "blockNumber", blockNumber)
+	log.Info("applyTransaction info end ", "root", statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes(), "blockNumber", blockNumber)
 	return receipt, err
 }
 
