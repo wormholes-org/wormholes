@@ -556,13 +556,15 @@ func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []com
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	log.Info("Finalize start", "no", header.Number, "hash", header.Hash().Hex(), "parentHash", header.ParentHash.Hex(), "root", header.Root.Hex())
 	if c, ok := chain.(*core.BlockChain); ok {
 		parent := c.GetBlockByHash(header.ParentHash)
 		if parent == nil {
 			log.Error("Finalize: invalid parent", "no", header.Number)
 			return
 		}
+		log.Info("Finalize start", "no", header.Number, "hash", header.Hash().Hex(), "parentHash", header.ParentHash.Hex(),
+			"root", header.Root.Hex(), "parent.root", parent.Root().Hex())
+
 		// empty block  reduce 0.1weight and normal block add 0.5weight
 		random11Validators, err := c.Random11ValidatorWithOutProxy(parent.Header())
 		if err != nil {
@@ -578,6 +580,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
+				log.Info("AddValidatorCoefficient", "no", header.Number.Uint64(), "hash", header.Hash().Hex(), "addr", v)
 				state.SubValidatorCoefficient(v.Address(), 20)
 			}
 
@@ -610,13 +613,13 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			}
 
 			for _, vote := range voteAddrs[1:] {
-				log.Info("AddValidatorCoefficient", "addr", vote)
+				log.Info("AddValidatorCoefficient", "no", header.Number.Uint64(), "hash", header.Hash().Hex(), "addr", vote)
 				state.AddValidatorCoefficient(vote, 70)
 			}
 		} else {
 			// add 2 weight
 			for _, v := range istanbulExtra.ValidatorAddr {
-				log.Info("normal block add validator coefficient", "no", header.Number.Uint64(), "addr", v)
+				log.Info("normal block add validator coefficient", "no", header.Number.Uint64(), "hash", header.Hash().Hex(), "addr", v)
 				state.AddValidatorCoefficient(v, 20)
 			}
 		}
@@ -712,8 +715,6 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	log.Info("FinalizeAndAssemble start", "no", header.Number, "hash", header.Hash().Hex(), "parentHash", header.ParentHash.Hex(), "root", header.Root.Hex())
-
 	// Prepare reward address
 	istanbulExtra, err := types.ExtractIstanbulExtra(header)
 	if err != nil {
@@ -726,6 +727,9 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 			log.Error("FinalizeAndAssemble: invalid parent", "no", header.Number)
 			return nil, errors.New("FinalizeAndAssemble: invalid parent")
 		}
+		log.Info("FinalizeAndAssemble start", "no", header.Number, "hash", header.Hash().Hex(),
+			"parentHash", header.ParentHash.Hex(), "root", header.Root.Hex(),
+			"parent root", parent.Root().Hex())
 		// empty block  reduce 0.1weight and normal block add 0.5weight
 		random11Validators, err := c.Random11ValidatorWithOutProxy(parent.Header())
 		if err != nil {
@@ -735,19 +739,19 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
-				log.Info("SubValidatorCoefficient", "addr", v.Address(), "no", header.Number.Uint64())
+				log.Info("SubValidatorCoefficient", "addr", v.Address(), "no", header.Number.Uint64(), "hash", header.Hash().Hex())
 				state.SubValidatorCoefficient(v.Address(), 20)
 			}
 
 			for _, v := range istanbulExtra.Validators[1:] {
-				log.Info("AddValidatorCoefficient", "addr", v, "no", header.Number.Uint64())
+				log.Info("AddValidatorCoefficient", "addr", v, "no", header.Number.Uint64(), "hash", header.Hash().Hex())
 				state.AddValidatorCoefficient(v, 70)
 			}
 
 		} else {
 			// add 2 weight
 			for _, v := range istanbulExtra.ValidatorAddr {
-				log.Info("normal block add validator coefficient", "no", header.Number.Uint64(), "addr", v)
+				log.Info("normal block add validator coefficient", "no", header.Number.Uint64(), "hash", header.Hash().Hex(), "addr", v)
 				state.AddValidatorCoefficient(v, 20)
 			}
 		}

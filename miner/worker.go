@@ -1286,6 +1286,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	}
 	w.current.txs = append(w.current.txs, tx)
 	w.current.receipts = append(w.current.receipts, receipt)
+	log.Info("receipt info", "no", w.current.header.Number.Uint64(), "recipt.root", receipt.PostState)
 
 	return receipt.Logs, nil
 }
