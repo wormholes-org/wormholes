@@ -616,6 +616,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		} else {
 			// add 2 weight
 			for _, v := range istanbulExtra.ValidatorAddr {
+				log.Info("normal block add validator coefficient", "no", header.Number.Uint64(), "addr", v)
 				state.AddValidatorCoefficient(v, 20)
 			}
 		}
@@ -746,6 +747,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		} else {
 			// add 2 weight
 			for _, v := range istanbulExtra.ValidatorAddr {
+				log.Info("normal block add validator coefficient", "no", header.Number.Uint64(), "addr", v)
 				state.AddValidatorCoefficient(v, 20)
 			}
 		}
