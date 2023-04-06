@@ -8,6 +8,7 @@ import (
 type Broadcaster interface {
 	//FindPeerSet(targets map[common.Address]bool) map[common.Address]Peer
 	FindPeerSet() map[string]Peer
+	EmptyResponse() chan string
 }
 
 type Handler interface {
@@ -20,6 +21,5 @@ type Handler interface {
 
 type Peer interface {
 	SendWorkerMsg(msgCode uint64, data interface{}) error
-	SendMsgWithResponse(msgCode uint64, data interface{}, response chan string)
-	//WriteQueueEmptyBlockMsg(msg []byte)
+	RequestEmptyMsg(msg []byte) int
 }

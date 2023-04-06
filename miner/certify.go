@@ -14,13 +14,7 @@ import (
 )
 
 const (
-	remotePeers = 2000 // Number of messages kept in consensus workers per round (11 * 2)
-	storeMsgs   = 2500 // Number of messages stored by yourself
-)
-
-const (
-	normal = iota
-	plug
+	storeMsgs = 32768 // Number of messages stored by yourself
 )
 
 type Certify struct {
@@ -40,8 +34,7 @@ type Certify struct {
 	validatorsHeight  []string
 	proofStatePool    *ProofStatePool // Currently highly collected validators that have sent online proofs
 	requestEmpty      chan []byte
-	responseEmpty     chan string
-	dropPeers         chan string
+	status            int
 	purge             chan struct{}
 }
 
@@ -53,7 +46,6 @@ type VoteResult struct {
 }
 
 type EmptyPeerInfo struct {
-	Status  int
 	Peer    Peer
 	Message [][]byte
 }
@@ -82,8 +74,6 @@ func NewCertify(self common.Address, eth Backend, handler Handler) *Certify {
 		validatorsHeight:  make([]string, 0),
 		proofStatePool:    NewProofStatePool(),
 		requestEmpty:      make(chan []byte, 1000),
-		responseEmpty:     make(chan string, 1000),
-		dropPeers:         make(chan string, 100),
 		purge:             make(chan struct{}, 1),
 	}
 	return certify
@@ -94,73 +84,95 @@ func (c *Certify) RequestEmptyMessage() {
 	if !ok {
 		return
 	}
-	var count int
+
+	emptyResponse := miner.broadcaster.EmptyResponse()
+
+	delPeer := make([]string, 0)
+
+	var count = 0
 
 	for {
+
 		select {
 		case msg := <-c.requestEmpty:
+
 			ps := miner.broadcaster.FindPeerSet()
+
 			for id, p := range ps {
-				info, ok := c.recentMessages[id]
-				if !ok {
+				if info, ok := c.recentMessages[id]; ok {
+					info.Message = append(info.Message, msg)
+				} else {
+					messages := make([][]byte, 0)
+					messages = append(messages, msg)
 					infos := &EmptyPeerInfo{
-						Status:  0,
 						Peer:    p,
-						Message: [][]byte{msg},
+						Message: messages,
 					}
 					c.recentMessages[id] = infos
-				} else {
-					info.Message = append(info.Message, msg)
 				}
 			}
 
-		case id := <-c.responseEmpty:
-			if info, ok := c.recentMessages[id]; ok {
-				info.Status = 0
-				count--
-				if len(info.Message) > 1 {
-					info.Message = info.Message[1:]
-				} else {
-					delete(c.recentMessages, id)
-				}
+		case id := <-emptyResponse:
+			_, ok := c.recentMessages[id]
+			if !ok {
+				break
 			}
+
+			delete(c.recentMessages, id)
+			count--
 
 		case <-c.purge:
 			c.recentMessages = make(map[string]*EmptyPeerInfo)
 			count = 0
+			delPeer = make([]string, 0)
 
 		default:
-			if len(c.recentMessages) == 0 {
+			if len(c.recentMessages) < 1 {
 				break
 			}
-			//log.Info("azh|cache message", "len", len(c.recentMessages))
-			if len(c.recentMessages) > 15 {
-				if count < 5 {
-					for _, info := range c.recentMessages {
-						if info.Status == 0 {
-							go info.Peer.SendMsgWithResponse(WorkerMsg, info.Message[0], c.responseEmpty)
-							info.Status = 1
+
+			mixCh, maxCh := 5, 15
+
+			if len(c.recentMessages)*2/3 < maxCh {
+				maxCh = len(c.recentMessages) * 2 / 3
+			}
+
+			for id, info := range c.recentMessages {
+				if c.status == 0 {
+					if count > maxCh {
+						c.status = 1
+					}
+				} else {
+					if count < mixCh {
+						c.status = 0
+					}
+				}
+
+				//log.Info("azh|cache message", "max", maxCh, "mix", mixCh, "count", count, "status", c.status)
+				index := 0
+				if c.status == 0 {
+					for _, msg := range info.Message {
+						if info.Peer.RequestEmptyMsg(msg) == 1 {
 							count++
 							break
+						} else {
+							index++
 						}
+					}
+
+					if index < len(info.Message)-1 {
+						info.Message = info.Message[index:]
+					} else {
+						delPeer = append(delPeer, id)
 					}
 				} else {
 					break
 				}
 			}
 
-			if len(c.recentMessages) < 15 {
-				if count < 11 {
-					for _, info := range c.recentMessages {
-						if info.Status == 0 {
-							go info.Peer.SendMsgWithResponse(WorkerMsg, info.Message[0], c.responseEmpty)
-							info.Status = 1
-							count++
-							break
-						}
-					}
-				} else {
-					break
+			if len(delPeer) > 0 {
+				for _, del := range delPeer {
+					delete(c.recentMessages, del)
 				}
 			}
 		}
@@ -271,9 +283,22 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, err
 		}
 
-		log.Info("azh|emptyMessage", "height", signature.Height, "from", sender, "vote", signature.Vote, "round", signature.Round)
+		ms, ok := c.selfMessages.Get(sender)
+		var m *lru.ARCCache
+		if ok {
+			m, _ = ms.(*lru.ARCCache)
+			if _, ok := m.Get(hash); ok {
+				return true, nil
+			}
+		} else {
+			m, _ = lru.NewARC(storeMsgs)
+			c.selfMessages.Add(sender, m)
+		}
+		m.Add(hash, true)
 
-		c.requestEmpty <- data
+		r, _ := c.selfMessages.Get(sender)
+		_, ok1 := r.(*lru.ARCCache).Get(hash)
+		log.Info("azh|handle empty", "add", ok1, "msg hash", hash)
 
 		if c.stakers == nil {
 			return true, nil
@@ -283,20 +308,8 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, xerrors.New("Certify.handleEvents the vote is not a miner")
 		}
 
+		log.Info("azh|emptyMessage", "height", signature.Height, "from", sender, "vote", signature.Vote, "round", signature.Round)
 		if c.self == signature.Vote {
-			ms, ok := c.selfMessages.Get(sender)
-			var m *lru.ARCCache
-			if ok {
-				m, _ = ms.(*lru.ARCCache)
-				if _, ok := m.Get(hash); ok {
-					return true, nil
-				}
-			} else {
-				m, _ = lru.NewARC(storeMsgs)
-				c.selfMessages.Add(sender, m)
-			}
-			m.Add(hash, true)
-
 			emptyMsg := types.EmptyMessageEvent{
 				Sender:  sender,
 				Height:  signature.Height,
@@ -304,6 +317,8 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			}
 			go c.eventMux.Post(emptyMsg)
 			return true, nil
+		} else {
+			c.requestEmpty <- data
 		}
 	}
 	return false, nil

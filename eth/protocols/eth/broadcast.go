@@ -27,6 +27,8 @@ const (
 	// This is the target size for the packs of transactions or announcements. A
 	// pack can get larger than this if a single transactions exceeds this size.
 	maxTxPacketSize = 100 * 1024
+	success         = 0
+	fail            = 1
 )
 
 // blockPropagation is a block propagation event, waiting for its turn in the
@@ -194,16 +196,22 @@ func (p *Peer) announceTransactions() {
 	}
 }
 
-//func (p *Peer) broadcastEmptyBlockMsg() {
-//	for {
-//		select {
-//		case msg := <-p.queuedEmptyBlockMsgs:
-//			if err := p.SendWorkerMsg(WorkerMsg, msg); err != nil {
-//				break
-//			}
-//			//p.Log().Trace("Propagated empty block message", "msg", msg)
-//		case <-p.term:
-//			return
-//		}
-//	}
-//}
+func (p *Peer) broadcastEmptyBlockMsg() {
+	for {
+		select {
+		case msg := <-p.queuedEmptyBlockMsgs:
+			if err := p.SendWorkerMsg(WorkerMsg, msg); err != nil {
+				//peerWatchCh <- p.id
+				break
+			}
+			//p.Log().Trace("Propagated empty block message", "msg", msg, "id", p.id)
+		case <-p.term:
+			peerWatchCh <- p.id
+			return
+		}
+	}
+}
+
+func GetPeerCh() chan string {
+	return peerWatchCh
+}

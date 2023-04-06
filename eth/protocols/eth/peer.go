@@ -61,8 +61,10 @@ const (
 	maxKnownEmptyBlockMsg = 32768
 	// maxQueuedEmptyBlockMsg is the maximum number of empty block message propagations to queue up before
 	// dropping broadcasts.
-	maxQueuedEmptyBlockMsg = 100
+	maxQueuedEmptyBlockMsg = 10
 )
+
+var peerWatchCh = make(chan string, 1000)
 
 // max is a helper function which returns the larger of the two given integers.
 func max(a, b int) int {
@@ -97,29 +99,28 @@ type Peer struct {
 
 	consensusRw p2p.MsgReadWriter // Quorum: this is the RW for the consensus devp2p protocol, e.g. "istanbul/100"
 
-	knownEmptyBlockMsgs mapset.Set // Set of block hashes known to be known by this peer
-	//queuedEmptyBlockMsgs chan []byte // Queue of blocks to broadcast to the peer
-	responseEmptyBlock chan string
+	knownEmptyBlockMsgs  mapset.Set // Set of block hashes known to be known by this peer
+	queuedEmptyBlockMsgs chan []byte
 }
 
 // NewPeer create a wrapper for a network connection and negotiated  protocol
 // version.
 func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Peer {
 	peer := &Peer{
-		id:                  p.ID().String(),
-		Peer:                p,
-		rw:                  rw,
-		version:             version,
-		knownTxs:            mapset.NewSet(),
-		knownBlocks:         mapset.NewSet(),
-		queuedBlocks:        make(chan *blockPropagation, maxQueuedBlocks),
-		queuedBlockAnns:     make(chan *types.Block, maxQueuedBlockAnns),
-		txBroadcast:         make(chan []common.Hash),
-		txAnnounce:          make(chan []common.Hash),
-		txpool:              txpool,
-		term:                make(chan struct{}),
-		knownEmptyBlockMsgs: mapset.NewSet(),
-		//queuedEmptyBlockMsgs: make(chan []byte, maxQueuedEmptyBlockMsg),
+		id:                   p.ID().String(),
+		Peer:                 p,
+		rw:                   rw,
+		version:              version,
+		knownTxs:             mapset.NewSet(),
+		knownBlocks:          mapset.NewSet(),
+		queuedBlocks:         make(chan *blockPropagation, maxQueuedBlocks),
+		queuedBlockAnns:      make(chan *types.Block, maxQueuedBlockAnns),
+		txBroadcast:          make(chan []common.Hash),
+		txAnnounce:           make(chan []common.Hash),
+		txpool:               txpool,
+		term:                 make(chan struct{}),
+		knownEmptyBlockMsgs:  mapset.NewSet(),
+		queuedEmptyBlockMsgs: make(chan []byte, maxQueuedEmptyBlockMsg),
 	}
 	// Start up all the broadcasters
 	go peer.broadcastBlocks()
@@ -128,7 +129,7 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		go peer.announceTransactions()
 	}
 
-	//go peer.broadcastEmptyBlockMsg()
+	go peer.broadcastEmptyBlockMsg()
 
 	return peer
 }
@@ -588,7 +589,7 @@ func (p *Peer) Send(msgcode uint64, data interface{}) error {
 }
 
 func (p *Peer) SendWorkerMsg(msgCode uint64, data interface{}) error {
-	//log.Info("send worker msg", "code", msgCode, "data", data)
+	//log.Info("send worker msg", "id", p.id, "data", data)
 	hash := istanbul.RLPHash(data)
 	if p.knownEmptyBlockMsgs.Contains(hash) {
 		return nil
@@ -602,25 +603,11 @@ func (p *Peer) SendWorkerMsg(msgCode uint64, data interface{}) error {
 	return p2p.Send(p.rw, msgCode, data)
 }
 
-func (p *Peer) SendMsgWithResponse(msgCode uint64, data interface{}, response chan string) {
-	hash := istanbul.RLPHash(data)
-	if p.knownEmptyBlockMsgs.Contains(hash) {
-		response <- p.id
-		return
+func (p *Peer) RequestEmptyMsg(msg []byte) int {
+	select {
+	case p.queuedEmptyBlockMsgs <- msg:
+		return 0
+	default:
+		return 1
 	}
-
-	for p.knownEmptyBlockMsgs.Cardinality() >= maxKnownEmptyBlockMsg {
-		p.knownEmptyBlockMsgs.Pop()
-	}
-	p.knownEmptyBlockMsgs.Add(hash)
-	p2p.Send(p.rw, msgCode, data)
-	response <- p.id
-
-	return
 }
-
-//func (p *Peer) WriteQueueEmptyBlockMsg(msg []byte) {
-//	if len(p.queuedEmptyBlockMsgs) <= 10 {
-//		p.queuedEmptyBlockMsgs <- msg
-//	}
-//}

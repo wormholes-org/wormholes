@@ -798,3 +798,7 @@ func (h *handler) FindPeerSet() map[string]miner.Peer {
 	}
 	return m
 }
+
+func (h *handler) EmptyResponse() chan string {
+	return eth.GetPeerCh()
+}
