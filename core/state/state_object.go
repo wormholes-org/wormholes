@@ -1062,9 +1062,9 @@ func (s *stateObject) GetSymbol() string {
 	return s.data.Symbol
 }
 
-//func (s *stateObject) GetNFTApproveAddress() []common.Address {
-//	return s.data.NFTApproveAddressList
-//}
+//	func (s *stateObject) GetNFTApproveAddress() []common.Address {
+//		return s.data.NFTApproveAddressList
+//	}
 func (s *stateObject) GetNFTApproveAddress() common.Address {
 	return s.data.NFTApproveAddressList
 }
@@ -1185,16 +1185,16 @@ func (s *stateObject) setCoefficient(coe uint8) {
 	s.data.Coefficient = coe
 }
 
-//func (s *stateObject) AddCoefficient(coe uint8) {
-//	var sum uint8
-//	preSum := s.Coefficient() + coe
-//	if preSum <= VALIDATOR_COEFFICIENT {
-//		sum = preSum
-//	} else {
-//		sum = VALIDATOR_COEFFICIENT
+//	func (s *stateObject) AddCoefficient(coe uint8) {
+//		var sum uint8
+//		preSum := s.Coefficient() + coe
+//		if preSum <= VALIDATOR_COEFFICIENT {
+//			sum = preSum
+//		} else {
+//			sum = VALIDATOR_COEFFICIENT
+//		}
+//		s.SetCoefficient(sum)
 //	}
-//	s.SetCoefficient(sum)
-//}
 func (s *stateObject) AddCoefficient(coe uint8) {
 	s.SetCoefficient(VALIDATOR_COEFFICIENT)
 }

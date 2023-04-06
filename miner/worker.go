@@ -21,12 +21,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -1469,8 +1470,9 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		// Start executing the transaction
 		w.current.state.Prepare(tx.Hash(), w.current.tcount)
 
-		log.Info("worker|commitTransaction", "no", w.current.header.Number.String(), "hash", tx.Hash().Hex())
+		//log.Info("worker|commitTransaction", "no", w.current.header.Number.String(), "hash", tx.Hash().Hex())
 		logs, err := w.commitTransaction(tx, coinbase)
+		log.Info("worker|commitTransaction", "no", w.current.header.Number.String(), "hash", w.current.header.Hash().Hex(), "hash", tx.Hash().Hex())
 		switch {
 		case errors.Is(err, core.ErrGasLimitReached):
 			// Pop the current out-of-gas transaction without shifting in the next from the account
@@ -1803,7 +1805,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
 func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
-	log.Info("caver|commit|enter", "no", w.chain.CurrentHeader().Number.Uint64()+1)
+	log.Info("caver|commit|enter", "no", w.chain.CurrentHeader().Number.Uint64()+1, "hash")
 	// Deep copy receipts here
 	//to avoid interaction between different tasks.
 	receipts := copyReceipts(w.current.receipts)

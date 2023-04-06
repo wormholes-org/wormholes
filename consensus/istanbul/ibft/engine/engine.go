@@ -556,6 +556,7 @@ func prepareExtra(header *types.Header, vals, exchangerAddr, validatorAddr []com
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
+	log.Info("Finalize start", "no", header.Number, "hash", header.Hash().Hex(), "parentHash", header.ParentHash.Hex(), "root", header.Root.Hex())
 	if c, ok := chain.(*core.BlockChain); ok {
 		parent := c.GetBlockByHash(header.ParentHash)
 		if parent == nil {
@@ -703,11 +704,15 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			header.UncleHash = nilUncleHash
 		}
 	}
+	log.Info("Finalize end", "no", header.Number, "hash", header.Hash().Hex(), "parentHash", header.ParentHash.Hex(), "root", header.Root.Hex())
+
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+	log.Info("FinalizeAndAssemble start", "no", header.Number, "hash", header.Hash().Hex(), "parentHash", header.ParentHash.Hex(), "root", header.Root.Hex())
+
 	// Prepare reward address
 	istanbulExtra, err := types.ExtractIstanbulExtra(header)
 	if err != nil {
@@ -729,11 +734,12 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
+				log.Info("SubValidatorCoefficient", "addr", v.Address(), "no", header.Number.Uint64())
 				state.SubValidatorCoefficient(v.Address(), 20)
 			}
 
 			for _, v := range istanbulExtra.Validators[1:] {
-				log.Info("AddValidatorCoefficient", "addr", v)
+				log.Info("AddValidatorCoefficient", "addr", v, "no", header.Number.Uint64())
 				state.AddValidatorCoefficient(v, 70)
 			}
 
@@ -757,6 +763,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 
+	log.Info("FinalizeAndAssemble header end", "no", header.Number.Uint64(), "hash", header.Hash().Hex(), "root", header.Root.Hex())
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), nil
 }
