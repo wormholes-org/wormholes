@@ -1783,6 +1783,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		}
 	}
 
+	log.Info("commitNewWork start", "no", header.Number, "hash", header.Hash().Hex(), "root", header.Root.Hex(), "parentroot", parent.Root().Hex())
 	if len(localTxs) > 0 {
 		log.Info("caver|commitNewWork|localTxs", "no", header.Number, "len", len(localTxs))
 		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, localTxs, header.BaseFee)
