@@ -500,7 +500,7 @@ func (w *worker) emptyLoop() {
 					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
 						continue
 					}
-					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
+					log.Info("ok empty condition", "valiTotal", valiTotal, "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				} else {
 					log.Info("ok empty condition 120", "height", new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)), "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				}
@@ -565,7 +565,7 @@ func (w *worker) emptyLoop() {
 					w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
 					gossipTimer.Reset(time.Second * 5)
 				}
-				//log.Info("emptyLoop start empty")
+				log.Info("emptyLoop start empty")
 			}
 
 		case <-gossipTimer.C:
@@ -954,6 +954,9 @@ func (w *worker) resultLoop() {
 			}
 			log.Info("Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
 				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
+
+			log.Info("insert chain|normal", "block number", block.NumberU64(), "block coinbase", block.Coinbase(), "block root",
+				block.Root(), "block parent hash", block.ParentHash())
 			// Broadcast the block and announce chain insertion event
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
@@ -1649,10 +1652,12 @@ func (w *worker) commitEmptyWork(interrupt *int32, noempty bool, timestamp int64
 	//	log.Error("commitEmpty Failed writing block to chain", "err", err)
 	//	return err
 	//}
-	//log.Info("empty block wirte to localdb", "Number:", w.emptycurrent.header.Number.Uint64())
 
 	blocks := []*types.Block{emptyblock}
+	log.Info("insert chain|empty", "block number", emptyblock.NumberU64(), "block coinbase", emptyblock.Coinbase(), "block root",
+		emptyblock.Root(), "block parent hash", emptyblock.ParentHash())
 	w.eth.BlockChain().InsertChain(blocks)
+	log.Info("empty block wirte to localdb", "Number:", w.emptycurrent.header.Number.Uint64())
 	w.mux.Post(core.NewMinedBlockEvent{Block: emptyblock})
 	return nil
 }

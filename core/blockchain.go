@@ -2004,6 +2004,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if parent == nil {
 			parent = bc.GetHeader(block.ParentHash(), block.NumberU64()-1)
 		}
+		log.Info("insert chain|", "block number", block.NumberU64(), "block coinbase", block.Coinbase(), "block root",
+			block.Root(), "block parent hash", block.ParentHash(), "parent root", parent.Root, "parent hash", parent.Hash())
 		statedb, err := state.New(parent.Root, bc.stateCache, bc.snaps)
 		if err != nil {
 			return it.index, err
