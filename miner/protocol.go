@@ -9,6 +9,7 @@ type Broadcaster interface {
 	//FindPeerSet(targets map[common.Address]bool) map[common.Address]Peer
 	FindPeerSet() map[string]Peer
 	EmptyResponse() chan string
+	PeerStatus() map[string]struct{}
 }
 
 type Handler interface {
@@ -21,5 +22,5 @@ type Handler interface {
 
 type Peer interface {
 	SendWorkerMsg(msgCode uint64, data interface{}) error
-	RequestEmptyMsg(msg []byte) int
+	RequestEmptyMsg(msg []byte) error
 }

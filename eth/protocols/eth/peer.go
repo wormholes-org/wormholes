@@ -17,6 +17,7 @@
 package eth
 
 import (
+	"errors"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 	"math/rand"
@@ -603,11 +604,15 @@ func (p *Peer) SendWorkerMsg(msgCode uint64, data interface{}) error {
 	return p2p.Send(p.rw, msgCode, data)
 }
 
-func (p *Peer) RequestEmptyMsg(msg []byte) int {
+func (p *Peer) RequestEmptyMsg(msg []byte) error {
 	select {
 	case p.queuedEmptyBlockMsgs <- msg:
-		return 0
+		return nil
 	default:
-		return 1
+		return errors.New("can`t send chan is full")
 	}
+}
+
+func (p *Peer) GetQueueStatus() int {
+	return len(p.queuedEmptyBlockMsgs)
 }

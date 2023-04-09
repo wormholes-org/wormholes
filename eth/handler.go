@@ -794,11 +794,21 @@ func (h *handler) FindPeerSet() map[string]miner.Peer {
 
 	m := make(map[string]miner.Peer)
 	for _, p := range h.peers.peers {
-		m[p.Peer.ID()] = p
+		m[p.ID()] = p
 	}
 	return m
 }
 
 func (h *handler) EmptyResponse() chan string {
 	return eth.GetPeerCh()
+}
+
+func (h *handler) PeerStatus() map[string]struct{} {
+	status := make(map[string]struct{})
+	for _, p := range h.peers.peers {
+		if p.GetQueueStatus() == 10 {
+			status[p.ID()] = struct{}{}
+		}
+	}
+	return status
 }

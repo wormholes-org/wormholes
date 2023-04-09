@@ -87,15 +87,86 @@ func (c *Certify) RequestEmptyMessage() {
 
 	emptyResponse := miner.broadcaster.EmptyResponse()
 
-	delPeer := make([]string, 0)
+	//broadTimer := time.NewTimer(0)
+	//defer broadTimer.Stop()
+	//<-broadTimer.C
+	//broadTimer.Reset(time.Second * 10)
 
-	var count = 0
+	var haveDone bool
+	mixCh, maxCh := 5, 15
+	delPeer := make(map[string]struct{})
+
+	broad := func() {
+		if len(c.recentMessages)*2/3 < maxCh {
+			maxCh = len(c.recentMessages) * 2 / 3
+		}
+
+		peerStatus := miner.broadcaster.PeerStatus()
+		if c.status == 0 {
+			if len(peerStatus) > maxCh {
+				c.status = 1
+			}
+		} else {
+			if len(peerStatus) < mixCh {
+				c.status = 0
+			}
+		}
+
+		for id, info := range c.recentMessages {
+			if haveDone {
+				peerStatus = miner.broadcaster.PeerStatus()
+				if c.status == 0 {
+					if len(peerStatus) > maxCh {
+						c.status = 1
+					}
+				} else {
+					if len(peerStatus) < mixCh {
+						c.status = 0
+					}
+				}
+			}
+
+			haveDone = false
+
+			_, ok := peerStatus[id]
+			if ok {
+				continue
+			}
+
+			//log.Info("azh|cache message", "max", maxCh, "mix", mixCh, "count", count, "status", c.status)
+			index := 0
+			if c.status == 0 {
+				for _, msg := range info.Message {
+					if err := info.Peer.RequestEmptyMsg(msg); err != nil {
+						break
+					} else {
+						index++
+					}
+				}
+
+				if index < len(info.Message)-1 {
+					info.Message = info.Message[index:]
+				} else {
+					delPeer[id] = struct{}{}
+				}
+
+				haveDone = true
+			} else {
+				break
+			}
+		}
+
+		if len(delPeer) > 0 {
+			for id, _ := range delPeer {
+				delete(c.recentMessages, id)
+			}
+		}
+	}
 
 	for {
 
 		select {
 		case msg := <-c.requestEmpty:
-
 			ps := miner.broadcaster.FindPeerSet()
 
 			for id, p := range ps {
@@ -112,69 +183,26 @@ func (c *Certify) RequestEmptyMessage() {
 				}
 			}
 
+			broad()
+
 		case id := <-emptyResponse:
-			_, ok := c.recentMessages[id]
-			if !ok {
-				break
+			if _, ok := c.recentMessages[id]; ok {
+				delete(c.recentMessages, id)
 			}
 
-			delete(c.recentMessages, id)
-			count--
+			if _, ok := delPeer[id]; ok {
+				delete(delPeer, id)
+			}
 
 		case <-c.purge:
 			c.recentMessages = make(map[string]*EmptyPeerInfo)
-			count = 0
-			delPeer = make([]string, 0)
+			delPeer = make(map[string]struct{})
 
-		default:
-			if len(c.recentMessages) < 1 {
-				break
-			}
-
-			mixCh, maxCh := 5, 15
-
-			if len(c.recentMessages)*2/3 < maxCh {
-				maxCh = len(c.recentMessages) * 2 / 3
-			}
-
-			for id, info := range c.recentMessages {
-				if c.status == 0 {
-					if count > maxCh {
-						c.status = 1
-					}
-				} else {
-					if count < mixCh {
-						c.status = 0
-					}
-				}
-
-				//log.Info("azh|cache message", "max", maxCh, "mix", mixCh, "count", count, "status", c.status)
-				index := 0
-				if c.status == 0 {
-					for _, msg := range info.Message {
-						if info.Peer.RequestEmptyMsg(msg) == 1 {
-							count++
-							break
-						} else {
-							index++
-						}
-					}
-
-					if index < len(info.Message)-1 {
-						info.Message = info.Message[index:]
-					} else {
-						delPeer = append(delPeer, id)
-					}
-				} else {
-					break
-				}
-			}
-
-			if len(delPeer) > 0 {
-				for _, del := range delPeer {
-					delete(c.recentMessages, del)
-				}
-			}
+			//case <-broadTimer.C:
+			//	if len(c.recentMessages) < 1 {
+			//		break
+			//	}
+			//	broad()
 		}
 	}
 }
