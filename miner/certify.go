@@ -87,11 +87,6 @@ func (c *Certify) RequestEmptyMessage() {
 
 	emptyResponse := miner.broadcaster.EmptyResponse()
 
-	//broadTimer := time.NewTimer(0)
-	//defer broadTimer.Stop()
-	//<-broadTimer.C
-	//broadTimer.Reset(time.Second * 10)
-
 	var haveDone bool
 	mixCh, maxCh := 5, 15
 	delPeer := make(map[string]struct{})
@@ -99,6 +94,10 @@ func (c *Certify) RequestEmptyMessage() {
 	broad := func() {
 		if len(c.recentMessages)*2/3 < maxCh {
 			maxCh = len(c.recentMessages) * 2 / 3
+		}
+
+		if len(c.recentMessages)/3 < mixCh {
+			mixCh = len(c.recentMessages) / 3
 		}
 
 		peerStatus := miner.broadcaster.PeerStatus()
@@ -197,12 +196,6 @@ func (c *Certify) RequestEmptyMessage() {
 		case <-c.purge:
 			c.recentMessages = make(map[string]*EmptyPeerInfo)
 			delPeer = make(map[string]struct{})
-
-			//case <-broadTimer.C:
-			//	if len(c.recentMessages) < 1 {
-			//		break
-			//	}
-			//	broad()
 		}
 	}
 }
