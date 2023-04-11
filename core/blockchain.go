@@ -518,15 +518,25 @@ func (bc *BlockChain) loadStakerPool() error {
 					bc.validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
 				}
 			}
-			st, err := bc.StateAt(header.Root)
-			if err != nil {
-				return err
-			}
-			for _, account := range bc.validatorPool.Validators {
-				coefficient := st.GetValidatorCoefficient(account.Addr)
-				bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
-			}
+			//st, err := bc.StateAt(header.Root)
+			//if err != nil {
+			//	return err
+			//}
+			//for _, account := range bc.validatorPool.Validators {
+			//	coefficient := st.GetValidatorCoefficient(account.Addr)
+			//	bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+			//}
 		}
+	}
+
+	header = bc.GetHeaderByNumber(currentHeight)
+	st, err := bc.StateAt(header.Root)
+	if err != nil {
+		return err
+	}
+	for _, account := range bc.validatorPool.Validators {
+		coefficient := st.GetValidatorCoefficient(account.Addr)
+		bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
 
 	return nil
@@ -599,15 +609,25 @@ func (bc *BlockChain) loadStakerPoolByHeader(startHeader *types.Header) (*types.
 					validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
 				}
 			}
-			st, err := bc.StateAt(header.Root)
-			if err != nil {
-				return nil, nil, err
-			}
-			for _, account := range validatorPool.Validators {
-				coefficient := st.GetValidatorCoefficient(account.Addr)
-				validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
-			}
+			//st, err := bc.StateAt(header.Root)
+			//if err != nil {
+			//	return nil, nil, err
+			//}
+			//for _, account := range validatorPool.Validators {
+			//	coefficient := st.GetValidatorCoefficient(account.Addr)
+			//	validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+			//}
 		}
+	}
+
+	header = bc.GetHeaderByNumber(startHeight)
+	st, err := bc.StateAt(header.Root)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, account := range validatorPool.Validators {
+		coefficient := st.GetValidatorCoefficient(account.Addr)
+		validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
 
 	return stakerPool, validatorPool, nil
