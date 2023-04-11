@@ -221,6 +221,7 @@ type BlockChain struct {
 
 	stakerPool     *types.StakerList
 	bytesStakersCh chan BytesStakerList
+	coefficients   map[uint64]map[common.Address]uint8
 }
 
 type BytesStakerList struct {
@@ -272,6 +273,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		vmConfig:       vmConfig,
 		stakerPool:     new(types.StakerList),
 		bytesStakersCh: make(chan BytesStakerList, 100),
+		coefficients:   make(map[uint64]map[common.Address]uint8, 0),
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -502,6 +504,37 @@ func (bc *BlockChain) WriteStakersToDB() {
 		case <-bc.quit:
 			return
 		}
+	}
+}
+
+func (bc *BlockChain) DeleteExpiredCoefficents() {
+	expired := 3
+	var minBlockNumber uint64 = 0
+	for {
+		if len(bc.coefficients) <= expired {
+			break
+		}
+		for k, _ := range bc.coefficients {
+			if minBlockNumber == 0 {
+				minBlockNumber = k
+			} else {
+				if minBlockNumber > k {
+					minBlockNumber = k
+				}
+			}
+		}
+		delete(bc.coefficients, minBlockNumber)
+	}
+}
+
+func (bc *BlockChain) DeleteCoefficients() {
+	var deleteItems []uint64
+	for k, _ := range bc.coefficients {
+		deleteItems = append(deleteItems, k)
+	}
+
+	for _, v := range deleteItems {
+		delete(bc.coefficients, v)
 	}
 }
 
@@ -1665,6 +1698,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, err
 	}
 	log.Info("caver|validator-before", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
+	validatorsCoe := make(map[common.Address]uint8)
 	if len(state.PledgedTokenPool) > 0 {
 		for _, v := range state.PledgedTokenPool {
 			if v.Flag {
@@ -1679,8 +1713,11 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Recalculate the weight, which needs to be calculated after the list is determined
 	for _, account := range validatorPool.Validators {
 		coefficient := state.GetValidatorCoefficient(account.Addr)
+		validatorsCoe[account.Addr] = coefficient
 		validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
+	bc.coefficients[block.NumberU64()] = validatorsCoe
+	bc.DeleteExpiredCoefficents()
 
 	bc.WriteValidatorPool(block.Header(), validatorPool)
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
@@ -1723,6 +1760,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			if err := bc.reorg(currentBlock, block); err != nil {
 				return NonStatTy, err
 			}
+			// handle the fork problem
+			bc.DeleteCoefficients()
 		}
 		status = CanonStatTy
 	} else {
@@ -2962,8 +3001,14 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 
 	// Get all validator weights
 	var weights []uint8
-	for _, v := range validatorList.Validators {
-		weights = append(weights, db.GetCoefficient(v.Addr))
+	if validatorsCoe, ok := bc.coefficients[header.Number.Uint64()]; ok {
+		for _, v := range validatorList.Validators {
+			weights = append(weights, validatorsCoe[v.Addr])
+		}
+	} else {
+		for _, v := range validatorList.Validators {
+			weights = append(weights, db.GetCoefficient(v.Addr))
+		}
 	}
 
 	var validators []common.Address
@@ -3028,8 +3073,14 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 
 	// Get all validator weights
 	var weights []uint8
-	for _, v := range validatorList.Validators {
-		weights = append(weights, db.GetCoefficient(v.Addr))
+	if validatorsCoe, ok := bc.coefficients[header.Number.Uint64()]; ok {
+		for _, v := range validatorList.Validators {
+			weights = append(weights, validatorsCoe[v.Addr])
+		}
+	} else {
+		for _, v := range validatorList.Validators {
+			weights = append(weights, db.GetCoefficient(v.Addr))
+		}
 	}
 
 	var validators []common.Address
