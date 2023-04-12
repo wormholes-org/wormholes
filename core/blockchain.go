@@ -3449,6 +3449,15 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 		return nil, err
 	}
 
+	for k, val := range validatorList.Validators {
+		log.Info("validator list", "number", k, "account", val.Addr.Hex(),
+			"proxy", val.Proxy.Hex(), "balance", val.Balance)
+		for i, weight := range val.Weight {
+			log.Info("validator list", "number", k, "weight number", i,
+				"weight", weight)
+		}
+	}
+
 	// Obtain random landing points according to the surrounding chain algorithm
 	randomHash := GetRandomDrop(validatorList, header)
 	if randomHash == (common.Hash{}) {
