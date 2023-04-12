@@ -699,15 +699,17 @@ func (bc *BlockChain) verifyStakerPoolByHeader(startHeader *types.Header) (*type
 					validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
 				}
 			}
-			st, err := bc.StateAt(header.Root)
-			if err != nil {
-				return nil, nil, err
-			}
-			for _, account := range validatorPool.Validators {
-				coefficient := st.GetValidatorCoefficient(account.Addr)
-				validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
-			}
 		}
+	}
+
+	header = bc.GetHeaderByNumber(startHeight)
+	st, err := bc.StateAt(header.Root)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, account := range validatorPool.Validators {
+		coefficient := st.GetValidatorCoefficient(account.Addr)
+		validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
 
 	return stakerPool, validatorPool, nil
@@ -741,14 +743,15 @@ func (bc *BlockChain) updateStakerPool(stakerPool *types.StakerList,
 				validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
 			}
 		}
-		st, err := bc.StateAt(header.Root)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, account := range validatorPool.Validators {
-			coefficient := st.GetValidatorCoefficient(account.Addr)
-			validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
-		}
+	}
+
+	st, err := bc.StateAt(header.Root)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, account := range validatorPool.Validators {
+		coefficient := st.GetValidatorCoefficient(account.Addr)
+		validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
 
 	return stakerPool, validatorPool, nil
@@ -807,7 +810,7 @@ func (bc *BlockChain) GetCurrentValidatorPool() *types.ValidatorList {
 }
 
 func (bc *BlockChain) GetValidatorPoolByHeader(header *types.Header) (*types.ValidatorList, error) {
-	tempHeader := bc.CurrentHeader()
+	tempHeader := bc.CurrentBlock().Header()
 	validatorPool := bc.GetCurrentValidatorPool()
 
 	if header.Number.Cmp(tempHeader.Number) > 0 {
