@@ -828,9 +828,9 @@ func (bc *BlockChain) GetValidatorPoolByHeader(header *types.Header) (*types.Val
 		if pledgedTokens != nil && len(pledgedTokens.PledgedTokens) > 0 {
 			for _, pledgedToken := range pledgedTokens.PledgedTokens {
 				if !pledgedToken.Flag {
-					bc.validatorPool.AddValidator(pledgedToken.Address, pledgedToken.Amount, pledgedToken.ProxyAddress)
+					validatorPool.AddValidator(pledgedToken.Address, pledgedToken.Amount, pledgedToken.ProxyAddress)
 				} else {
-					bc.validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
+					validatorPool.RemoveValidator(pledgedToken.Address, pledgedToken.Amount)
 				}
 			}
 		}
@@ -838,9 +838,9 @@ func (bc *BlockChain) GetValidatorPoolByHeader(header *types.Header) (*types.Val
 		if err != nil {
 			return nil, err
 		}
-		for _, account := range bc.validatorPool.Validators {
+		for _, account := range validatorPool.Validators {
 			coefficient := st.GetValidatorCoefficient(account.Addr)
-			bc.validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+			validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 		}
 		tempHeader = bc.GetHeaderByNumber(tempHeader.Number.Uint64() - 1)
 	}
