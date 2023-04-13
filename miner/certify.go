@@ -1,6 +1,9 @@
 package miner
 
 import (
+	"math/big"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -9,8 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/xerrors"
-	"math/big"
-	"sync"
 )
 
 const (
@@ -316,10 +317,6 @@ func (c *Certify) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			c.selfMessages.Add(sender, m)
 		}
 		m.Add(hash, true)
-
-		r, _ := c.selfMessages.Get(sender)
-		_, ok1 := r.(*lru.ARCCache).Get(hash)
-		log.Info("azh|handle empty", "add", ok1, "msg hash", hash)
 
 		if c.stakers == nil {
 			return true, nil
