@@ -134,13 +134,11 @@ func (c *Certify) RequestEmptyMessage() {
 			}
 
 			//log.Info("azh|cache message", "max", maxCh, "mix", mixCh, "count", count, "status", c.status)
-			index := 0
 			if c.status == 0 {
-				for _, msg := range info.Message {
-					if err := info.Peer.RequestEmptyMsg(msg); err != nil {
+				index := 0
+				for ; index < len(info.Message); index++ {
+					if err := info.Peer.RequestEmptyMsg(info.Message[index]); err != nil {
 						break
-					} else {
-						index++
 					}
 				}
 
