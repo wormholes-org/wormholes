@@ -49,6 +49,8 @@ const CloseExchangerInterval = 3 * 24 // for test
 const CancelNFTPledgedInterval = 3 * 24 // for test
 const VALIDATOR_COEFFICIENT = 70
 
+var SnftVirtualContractAddress = common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF01")
+
 type (
 	// CanTransferFunc is the signature of a transfer guard function
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
@@ -659,6 +661,87 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		//	evm.StateDB.DiscardSnapshot(snapshot)
 	}
 	return ret, gas, err
+}
+
+func (evm *EVM) IsContractAddress(address common.Address) bool {
+	emptyHash := common.Hash{}
+	codeHash := evm.StateDB.GetCodeHash(address)
+	if codeHash != emptyHash {
+		return true
+	}
+	return false
+}
+
+func (evm *EVM) TransferNFTByContract(caller ContractRef, input []byte, gas uint64) (ret []byte, overGas uint64, err error) {
+	prefix := "b88d4fde"
+	//strInput := "b88d4fde" +
+	//	"000000000000000000000000d9145cce52d386f254917e481eb44e9943f39138" +
+	//	"000000000000000000000000d9145cce52d386f254917e481eb44e9943f39138" +
+	//	"0000000000000000000000000000000000000000000000000000000000000003" +
+	//	"0000000000000000000000000000000000000000000000000000000000000008" +
+	//	"0000000000000000000000000000000000000000000000000000000000000002" +
+	//	"0102000000000000000000000000000000000000000000000000000000000000"
+	strInput := hex.EncodeToString(input)
+	constData1 := "0000000000000000000000000000000000000000000000000000000000000008"
+
+	if len(input) != 196 {
+		return nil, gas, errors.New("input len error")
+	}
+	if !strings.HasPrefix(strInput, prefix) {
+		return nil, gas, errors.New("input data error")
+	}
+	fromBytes := input[16:36]
+	toBytes := input[48:68]
+	nftAddressBytes := input[80:100]
+
+	data1 := input[100:132]
+	data2 := input[132:164]
+	//data3 := input[164:196]
+
+	if hex.EncodeToString(data1) != constData1 {
+		return nil, gas, errors.New("input format error")
+	}
+	bigData3Len, _ := new(big.Int).SetString(hex.EncodeToString(data2), 16)
+	if bigData3Len.Uint64() > 32 {
+		return nil, gas, errors.New("input data error")
+	}
+
+	from := common.BytesToAddress(fromBytes)
+	to := common.BytesToAddress(toBytes)
+	nftAddress := common.BytesToAddress(nftAddressBytes)
+
+	if evm.Context.VerifyNFTOwner(evm.StateDB, nftAddress.Hex(), from) {
+		err := evm.Context.TransferNFT(evm.StateDB, nftAddress.Hex(), to, evm.Context.BlockNumber)
+		if err != nil {
+			return nil, gas, err
+		}
+	}
+
+	if evm.IsContractAddress(to) {
+		erc721 := OnERC721Received(caller.Address(), from, nftAddress.Hex())
+		ret, overGas, err = evm.Call(AccountRef(SnftVirtualContractAddress), to, erc721, gas, big.NewInt(0))
+	}
+
+	return ret, overGas, err
+}
+
+// function onERC721Received(address _operator, address _from, uint256 _tokenId, bytes _data) external returns(bytes4)的函数编码，具体为0x150b7a02
+func OnERC721Received(operator common.Address, nftOwner common.Address, nftAddress string) []byte {
+	var ERC721Bytes []byte
+	addrSupplementary := make([]byte, 12)
+	prefix, _ := hex.DecodeString("150b7a02")
+	data := "00000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000"
+	ERC721Bytes = append(ERC721Bytes, prefix...)
+	ERC721Bytes = append(ERC721Bytes, addrSupplementary...)
+	ERC721Bytes = append(ERC721Bytes, operator.Bytes()...)
+	ERC721Bytes = append(ERC721Bytes, addrSupplementary...)
+	ERC721Bytes = append(ERC721Bytes, nftOwner.Bytes()...)
+	ERC721Bytes = append(ERC721Bytes, addrSupplementary...)
+	ERC721Bytes = append(ERC721Bytes, common.HexToAddress(nftAddress).Bytes()...)
+	bytesData, _ := hex.DecodeString(data)
+	ERC721Bytes = append(ERC721Bytes, bytesData...)
+
+	return ERC721Bytes
 }
 
 // CallCode executes the contract associated with the addr with the given input
