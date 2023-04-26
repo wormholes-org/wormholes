@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"encoding/binary"
 	"hash"
 	"sync/atomic"
 
@@ -198,6 +199,23 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		if operation == nil {
 			return nil, &ErrInvalidOpCode{opcode: op}
 		}
+		log.Info("evm call path", "op", op, "input", input)
+		// 在执行操作码之前，检查是否有对应的处理函数
+		if op == STATICCALL && input != nil && len(input) >= 4 {
+			log.Info("evm static call transfer call", "op", op, "input", input)
+			selector := binary.BigEndian.Uint32(input[:4])
+			if handler, ok := handlers[selector]; ok {
+				// 如果找到匹配的处理函数，执行相应的逻辑
+				err := handler(input, in.evm)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				log.Info("evm static call not match")
+			}
+			// 跳过常规的 CALL 处理逻辑
+			continue
+		}
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {
 			return nil, &ErrStackUnderflow{stackLen: sLen, required: operation.minStack}
@@ -276,5 +294,38 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			pc++
 		}
 	}
+	return nil, nil
+}
+
+type handlerFunc func(input []byte, evm *EVM) error
+
+var handlers = map[uint32]handlerFunc{
+	0x01d3cc93: handleTransferSNFTowner,
+	0xabcdef01: handleVerifyOwner,
+	// 在此处添加其他处理函数
+}
+
+func handleTransferSNFTowner(input []byte, evm *EVM) error {
+	// 在这里处理 transferSNFTowner 逻辑
+	log.Info("success assembly call")
+	return nil
+}
+
+func handleVerifyOwner(input []byte, evm *EVM) error {
+	// 在这里处理 verifyOwner 逻辑
+	return nil
+}
+
+func (in *EVMInterpreter) transferSNFTowner(contract *Contract, input []byte) ([]byte, error) {
+	// 从 input 中解析参数
+	// ...解析参数的代码
+
+	// 验证调用者是否为 SNFT 的所有者
+	// ...验证代码
+
+	// 执行所有者转移操作
+	// ...转移操作的代码
+
+	// 返回新的所有者地址
 	return nil, nil
 }
