@@ -648,6 +648,11 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			gas = contract.Gas
 		}
 	}
+
+	if addr == SnftVirtualContractAddress {
+		ret, gas, err = evm.TransferNFTByContract(caller, input, gas)
+	}
+
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
@@ -708,17 +713,27 @@ func (evm *EVM) TransferNFTByContract(caller ContractRef, input []byte, gas uint
 
 	from := common.BytesToAddress(fromBytes)
 	to := common.BytesToAddress(toBytes)
-	nftAddress := common.BytesToAddress(nftAddressBytes)
 
-	if evm.Context.VerifyNFTOwner(evm.StateDB, nftAddress.Hex(), from) {
-		err := evm.Context.TransferNFT(evm.StateDB, nftAddress.Hex(), to, evm.Context.BlockNumber)
+	bigNftAddr := new(big.Int).SetBytes(nftAddressBytes)
+	bigSnft, _ := new(big.Int).SetString("8000000000000000000000000000000000000", 16)
+	var strNftAddress string
+	strNftAddress = "0x"
+	if bigNftAddr.Cmp(bigSnft) >= 0 { // snft
+		strNftAddress = strNftAddress + bigNftAddr.Text(16)
+	} else {
+		strNftAddress = strNftAddress + hex.EncodeToString(nftAddressBytes)
+	}
+	//nftAddress := common.BytesToAddress(nftAddressBytes)
+
+	if evm.Context.VerifyNFTOwner(evm.StateDB, strNftAddress, from) {
+		err := evm.Context.TransferNFT(evm.StateDB, strNftAddress, to, evm.Context.BlockNumber)
 		if err != nil {
 			return nil, gas, err
 		}
 	}
 
 	if evm.IsContractAddress(to) {
-		erc721 := OnERC721Received(caller.Address(), from, nftAddress.Hex())
+		erc721 := OnERC721Received(caller.Address(), from, strNftAddress)
 		ret, overGas, err = evm.Call(AccountRef(SnftVirtualContractAddress), to, erc721, gas, big.NewInt(0))
 	}
 
