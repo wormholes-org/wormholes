@@ -79,6 +79,7 @@ type Miner struct {
 
 func (miner *Miner) SetBroadcaster(broadcaster Broadcaster) {
 	miner.broadcaster = broadcaster
+	go miner.worker.cerytify.RequestEmptyMessage()
 }
 
 func (miner *Miner) HandleMsg(address common.Address, data p2p.Msg) (bool, error) {
