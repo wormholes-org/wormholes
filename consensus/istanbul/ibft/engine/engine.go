@@ -424,38 +424,40 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			log.Info("Prepare quorum size", "no", header.Number, "size", quorumSize)
 			// Get the header of the last normal block
 			preHeader, err := getPreHash(chain, header)
-			if err != nil {
-				log.Error("Prepare get preHash err", "err", err, "no", header.Number, "hash", header.Hash().Hex())
-				return err
-			}
-			log.Info("Prepare getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-			commiters, err := e.Signers(preHeader)
-			if err != nil {
-				log.Error("Prepare commit seal err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				return err
-			}
-			if len(commiters) < quorumSize {
-				log.Error("Prepare commiters len less than 7", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				return errors.New("Prepare commiters len less than 7")
-			}
-			for _, v := range commiters {
-				if len(validatorAddr) == quorumSize {
-					break
+			if preHeader.Number.Uint64() != 1 {
+				if err != nil {
+					log.Error("Prepare get preHash err", "err", err, "no", header.Number, "hash", header.Hash().Hex())
+					return err
 				}
-				// reward to onlineValidtors
-				validatorAddr = append(validatorAddr, v)
-			}
-			for i, v := range commiters {
-				log.Info("print committers", "len", len(commiters), "i", i, "addr", v.Hex(), "preHeader", preHeader.Number, "no", header.Number)
-			}
-			for _, v := range validatorAddr {
-				log.Info("Prepare: onlineValidator", "addr", v.Hex(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-			}
-			// copy commitSeals to rewardSeals
-			rewardSeals, err = e.copyCommitSeals(preHeader)
-			if err != nil {
-				log.Error("copy commitSeals err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				return err
+				log.Info("Prepare getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+				commiters, err := e.Signers(preHeader)
+				if err != nil {
+					log.Error("Prepare commit seal err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+					return err
+				}
+				if len(commiters) < quorumSize {
+					log.Error("Prepare commiters len less than 7", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+					return errors.New("Prepare commiters len less than 7")
+				}
+				for _, v := range commiters {
+					if len(validatorAddr) == quorumSize {
+						break
+					}
+					// reward to onlineValidtors
+					validatorAddr = append(validatorAddr, v)
+				}
+				for i, v := range commiters {
+					log.Info("print committers", "len", len(commiters), "i", i, "addr", v.Hex(), "preHeader", preHeader.Number, "no", header.Number)
+				}
+				for _, v := range validatorAddr {
+					log.Info("Prepare: onlineValidator", "addr", v.Hex(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+				}
+				// copy commitSeals to rewardSeals
+				rewardSeals, err = e.copyCommitSeals(preHeader)
+				if err != nil {
+					log.Error("copy commitSeals err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+					return err
+				}
 			}
 		}
 
@@ -593,6 +595,9 @@ func getPreHash(chain consensus.ChainHeaderReader, header *types.Header) (*types
 	preHeader := chain.GetHeaderByHash(header.ParentHash)
 	if preHeader == nil {
 		return nil, errors.New("getPreHash : invalid preHeader")
+	}
+	if preHeader.Number.Uint64() == 1 {
+		return preHeader, nil
 	}
 	if preHeader.Coinbase == (common.Address{}) {
 		preHeader, err := getPreHash(chain, preHeader)
@@ -755,50 +760,52 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			log.Info("Finalize quorum size", "no", header.Number, "size", quorumSize)
 			// Get the header of the last normal block
 			preHeader, err := getPreHash(chain, header)
-			if err != nil {
-				log.Error("Finalize get preHash err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				return
-			}
-			log.Info("Finalize getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-			// decode rewards
-			// preHeader + currentRewadSeal
-			rewarders, err := e.RecoverRewards(preHeader, istanbulExtra.RewardSeal)
-			if err != nil {
-				log.Error("Finalize rewarders err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				return
-			}
-			for _, v := range rewarders {
-				log.Info("Finalize: onlineValidator", "addr", v.Hex(), "len", len(rewarders), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-			}
-			if len(rewarders) < quorumSize {
-				log.Error("Finalize commiters len less than 7", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
-				return
-			}
-			for _, v := range rewarders {
-				if len(validatorAddr) == quorumSize {
-					break
+			if preHeader.Number.Uint64() != 1 {
+				if err != nil {
+					log.Error("Finalize get preHash err", "err", err, "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+					return
 				}
-				// reward to onlineValidtors
-				validatorAddr = append(validatorAddr, v)
-			}
-
-			validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
-			if err != nil {
-				log.Error("Finalize : validator pool err", err, err)
-				return
-			}
-			if validatorPool != nil && len(validatorPool.Validators) > 0 {
-				//k:proxy,v:validator
-				mp := make(map[string]*types.Validator, 0)
-				for _, v := range validatorPool.Validators {
-					if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
-						mp[v.Proxy.String()] = v
+				log.Info("Finalize getPreHash ok", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+				// decode rewards
+				// preHeader + currentRewadSeal
+				rewarders, err := e.RecoverRewards(preHeader, istanbulExtra.RewardSeal)
+				if err != nil {
+					log.Error("Finalize rewarders err", "err", err.Error(), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+					return
+				}
+				for _, v := range rewarders {
+					log.Info("Finalize: onlineValidator", "addr", v.Hex(), "len", len(rewarders), "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+				}
+				if len(rewarders) < quorumSize {
+					log.Error("Finalize commiters len less than 7", "preHeader", preHeader.Number, "preHash", preHeader.Hash().Hex(), "no", header.Number, "hash", header.Hash().Hex())
+					return
+				}
+				for _, v := range rewarders {
+					if len(validatorAddr) == quorumSize {
+						break
 					}
+					// reward to onlineValidtors
+					validatorAddr = append(validatorAddr, v)
 				}
-				//If the reward address is on a proxy account, it will be restored to a pledge account
-				for index, a := range validatorAddr {
-					if v, ok := mp[a.String()]; ok {
-						validatorAddr[index] = v.Addr
+
+				validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
+				if err != nil {
+					log.Error("Finalize : validator pool err", err, err)
+					return
+				}
+				if validatorPool != nil && len(validatorPool.Validators) > 0 {
+					//k:proxy,v:validator
+					mp := make(map[string]*types.Validator, 0)
+					for _, v := range validatorPool.Validators {
+						if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
+							mp[v.Proxy.String()] = v
+						}
+					}
+					//If the reward address is on a proxy account, it will be restored to a pledge account
+					for index, a := range validatorAddr {
+						if v, ok := mp[a.String()]; ok {
+							validatorAddr[index] = v.Addr
+						}
 					}
 				}
 			}
