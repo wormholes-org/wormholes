@@ -21,16 +21,18 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/core/state"
 )
 
-func New(addr common.Address) istanbul.Validator {
+func New(addr common.Address, coefficient uint8) istanbul.Validator {
 	return &defaultValidator{
-		address: addr,
+		address:     addr,
+		coefficient: coefficient,
 	}
 }
 
-func NewSet(addrs []common.Address, policy *istanbul.ProposerPolicy) istanbul.ValidatorSet {
-	return newDefaultSet(addrs, policy)
+func NewSet(addrs []common.Address, policy *istanbul.ProposerPolicy, db *state.StateDB) istanbul.ValidatorSet {
+	return newDefaultSet(addrs, policy, db)
 }
 
 func NewEmptySet(addrs []common.Address, policy *istanbul.ProposerPolicy) istanbul.ValidatorSet {
