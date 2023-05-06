@@ -18,8 +18,10 @@ package light
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -543,7 +545,52 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 			if currentState.GetBalance(buyer).Cmp(tx.Value()) < 0 {
 				return core.ErrInsufficientFunds
 			}
+		case 28:
+			if currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+				return core.ErrInsufficientFunds
+			}
+			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
+			if currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
+				return core.ErrInsufficientFunds
+			}
+			// recover buyer address
+			emptyAddress := common.Address{}
+			var buyer common.Address
+			if len(wormholes.BuyerAuth.Exchanger) > 0 &&
+				len(wormholes.BuyerAuth.BlockNumber) > 0 &&
+				len(wormholes.BuyerAuth.Sig) > 0 {
+				buyer, err = core.RecoverAddress(wormholes.BuyerAuth.Exchanger+wormholes.BuyerAuth.BlockNumber, wormholes.BuyerAuth.Sig)
+				if err != nil {
+					return err
+				}
+			}
+			if buyer == emptyAddress {
+				msg := wormholes.Buyer.Amount +
+					wormholes.Buyer.NFTAddress +
+					wormholes.Buyer.Exchanger +
+					wormholes.Buyer.BlockNumber +
+					wormholes.Buyer.Seller
+				buyerApproved, err := core.RecoverAddress(msg, wormholes.Buyer.Sig)
+				if err != nil {
+					log.Error("BuyNFTBySellerOrExchanger()", "Get public key error", err)
+					return err
+				}
+				buyer = buyerApproved
+			}
 
+			nftAddress, _, err := pool.GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
+			if err != nil {
+				return err
+			}
+			initamount := currentState.CalculateExchangeAmount(1, 1)
+			amount := currentState.GetExchangAmount(nftAddress, initamount)
+
+			snftAddrs := core.GetSnftAddrs(currentState, wormholes.Buyer.NFTAddress, buyer)
+			snftNum := len(snftAddrs)
+			value := new(big.Int).Mul(big.NewInt(int64(snftNum)), amount)
+			if currentState.GetBalance(buyer).Cmp(value) < 0 {
+				return core.ErrInsufficientFunds
+			}
 		default:
 			if currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
 				return core.ErrInsufficientFunds
@@ -564,6 +611,27 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 		return core.ErrIntrinsicGas
 	}
 	return currentState.Error()
+}
+
+func (pool *TxPool) GetNftAddressAndLevel(nftAddress string) (common.Address, int, error) {
+	if len(nftAddress) > 42 {
+		return common.Address{}, 0, errors.New("nft address is too long")
+	}
+	level := 0
+	if strings.HasPrefix(nftAddress, "0x") ||
+		strings.HasPrefix(nftAddress, "0X") {
+		level = 42 - len(nftAddress)
+	} else {
+		return common.Address{}, 0, errors.New("nft address is not to start with 0x")
+	}
+
+	for i := 0; i < level; i++ {
+		nftAddress = nftAddress + "0"
+	}
+
+	address := common.HexToAddress(nftAddress)
+
+	return address, level, nil
 }
 
 // add validates a new transaction and sets its state pending if processable.

@@ -62,6 +62,7 @@ const (
 	WormholesTx25 uint64 = 42000
 	WormholesTx26 uint64 = 42000
 	WormholesTx27 uint64 = 166000
+	WormholesTx28 uint64 = 126000
 	WormholesTx30 uint64 = 52500
 	WormholesTx31 uint64 = 73500
 

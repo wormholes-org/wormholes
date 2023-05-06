@@ -19,10 +19,13 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	gomath "math"
 	"math/big"
+	"sort"
 	"strings"
 	"time"
 
@@ -64,6 +67,20 @@ type PublicEthereumAPI struct {
 // NewPublicEthereumAPI creates a new Ethereum protocol API.
 func NewPublicEthereumAPI(b Backend) *PublicEthereumAPI {
 	return &PublicEthereumAPI{b}
+}
+
+type Valset []common.Address
+
+func (v Valset) Len() int {
+	return len(v)
+}
+
+func (v Valset) Swap(i int, j int) {
+	v[i], v[j] = v[j], v[i]
+}
+
+func (v Valset) Less(i int, j int) bool {
+	return v[i].Hex() < v[j].Hex()
 }
 
 // GasPrice returns a suggestion for a gas price for legacy transactions.
@@ -1097,6 +1114,113 @@ func (s *PublicBlockChainAPI) Version(ctx context.Context) string {
 	return version
 }
 
+func (s *PublicBlockChainAPI) GetForcedSaleAmount(ctx context.Context, nftAddress common.Address) (*hexutil.Big, error) {
+	if !s.IsOfficialNFT(nftAddress) {
+		return nil, errors.New("not official nft")
+	}
+	initAmount := s.CalculateExchangeAmount(1, 1)
+	amount := s.GetExchangAmount(nftAddress, initAmount)
+
+	return (*hexutil.Big)(amount), nil
+}
+
+func (s *PublicBlockChainAPI) IsOfficialNFT(nftAddress common.Address) bool {
+	maskByte := byte(128)
+	nftByte := nftAddress[0]
+	result := maskByte & nftByte
+	if result == 128 {
+		return true
+	}
+	return false
+}
+
+var ExchangePeriod = uint64(6160) // 365 * 720 * 24 * 4 / 4096
+func (s *PublicBlockChainAPI) GetExchangAmount(nftaddress common.Address, initamount *big.Int) *big.Int {
+	nftInt := new(big.Int).SetBytes(nftaddress.Bytes())
+	baseInt, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+	nftInt.Sub(nftInt, baseInt)
+	//nftInt.Add(nftInt, big.NewInt(1))
+	nftInt.Div(nftInt, big.NewInt(4096))
+	times := nftInt.Uint64() / ExchangePeriod
+	rewardratio := gomath.Pow(0.88, float64(times))
+	result := big.NewInt(0)
+	new(big.Float).Mul(big.NewFloat(rewardratio), new(big.Float).SetInt(initamount)).Int(result)
+
+	return result
+}
+
+func (s *PublicBlockChainAPI) CalculateExchangeAmount(level uint8, mergenumber uint32) *big.Int {
+	//nftNumber := math.BigPow(16, int64(level))
+	nftNumber := big.NewInt(int64(mergenumber))
+	switch {
+	case level == 0:
+		radix, _ := big.NewInt(0).SetString("30000000000000000", 10)
+		return big.NewInt(0).Mul(nftNumber, radix)
+	case level == 1:
+		radix, _ := big.NewInt(0).SetString("143000000000000000", 10)
+		return big.NewInt(0).Mul(nftNumber, radix)
+	case level == 2:
+		radix, _ := big.NewInt(0).SetString("271000000000000000", 10)
+		return big.NewInt(0).Mul(nftNumber, radix)
+	default:
+		radix, _ := big.NewInt(0).SetString("650000000000000000", 10)
+		return big.NewInt(0).Mul(nftNumber, radix)
+	}
+}
+
+func (s *PublicBlockChainAPI) GetForcedSaleSNFTAddresses(ctx context.Context,
+	nftParentAddress string, buyer common.Address, blockNrOrHash rpc.BlockNumberOrHash) []common.Address {
+
+	var nftAddrs []common.Address
+	emptyAddress := common.Address{}
+	if strings.HasPrefix(nftParentAddress, "0x") ||
+		strings.HasPrefix(nftParentAddress, "0X") {
+		nftParentAddress = string([]byte(nftParentAddress)[2:])
+	}
+
+	if len(nftParentAddress) != 39 {
+		return nftAddrs
+	}
+
+	st, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if st == nil || err != nil {
+		return nftAddrs
+	}
+
+	addrInt := big.NewInt(0)
+	addrInt.SetString(nftParentAddress, 16)
+	addrInt.Lsh(addrInt, 4)
+
+	// 3. retrieve all the sibling leaf nodes of nftAddr
+	siblingInt := big.NewInt(0)
+	//nftAddrSLen := len(nftAddrS)
+	for i := 0; i < 16; i++ {
+		// 4. convert bigInt to common.Address, and then get Account from the trie.
+		siblingInt.Add(addrInt, big.NewInt(int64(i)))
+		//siblingAddr := common.BigToAddress(siblingInt)
+		siblingAddrS := hex.EncodeToString(siblingInt.Bytes())
+		siblingAddrSLen := len(siblingAddrS)
+		var prefix0 string
+		for i := 0; i < 40-siblingAddrSLen; i++ {
+			prefix0 = prefix0 + "0"
+		}
+		siblingAddrS = prefix0 + siblingAddrS
+		siblingAddr := common.HexToAddress(siblingAddrS)
+		//fmt.Println("siblingAddr=", siblingAddr.String())
+
+		siblingOwner := st.GetNFTOwner16(siblingAddr)
+		if siblingOwner != emptyAddress &&
+			siblingOwner != buyer {
+			log.Debug("GetForcedSaleSNFTAddresses",
+				"siblingAddr", siblingAddr.String(), "owner", siblingOwner.String(), "buyer", buyer.String())
+			nftAddrs = append(nftAddrs, siblingAddr)
+		}
+	}
+
+	return nftAddrs
+
+}
+
 // Result structs for GetProof
 type AccountResult struct {
 	Address      common.Address  `json:"address"`
@@ -1514,6 +1638,8 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 				case 24:
 
 				case 27:
+
+				case 28:
 
 				default:
 					if args.Value.ToInt().Cmp(available) >= 0 {
@@ -2031,6 +2157,38 @@ func (w *PublicWormholesAPI) GetValidators(ctx context.Context, number rpc.Block
 	return addrs, nil
 }
 
+func (w *PublicWormholesAPI) GetElevenValidatorsWithProxy(ctx context.Context, number rpc.BlockNumber) ([]common.Address, error) {
+	parent, err := w.b.BlockByNumber(ctx, number-1)
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	if parent == nil {
+		return []common.Address{}, err
+	}
+
+	valset, err := w.b.Random11ValidatorFromPoolWithProxy(ctx, parent.Header())
+	if err != nil {
+		return []common.Address{}, err
+	}
+
+	var addrs []common.Address
+	for _, v := range valset.Validators {
+		addrs = append(addrs, v.Addr)
+	}
+
+	return addrs, nil
+}
+
+func (w *PublicWormholesAPI) GetRealAddr(ctx context.Context, addr common.Address) (common.Address, error) {
+	header := w.b.CurrentHeader()
+	valset, err := w.b.GetAllValidators(ctx, header)
+	if err != nil {
+		return common.Address{}, err
+	}
+	return valset.GetValidatorAddr(addr), nil
+}
+
 func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (BeneficiaryAddressList, error) {
 	//var address []common.Address
 	//var nftAddress []common.Address
@@ -2358,6 +2516,49 @@ func (w *PublicWormholesAPI) GetShouldParticipantsCoefficientByNumber(ctx contex
 		participants = append(participants, participant)
 	}
 
+	return participants, nil
+}
+
+// GetCoefficientByNumber Obtain the real address weight and return the proxy address
+func (w *PublicWormholesAPI) GetCoefficientByNumber(ctx context.Context, number rpc.BlockNumber) ([]*BlockParticipants, error) {
+	var (
+		participants []*BlockParticipants
+		valset       Valset
+	)
+
+	parentHeader, err := w.b.HeaderByNumber(ctx, number-1)
+	if parentHeader == nil || err != nil {
+		return nil, err
+	}
+
+	validators, err := w.b.Random11ValidatorFromPoolWithProxy(ctx, parentHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	actualAllValidators, err := w.b.GetAllValidators(ctx, parentHeader)
+	if err != nil {
+		return nil, err
+	}
+	state, _, err := w.b.StateAndHeaderByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range validators.Validators {
+		valset = append(valset, v.Addr)
+	}
+	sort.Sort(valset)
+
+	for _, v := range valset {
+		realAddr := actualAllValidators.GetValidatorAddr(v)
+		coe := state.GetCoefficient(realAddr)
+		participant := &BlockParticipants{
+			Address:     v,
+			Coefficient: coe,
+		}
+		participants = append(participants, participant)
+	}
 	return participants, nil
 }
 

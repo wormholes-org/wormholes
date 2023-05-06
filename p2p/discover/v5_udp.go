@@ -177,6 +177,11 @@ func (t *UDPv5) Self() *enode.Node {
 	return t.localNode.Node()
 }
 
+func (t *UDPv5) GetNetworkId() uint64 {
+	//return t.NetworkId
+	return 0
+}
+
 // Close shuts down packet processing.
 func (t *UDPv5) Close() {
 	t.closeOnce.Do(func() {
@@ -345,6 +350,11 @@ func (t *UDPv5) ping(n *enode.Node) (uint64, error) {
 	case err := <-resp.err:
 		return 0, err
 	}
+}
+
+// ping2 sends a ping message to the given node and waits for a reply.
+func (t *UDPv5) ping2(n *enode.Node) (seq uint64, networkid uint64, err error) {
+	return 0, 0, nil
 }
 
 // requestENR requests n's record.

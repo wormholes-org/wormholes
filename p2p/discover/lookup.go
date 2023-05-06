@@ -164,6 +164,12 @@ func (it *lookup) query(n *node, reply chan<- []*node) {
 	// Grab as many nodes as possible. Some of them might not be alive anymore, but we'll
 	// just remove those again during revalidation.
 	for _, n := range r {
+		_, networkid, err := it.tab.net.ping2(unwrapNode(n))
+		//it.tab.log.Trace("FINDNODE ping2", "id", n.ID(), "ip", n.IP(), "port", n.UDP(), "networkid", networkid, "err", err)
+		if err != nil || networkid != it.tab.net.GetNetworkId() {
+			it.tab.log.Trace("FINDNODE ping2", "id", n.ID(), "ip", n.IP(), "port", n.UDP(), "networkid", networkid, "err", err)
+			continue
+		}
 		it.tab.addSeenNode(n)
 	}
 	reply <- r

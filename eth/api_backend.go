@@ -233,6 +233,9 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 func (b *EthAPIBackend) GetAllStakers(ctx context.Context) *types.StakerList {
 	return b.eth.BlockChain().GetStakerPool()
 }
+func (b *EthAPIBackend) GetAllValidators(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
+	return b.eth.BlockChain().ReadValidatorPool(header)
+}
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	return b.eth.txPool.AddLocal(signedTx)
@@ -364,4 +367,8 @@ func (b *EthAPIBackend) QueryMinerProxy(ctx context.Context, number int64, miner
 
 func (b *EthAPIBackend) Random11ValidatorFromPool(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
 	return b.eth.blockchain.Random11ValidatorWithOutProxy(header)
+}
+
+func (b *EthAPIBackend) Random11ValidatorFromPoolWithProxy(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
+	return b.eth.blockchain.Random11ValidatorFromPool(header)
 }

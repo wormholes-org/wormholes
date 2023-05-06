@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -156,6 +158,9 @@ type Config struct {
 	Logger log.Logger `toml:",omitempty"`
 
 	clock mclock.Clock
+
+	NetworkId uint64
+	ChainId   uint64
 }
 
 // Server manages all peer connections.
@@ -197,6 +202,8 @@ type Server struct {
 
 	// State of run loop and listenLoop.
 	inboundHistory expHeap
+
+	quitRandomRemovePeersCh chan struct{}
 }
 
 type peerOpFunc func(map[enode.ID]*Peer)
@@ -249,6 +256,41 @@ func (c *conn) String() string {
 	}
 	s += " " + c.fd.RemoteAddr().String()
 	return s
+}
+
+func (c *conn) Name() string {
+	return c.name
+}
+
+func (c *conn) ProgramName() string {
+	fields := strings.Split(c.name, "/")
+	return fields[0]
+}
+
+func (c *conn) NetworkId() (uint64, error) {
+	fields := strings.Split(c.name, "/")
+	for _, field := range fields {
+		if strings.Contains(field, "networkid") {
+			network := strings.Split(field, "-")
+			networkid, err := strconv.Atoi(network[1])
+			return uint64(networkid), err
+		}
+	}
+
+	return 0, errors.New("network id error")
+}
+
+func (c *conn) ChainId() (uint64, error) {
+	fields := strings.Split(c.name, "/")
+	for _, field := range fields {
+		if strings.Contains(field, "chainid") {
+			chain := strings.Split(field, "-")
+			chainid, err := strconv.Atoi(chain[1])
+			return uint64(chainid), err
+		}
+	}
+
+	return 0, errors.New("chain id error")
 }
 
 func (f connFlag) String() string {
@@ -401,6 +443,9 @@ func (srv *Server) Stop() {
 		srv.listener.Close()
 	}
 	close(srv.quit)
+
+	//close(srv.quitRandomRemovePeersCh)
+
 	srv.lock.Unlock()
 	srv.loopWG.Wait()
 }
@@ -485,6 +530,11 @@ func (srv *Server) Start() (err error) {
 
 	srv.loopWG.Add(1)
 	go srv.run()
+
+	//srv.quitRandomRemovePeersCh = make(chan struct{})
+	//srv.loopWG.Add(1)
+	//go srv.RandomRemovePeers()
+
 	return nil
 }
 
@@ -584,6 +634,8 @@ func (srv *Server) setupDiscovery() error {
 			Bootnodes:   srv.BootstrapNodes,
 			Unhandled:   unhandled,
 			Log:         srv.log,
+			NetworkId:   srv.NetworkId,
+			ChainId:     srv.ChainId,
 		}
 		ntab, err := discover.ListenV4(conn, srv.localnode, cfg)
 		if err != nil {
@@ -982,6 +1034,14 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		return DiscUnexpectedIdentity
 	}
 	c.caps, c.name = phs.Caps, phs.Name
+	networkId, err := c.NetworkId()
+	if err != nil && networkId != srv.NetworkId {
+		return DiscNetworkIdError
+	}
+	chainId, err := c.ChainId()
+	if err != nil && chainId != srv.ChainId {
+		return DiscChainIdError
+	}
 	err = srv.checkpoint(c, srv.checkpointAddPeer)
 	if err != nil {
 		clog.Trace("Rejected peer", "err", err)
@@ -1122,4 +1182,50 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 
 func (srv *Server) PrintRoutingTable() (*discover.TableInfo, error) {
 	return srv.ntab.PrintRoutingTable()
+}
+
+func (srv *Server) RandomRemovePeers() {
+	defer srv.loopWG.Done()
+
+	RemovePeersInterval := 30 * time.Minute
+	RemovePeers := time.NewTicker(RemovePeersInterval)
+	for {
+		select {
+		case <-RemovePeers.C:
+			for {
+				if srv.PeerCount() > 50 {
+					peers := srv.Peers()
+					srv.log.Info("Server.RandomRemovePeers()", "peers number", len(peers))
+					removePeer := srv.SelectRemovePeers(peers)
+					srv.log.Info("Server.RandomRemovePeers()", "remove peer id", removePeer.ID().String())
+					srv.RemovePeer(removePeer.rw.node)
+				} else {
+					srv.log.Info("Server.RandomRemovePeers(), remove peer end")
+					break
+				}
+			}
+		case <-srv.quitRandomRemovePeersCh:
+			return
+		}
+	}
+}
+
+//func (srv *Server) SelectRemovePeers(peers []*Peer) *Peer {
+//	var index int
+//	randRange := len(peers)
+//	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+//	index = r.Intn(randRange)
+//	return peers[index]
+//}
+
+func (srv *Server) SelectRemovePeers(peers []*Peer) *Peer {
+	var removePeer *Peer
+	removePeer = peers[0]
+	for _, peer := range peers[1:] {
+		if enode.DistCmp(srv.localnode.ID(), removePeer.ID(), peer.ID()) < 0 {
+			removePeer = peer
+		}
+	}
+
+	return removePeer
 }

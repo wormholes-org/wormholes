@@ -284,6 +284,10 @@ func (c *Config) NodeName() string {
 	if name == "geth" || name == "geth-testnet" {
 		name = "Geth"
 	}
+
+	name += "/" + fmt.Sprintf("networkid-%d", c.P2P.NetworkId)
+	name += "/" + fmt.Sprintf("chainid-%d", c.P2P.ChainId)
+
 	if c.UserIdent != "" {
 		name += "/" + c.UserIdent
 	}
