@@ -18,6 +18,7 @@ package snapshot
 
 import (
 	"bytes"
+	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -36,126 +37,83 @@ type Account struct {
 	Root     []byte
 	CodeHash []byte
 
-	PledgedBalance     *big.Int
-	PledgedBlockNumber *big.Int
-	//Owner common.Address
-	// whether the account has a NFT exchanger
-	ExchangerFlag    bool
-	BlockNumber      *big.Int
-	ExchangerBalance *big.Int
-	VoteBlockNumber  *big.Int
-	VoteWeight       *big.Int
-	Coefficient      uint8
-	// The ratio that exchanger get.
-	FeeRate       uint16
-	ExchangerName string
-	ExchangerURL  string
-	// ApproveAddress have the right to handle all nfts of the account
-	ApproveAddressList []common.Address
-	// NFTBalance is the nft number that the account have
-	//NFTBalance uint64
-	// Indicates the reward method chosen by the miner
-	//RewardFlag uint8 // 0:SNFT 1:ERB default:0
-	AccountNFT
+	Worm  *types.WormholesExtension `rlp:"nil"`
+	Nft   *types.AccountNFT         `rlp:"nil"`
 	Extra []byte
 }
-type AccountNFT struct {
-	//Account
-	Name   string
-	Symbol string
-	//Price                 *big.Int
-	//Direction             uint8 // 0:un_tx,1:buy,2:sell
-	Owner                 common.Address
-	NFTApproveAddressList common.Address
-	//Auctions map[string][]common.Address
-	// MergeLevel is the level of NFT merged
-	MergeLevel  uint8
-	MergeNumber uint32
-	//PledgedFlag           bool
-	//NFTPledgedBlockNumber *big.Int
 
-	Creator   common.Address
-	Royalty   uint16
-	Exchanger common.Address
-	MetaURL   string
-}
+//type WormholesExtension struct {
+//	PledgedBalance     *big.Int
+//	PledgedBlockNumber *big.Int
+//	// *** modify to support nft transaction 20211215 ***
+//	//Owner common.Address
+//	// whether the account has a NFT exchanger
+//	ExchangerFlag    bool
+//	BlockNumber      *big.Int
+//	ExchangerBalance *big.Int
+//	VoteBlockNumber  *big.Int
+//	VoteWeight       *big.Int
+//	Coefficient      uint8
+//	// The ratio that exchanger get.
+//	FeeRate       uint16
+//	ExchangerName string
+//	ExchangerURL  string
+//	// ApproveAddress have the right to handle all nfts of the account
+//	ApproveAddressList []common.Address
+//	// NFTBalance is the nft number that the account have
+//	//NFTBalance uint64
+//	// Indicates the reward method chosen by the miner
+//	//RewardFlag uint8 // 0:SNFT 1:ERB default:1
+//}
+//
+//type AccountNFT struct {
+//	//Account
+//	Name   string
+//	Symbol string
+//	//Price                 *big.Int
+//	//Direction             uint8 // 0:un_tx,1:buy,2:sell
+//	Owner                 common.Address
+//	NFTApproveAddressList common.Address
+//	//Auctions map[string][]common.Address
+//	// MergeLevel is the level of NFT merged
+//	MergeLevel  uint8
+//	MergeNumber uint32
+//	//PledgedFlag           bool
+//	//NFTPledgedBlockNumber *big.Int
+//
+//	Creator   common.Address
+//	Royalty   uint16
+//	Exchanger common.Address
+//	MetaURL   string
+//}
 
 // SlimAccount converts a state.Account content into a slim snapshot account
 func SlimAccount(nonce uint64,
 	balance *big.Int,
 	root common.Hash,
 	codehash []byte,
-	pledgedbalance *big.Int,
-	pledgedblocknumber *big.Int,
-	exchangerflag bool,
-	blocknumber *big.Int,
-	exchangerbalance *big.Int,
-	voteblocknumber *big.Int,
-	voteweight *big.Int,
-	coefficient uint8,
-	feerate uint16,
-	exchangername string,
-	exchangerurl string,
-	approveaddresslist []common.Address,
-	//nftbalance uint64,
-	extra []byte,
-	name string,
-	symbol string,
-	//price *big.Int,
-	//direction uint8,
-	owner common.Address,
-	nftapproveaddresslist common.Address,
-	mergelevel uint8,
-	mergenumber uint32,
-	//pledgedflag bool,
-	//nftpledgedblocknumber *big.Int,
-	creator common.Address,
-	royalty uint16,
-	exchanger common.Address,
-	metaurl string) Account {
+	worm *types.WormholesExtension,
+	nft *types.AccountNFT,
+	extra []byte) Account {
 	//func SlimAccount(nonce uint64, balance *big.Int, root common.Hash, codehash []byte) Account {
 	slim := Account{
-		Nonce:              nonce,
-		Balance:            balance,
-		PledgedBalance:     pledgedbalance,
-		PledgedBlockNumber: pledgedblocknumber,
-		ExchangerFlag:      exchangerflag,
-		BlockNumber:        blocknumber,
-		ExchangerBalance:   exchangerbalance,
-		VoteBlockNumber:    voteblocknumber,
-		VoteWeight:         voteweight,
-		Coefficient:        coefficient,
-		FeeRate:            feerate,
-		ExchangerName:      exchangername,
-		ExchangerURL:       exchangerurl,
-		//NFTBalance:         nftbalance,
-		AccountNFT: AccountNFT{
-			Name:   name,
-			Symbol: symbol,
-			//Price:      price,
-			//Direction:  direction,
-			Owner:       owner,
-			MergeLevel:  mergelevel,
-			MergeNumber: mergenumber,
-			//PledgedFlag:           pledgedflag,
-			//NFTPledgedBlockNumber: nftpledgedblocknumber,
-			Creator:   creator,
-			Royalty:   royalty,
-			Exchanger: exchanger,
-			MetaURL:   metaurl,
-		},
-		//RewardFlag: rewardFlag,
+		Nonce:   nonce,
+		Balance: balance,
 	}
-	slim.ApproveAddressList = append(slim.ApproveAddressList, approveaddresslist...)
-	//slim.NFTApproveAddressList = append(slim.NFTApproveAddressList, nftapproveaddresslist...)
-	slim.NFTApproveAddressList = nftapproveaddresslist
-	// *** modify to support nft transaction 20211217 end ***
 	if root != emptyRoot {
 		slim.Root = root[:]
 	}
 	if !bytes.Equal(codehash, emptyCode[:]) {
 		slim.CodeHash = codehash
 	}
+
+	if worm != nil {
+		slim.Worm = worm
+	}
+	if nft != nil {
+		slim.Nft = nft
+	}
+
 	slim.Extra = extra[:]
 
 	return slim
@@ -169,68 +127,16 @@ func SlimAccountRLP(nonce uint64,
 	balance *big.Int,
 	root common.Hash,
 	codehash []byte,
-	pledgedbalance *big.Int,
-	pledgedblocknumber *big.Int,
-	exchangerflag bool,
-	blocknumber *big.Int,
-	exchangerbalance *big.Int,
-	voteblocknumber *big.Int,
-	voteweight *big.Int,
-	coefficient uint8,
-	feerate uint16,
-	exchangername string,
-	exchangerurl string,
-	approveaddresslist []common.Address,
-	//nftbalance uint64,
-	extra []byte,
-	name string,
-	symbol string,
-	//price *big.Int,
-	//direction uint8,
-	owner common.Address,
-	nftapproveaddresslist common.Address,
-	mergelevel uint8,
-	mergenumber uint32,
-	//pledgedflag bool,
-	//nftpledgedblocknumber *big.Int,
-	creator common.Address,
-	royalty uint16,
-	exchanger common.Address,
-	metaurl string) []byte {
+	worm *types.WormholesExtension,
+	nft *types.AccountNFT,
+	extra []byte) []byte {
 	data, err := rlp.EncodeToBytes(SlimAccount(nonce,
 		balance,
 		root,
 		codehash,
-		pledgedbalance,
-		pledgedblocknumber,
-		exchangerflag,
-		blocknumber,
-		exchangerbalance,
-		voteblocknumber,
-		voteweight,
-		coefficient,
-		feerate,
-		exchangername,
-		exchangerurl,
-		approveaddresslist,
-		//nftbalance,
-		extra,
-		name,
-		symbol,
-		//price,
-		//direction,
-		owner,
-		nftapproveaddresslist,
-		mergelevel,
-		mergenumber,
-		//pledgedflag,
-		//nftpledgedblocknumber,
-		creator,
-		royalty,
-		exchanger,
-		metaurl,
-		//rewardFlag
-	))
+		worm,
+		nft,
+		extra))
 	//func SlimAccountRLP(nonce uint64, balance *big.Int, root common.Hash, codehash []byte) []byte {
 	//	data, err := rlp.EncodeToBytes(SlimAccount(nonce, balance, root, codehash))
 	// *** modify to support nft transaction 20211217 end ***
