@@ -975,41 +975,6 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 	}
 	state.StartPrefetcher("miner")
 
-	var mintDeep *types.MintDeep
-	//var exchangeList *types.SNFTExchangeList
-	if parent.NumberU64() > 0 {
-		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
-		if err != nil {
-			log.Error("Failed get mintdeep ", "err", err)
-			return err
-		}
-		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
-		//if exchangeList == nil {
-		//	exchangeList = &types.SNFTExchangeList{
-		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//	}
-		//}
-
-	} else {
-		mintDeep = new(types.MintDeep)
-		//mintDeep.OfficialMint = big.NewInt(1)
-		//
-		//mintDeep.UserMint = big.NewInt(0)
-		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
-		mintDeep.UserMint = big.NewInt(1)
-
-		mintDeep.OfficialMint = big.NewInt(0)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
-
-		//exchangeList = &types.SNFTExchangeList{
-		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//}
-	}
-	state.MintDeep = mintDeep
-	//state.SNFTExchangePool = exchangeList
-
 	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
 	state.OfficialNFTPool = officialNFTList
 	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
@@ -1080,41 +1045,6 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		return err
 	}
 	state.StartPrefetcher("miner")
-
-	var mintDeep *types.MintDeep
-	//var exchangeList *types.SNFTExchangeList
-	if parent.NumberU64() > 0 {
-		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
-		if err != nil {
-			log.Error("Failed get mintdeep ", "err", err)
-			return err
-		}
-		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
-		//if exchangeList == nil {
-		//	exchangeList = &types.SNFTExchangeList{
-		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//	}
-		//}
-
-	} else {
-		mintDeep = new(types.MintDeep)
-		//mintDeep.OfficialMint = big.NewInt(1)
-		//
-		//mintDeep.UserMint = big.NewInt(0)
-		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
-		mintDeep.UserMint = big.NewInt(1)
-
-		mintDeep.OfficialMint = big.NewInt(0)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
-
-		//exchangeList = &types.SNFTExchangeList{
-		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//}
-	}
-	state.MintDeep = mintDeep
-	//state.SNFTExchangePool = exchangeList
 
 	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
 	state.OfficialNFTPool = officialNFTList
@@ -1951,40 +1881,6 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 		return err
 	}
 	state.StartPrefetcher("miner")
-
-	var mintDeep *types.MintDeep
-	//var exchangeList *types.SNFTExchangeList
-	if parent.NumberU64() > 0 {
-		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
-		if err != nil {
-			log.Error("Failed get mintdeep ", "err", err)
-			return err
-		}
-		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
-		//if exchangeList == nil {
-		//	exchangeList = &types.SNFTExchangeList{
-		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//	}
-		//}
-	} else {
-		mintDeep = new(types.MintDeep)
-		//mintDeep.OfficialMint = big.NewInt(1)
-		//
-		//mintDeep.UserMint = big.NewInt(0)
-		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
-		mintDeep.UserMint = big.NewInt(1)
-
-		mintDeep.OfficialMint = big.NewInt(0)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
-
-		//exchangeList = &types.SNFTExchangeList{
-		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//}
-	}
-	state.MintDeep = mintDeep
-	//state.SNFTExchangePool = exchangeList
 
 	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
 	state.OfficialNFTPool = officialNFTList

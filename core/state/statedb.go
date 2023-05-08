@@ -131,10 +131,6 @@ type StateDB struct {
 	SnapshotStorageReads time.Duration
 	SnapshotCommits      time.Duration
 
-	//deep for mint NFT
-	MintDeep *types.MintDeep
-	//SNFT exchange pool
-	//SNFTExchangePool     *types.SNFTExchangeList
 	PledgedTokenPool     []*types.PledgedToken
 	ExchangerTokenPool   []*types.PledgedToken
 	OfficialNFTPool      *types.InjectedOfficialNFTList
@@ -722,8 +718,9 @@ func (s *StateDB) GetOrNewStakerStateObject(addr common.Address) *stateObject {
 		stateObject, _ = s.createObject(addr)
 		stateObject.data.Staker = &types.AccountStaker{}
 		if addr == types.MintDeepStorageAddress {
-			stateObject.data.Staker.Mint.UserMint = big.NewInt(0)
-			stateObject.data.Staker.Mint.OfficialMint = big.NewInt(0)
+			stateObject.data.Staker.Mint.UserMint = big.NewInt(1)
+			maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+			stateObject.data.Staker.Mint.OfficialMint = maskB
 		}
 	}
 
@@ -820,19 +817,17 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 func (s *StateDB) Copy() *StateDB {
 	// Copy all the basic fields, initialize the memory ones
 	state := &StateDB{
-		db:                  s.db,
-		trie:                s.db.CopyTrie(s.trie),
-		stateObjects:        make(map[common.Address]*stateObject, len(s.journal.dirties)),
-		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
-		stateObjectsDirty:   make(map[common.Address]struct{}, len(s.journal.dirties)),
-		refund:              s.refund,
-		logs:                make(map[common.Hash][]*types.Log, len(s.logs)),
-		logSize:             s.logSize,
-		preimages:           make(map[common.Hash][]byte, len(s.preimages)),
-		journal:             newJournal(),
-		hasher:              crypto.NewKeccakState(),
-		MintDeep:            new(types.MintDeep),
-		//SNFTExchangePool:     new(types.SNFTExchangeList),
+		db:                   s.db,
+		trie:                 s.db.CopyTrie(s.trie),
+		stateObjects:         make(map[common.Address]*stateObject, len(s.journal.dirties)),
+		stateObjectsPending:  make(map[common.Address]struct{}, len(s.stateObjectsPending)),
+		stateObjectsDirty:    make(map[common.Address]struct{}, len(s.journal.dirties)),
+		refund:               s.refund,
+		logs:                 make(map[common.Hash][]*types.Log, len(s.logs)),
+		logSize:              s.logSize,
+		preimages:            make(map[common.Hash][]byte, len(s.preimages)),
+		journal:              newJournal(),
+		hasher:               crypto.NewKeccakState(),
 		PledgedTokenPool:     make([]*types.PledgedToken, 0),
 		ExchangerTokenPool:   make([]*types.PledgedToken, 0),
 		OfficialNFTPool:      new(types.InjectedOfficialNFTList),
@@ -918,32 +913,6 @@ func (s *StateDB) Copy() *StateDB {
 			state.snapStorage[k] = temp
 		}
 	}
-
-	if s.MintDeep != nil {
-		state.MintDeep.UserMint = big.NewInt(0)
-		state.MintDeep.OfficialMint = big.NewInt(0)
-		if s.MintDeep.UserMint != nil {
-			state.MintDeep.UserMint.Set(s.MintDeep.UserMint)
-		}
-		if s.MintDeep.OfficialMint != nil {
-			state.MintDeep.OfficialMint.Set(s.MintDeep.OfficialMint)
-		}
-	}
-
-	//state.SNFTExchangePool.SNFTExchanges = make([]*types.SNFTExchange, 0)
-	//if s.SNFTExchangePool != nil && len(s.SNFTExchangePool.SNFTExchanges) > 0 {
-	//	for _, snftExchange := range s.SNFTExchangePool.SNFTExchanges {
-	//		var tempSNFTExchange types.SNFTExchange
-	//		tempSNFTExchange.NFTAddress = snftExchange.NFTAddress
-	//		tempSNFTExchange.MergeLevel = snftExchange.MergeLevel
-	//		tempSNFTExchange.CurrentMintAddress = snftExchange.CurrentMintAddress
-	//		tempSNFTExchange.BlockNumber = new(big.Int).Set(snftExchange.BlockNumber)
-	//		tempSNFTExchange.MetalUrl = snftExchange.MetalUrl
-	//		tempSNFTExchange.Royalty = snftExchange.Royalty
-	//		tempSNFTExchange.Creator = snftExchange.Creator
-	//		state.SNFTExchangePool.SNFTExchanges = append(state.SNFTExchangePool.SNFTExchanges, &tempSNFTExchange)
-	//	}
-	//}
 
 	state.OfficialNFTPool.InjectedOfficialNFTs = make([]*types.InjectedOfficialNFT, 0)
 	if s.OfficialNFTPool != nil && len(s.OfficialNFTPool.InjectedOfficialNFTs) > 0 {
@@ -2297,6 +2266,9 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	for _, addr := range exchangers {
 		log.Info("CreateNFTByOfficial16", "exchangers=", addr.Hex(), "blocknumber=", blocknumber.Uint64())
 	}
+
+	mintStateObject := s.GetOrNewStakerStateObject(types.MintDeepStorageAddress)
+
 	for _, owner := range exchangers {
 		nftAddr := common.Address{}
 		var metaUrl string
@@ -2304,7 +2276,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 		var creator string
 		//nftAddr, info, ok := s.SNFTExchangePool.PopAddress(blocknumber)
 		//if !ok {
-		nftAddr = common.BytesToAddress(s.MintDeep.OfficialMint.Bytes())
+		nftAddr = common.BytesToAddress(mintStateObject.OfficialMint().Bytes())
 		injectedInfo := s.OfficialNFTPool.GetInjectedInfo(nftAddr)
 		if injectedInfo == nil {
 			return
@@ -2354,13 +2326,13 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 			}
 
 			//if !ok {
-			s.OfficialNFTPool.DeleteExpireElem(s.MintDeep.OfficialMint)
-			s.MintDeep.OfficialMint.Add(s.MintDeep.OfficialMint, big.NewInt(1))
+			s.OfficialNFTPool.DeleteExpireElem(mintStateObject.OfficialMint())
+			mintStateObject.AddOfficialMint(big.NewInt(1))
 			//}
 		}
 	}
 
-	if s.OfficialNFTPool.RemainderNum(s.MintDeep.OfficialMint) <= 110 {
+	if s.OfficialNFTPool.RemainderNum(mintStateObject.OfficialMint()) <= 110 {
 		s.ElectNominatedOfficialNFT(blocknumber)
 	}
 }
@@ -2384,7 +2356,10 @@ func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 	owner common.Address,
 	royalty uint16,
 	metaurl string) (common.Address, bool) {
-	nftAddr := common.BytesToAddress(s.MintDeep.UserMint.Bytes())
+
+	mintStateObject := s.GetOrNewStakerStateObject(types.MintDeepStorageAddress)
+
+	nftAddr := common.BytesToAddress(mintStateObject.UserMint().Bytes())
 	s.CreateNFTAccount(nftAddr)
 	stateObject := s.GetOrNewNFTStateObject(nftAddr)
 	if stateObject != nil {
@@ -2403,7 +2378,7 @@ func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 			royalty,
 			exchanger,
 			metaurl)
-		s.MintDeep.UserMint.Add(s.MintDeep.UserMint, big.NewInt(1))
+		mintStateObject.AddUserMint(big.NewInt(1))
 		return nftAddr, true
 	}
 

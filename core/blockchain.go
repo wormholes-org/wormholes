@@ -1657,11 +1657,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			}
 		}
 	}
-
-	// write mintdeep
-	bc.WriteMintDeep(block.Header(), state.MintDeep)
-	//// write SNFTExchangePool
-	//bc.WriteSNFTExchangePool(block.Header(), state.SNFTExchangePool)
 	// write OfficialNFTPool
 	bc.WriteOfficialNFTPool(block.Header(), state.OfficialNFTPool)
 	// write NominatedOfficialNFT
@@ -2071,42 +2066,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		// Process block using the parent state as reference point
 		substart := time.Now()
 
-		var mintDeep *types.MintDeep
-		//var exchangeList *types.SNFTExchangeList
-		if parent.Number.Uint64() > 0 {
-			mintDeep, err = bc.ReadMintDeep(parent)
-			if err != nil {
-				log.Error("Failed get mintdeep ", "err", err)
-				return it.index, err
-			}
-			//exchangeList, _ = bc.ReadSNFTExchangePool(parent)
-			//if exchangeList == nil {
-			//	exchangeList = &types.SNFTExchangeList{
-			//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-			//	}
-			//}
-
-		} else {
-			mintDeep = new(types.MintDeep)
-			//mintDeep.OfficialMint = big.NewInt(1)
-			//
-			//mintDeep.UserMint = big.NewInt(0)
-			//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-			//mintDeep.UserMint.Add(big.NewInt(1), maskB)
-			mintDeep.UserMint = big.NewInt(1)
-
-			mintDeep.OfficialMint = big.NewInt(0)
-			maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-			mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
-
-			//exchangeList = &types.SNFTExchangeList{
-			//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-			//}
-		}
-		statedb.MintDeep = mintDeep
-		//statedb.SNFTExchangePool = exchangeList
-		log.Info("caver|MintDeep", "no", parent.Number.Text(10), "OfficialMint", statedb.MintDeep.OfficialMint.Text(16),
-			"UserMint", statedb.MintDeep.UserMint.Text(16))
 		officialNFTList, _ := bc.ReadOfficialNFTPool(parent)
 		statedb.OfficialNFTPool = officialNFTList
 
