@@ -612,9 +612,10 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 			Root     common.Hash
 			CodeHash []byte
 
-			Worm  *types.WormholesExtension `rlp:"nil"`
-			Nft   *types.AccountNFT         `rlp:"nil"`
-			Extra []byte
+			Worm   *types.WormholesExtension `rlp:"nil"`
+			Nft    *types.AccountNFT         `rlp:"nil"`
+			Staker *types.AccountStaker      `rlp:"nil"`
+			Extra  []byte
 		}
 		if err := rlp.DecodeBytes(val, &acc); err != nil {
 			log.Crit("Invalid account encountered during snapshot creation", "err", err)
@@ -638,6 +639,7 @@ func (dl *diskLayer) generate(stats *generatorStats) {
 					acc.CodeHash,
 					acc.Worm,
 					acc.Nft,
+					acc.Staker,
 					acc.Extra)
 				//data := SlimAccountRLP(acc.Nonce, acc.Balance, acc.Root, acc.CodeHash)
 				// *** modify to support nft transaction 20211217 end ***

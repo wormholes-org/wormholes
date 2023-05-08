@@ -117,6 +117,7 @@ type Account struct {
 	CodeHash []byte
 	Worm     *types.WormholesExtension `rlp:"nil"`
 	Nft      *types.AccountNFT         `rlp:"nil"`
+	Staker   *types.AccountStaker      `rlp:"nil"`
 	Extra    []byte
 }
 
@@ -1388,4 +1389,78 @@ func (s *stateObject) SetExtra(extra []byte) {
 
 func (s *stateObject) setExtra(extra []byte) {
 	s.data.Extra = extra
+}
+
+func (s *stateObject) UserMint() *big.Int {
+	return s.data.Staker.Mint.UserMint
+}
+
+func (s *stateObject) OfficialMint() *big.Int {
+	return s.data.Staker.Mint.OfficialMint
+}
+
+func (s *stateObject) AddUserMint(amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
+	s.SetUserMint(new(big.Int).Add(s.UserMint(), amount))
+}
+
+func (s *stateObject) SetUserMint(amount *big.Int) {
+	s.db.journal.append(userMintChange{
+		account: &s.address,
+		prev:    new(big.Int).Set(s.data.Staker.Mint.UserMint),
+	})
+
+	s.setUserMint(amount)
+}
+
+func (s *stateObject) setUserMint(amount *big.Int) {
+	s.data.Staker.Mint.UserMint = amount
+}
+
+func (s *stateObject) AddOfficialMint(amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
+	s.SetOfficialMint(new(big.Int).Add(s.OfficialMint(), amount))
+}
+
+func (s *stateObject) SetOfficialMint(amount *big.Int) {
+	s.db.journal.append(officialMintChange{
+		account: &s.address,
+		prev:    new(big.Int).Set(s.data.Staker.Mint.OfficialMint),
+	})
+
+	s.setOfficialMint(amount)
+}
+
+func (s *stateObject) setOfficialMint(amount *big.Int) {
+	s.data.Staker.Mint.OfficialMint = amount
+}
+
+func (s *stateObject) SetValidators(varlidators types.ValidatorList) {
+	s.db.journal.append(validatorsChange{
+		account:       &s.address,
+		oldValidators: s.data.Staker.Validators,
+	})
+
+	s.setValidators(varlidators)
+}
+
+func (s *stateObject) setValidators(varlidators types.ValidatorList) {
+	s.data.Staker.Validators = varlidators
+}
+
+func (s *stateObject) SetStakers(stakers types.StakerList) {
+	s.db.journal.append(stakersChange{
+		account:    &s.address,
+		oldStakers: s.data.Staker.Stakers,
+	})
+
+	s.setStakers(stakers)
+}
+
+func (s *stateObject) setStakers(stakers types.StakerList) {
+	s.data.Staker.Stakers = stakers
 }

@@ -505,6 +505,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 			obj.data.CodeHash,
 			obj.data.Worm,
 			obj.data.Nft,
+			obj.data.Staker,
 			obj.data.Extra)
 		//s.snapAccounts[obj.addrHash] = snapshot.SlimAccountRLP(obj.data.Nonce, obj.data.Balance, obj.data.Root, obj.data.CodeHash)
 	}
@@ -710,6 +711,20 @@ func (s *StateDB) GetOrNewAccountStateObject(addr common.Address) *stateObject {
 	}
 	if stateObject.data.Worm.VoteWeight == nil {
 		stateObject.data.Worm.VoteWeight = big.NewInt(0)
+	}
+
+	return stateObject
+}
+
+func (s *StateDB) GetOrNewStakerStateObject(addr common.Address) *stateObject {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		stateObject, _ = s.createObject(addr)
+		stateObject.data.Staker = &types.AccountStaker{}
+		if addr == types.MintDeepStorageAddress {
+			stateObject.data.Staker.Mint.UserMint = big.NewInt(0)
+			stateObject.data.Staker.Mint.OfficialMint = big.NewInt(0)
+		}
 	}
 
 	return stateObject
@@ -2819,14 +2834,14 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-	//*big.Int,
-	//uint8,
+//*big.Int,
+//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-	//bool,
-	//*big.Int,
+//bool,
+//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,

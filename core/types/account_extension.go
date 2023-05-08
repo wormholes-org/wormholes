@@ -5,6 +5,10 @@ import (
 	"math/big"
 )
 
+var MintDeepStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000001")
+var ValidatorStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000002")
+var StakerStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000003")
+
 type WormholesExtension struct {
 	PledgedBalance     *big.Int
 	PledgedBlockNumber *big.Int
@@ -48,4 +52,10 @@ type AccountNFT struct {
 	Royalty   uint16
 	Exchanger common.Address
 	MetaURL   string
+}
+
+type AccountStaker struct {
+	Mint       MintDeep
+	Validators ValidatorList
+	Stakers    StakerList
 }

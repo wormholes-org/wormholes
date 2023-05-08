@@ -2154,6 +2154,7 @@ func (s *Syncer) forwardAccountTask(task *accountTask) {
 			res.accounts[i].CodeHash,
 			res.accounts[i].Worm,
 			res.accounts[i].Nft,
+			res.accounts[i].Staker,
 			res.accounts[i].Extra)
 		//slim := snapshot.SlimAccountRLP(res.accounts[i].Nonce, res.accounts[i].Balance, res.accounts[i].Root, res.accounts[i].CodeHash)
 		// *** modify to support nft transaction 20211217 end ***
@@ -2760,6 +2761,7 @@ func (s *Syncer) onHealState(paths [][]byte, value []byte) error {
 			account.CodeHash,
 			account.Worm,
 			account.Nft,
+			account.Staker,
 			account.Extra)
 		//blob := snapshot.SlimAccountRLP(account.Nonce, account.Balance, account.Root, account.CodeHash)
 		// *** modify to support nft transaction 20211217 end ***
