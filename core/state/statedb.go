@@ -560,6 +560,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 				Root:     common.BytesToHash(acc.Root),
 				Worm:     acc.Worm,
 				Nft:      acc.Nft,
+				Staker:   acc.Staker,
 				Extra:    acc.Extra,
 			}
 			if len(data.CodeHash) == 0 {
@@ -2809,14 +2810,14 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
