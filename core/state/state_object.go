@@ -881,14 +881,14 @@ func (s *stateObject) cleanNFT() {
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-//pledgedflag bool,
-//nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -932,14 +932,14 @@ func (s *stateObject) SetNFTInfo(
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-//pledgedflag bool,
-//nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -993,14 +993,14 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -1454,7 +1454,19 @@ func (s *stateObject) setValidators(varlidators types.ValidatorList) {
 	s.data.Staker.Validators = varlidators
 }
 
-func (s *stateObject) SetStakers(stakers types.StakerList) {
+func (s *stateObject) AddStaker(addr common.Address, balance *big.Int) {
+	newStakers := s.data.Staker.Stakers.DeepCopy()
+	newStakers.AddStaker(addr, balance)
+	s.SetStakers(newStakers)
+}
+
+func (s *stateObject) RemoveStaker(addr common.Address, balance *big.Int) {
+	newStakers := s.data.Staker.Stakers.DeepCopy()
+	newStakers.RemoveStaker(addr, balance)
+	s.SetStakers(newStakers)
+}
+
+func (s *stateObject) SetStakers(stakers *types.StakerList) {
 	s.db.journal.append(stakersChange{
 		account:    &s.address,
 		oldStakers: s.data.Staker.Stakers,
@@ -1463,6 +1475,14 @@ func (s *stateObject) SetStakers(stakers types.StakerList) {
 	s.setStakers(stakers)
 }
 
-func (s *stateObject) setStakers(stakers types.StakerList) {
-	s.data.Staker.Stakers = stakers
+func (s *stateObject) setStakers(stakers *types.StakerList) {
+	s.data.Staker.Stakers = *stakers
+}
+
+func (s *stateObject) GetStakers() *types.StakerList {
+	if s.data.Staker != nil {
+		return &s.data.Staker.Stakers
+	}
+
+	return nil
 }

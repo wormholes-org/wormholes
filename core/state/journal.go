@@ -546,7 +546,7 @@ func (ch validatorsChange) dirtied() *common.Address {
 }
 
 func (ch stakersChange) revert(s *StateDB) {
-	s.getStateObject(*ch.account).setStakers(ch.oldStakers)
+	s.getStateObject(*ch.account).setStakers(&ch.oldStakers)
 }
 
 func (ch stakersChange) dirtied() *common.Address {

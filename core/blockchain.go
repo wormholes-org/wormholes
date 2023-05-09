@@ -369,8 +369,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// load staker pool
-	bc.loadStakerPool()
-	go bc.WriteStakersToDB()
+	//bc.loadStakerPool()
+	//go bc.WriteStakersToDB()
 
 	// The first thing the node will do is reconstruct the verification data for
 	// the head block (ethash cache or clique voting snapshot). Might as well do
@@ -1663,30 +1663,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	bc.WriteNominatedOfficialNFT(block.Header(), state.NominatedOfficialNFT)
 
 	// modify Pledge list
-	//exchangerPool := bc.ReadStakePool(bc.GetHeaderByHash(block.Header().ParentHash))
-	log.Info("caver|stake-before", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
-	var dbStakers types.DBStakerList
-	if len(state.ExchangerTokenPool) > 0 {
-		for _, v := range state.ExchangerTokenPool {
-			var dbStaker types.DBStaker
-			dbStaker.Addr = v.Address
-			dbStaker.Balance = v.Amount
-			if v.Flag {
-				bc.stakerPool.AddStaker(v.Address, v.Amount)
-				dbStaker.DeleteFlag = false
-			} else {
-				bc.stakerPool.RemoveStaker(v.Address, v.Amount)
-				dbStaker.DeleteFlag = true
-			}
-			dbStakers.DBStakers = append(dbStakers.DBStakers, &dbStaker)
-		}
-		state.ExchangerTokenPool = state.ExchangerTokenPool[:0]
-	}
-	bc.WriteDBStakerPool(block.Header(), &dbStakers)
-	//bc.WriteStakePool(block.Header(), exchangerPool)
-
-	log.Info("caver|stake-after", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
-
 	validatorPool, err := bc.ReadValidatorPool(bc.GetHeaderByHash(block.Header().ParentHash))
 	if err != nil {
 		log.Error("writeBlockWithoutState : invalid validator list", "no", block.Header().Number, "err", err)
@@ -1716,20 +1692,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 
 	bc.WriteValidatorPool(block.Header(), validatorPool)
 	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
-
-	// write the all exchangers to leveldb per WriteStakersFrequency blocks
-	if block.NumberU64()%WriteStakersFrequency == 0 {
-		data, err := rlp.EncodeToBytes(bc.stakerPool)
-		if err == nil {
-			stakers := BytesStakerList{
-				Header:     block.Header(),
-				StakerList: data,
-			}
-			bc.bytesStakersCh <- stakers
-		} else {
-			log.Error("Failed to RLP stakePool", "err", err)
-		}
-	}
 
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.

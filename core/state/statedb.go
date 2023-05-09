@@ -132,7 +132,6 @@ type StateDB struct {
 	SnapshotCommits      time.Duration
 
 	PledgedTokenPool     []*types.PledgedToken
-	ExchangerTokenPool   []*types.PledgedToken
 	OfficialNFTPool      *types.InjectedOfficialNFTList
 	NominatedOfficialNFT *types.NominatedOfficialNFT
 
@@ -843,7 +842,6 @@ func (s *StateDB) Copy() *StateDB {
 		journal:              newJournal(),
 		hasher:               crypto.NewKeccakState(),
 		PledgedTokenPool:     make([]*types.PledgedToken, 0),
-		ExchangerTokenPool:   make([]*types.PledgedToken, 0),
 		OfficialNFTPool:      new(types.InjectedOfficialNFTList),
 		NominatedOfficialNFT: new(types.NominatedOfficialNFT),
 	}
@@ -956,15 +954,6 @@ func (s *StateDB) Copy() *StateDB {
 		}
 	}
 
-	if s.ExchangerTokenPool != nil && len(s.ExchangerTokenPool) > 0 {
-		for _, v := range s.ExchangerTokenPool {
-			var exchangerToken types.PledgedToken
-			exchangerToken.Address = v.Address
-			exchangerToken.Amount = new(big.Int).Set(v.Amount)
-			exchangerToken.Flag = v.Flag
-			state.ExchangerTokenPool = append(state.ExchangerTokenPool, &exchangerToken)
-		}
-	}
 	if s.NominatedOfficialNFT != nil {
 		state.NominatedOfficialNFT.Dir = s.NominatedOfficialNFT.Dir
 		state.NominatedOfficialNFT.StartIndex = new(big.Int).Set(s.NominatedOfficialNFT.StartIndex)
@@ -2741,12 +2730,8 @@ func (s *StateDB) OpenExchanger(addr common.Address,
 	exchangerurl string) {
 	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
-		exchangerToken := &types.PledgedToken{
-			Address: addr,
-			Amount:  amount,
-			Flag:    true,
-		}
-		s.ExchangerTokenPool = append(s.ExchangerTokenPool, exchangerToken)
+		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
+		stakerStateObject.AddStaker(addr, amount)
 		stateObject.SubBalance(amount)
 		stateObject.SetExchangerBalance(amount)
 		stateObject.OpenExchanger(blocknumber, feerate, exchangername, exchangerurl)
@@ -2766,12 +2751,8 @@ func (s *StateDB) CloseExchanger(addr common.Address,
 	if stateObject != nil {
 		if blocknumber.Cmp(stateObject.GetBlockNumber()) > 0 {
 			amount := stateObject.ExchangerBalance()
-			exchangerToken := &types.PledgedToken{
-				Address: addr,
-				Amount:  amount,
-				Flag:    false,
-			}
-			s.ExchangerTokenPool = append(s.ExchangerTokenPool, exchangerToken)
+			stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
+			stakerStateObject.RemoveStaker(addr, amount)
 			stateObject.AddBalance(amount)
 			stateObject.SetExchangerBalance(new(big.Int).SetInt64(0))
 			stateObject.CloseExchanger()
@@ -2782,12 +2763,8 @@ func (s *StateDB) CloseExchanger(addr common.Address,
 func (s *StateDB) AddExchangerToken(address common.Address, amount *big.Int) {
 	stateObject := s.GetOrNewAccountStateObject(address)
 	if stateObject != nil {
-		exchangerToken := types.PledgedToken{
-			Address: address,
-			Amount:  amount,
-			Flag:    true,
-		}
-		s.ExchangerTokenPool = append(s.ExchangerTokenPool, &exchangerToken)
+		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
+		stakerStateObject.AddStaker(address, amount)
 		stateObject.SubBalance(amount)
 		stateObject.AddExchangerBalance(amount)
 	}
@@ -2796,12 +2773,8 @@ func (s *StateDB) AddExchangerToken(address common.Address, amount *big.Int) {
 func (s *StateDB) SubExchangerToken(address common.Address, amount *big.Int) {
 	stateObject := s.GetOrNewAccountStateObject(address)
 	if stateObject != nil {
-		exchangerToken := types.PledgedToken{
-			Address: address,
-			Amount:  amount,
-			Flag:    false,
-		}
-		s.ExchangerTokenPool = append(s.ExchangerTokenPool, &exchangerToken)
+		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
+		stakerStateObject.RemoveStaker(address, amount)
 		stateObject.SubExchangerBalance(amount)
 		stateObject.AddBalance(amount)
 	}
@@ -2810,27 +2783,24 @@ func (s *StateDB) SubExchangerToken(address common.Address, amount *big.Int) {
 func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 	stateObject := s.GetOrNewAccountStateObject(address)
 	if stateObject != nil {
-		exchangerToken := types.PledgedToken{
-			Address: address,
-			Amount:  amount,
-			Flag:    false,
-		}
-		s.ExchangerTokenPool = append(s.ExchangerTokenPool, &exchangerToken)
+		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
+		stakerStateObject.RemoveStaker(address, amount)
 		stateObject.SubExchangerBalance(amount)
+		stateObject.AddBalance(amount)
 	}
 }
 
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-	//*big.Int,
-	//uint8,
+//*big.Int,
+//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-	//bool,
-	//*big.Int,
+//bool,
+//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -3267,4 +3237,14 @@ func (s *StateDB) GetValidatorCoefficient(addr common.Address) uint8 {
 		return coe
 	}
 	return 0
+}
+
+func (s *StateDB) GetStakers(addr common.Address) *types.StakerList {
+	stakerStateObject := s.GetOrNewStakerStateObject(addr)
+	if stakerStateObject != nil {
+		stakers := stakerStateObject.GetStakers()
+		return stakers
+	}
+
+	return nil
 }

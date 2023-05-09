@@ -397,7 +397,12 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		}
 
 		// reward to openExchangers
-		stakeList := c.GetStakerPool()
+		statedb, err := c.StateAt(parent.Root)
+		if err != nil {
+			log.Error("Engine: Prepare", "err", err, "no", header.Number.Uint64())
+			return err
+		}
+		stakeList := statedb.GetStakers(types.StakerStorageAddress)
 		var benifitedStakers []common.Address
 
 		validatorList, err := c.ReadValidatorPool(parent)
