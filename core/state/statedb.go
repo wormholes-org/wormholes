@@ -784,6 +784,19 @@ func (s *StateDB) CreateNFTAccount(addr common.Address) {
 	}
 }
 
+func (s *StateDB) CreateStakerAccount(addr common.Address) {
+	newObj, prev := s.createObject(addr)
+	if prev != nil {
+		newObj.setBalance(prev.data.Balance)
+	}
+	newObj.data.Staker = &types.AccountStaker{}
+	if addr == types.MintDeepStorageAddress {
+		newObj.data.Staker.Mint.UserMint = big.NewInt(1)
+		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+		newObj.data.Staker.Mint.OfficialMint = maskB
+	}
+}
+
 func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common.Hash) bool) error {
 	so := db.getStateObject(addr)
 	if so == nil {

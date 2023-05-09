@@ -302,6 +302,7 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 		statedb.PledgeToken(addr, account.Balance, proxy, big.NewInt(0))
 		statedb.AddValidatorCoefficient(addr, VALIDATOR_COEFFICIENT)
 	}
+	statedb.CreateStakerAccount(types.MintDeepStorageAddress)
 
 	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
