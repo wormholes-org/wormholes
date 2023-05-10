@@ -82,7 +82,7 @@ func (vl *ValidatorList) AddValidator(addr common.Address, balance *big.Int, pro
 		if v.Address() == addr /*&& v.Proxy.String() == "0x0000000000000000000000000000000000000000" */ {
 			// Usage scenarios: pledge, additional pledge, delegation
 			v.Balance.Add(v.Balance, balance)
-			if proxy.Hex() != empty.Hex() {
+			if proxy != empty {
 				v.Proxy = proxy
 			}
 			sort.Sort(vl)

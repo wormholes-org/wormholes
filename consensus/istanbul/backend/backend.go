@@ -131,9 +131,13 @@ func (sb *Backend) Engine() istanbul.Engine {
 }
 
 func (sb *Backend) ValidatorExist(address common.Address) (bool, error) {
-	all, err := sb.chain.(*core.BlockChain).ReadValidatorPool(sb.chain.CurrentHeader())
+	statedb, err := sb.chain.(*core.BlockChain).StateAt(sb.chain.CurrentHeader().Root)
 	if err != nil {
 		return false, err
+	}
+	all := statedb.GetValidators(types.ValidatorStorageAddress)
+	if all == nil {
+		return false, errors.New("get validators error")
 	}
 	return all.Exist(address), nil
 }

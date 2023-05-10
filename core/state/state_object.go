@@ -881,14 +881,14 @@ func (s *stateObject) cleanNFT() {
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-	//price *big.Int,
-	//direction uint8,
+//price *big.Int,
+//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-	//pledgedflag bool,
-	//nftpledgedblocknumber *big.Int,
+//pledgedflag bool,
+//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -932,14 +932,14 @@ func (s *stateObject) SetNFTInfo(
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-	//price *big.Int,
-	//direction uint8,
+//price *big.Int,
+//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-	//pledgedflag bool,
-	//nftpledgedblocknumber *big.Int,
+//pledgedflag bool,
+//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -993,14 +993,14 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
-	//*big.Int,
-	//uint8,
+//*big.Int,
+//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-	//bool,
-	//*big.Int,
+//bool,
+//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -1441,7 +1441,29 @@ func (s *stateObject) setOfficialMint(amount *big.Int) {
 	s.data.Staker.Mint.OfficialMint = amount
 }
 
-func (s *stateObject) SetValidators(varlidators types.ValidatorList) {
+func (s *stateObject) AddValidator(addr common.Address, balance *big.Int, proxy common.Address) bool {
+	newValidators := s.data.Staker.Validators.DeepCopy()
+	ok := newValidators.AddValidator(addr, balance, proxy)
+	if !ok {
+		return false
+	}
+
+	s.SetValidators(newValidators)
+	return true
+}
+
+func (s *stateObject) RemoveValidator(addr common.Address, balance *big.Int) bool {
+	newValidators := s.data.Staker.Validators.DeepCopy()
+	ok := newValidators.RemoveValidator(addr, balance)
+	if !ok {
+		return false
+	}
+
+	s.SetValidators(newValidators)
+	return true
+}
+
+func (s *stateObject) SetValidators(varlidators *types.ValidatorList) {
 	s.db.journal.append(validatorsChange{
 		account:       &s.address,
 		oldValidators: s.data.Staker.Validators,
@@ -1450,8 +1472,16 @@ func (s *stateObject) SetValidators(varlidators types.ValidatorList) {
 	s.setValidators(varlidators)
 }
 
-func (s *stateObject) setValidators(varlidators types.ValidatorList) {
-	s.data.Staker.Validators = varlidators
+func (s *stateObject) setValidators(varlidators *types.ValidatorList) {
+	s.data.Staker.Validators = *varlidators
+}
+
+func (s *stateObject) GetValidators() *types.ValidatorList {
+	if s.data.Staker != nil {
+		return &s.data.Staker.Validators
+	}
+
+	return nil
 }
 
 func (s *stateObject) AddStaker(addr common.Address, balance *big.Int) {

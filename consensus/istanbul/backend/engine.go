@@ -94,27 +94,6 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 		errored := false
 		for i, header := range headers {
 			if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-				//all, readeorrer := sb.chain.(*core.BlockChain).ReadValidatorPool(sb.chain.CurrentHeader())
-				//if readeorrer != nil {
-				//	log.Info("VerifyHeadersAndcreaderr", "data:", readeorrer)
-				//	continue
-				//}
-				//
-				//istanbulExtra, checkerr := types.ExtractIstanbulExtra(header)
-				//if checkerr != nil {
-				//	log.Info("VerifyHeadersAndcheckerr", "data:", checkerr)
-				//	continue
-				//}
-				//validators := istanbulExtra.Validators
-				//log.Info("VerifyHeadersAndcheckerr", "validators", validators)
-				//var total = big.NewInt(0)
-				//for _, v := range validators {
-				//	balance := all.StakeBalance(v)
-				//	total.Add(total, balance)
-				//}
-				//if total.Cmp(all.TargetSize()) < 0 {
-				//	continue
-				//}
 
 				var err error
 				err = nil
@@ -187,20 +166,6 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) PrepareForEmptyBlock(chain consensus.ChainHeaderReader, header *types.Header, validators []common.Address, emptyBlockMessages [][]byte) error {
 	var valSet istanbul.ValidatorSet
-	//if c, ok := chain.(*core.BlockChain); ok {
-	//	log.Info("Prepare", "header-no", header.Number.String(), "current-header", c.CurrentBlock().Header().Number.String())
-	//	cHeader := c.CurrentBlock().Header()
-	//	if cHeader == nil {
-	//		return errors.New("prepare err: current header is nil")
-	//	}
-	//	validatorList, err := c.ReadValidatorPool(cHeader)
-	//	if err != nil {
-	//		log.Error("PrepareForEmptyBlock : err", "err", err)
-	//		return err
-	//	}
-	//
-	//	valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
-	//}
 	valSet = validator.NewEmptySet(validators, sb.config.ProposerPolicy)
 
 	err := sb.EngineForBlockNumber(header.Number).PrepareEmpty(chain, header, valSet, emptyBlockMessages)

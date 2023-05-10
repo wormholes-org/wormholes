@@ -403,12 +403,16 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			return err
 		}
 		stakeList := statedb.GetStakers(types.StakerStorageAddress)
+		if stakeList == nil {
+			log.Error("Engine: Prepare get stakers error", "no", parent.Number.Uint64())
+			return errors.New("get stakers error")
+		}
 		var benifitedStakers []common.Address
 
-		validatorList, err := c.ReadValidatorPool(parent)
-		if err != nil {
-			log.Error("Engine: Prepare", "err", err, "no", c.CurrentHeader().Number.Uint64())
-			return err
+		validatorList := statedb.GetValidators(types.ValidatorStorageAddress)
+		if validatorList == nil {
+			log.Error("Engine: Prepare get validators error", "no", parent.Number.Uint64())
+			return errors.New("get validators error")
 		}
 
 		// Obtain random landing points according to the surrounding chain algorithm
@@ -428,15 +432,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		exchangerAddr = append(exchangerAddr, benifitedStakers...)
 
 		//new&update  at 20220523
-		validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
-		if err != nil {
-			log.Error("Prepare : validator pool err", err, err)
-			return err
-		}
-		if validatorPool != nil && len(validatorPool.Validators) > 0 {
+		if validatorList != nil && len(validatorList.Validators) > 0 {
 			//k:proxy,v:validator
 			mp := make(map[string]*types.Validator, 0)
-			for _, v := range validatorPool.Validators {
+			for _, v := range validatorList.Validators {
 				if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
 					mp[v.Proxy.String()] = v
 				}
@@ -579,6 +578,17 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			return
 		}
 
+		parentState, err := c.StateAt(parent.Root())
+		if err != nil {
+			log.Error("Engine.Finalize()", "get parent state error", err)
+			return
+		}
+		pValidators := parentState.GetValidators(types.ValidatorStorageAddress)
+		if pValidators == nil {
+			log.Error("Engine.Finalize() get parent validators error", "block number", parent.NumberU64())
+			return
+		}
+
 		if header.Coinbase == (common.Address{}) {
 			// reduce 1 weight
 			for _, v := range random11Validators.Validators {
@@ -587,6 +597,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 			voteAddrs := make([]common.Address, 0)
 			emptyMsg := new(types.EmptyMsg)
+
 			for _, emptyMessage := range istanbulExtra.EmptyBlockMessages {
 				if err := emptyMsg.FromPayload(emptyMessage); err != nil {
 					log.Error("Certify Failed to decode message from payload", "err", err)
@@ -605,7 +616,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 					continue
 				}
 
-				for _, val := range state.ValidatorPool {
+				for _, val := range pValidators.Validators {
 					if val.Addr == sender || val.Proxy == sender {
 						voteAddrs = append(voteAddrs, val.Addr)
 						break
@@ -626,10 +637,6 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 		if header.Coinbase == (common.Address{}) {
 			state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
-
-			/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
-			header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-			header.UncleHash = nilUncleHash
 		} else {
 			// pick 7 validator from rewardSeals
 			var validatorAddr []common.Address
@@ -673,15 +680,10 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 					validatorAddr = append(validatorAddr, v)
 				}
 
-				validatorPool, err := c.ReadValidatorPool(c.CurrentBlock().Header())
-				if err != nil {
-					log.Error("Finalize : validator pool err", err, err)
-					return
-				}
-				if validatorPool != nil && len(validatorPool.Validators) > 0 {
+				if pValidators != nil && len(pValidators.Validators) > 0 {
 					//k:proxy,v:validator
 					mp := make(map[string]*types.Validator, 0)
-					for _, v := range validatorPool.Validators {
+					for _, v := range pValidators.Validators {
 						if v.Proxy.String() != "0x0000000000000000000000000000000000000000" {
 							mp[v.Proxy.String()] = v
 						}
@@ -702,11 +704,20 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			}
 
 			state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
-
-			/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
-			header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-			header.UncleHash = nilUncleHash
 		}
+
+		// Recalculate the weight, which needs to be calculated after the list is determined
+		validatorStateObject := state.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+		validatorList := validatorStateObject.GetValidators().DeepCopy()
+		for _, account := range validatorList.Validators {
+			coefficient := state.GetValidatorCoefficient(account.Addr)
+			validatorList.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+		}
+		validatorStateObject.SetValidators(validatorList)
+
+		/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
+		header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+		header.UncleHash = nilUncleHash
 	}
 }
 
@@ -757,6 +768,15 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		log.Info("FinalizeAndAssemble : CreateNFTByOfficial16", "ExchangerAddr=", addr.Hex(), "Coinbase=", header.Coinbase.Hex(), "no", header.Number.Uint64())
 	}
 	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+
+	// Recalculate the weight, which needs to be calculated after the list is determined
+	validatorStateObject := state.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+	validatorList := validatorStateObject.GetValidators().DeepCopy()
+	for _, account := range validatorList.Validators {
+		coefficient := state.GetValidatorCoefficient(account.Addr)
+		validatorList.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
+	}
+	validatorStateObject.SetValidators(validatorList)
 
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))

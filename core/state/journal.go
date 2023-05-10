@@ -538,7 +538,7 @@ func (ch officialMintChange) dirtied() *common.Address {
 }
 
 func (ch validatorsChange) revert(s *StateDB) {
-	s.getStateObject(*ch.account).setValidators(ch.oldValidators)
+	s.getStateObject(*ch.account).setValidators(&ch.oldValidators)
 }
 
 func (ch validatorsChange) dirtied() *common.Address {

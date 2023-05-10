@@ -231,10 +231,20 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 }
 
 func (b *EthAPIBackend) GetAllStakers(ctx context.Context) *types.StakerList {
-	return b.eth.BlockChain().GetStakerPool()
+	statedb, err := b.eth.BlockChain().StateAt(b.eth.BlockChain().CurrentHeader().Root)
+	if err != nil {
+		return nil
+	}
+	stakers := statedb.GetStakers(types.StakerStorageAddress)
+	return stakers
 }
 func (b *EthAPIBackend) GetAllValidators(ctx context.Context, header *types.Header) (*types.ValidatorList, error) {
-	return b.eth.BlockChain().ReadValidatorPool(header)
+	statedb, err := b.eth.BlockChain().StateAt(b.eth.BlockChain().CurrentHeader().Root)
+	if err != nil {
+		return nil, err
+	}
+	validators := statedb.GetValidators(types.ValidatorStorageAddress)
+	return validators, nil
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {

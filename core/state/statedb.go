@@ -131,11 +131,8 @@ type StateDB struct {
 	SnapshotStorageReads time.Duration
 	SnapshotCommits      time.Duration
 
-	PledgedTokenPool     []*types.PledgedToken
 	OfficialNFTPool      *types.InjectedOfficialNFTList
 	NominatedOfficialNFT *types.NominatedOfficialNFT
-
-	ValidatorPool []*types.Validator
 }
 
 // New creates a new state from a given trie.
@@ -841,7 +838,6 @@ func (s *StateDB) Copy() *StateDB {
 		preimages:            make(map[common.Hash][]byte, len(s.preimages)),
 		journal:              newJournal(),
 		hasher:               crypto.NewKeccakState(),
-		PledgedTokenPool:     make([]*types.PledgedToken, 0),
 		OfficialNFTPool:      new(types.InjectedOfficialNFTList),
 		NominatedOfficialNFT: new(types.NominatedOfficialNFT),
 	}
@@ -943,17 +939,6 @@ func (s *StateDB) Copy() *StateDB {
 		}
 	}
 
-	if s.PledgedTokenPool != nil && len(s.PledgedTokenPool) > 0 {
-		for _, v := range s.PledgedTokenPool {
-			var pledgedToken types.PledgedToken
-			pledgedToken.Address = v.Address
-			pledgedToken.Amount = new(big.Int).Set(v.Amount)
-			pledgedToken.Flag = v.Flag
-			pledgedToken.ProxyAddress = v.ProxyAddress
-			state.PledgedTokenPool = append(state.PledgedTokenPool, &pledgedToken)
-		}
-	}
-
 	if s.NominatedOfficialNFT != nil {
 		state.NominatedOfficialNFT.Dir = s.NominatedOfficialNFT.Dir
 		state.NominatedOfficialNFT.StartIndex = new(big.Int).Set(s.NominatedOfficialNFT.StartIndex)
@@ -961,18 +946,6 @@ func (s *StateDB) Copy() *StateDB {
 		state.NominatedOfficialNFT.Royalty = s.NominatedOfficialNFT.Royalty
 		state.NominatedOfficialNFT.Creator = s.NominatedOfficialNFT.Creator
 		state.NominatedOfficialNFT.Address = s.NominatedOfficialNFT.Address
-	}
-
-	state.ValidatorPool = make([]*types.Validator, 0)
-	if s.ValidatorPool != nil && len(s.ValidatorPool) < 0 {
-		for _, v := range s.ValidatorPool {
-			a := types.Validator{
-				Addr:    v.Addr,
-				Proxy:   v.Proxy,
-				Balance: v.Balance,
-			}
-			state.ValidatorPool = append(state.ValidatorPool, &a)
-		}
 	}
 
 	return state
@@ -2616,11 +2589,12 @@ func (s *StateDB) PledgeToken(address common.Address,
 	}
 
 	stateObject := s.GetOrNewAccountStateObject(address)
-	log.Info("PledgeToken", "address", address.Hex(), "proxy", proxy.Hex(), "amount", amount, "ValidatorPool", len(s.ValidatorPool))
 
 	//Resolving duplicates is delegated
 	empty := common.Address{}
-	for _, v := range s.ValidatorPool {
+	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+	validators := validatorStateObject.GetValidators()
+	for _, v := range validators.Validators {
 		if v.Proxy != empty && v.Addr != address && v.Proxy == proxy {
 			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
 			return errors.New("cannot delegate repeatedly")
@@ -2628,14 +2602,8 @@ func (s *StateDB) PledgeToken(address common.Address,
 	}
 
 	if stateObject != nil {
-		pledgeToken := types.PledgedToken{
-			Address:      address,
-			Amount:       amount,
-			Flag:         true,
-			ProxyAddress: proxy,
-		}
-		log.Info("caver|PledgeToken", "s.PledgedTokenPool", s.PledgedTokenPool == nil)
-		s.PledgedTokenPool = append(s.PledgedTokenPool, &pledgeToken)
+		validatorStateObject.AddValidator(address, amount, proxy)
+
 		stateObject.SubBalance(amount)
 		stateObject.AddPledgedBalance(amount)
 		stateObject.SetPledgedBlockNumber(blocknumber)
@@ -2645,13 +2613,14 @@ func (s *StateDB) PledgeToken(address common.Address,
 
 func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) error {
 	stateObject := s.GetOrNewAccountStateObject(address)
-	log.Info("MinerConsign", "address", address.Hex(), "proxy", proxy.Hex(), "ValidatorPool", len(s.ValidatorPool))
 	empty := common.Address{}
 
 	//Only pledged account can consign to an another account
 	existAddress := false
-	for _, v := range s.ValidatorPool {
-		if address.Hex() == v.Addr.Hex() {
+	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+	validators := validatorStateObject.GetValidators()
+	for _, v := range validators.Validators {
+		if address == v.Addr {
 			existAddress = true
 		}
 	}
@@ -2661,21 +2630,14 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 	}
 
 	//Resolving duplicates is delegated
-	for _, v := range s.ValidatorPool {
-		if v.Proxy.Hex() != empty.Hex() && v.Proxy.Hex() == proxy.Hex() {
+	for _, v := range validators.Validators {
+		if v.Proxy != empty && v.Proxy == proxy {
 			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
 			return errors.New("cannot delegate repeatedly")
 		}
 	}
 	if stateObject != nil {
-		pledgeToken := types.PledgedToken{
-			Address:      address,
-			Amount:       big.NewInt(0),
-			Flag:         true,
-			ProxyAddress: proxy,
-		}
-		log.Info("caver|PledgeToken", "s.PledgedTokenPool", s.PledgedTokenPool == nil)
-		s.PledgedTokenPool = append(s.PledgedTokenPool, &pledgeToken)
+		validatorStateObject.AddValidator(address, big.NewInt(0), proxy)
 	}
 	return nil
 }
@@ -2696,12 +2658,9 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 func (s *StateDB) CancelPledgedToken(address common.Address, amount *big.Int) {
 	stateObject := s.GetOrNewAccountStateObject(address)
 	if stateObject != nil {
-		pledgeToken := types.PledgedToken{
-			Address: address,
-			Amount:  amount,
-			Flag:    false,
-		}
-		s.PledgedTokenPool = append(s.PledgedTokenPool, &pledgeToken)
+		validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+		validatorStateObject.RemoveValidator(address, amount)
+
 		stateObject.SubPledgedBalance(amount)
 		stateObject.AddBalance(amount)
 	}
@@ -3244,6 +3203,16 @@ func (s *StateDB) GetStakers(addr common.Address) *types.StakerList {
 	if stakerStateObject != nil {
 		stakers := stakerStateObject.GetStakers()
 		return stakers
+	}
+
+	return nil
+}
+
+func (s *StateDB) GetValidators(addr common.Address) *types.ValidatorList {
+	validatorStateObject := s.GetOrNewStakerStateObject(addr)
+	if validatorStateObject != nil {
+		validators := validatorStateObject.GetValidators()
+		return validators
 	}
 
 	return nil

@@ -182,13 +182,6 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		statedb.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	vallist, err := eth.blockchain.ReadValidatorPool(parent.Header())
-	if err != nil {
-		log.Error("stateAtTransaction : invalid validator list", "err", err)
-		return nil, vm.BlockContext{}, nil, err
-	}
-	statedb.ValidatorPool = vallist.Validators
-
 	if txIndex == 0 && len(block.Transactions()) == 0 {
 		return nil, vm.BlockContext{}, statedb, nil
 	}

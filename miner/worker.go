@@ -505,8 +505,14 @@ func (w *worker) emptyLoop() {
 				}
 				w.totalCondition = 0
 
-				stakes, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+				statedb, err := w.chain.StateAt(w.chain.CurrentHeader().Root)
 				if err != nil {
+					log.Error("emptyTimer.C : get statedb error", "no", w.chain.CurrentBlock().NumberU64())
+					continue
+				}
+
+				stakes := statedb.GetValidators(types.ValidatorStorageAddress)
+				if stakes == nil {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
@@ -1000,14 +1006,6 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
-	vallist, err := w.chain.ReadValidatorPool(parent.Header())
-	if err != nil {
-		log.Error("makeEmptyCurrent : invalid validator list", "no", header.Number, "err", err)
-		return err
-	}
-
-	state.ValidatorPool = vallist.Validators
-
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),
 		state:     state,
@@ -1070,13 +1068,6 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		nominatedOfficialNFT.Address = common.Address{}
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
-
-	vallist, err := w.chain.ReadValidatorPool(parent.Header())
-	if err != nil {
-		log.Error("makeCurrent : invalid validator list", "no", header.Number, "err", err)
-		return err
-	}
-	state.ValidatorPool = vallist.Validators
 
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),
@@ -1906,13 +1897,6 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 		nominatedOfficialNFT.Address = common.Address{}
 		state.NominatedOfficialNFT = nominatedOfficialNFT
 	}
-
-	vallist, err := w.chain.ReadValidatorPool(parent.Header())
-	if err != nil {
-		log.Error("makeProofCurrent : invalid validator list", "no", header.Number, "err", err)
-		return err
-	}
-	state.ValidatorPool = vallist.Validators
 
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),
