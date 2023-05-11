@@ -61,5 +61,5 @@ type AccountStaker struct {
 	Validators ValidatorList
 	Stakers    StakerList
 	Snfts      InjectedOfficialNFTList
-	Nominee    *NominatedOfficialNFT
+	Nominee    *NominatedOfficialNFT `rlp:"nil"`
 }
