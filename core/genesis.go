@@ -304,6 +304,16 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 	}
 	statedb.CreateStakerAccount(types.MintDeepStorageAddress)
 
+	officialNFT := types.InjectedOfficialNFT{
+		Dir:        g.Dir,
+		StartIndex: new(big.Int).Set(g.StartIndex),
+		Number:     g.InjectNumber,
+		Royalty:    g.Royalty,
+		Creator:    g.Creator,
+	}
+	snftStateObject := statedb.GetOrNewStakerStateObject(types.SnftInjectedStorageAddress)
+	snftStateObject.AddInjectedSnfts(&officialNFT)
+
 	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
@@ -391,17 +401,6 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	//rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
 	rawdb.WriteDBStakerPool(db, block.Hash(), block.NumberU64(), &stakerList)
 	rawdb.WriteValidatorPool(db, block.Hash(), block.NumberU64(), &validatorList)
-
-	officialNFT := types.InjectedOfficialNFT{
-		Dir:        g.Dir,
-		StartIndex: new(big.Int).Set(g.StartIndex),
-		Number:     g.InjectNumber,
-		Royalty:    g.Royalty,
-		Creator:    g.Creator,
-	}
-	var officialNFTPool types.InjectedOfficialNFTList
-	officialNFTPool.InjectedOfficialNFTs = append(officialNFTPool.InjectedOfficialNFTs, &officialNFT)
-	rawdb.WriteOfficialNFTPool(db, block.Hash(), block.NumberU64(), &officialNFTPool)
 
 	return block, nil
 }
