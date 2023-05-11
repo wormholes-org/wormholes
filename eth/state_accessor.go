@@ -157,12 +157,6 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		return nil, vm.BlockContext{}, nil, err
 	}
 
-	officialNFTList, _ := eth.blockchain.ReadOfficialNFTPool(parent.Header())
-	statedb.OfficialNFTPool = officialNFTList
-	for _, v := range statedb.OfficialNFTPool.InjectedOfficialNFTs {
-		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
-	}
-
 	var nominatedOfficialNFT *types.NominatedOfficialNFT
 	if parent.NumberU64() > 0 {
 		nominatedOfficialNFT, err = eth.blockchain.ReadNominatedOfficialNFT(parent.Header())
@@ -174,7 +168,7 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
 		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.OfficialNFTPool.MaxIndex())
+		nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.GetSnfts(types.SnftInjectedStorageAddress).MaxIndex())
 		nominatedOfficialNFT.Number = types.DefaultNumber
 		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
 		nominatedOfficialNFT.Creator = types.DefaultCreator

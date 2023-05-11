@@ -251,6 +251,16 @@ type (
 		account    *common.Address
 		oldStakers types.StakerList
 	}
+
+	snftsChange struct {
+		account  *common.Address
+		oldSnfts types.InjectedOfficialNFTList
+	}
+
+	nomineeChange struct {
+		account    *common.Address
+		oldNominee types.NominatedOfficialNFT
+	}
 )
 
 func (ch createObjectChange) revert(s *StateDB) {
@@ -550,5 +560,21 @@ func (ch stakersChange) revert(s *StateDB) {
 }
 
 func (ch stakersChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch snftsChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setSnfts(&ch.oldSnfts)
+}
+
+func (ch snftsChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch nomineeChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setNominee(&ch.oldNominee)
+}
+
+func (ch nomineeChange) dirtied() *common.Address {
 	return ch.account
 }

@@ -8,6 +8,8 @@ import (
 var MintDeepStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000001")
 var ValidatorStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000002")
 var StakerStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000003")
+var SnftInjectedStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000004")
+var NominatedStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000005")
 
 type WormholesExtension struct {
 	PledgedBalance     *big.Int
@@ -58,4 +60,6 @@ type AccountStaker struct {
 	Mint       MintDeep
 	Validators ValidatorList
 	Stakers    StakerList
+	Snfts      InjectedOfficialNFTList
+	Nominee    *NominatedOfficialNFT
 }

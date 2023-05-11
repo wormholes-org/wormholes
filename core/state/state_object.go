@@ -881,14 +881,14 @@ func (s *stateObject) cleanNFT() {
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-//pledgedflag bool,
-//nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -932,14 +932,14 @@ func (s *stateObject) SetNFTInfo(
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-//pledgedflag bool,
-//nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -993,14 +993,14 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -1515,4 +1515,44 @@ func (s *stateObject) GetStakers() *types.StakerList {
 	}
 
 	return nil
+}
+
+func (s *stateObject) AddInjectedSnfts(InjectedSnft *types.InjectedOfficialNFT) {
+	newSnfts := s.data.Staker.Snfts.DeepCopy()
+	newSnfts.InjectedOfficialNFTs = append(newSnfts.InjectedOfficialNFTs, InjectedSnft)
+	s.SetSnfts(newSnfts)
+}
+
+func (s *stateObject) SetSnfts(snfts *types.InjectedOfficialNFTList) {
+	s.db.journal.append(snftsChange{
+		account:  &s.address,
+		oldSnfts: s.data.Staker.Snfts,
+	})
+
+	s.setSnfts(snfts)
+}
+
+func (s *stateObject) setSnfts(snfts *types.InjectedOfficialNFTList) {
+	s.data.Staker.Snfts = *snfts
+}
+
+func (s *stateObject) GetSnfts() *types.InjectedOfficialNFTList {
+	if s.data.Staker != nil {
+		return &s.data.Staker.Snfts
+	}
+
+	return nil
+}
+
+func (s *stateObject) SetNominee(nominee *types.NominatedOfficialNFT) {
+	s.db.journal.append(nomineeChange{
+		account:    &s.address,
+		oldNominee: *s.data.Staker.Nominee,
+	})
+
+	s.setNominee(nominee)
+}
+
+func (s *stateObject) setNominee(nominee *types.NominatedOfficialNFT) {
+	s.data.Staker.Nominee = nominee
 }

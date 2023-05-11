@@ -1657,8 +1657,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			}
 		}
 	}
-	// write OfficialNFTPool
-	bc.WriteOfficialNFTPool(block.Header(), state.OfficialNFTPool)
 	// write NominatedOfficialNFT
 	bc.WriteNominatedOfficialNFT(block.Header(), state.NominatedOfficialNFT)
 
@@ -2006,9 +2004,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		// Process block using the parent state as reference point
 		substart := time.Now()
 
-		officialNFTList, _ := bc.ReadOfficialNFTPool(parent)
-		statedb.OfficialNFTPool = officialNFTList
-
 		var nominatedOfficialNFT *types.NominatedOfficialNFT
 		if parent.Number.Uint64() > 0 {
 			nominatedOfficialNFT, err = bc.ReadNominatedOfficialNFT(parent)
@@ -2020,7 +2015,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		} else {
 			nominatedOfficialNFT = new(types.NominatedOfficialNFT)
 			nominatedOfficialNFT.Dir = types.DefaultDir
-			nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.OfficialNFTPool.MaxIndex())
+			nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.GetSnfts(types.SnftInjectedStorageAddress).MaxIndex())
 			nominatedOfficialNFT.Number = types.DefaultNumber
 			nominatedOfficialNFT.Royalty = types.DefaultRoyalty
 			nominatedOfficialNFT.Creator = types.DefaultCreator

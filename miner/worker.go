@@ -981,12 +981,6 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 	}
 	state.StartPrefetcher("miner")
 
-	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
-	state.OfficialNFTPool = officialNFTList
-	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
-		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
-	}
-
 	var nominatedOfficialNFT *types.NominatedOfficialNFT
 	if parent.NumberU64() > 0 {
 		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
@@ -998,7 +992,7 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
 		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
+		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.GetSnfts(types.SnftInjectedStorageAddress).MaxIndex())
 		nominatedOfficialNFT.Number = types.DefaultNumber
 		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
 		nominatedOfficialNFT.Creator = types.DefaultCreator
@@ -1044,12 +1038,6 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	}
 	state.StartPrefetcher("miner")
 
-	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
-	state.OfficialNFTPool = officialNFTList
-	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
-		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
-	}
-
 	var nominatedOfficialNFT *types.NominatedOfficialNFT
 	if parent.NumberU64() > 0 {
 		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
@@ -1061,7 +1049,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
 		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
+		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.GetSnfts(types.SnftInjectedStorageAddress).MaxIndex())
 		nominatedOfficialNFT.Number = types.DefaultNumber
 		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
 		nominatedOfficialNFT.Creator = types.DefaultCreator
@@ -1873,12 +1861,6 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 	}
 	state.StartPrefetcher("miner")
 
-	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
-	state.OfficialNFTPool = officialNFTList
-	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
-		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
-	}
-
 	var nominatedOfficialNFT *types.NominatedOfficialNFT
 	if parent.NumberU64() > 0 {
 		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
@@ -1890,7 +1872,7 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 	} else {
 		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
 		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
+		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.GetSnfts(types.SnftInjectedStorageAddress).MaxIndex())
 		nominatedOfficialNFT.Number = types.DefaultNumber
 		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
 		nominatedOfficialNFT.Creator = types.DefaultCreator
