@@ -2141,12 +2141,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 		statedb.ValidatorPool = valList.Validators
 
-		emptyBlockErr := bc.VerifyEmptyBlock(block, statedb, valList)
-		if emptyBlockErr != nil {
-			log.Error("insertChain: invalid validators of empty block", "emptyBlockErr", emptyBlockErr)
-			return it.index, emptyBlockErr
-		}
-
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -2250,69 +2244,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 	}
 	stats.ignored += it.remaining()
 	return it.index, err
-}
-
-func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateDB, list *types.ValidatorList) error {
-	// if the block is empty block, validate it
-	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.NumberU64() > 0 {
-		adjustedTimeNow := time.Now().Unix()
-		if block.Time() > uint64(adjustedTimeNow) {
-			log.Error("VerifyEmptyBlock:futureBlock",
-				"no", block.Number,
-				"adjustedTimeNow", adjustedTimeNow,
-				"header.Time", block.Time())
-			return consensus.ErrFutureBlock
-		}
-		if block.Difficulty().Uint64() != 24 {
-			return errors.New("invalid difficulty of empty block")
-		}
-		istanbulExtra, checkerr := types.ExtractIstanbulExtra(block.Header())
-		if checkerr != nil {
-			log.Error("BlockChain.VerifyEmptyBlock()", "VerifyHeadersAndcheckerr checkerr:", checkerr)
-			return checkerr
-		}
-
-		var allWeightBalance = big.NewInt(0)
-		var voteBalance *big.Int
-		var coe uint8
-
-		//averageCoefficient := bc.GetAverageCoefficient(statedb)
-
-		for _, validator := range statedb.ValidatorPool {
-			coe = statedb.GetValidatorCoefficient(validator.Addr)
-			voteBalance = new(big.Int).Mul(validator.Balance, big.NewInt(int64(coe)))
-			allWeightBalance.Add(allWeightBalance, voteBalance)
-		}
-		allWeightBalance50 := new(big.Int).Mul(big.NewInt(50), allWeightBalance)
-		allWeightBalance50 = new(big.Int).Div(allWeightBalance50, big.NewInt(100))
-
-		var validators []common.Address
-		for _, emptyBlockMessage := range istanbulExtra.EmptyBlockMessages[1:] {
-			msg := &types.EmptyMsg{}
-			sender, err := msg.RecoverAddress(emptyBlockMessage)
-			if err != nil {
-				return err
-			}
-			validators = append(validators, sender)
-		}
-
-		var blockWeightBalance = big.NewInt(0)
-		for _, v := range validators {
-			//coe = statedb.GetValidatorCoefficient(list.GetValidatorAddr(v))
-			//voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(coe)))
-			voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
-			//voteBalance.Div(voteBalance, big.NewInt(10))
-			blockWeightBalance.Add(blockWeightBalance, voteBalance)
-		}
-		if blockWeightBalance.Cmp(allWeightBalance50) > 0 {
-			return nil
-		} else {
-			log.Error("BlockChain.VerifyEmptyBlock(), verify validators of empty block error ",
-				"blockWeightBalance", blockWeightBalance, "allWeightBalance50", allWeightBalance50)
-			return errors.New("verify validators of empty block error")
-		}
-	}
-	return nil
 }
 
 func (w *BlockChain) GetAverageCoefficient(statedb *state.StateDB) uint64 {

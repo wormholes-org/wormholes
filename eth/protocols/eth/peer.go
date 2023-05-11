@@ -17,6 +17,7 @@
 package eth
 
 import (
+	"errors"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 	"math/rand"
@@ -61,8 +62,10 @@ const (
 	maxKnownEmptyBlockMsg = 32768
 	// maxQueuedEmptyBlockMsg is the maximum number of empty block message propagations to queue up before
 	// dropping broadcasts.
-	maxQueuedEmptyBlockMsg = 100
+	maxQueuedEmptyBlockMsg = 10
 )
+
+var peerWatchCh = make(chan string, 1000)
 
 // max is a helper function which returns the larger of the two given integers.
 func max(a, b int) int {
@@ -97,8 +100,8 @@ type Peer struct {
 
 	consensusRw p2p.MsgReadWriter // Quorum: this is the RW for the consensus devp2p protocol, e.g. "istanbul/100"
 
-	knownEmptyBlockMsgs  mapset.Set  // Set of block hashes known to be known by this peer
-	queuedEmptyBlockMsgs chan []byte // Queue of blocks to broadcast to the peer
+	knownEmptyBlockMsgs  mapset.Set // Set of block hashes known to be known by this peer
+	queuedEmptyBlockMsgs chan []byte
 }
 
 // NewPeer create a wrapper for a network connection and negotiated  protocol
@@ -587,23 +590,29 @@ func (p *Peer) Send(msgcode uint64, data interface{}) error {
 }
 
 func (p *Peer) SendWorkerMsg(msgCode uint64, data interface{}) error {
-	//log.Info("send worker msg", "code", msgCode, "data", data)
+	//log.Info("send worker msg", "id", p.id, "data", data)
+	hash := istanbul.RLPHash(data)
+	if p.knownEmptyBlockMsgs.Contains(hash) {
+		return nil
+	}
 
 	for p.knownEmptyBlockMsgs.Cardinality() >= maxKnownEmptyBlockMsg {
 		p.knownEmptyBlockMsgs.Pop()
 	}
-	hash := istanbul.RLPHash(data)
+
 	p.knownEmptyBlockMsgs.Add(hash)
 	return p2p.Send(p.rw, msgCode, data)
 }
 
-func (p *Peer) WriteQueueEmptyBlockMsg(msg []byte) {
-	if len(p.queuedEmptyBlockMsgs) <= 50 {
-		p.queuedEmptyBlockMsgs <- msg
+func (p *Peer) RequestEmptyMsg(msg []byte) error {
+	select {
+	case p.queuedEmptyBlockMsgs <- msg:
+		return nil
+	default:
+		return errors.New("can`t send chan is full")
 	}
 }
 
-// knownEmptyBlockMsg returns whether peer is known to already have the empty block message.
-func (p *Peer) KnownEmptyBlockMsg(hash common.Hash) bool {
-	return p.knownEmptyBlockMsgs.Contains(hash)
+func (p *Peer) GetQueueStatus() int {
+	return len(p.queuedEmptyBlockMsgs)
 }

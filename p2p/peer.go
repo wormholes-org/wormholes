@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/p2p/discover"
+
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -189,6 +191,17 @@ func (p *Peer) Disconnect(reason DiscReason) {
 
 	select {
 	case p.disc <- reason:
+	case <-p.closed:
+	}
+}
+
+func (p *Peer) DropPeer(id string) {
+	if p.testPipe != nil {
+		p.testPipe.Close()
+	}
+
+	select {
+	case discover.DropChan <- id:
 	case <-p.closed:
 	}
 }

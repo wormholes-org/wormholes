@@ -394,6 +394,7 @@ func (w *worker) resetEmptyCondition() {
 	w.cerytify.voteIndex = 0
 	w.cerytify.round = 0
 	w.cerytify.selfMessages.Purge()
+	w.cerytify.purge <- struct{}{}
 }
 
 // recalcRecommit recalculates the resubmitting interval upon feedback.
@@ -501,7 +502,7 @@ func (w *worker) emptyLoop() {
 					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
 						continue
 					}
-					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
+					log.Info("ok empty condition 15", "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				} else {
 					log.Info("ok empty condition 120", "height", new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)), "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				}
@@ -564,7 +565,7 @@ func (w *worker) emptyLoop() {
 
 				if valiTotal == 15 {
 					w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-					gossipTimer.Reset(time.Second * 5)
+					gossipTimer.Reset(time.Second * 15)
 				}
 				//log.Info("emptyLoop start empty")
 			}
@@ -572,7 +573,7 @@ func (w *worker) emptyLoop() {
 		case <-gossipTimer.C:
 			{
 				//log.Info("emptyLoop gossipTimer", "w.isEmpty", w.isEmpty)
-				gossipTimer.Reset(time.Second * 5)
+				gossipTimer.Reset(time.Second * 15)
 				if !w.isEmpty {
 					continue
 				}
