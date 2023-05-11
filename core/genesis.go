@@ -371,37 +371,6 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 	rawdb.WriteChainConfig(db, block.Hash(), config)
 
-	var (
-		//stakerList    types.StakerList
-		stakerList    types.DBStakerList
-		validatorList types.ValidatorList
-	)
-
-	for addr, account := range g.Stake {
-		var dbStaker types.DBStaker
-		dbStaker.Addr = addr
-		dbStaker.Balance = account.Balance
-		dbStaker.DeleteFlag = false
-		stakerList.DBStakers = append(stakerList.DBStakers, &dbStaker)
-		//stakerList.AddStaker(addr, account.Balance)
-	}
-
-	for addr, account := range g.Validator {
-		proxy := common.HexToAddress(account.Proxy)
-		validatorList.AddValidator(addr, account.Balance, proxy)
-	}
-	// Recalculate the weight, which needs to be calculated after the list is determined
-	for addr, account := range g.Validator {
-		validatorList.CalculateAddressRangeV2(addr, account.Balance, big.NewInt(int64((VALIDATOR_COEFFICIENT))))
-	}
-
-	for _, v := range validatorList.Validators {
-		log.Info("genesis|validator|weight", "addr", v.Addr, "balance", v.Balance, "weight", v.Weight)
-	}
-	//rawdb.WriteStakePool(db, block.Hash(), block.NumberU64(), &stakerList)
-	rawdb.WriteDBStakerPool(db, block.Hash(), block.NumberU64(), &stakerList)
-	rawdb.WriteValidatorPool(db, block.Hash(), block.NumberU64(), &validatorList)
-
 	return block, nil
 }
 

@@ -19,7 +19,6 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -155,25 +154,6 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 	statedb, err := eth.stateAtBlock(parent, reexec, nil, true)
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, err
-	}
-
-	var nominatedOfficialNFT *types.NominatedOfficialNFT
-	if parent.NumberU64() > 0 {
-		nominatedOfficialNFT, err = eth.blockchain.ReadNominatedOfficialNFT(parent.Header())
-		if err != nil {
-			statedb.NominatedOfficialNFT = nil
-		} else {
-			statedb.NominatedOfficialNFT = nominatedOfficialNFT
-		}
-	} else {
-		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.GetSnfts(types.SnftInjectedStorageAddress).MaxIndex())
-		nominatedOfficialNFT.Number = types.DefaultNumber
-		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
-		nominatedOfficialNFT.Creator = types.DefaultCreator
-		nominatedOfficialNFT.Address = common.Address{}
-		statedb.NominatedOfficialNFT = nominatedOfficialNFT
 	}
 
 	if txIndex == 0 && len(block.Transactions()) == 0 {

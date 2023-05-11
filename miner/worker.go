@@ -981,25 +981,6 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 	}
 	state.StartPrefetcher("miner")
 
-	var nominatedOfficialNFT *types.NominatedOfficialNFT
-	if parent.NumberU64() > 0 {
-		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
-		if err != nil {
-			state.NominatedOfficialNFT = nil
-		} else {
-			state.NominatedOfficialNFT = nominatedOfficialNFT
-		}
-	} else {
-		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.GetSnfts(types.SnftInjectedStorageAddress).MaxIndex())
-		nominatedOfficialNFT.Number = types.DefaultNumber
-		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
-		nominatedOfficialNFT.Creator = types.DefaultCreator
-		nominatedOfficialNFT.Address = common.Address{}
-		state.NominatedOfficialNFT = nominatedOfficialNFT
-	}
-
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),
 		state:     state,
@@ -1037,25 +1018,6 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		return err
 	}
 	state.StartPrefetcher("miner")
-
-	var nominatedOfficialNFT *types.NominatedOfficialNFT
-	if parent.NumberU64() > 0 {
-		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
-		if err != nil {
-			state.NominatedOfficialNFT = nil
-		} else {
-			state.NominatedOfficialNFT = nominatedOfficialNFT
-		}
-	} else {
-		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.GetSnfts(types.SnftInjectedStorageAddress).MaxIndex())
-		nominatedOfficialNFT.Number = types.DefaultNumber
-		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
-		nominatedOfficialNFT.Creator = types.DefaultCreator
-		nominatedOfficialNFT.Address = common.Address{}
-		state.NominatedOfficialNFT = nominatedOfficialNFT
-	}
 
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),
@@ -1860,25 +1822,6 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 		return err
 	}
 	state.StartPrefetcher("miner")
-
-	var nominatedOfficialNFT *types.NominatedOfficialNFT
-	if parent.NumberU64() > 0 {
-		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
-		if err != nil {
-			state.NominatedOfficialNFT = nil
-		} else {
-			state.NominatedOfficialNFT = nominatedOfficialNFT
-		}
-	} else {
-		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.GetSnfts(types.SnftInjectedStorageAddress).MaxIndex())
-		nominatedOfficialNFT.Number = types.DefaultNumber
-		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
-		nominatedOfficialNFT.Creator = types.DefaultCreator
-		nominatedOfficialNFT.Address = common.Address{}
-		state.NominatedOfficialNFT = nominatedOfficialNFT
-	}
 
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),

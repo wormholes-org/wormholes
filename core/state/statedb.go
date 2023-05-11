@@ -130,8 +130,6 @@ type StateDB struct {
 	SnapshotAccountReads time.Duration
 	SnapshotStorageReads time.Duration
 	SnapshotCommits      time.Duration
-
-	NominatedOfficialNFT *types.NominatedOfficialNFT
 }
 
 // New creates a new state from a given trie.
@@ -826,18 +824,17 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 func (s *StateDB) Copy() *StateDB {
 	// Copy all the basic fields, initialize the memory ones
 	state := &StateDB{
-		db:                   s.db,
-		trie:                 s.db.CopyTrie(s.trie),
-		stateObjects:         make(map[common.Address]*stateObject, len(s.journal.dirties)),
-		stateObjectsPending:  make(map[common.Address]struct{}, len(s.stateObjectsPending)),
-		stateObjectsDirty:    make(map[common.Address]struct{}, len(s.journal.dirties)),
-		refund:               s.refund,
-		logs:                 make(map[common.Hash][]*types.Log, len(s.logs)),
-		logSize:              s.logSize,
-		preimages:            make(map[common.Hash][]byte, len(s.preimages)),
-		journal:              newJournal(),
-		hasher:               crypto.NewKeccakState(),
-		NominatedOfficialNFT: new(types.NominatedOfficialNFT),
+		db:                  s.db,
+		trie:                s.db.CopyTrie(s.trie),
+		stateObjects:        make(map[common.Address]*stateObject, len(s.journal.dirties)),
+		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
+		stateObjectsDirty:   make(map[common.Address]struct{}, len(s.journal.dirties)),
+		refund:              s.refund,
+		logs:                make(map[common.Hash][]*types.Log, len(s.logs)),
+		logSize:             s.logSize,
+		preimages:           make(map[common.Hash][]byte, len(s.preimages)),
+		journal:             newJournal(),
+		hasher:              crypto.NewKeccakState(),
 	}
 	// Copy the dirty states, logs, and preimages
 	for addr := range s.journal.dirties {
@@ -918,15 +915,6 @@ func (s *StateDB) Copy() *StateDB {
 			}
 			state.snapStorage[k] = temp
 		}
-	}
-
-	if s.NominatedOfficialNFT != nil {
-		state.NominatedOfficialNFT.Dir = s.NominatedOfficialNFT.Dir
-		state.NominatedOfficialNFT.StartIndex = new(big.Int).Set(s.NominatedOfficialNFT.StartIndex)
-		state.NominatedOfficialNFT.Number = s.NominatedOfficialNFT.Number
-		state.NominatedOfficialNFT.Royalty = s.NominatedOfficialNFT.Royalty
-		state.NominatedOfficialNFT.Creator = s.NominatedOfficialNFT.Creator
-		state.NominatedOfficialNFT.Address = s.NominatedOfficialNFT.Address
 	}
 
 	return state
@@ -2738,14 +2726,14 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -3015,8 +3003,10 @@ func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialN
 
 	}
 	emptyAddress := common.Address{}
-	if s.NominatedOfficialNFT != nil && s.NominatedOfficialNFT.Address != emptyAddress {
-		nominatedObject := s.GetOrNewAccountStateObject(s.NominatedOfficialNFT.Address)
+	nomineeStateObject := s.GetOrNewStakerStateObject(types.NominatedStorageAddress)
+	nominee := nomineeStateObject.GetNominee()
+	if nominee != nil && nominee.Address != emptyAddress {
+		nominatedObject := s.GetOrNewAccountStateObject(nominee.Address)
 		if nominatedObject != nil {
 			nominatedWeight = nominatedObject.VoteWeight()
 			nominatedVoteBlockNumber = nominatedObject.VoteBlockNumber()
@@ -3049,7 +3039,7 @@ func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialN
 		tempNominatedNFT.Number = nominatedOfficialNFT.Number
 		tempNominatedNFT.Royalty = nominatedOfficialNFT.Royalty
 		tempNominatedNFT.Creator = nominatedOfficialNFT.Creator
-		s.NominatedOfficialNFT = &tempNominatedNFT
+		nomineeStateObject.SetNominee(&tempNominatedNFT)
 		return nil
 	}
 
@@ -3059,28 +3049,30 @@ func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialN
 func (s *StateDB) ElectNominatedOfficialNFT(blocknumber *big.Int) {
 	emptyAddress := common.Address{}
 	snftStateObject := s.GetOrNewStakerStateObject(types.SnftInjectedStorageAddress)
-	if s.NominatedOfficialNFT != nil &&
-		s.NominatedOfficialNFT.Address != emptyAddress {
+	nomineeStateObject := s.GetOrNewStakerStateObject(types.NominatedStorageAddress)
+	nominee := nomineeStateObject.GetNominee()
+	if nominee != nil &&
+		nominee.Address != emptyAddress {
 		injectNFT := &types.InjectedOfficialNFT{
-			Dir:        s.NominatedOfficialNFT.Dir,
-			StartIndex: new(big.Int).Set(s.NominatedOfficialNFT.StartIndex),
-			Number:     s.NominatedOfficialNFT.Number,
-			Royalty:    s.NominatedOfficialNFT.Royalty,
-			Creator:    s.NominatedOfficialNFT.Creator,
-			Address:    s.NominatedOfficialNFT.Address,
+			Dir:        nominee.Dir,
+			StartIndex: new(big.Int).Set(nominee.StartIndex),
+			Number:     nominee.Number,
+			Royalty:    nominee.Royalty,
+			Creator:    nominee.Creator,
+			Address:    nominee.Address,
 		}
-		voteWeight := s.GetVoteWeight(s.NominatedOfficialNFT.Address)
-		voteBlockNumber := s.GetVoteBlockNumber(s.NominatedOfficialNFT.Address)
+		voteWeight := s.GetVoteWeight(nominee.Address)
+		voteBlockNumber := s.GetVoteBlockNumber(nominee.Address)
 		subNumber := new(big.Int).Sub(blocknumber, voteBlockNumber)
 		injectNFT.VoteWeight = new(big.Int).Mul(voteWeight, subNumber)
 		snftStateObject.AddInjectedSnfts(injectNFT)
 		//s.SubVoteWeight(s.NominatedOfficialNFT.Address, voteWeight)
-		s.SetVoteBlockNumber(s.NominatedOfficialNFT.Address, blocknumber)
+		s.SetVoteBlockNumber(nominee.Address, blocknumber)
 
 		InjectRewardAddress := common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 		injectRewardBalance := s.GetBalance(InjectRewardAddress)
 		s.SubBalance(InjectRewardAddress, injectRewardBalance)
-		s.AddBalance(s.NominatedOfficialNFT.Address, injectRewardBalance)
+		s.AddBalance(nominee.Address, injectRewardBalance)
 	} else {
 		injectNFT := &types.InjectedOfficialNFT{
 			Dir:        types.DefaultDir,
@@ -3092,12 +3084,14 @@ func (s *StateDB) ElectNominatedOfficialNFT(blocknumber *big.Int) {
 		snftStateObject.AddInjectedSnfts(injectNFT)
 	}
 
-	s.NominatedOfficialNFT.Dir = types.DefaultDir
-	s.NominatedOfficialNFT.StartIndex = new(big.Int).Set(snftStateObject.GetSnfts().MaxIndex())
-	s.NominatedOfficialNFT.Number = types.DefaultNumber
-	s.NominatedOfficialNFT.Royalty = types.DefaultRoyalty
-	s.NominatedOfficialNFT.Creator = types.DefaultCreator
-	s.NominatedOfficialNFT.Address = common.Address{}
+	tempNominatedNFT := types.NominatedOfficialNFT{}
+	tempNominatedNFT.Dir = types.DefaultDir
+	tempNominatedNFT.StartIndex = new(big.Int).Set(snftStateObject.GetSnfts().MaxIndex())
+	tempNominatedNFT.Number = types.DefaultNumber
+	tempNominatedNFT.Royalty = types.DefaultRoyalty
+	tempNominatedNFT.Creator = types.DefaultCreator
+	tempNominatedNFT.Address = common.Address{}
+	nomineeStateObject.SetNominee(&tempNominatedNFT)
 }
 
 // AddVoteWeight adds amount to the VoteWeight associated with addr.
@@ -3203,6 +3197,16 @@ func (s *StateDB) GetSnfts(addr common.Address) *types.InjectedOfficialNFTList {
 	if snftStateObject != nil {
 		snfts := snftStateObject.GetSnfts()
 		return snfts
+	}
+
+	return nil
+}
+
+func (s *StateDB) GetNominee(addr common.Address) *types.NominatedOfficialNFT {
+	nomineeStateObject := s.GetOrNewStakerStateObject(addr)
+	if nomineeStateObject != nil {
+		nominee := nomineeStateObject.GetNominee()
+		return nominee
 	}
 
 	return nil
