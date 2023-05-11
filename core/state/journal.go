@@ -572,7 +572,12 @@ func (ch snftsChange) dirtied() *common.Address {
 }
 
 func (ch nomineeChange) revert(s *StateDB) {
-	s.getStateObject(*ch.account).setNominee(&ch.oldNominee)
+	emptyNominee := types.NominatedOfficialNFT{}
+	if ch.oldNominee != emptyNominee {
+		s.getStateObject(*ch.account).setNominee(&ch.oldNominee)
+	} else {
+		s.getStateObject(*ch.account).setNominee(nil)
+	}
 }
 
 func (ch nomineeChange) dirtied() *common.Address {
