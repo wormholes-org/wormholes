@@ -673,15 +673,27 @@ func (s *StateDB) GetOrNewNFTStateObject(addr common.Address) *stateObject {
 		stateObject.data.Nft = &types.AccountNFT{}
 	}
 
+	if stateObject.data.Nft == nil {
+		stateObject.data.Nft = &types.AccountNFT{}
+	}
+
 	return stateObject
 }
 
 func (s *StateDB) GetOrNewAccountStateObject(addr common.Address) *stateObject {
+	var prev *stateObject
 	stateObject := s.getStateObject(addr)
 	if stateObject == nil {
-		stateObject, _ = s.createObject(addr)
+		stateObject, prev = s.createObject(addr)
+		if prev != nil {
+			stateObject.setBalance(prev.data.Balance)
+		}
 		stateObject.data.Worm = &types.WormholesExtension{}
 		stateObject.data.Nft = nil
+	}
+
+	if stateObject.data.Worm == nil {
+		stateObject.data.Worm = &types.WormholesExtension{}
 	}
 
 	if stateObject.data.Worm.PledgedBlockNumber == nil {
@@ -710,6 +722,15 @@ func (s *StateDB) GetOrNewStakerStateObject(addr common.Address) *stateObject {
 	stateObject := s.getStateObject(addr)
 	if stateObject == nil {
 		stateObject, _ = s.createObject(addr)
+		stateObject.data.Staker = &types.AccountStaker{}
+		if addr == types.MintDeepStorageAddress {
+			stateObject.data.Staker.Mint.UserMint = big.NewInt(1)
+			maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+			stateObject.data.Staker.Mint.OfficialMint = maskB
+		}
+	}
+
+	if stateObject.data.Staker == nil {
 		stateObject.data.Staker = &types.AccountStaker{}
 		if addr == types.MintDeepStorageAddress {
 			stateObject.data.Staker.Mint.UserMint = big.NewInt(1)
@@ -758,36 +779,39 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
 func (s *StateDB) CreateAccount(addr common.Address) {
-	newObj, prev := s.createObject(addr)
-	if prev != nil {
-		newObj.setBalance(prev.data.Balance)
-	}
-	if newObj.data.Worm == nil {
-		newObj.data.Worm = &types.WormholesExtension{}
-	}
+	//newObj, prev := s.createObject(addr)
+	//if prev != nil {
+	//	newObj.setBalance(prev.data.Balance)
+	//}
+	//if newObj.data.Worm == nil {
+	//	newObj.data.Worm = &types.WormholesExtension{}
+	//}
+	s.GetOrNewAccountStateObject(addr)
 }
 
 func (s *StateDB) CreateNFTAccount(addr common.Address) {
-	newObj, prev := s.createObject(addr)
-	if prev != nil {
-		newObj.setBalance(prev.data.Balance)
-	}
-	if newObj.data.Nft == nil {
-		newObj.data.Nft = &types.AccountNFT{}
-	}
+	//newObj, prev := s.createObject(addr)
+	//if prev != nil {
+	//	newObj.setBalance(prev.data.Balance)
+	//}
+	//if newObj.data.Nft == nil {
+	//	newObj.data.Nft = &types.AccountNFT{}
+	//}
+	s.GetOrNewNFTStateObject(addr)
 }
 
 func (s *StateDB) CreateStakerAccount(addr common.Address) {
-	newObj, prev := s.createObject(addr)
-	if prev != nil {
-		newObj.setBalance(prev.data.Balance)
-	}
-	newObj.data.Staker = &types.AccountStaker{}
-	if addr == types.MintDeepStorageAddress {
-		newObj.data.Staker.Mint.UserMint = big.NewInt(1)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		newObj.data.Staker.Mint.OfficialMint = maskB
-	}
+	//newObj, prev := s.createObject(addr)
+	//if prev != nil {
+	//	newObj.setBalance(prev.data.Balance)
+	//}
+	//newObj.data.Staker = &types.AccountStaker{}
+	//if addr == types.MintDeepStorageAddress {
+	//	newObj.data.Staker.Mint.UserMint = big.NewInt(1)
+	//	maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
+	//	newObj.data.Staker.Mint.OfficialMint = maskB
+	//}
+	s.GetOrNewStakerStateObject(addr)
 }
 
 func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common.Hash) bool) error {
@@ -1390,7 +1414,7 @@ func (s *StateDB) MergeNFT(nftAddr common.Address) error {
 			nftStateObject.data.Nft.Exchanger,
 			metaUrl)
 	} else {
-		s.CreateNFTAccount(newMergedAddr)
+		s.GetOrNewNFTStateObject(newMergedAddr)
 		newMergeStateObject = s.getStateObject(newMergedAddr)
 		//newMergeStateObject.data.MergeLevel = nftStateObject.data.MergeLevel + 1
 		//newMergeStateObject.data.Owner = nftStateObject.data.Owner
@@ -1524,7 +1548,7 @@ func (s *StateDB) SplitNFT(nftAddr common.Address, level int) {
 					storeStateObject.data.Nft.Exchanger,
 					metaUrl)
 			} else {
-				s.CreateNFTAccount(splitAddr)
+				s.GetOrNewNFTStateObject(splitAddr)
 				newSplitStateObject = s.getStateObject(splitAddr)
 				//newSplitStateObject.data.MergeLevel = storeStateObject.data.MergeLevel - uint8(i + 1)
 				//newSplitStateObject.data.Owner = storeStateObject.data.Owner
@@ -1912,7 +1936,7 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 			nftStateObject.data.Nft.Exchanger,
 			metaUrl)
 	} else {
-		s.CreateNFTAccount(newMergedAddr)
+		s.GetOrNewNFTStateObject(newMergedAddr)
 		newMergeStateObject = s.getStateObject(newMergedAddr)
 		//newMergeStateObject.data.MergeLevel = nftStateObject.data.MergeLevel + 1
 		//newMergeStateObject.data.Owner = nftStateObject.data.Owner
@@ -2061,7 +2085,7 @@ func (s *StateDB) SplitNFT16(nftAddr common.Address, level int) {
 					storeStateObject.data.Nft.Exchanger,
 					metaUrl)
 			} else {
-				s.CreateNFTAccount(splitAddr)
+				s.GetOrNewNFTStateObject(splitAddr)
 				newSplitStateObject = s.getStateObject(splitAddr)
 				//newSplitStateObject.data.MergeLevel = storeStateObject.data.MergeLevel - uint8(i + 1)
 				//newSplitStateObject.data.Owner = storeStateObject.data.Owner
@@ -2224,6 +2248,9 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 		var creator string
 		//nftAddr, info, ok := s.SNFTExchangePool.PopAddress(blocknumber)
 		//if !ok {
+		if mintStateObject.OfficialMint() == nil {
+			log.Info("CreateNFTByOfficial16()", "blocknumber=", blocknumber.Uint64())
+		}
 		nftAddr = common.BytesToAddress(mintStateObject.OfficialMint().Bytes())
 		injectedInfo := InjectedSnfts.GetInjectedInfo(nftAddr)
 		if injectedInfo == nil {
@@ -2239,7 +2266,6 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 		//}
 		log.Info("CreateNFTByOfficial16()", "--nftAddr=", nftAddr.String(), "blocknumber=", blocknumber.Uint64())
 
-		s.CreateNFTAccount(nftAddr)
 		stateObject := s.GetOrNewNFTStateObject(nftAddr)
 		if stateObject != nil {
 			stateObject.SetNFTInfo(
@@ -2311,7 +2337,6 @@ func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 	mintStateObject := s.GetOrNewStakerStateObject(types.MintDeepStorageAddress)
 
 	nftAddr := common.BytesToAddress(mintStateObject.UserMint().Bytes())
-	s.CreateNFTAccount(nftAddr)
 	stateObject := s.GetOrNewNFTStateObject(nftAddr)
 	if stateObject != nil {
 		stateObject.SetNFTInfo(
