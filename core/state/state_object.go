@@ -1523,6 +1523,12 @@ func (s *stateObject) AddInjectedSnfts(InjectedSnft *types.InjectedOfficialNFT) 
 	s.SetSnfts(newSnfts)
 }
 
+func (s *stateObject) RemoveInjectSnfts(num *big.Int) {
+	newSnfts := s.data.Staker.Snfts.DeepCopy()
+	newSnfts.DeleteExpireElem(num)
+	s.SetSnfts(newSnfts)
+}
+
 func (s *stateObject) SetSnfts(snfts *types.InjectedOfficialNFTList) {
 	s.db.journal.append(snftsChange{
 		account:  &s.address,

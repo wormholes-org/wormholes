@@ -2215,7 +2215,7 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 
 	mintStateObject := s.GetOrNewStakerStateObject(types.MintDeepStorageAddress)
 	snftStateObject := s.GetOrNewStakerStateObject(types.SnftInjectedStorageAddress)
-	InjectedSnfts := snftStateObject.GetSnfts().DeepCopy()
+	InjectedSnfts := snftStateObject.GetSnfts()
 
 	for _, owner := range exchangers {
 		nftAddr := common.Address{}
@@ -2274,17 +2274,18 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 			}
 
 			//if !ok {
-			InjectedSnfts.DeleteExpireElem(mintStateObject.OfficialMint())
+			//InjectedSnfts.DeleteExpireElem(mintStateObject.OfficialMint())
 			mintStateObject.AddOfficialMint(big.NewInt(1))
 			//}
 		}
 	}
 
+	// Try to delete expired InjectedOfficialNFTs
+	snftStateObject.RemoveInjectSnfts(new(big.Int).Sub(mintStateObject.OfficialMint(), big.NewInt(1)))
+
 	if InjectedSnfts.RemainderNum(mintStateObject.OfficialMint()) <= 110 {
 		s.ElectNominatedOfficialNFT(blocknumber)
 	}
-
-	snftStateObject.SetSnfts(InjectedSnfts)
 }
 
 //- create a nft by user :creator can get a nft , include exchanger, royalty and meta.
