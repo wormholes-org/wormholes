@@ -222,6 +222,7 @@ type BlockChain struct {
 	stakerPool     *types.StakerList
 	bytesStakersCh chan BytesStakerList
 	coefficients   map[uint64]map[common.Address]uint8
+	cmu            sync.Mutex
 }
 
 type BytesStakerList struct {
@@ -510,6 +511,8 @@ func (bc *BlockChain) WriteStakersToDB() {
 func (bc *BlockChain) DeleteExpiredCoefficents() {
 	expired := 3
 	var minBlockNumber uint64 = 0
+	bc.cmu.Lock()
+	defer bc.cmu.Unlock()
 	for {
 		if len(bc.coefficients) <= expired {
 			break
@@ -528,6 +531,8 @@ func (bc *BlockChain) DeleteExpiredCoefficents() {
 }
 
 func (bc *BlockChain) DeleteCoefficients() {
+	bc.cmu.Lock()
+	defer bc.cmu.Unlock()
 	var deleteItems []uint64
 	for k, _ := range bc.coefficients {
 		deleteItems = append(deleteItems, k)
@@ -1664,7 +1669,9 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		coefficient := state.GetValidatorCoefficient(account.Addr)
 		validatorsCoe[account.Addr] = coefficient
 	}
+	bc.cmu.Lock()
 	bc.coefficients[block.NumberU64()] = validatorsCoe
+	bc.cmu.Unlock()
 	bc.DeleteExpiredCoefficents()
 
 	// If the total difficulty is higher than our known, add it to the canonical chain
@@ -2800,6 +2807,7 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 
 	// Get all validator weights
 	var weights []uint8
+	bc.cmu.Lock()
 	if validatorsCoe, ok := bc.coefficients[header.Number.Uint64()]; ok {
 		for _, v := range validatorList.Validators {
 			weights = append(weights, validatorsCoe[v.Addr])
@@ -2809,6 +2817,7 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 			weights = append(weights, db.GetCoefficient(v.Addr))
 		}
 	}
+	bc.cmu.Unlock()
 
 	var validators []common.Address
 	validators, err = validatorList.RandomValidatorV4(11, randomHash, weights)
@@ -2872,6 +2881,7 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 
 	// Get all validator weights
 	var weights []uint8
+	bc.cmu.Lock()
 	if validatorsCoe, ok := bc.coefficients[header.Number.Uint64()]; ok {
 		for _, v := range validatorList.Validators {
 			weights = append(weights, validatorsCoe[v.Addr])
@@ -2881,6 +2891,7 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 			weights = append(weights, db.GetCoefficient(v.Addr))
 		}
 	}
+	bc.cmu.Unlock()
 
 	var validators []common.Address
 	validators, err = validatorList.RandomValidatorV4(11, randomHash, weights)
