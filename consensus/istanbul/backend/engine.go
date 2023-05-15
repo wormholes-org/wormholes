@@ -76,11 +76,45 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		if err != nil {
 			return istanbulcommon.ErrInvalidExtraDataFormat
 		}
+
 		validators := istanbulExtra.Validators
-		valSet := validator.NewSet(validators, sb.config.ProposerPolicy)
+
+		db, err := sb.stateDb()
+
+		if err != nil {
+			return err
+		}
+
+		if db == nil {
+			return istanbulcommon.ErrNilStateDb
+		}
+
+		var valSet istanbul.ValidatorSet
+		if header.Coinbase == (common.Address{}) && header.Number.Cmp(common.Big0) > 0 {
+			valSet = validator.NewEmptySet(validators, sb.config.ProposerPolicy)
+		} else {
+			valSet = validator.NewSet(validators, sb.config.ProposerPolicy, db)
+		}
 		return sb.EngineForBlockNumber(header.Number).VerifyHeader(chain, header, parents, valSet)
 	}
 	return nil
+}
+
+// @Param header The header here refers to the currentBlock header
+func (sb *Backend) stateDb() (*state.StateDB, error) {
+	if bc, ok := sb.chain.(*core.BlockChain); ok {
+		if curBlk := sb.currentBlock(); curBlk == nil {
+			return nil, errors.New("err block is nil")
+		}
+
+		db, err := bc.StateAt(sb.currentBlock().Header().Root)
+		if err != nil {
+			return nil, err
+		}
+
+		return db, nil
+	}
+	return nil, nil
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -93,17 +127,6 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 	go func() {
 		errored := false
 		for i, header := range headers {
-			if header.Coinbase == common.HexToAddress("0x0000000000000000000000000000000000000000") && header.Number.Cmp(common.Big0) > 0 {
-
-				var err error
-				err = nil
-				select {
-				case <-abort:
-					return
-				case results <- err:
-				}
-				continue
-			}
 			var err error
 			if errored {
 				err = consensus.ErrUnknownAncestor
@@ -156,7 +179,17 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 			log.Info("Backend|VerifySeal", "height", c.CurrentBlock().Header().Number.Uint64(), "v", v)
 		}
 
-		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+		db, err := sb.stateDb()
+
+		if err != nil {
+			return err
+		}
+
+		if db == nil {
+			return istanbulcommon.ErrNilStateDb
+		}
+
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db)
 	}
 
 	return sb.EngineForBlockNumber(header.Number).VerifySeal(chain, header, valSet)
@@ -197,7 +230,18 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		for _, v := range validatorList.Validators {
 			log.Info("Backend : Prepare", "height", parent.Number, "v", v)
 		}
-		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy)
+
+		db, err := sb.stateDb()
+
+		if err != nil {
+			return err
+		}
+
+		if db == nil {
+			return istanbulcommon.ErrNilStateDb
+		}
+
+		valSet = validator.NewSet(validatorList.ConvertToAddress(), sb.config.ProposerPolicy, db)
 	}
 
 	err := sb.EngineForBlockNumber(header.Number).Prepare(chain, header, valSet)
@@ -276,9 +320,19 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		return err1
 	}
 
-	valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy)
+	db, err := sb.stateDb()
 
-	block, err := sb.EngineForBlockNumber(header.Number).Seal(chain, block, valSet)
+	if err != nil {
+		return err
+	}
+
+	if db == nil {
+		return istanbulcommon.ErrNilStateDb
+	}
+
+	valSet := validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy, db)
+
+	block, err = sb.EngineForBlockNumber(header.Number).Seal(chain, block, valSet)
 	if err != nil {
 		return err
 	}
@@ -461,7 +515,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 				return nil, err
 			}
 
-			snap = newSnapshot(sb.config.Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy))
+			snap = newSnapshot(sb.config.Epoch, 0, genesis.Hash(), validator.NewSet(validators, sb.config.ProposerPolicy, nil))
 			if err := sb.storeSnap(snap); err != nil {
 				return nil, err
 			}

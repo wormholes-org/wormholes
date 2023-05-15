@@ -21,12 +21,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -393,6 +394,7 @@ func (w *worker) resetEmptyCondition() {
 	w.cerytify.voteIndex = 0
 	w.cerytify.round = 0
 	w.cerytify.selfMessages.Purge()
+	w.cerytify.purge <- struct{}{}
 }
 
 // recalcRecommit recalculates the resubmitting interval upon feedback.
@@ -496,10 +498,11 @@ func (w *worker) emptyLoop() {
 					if w.totalCondition != valiTotal {
 						continue
 					}
+					log.Info("len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1))", "len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)), "height", curBlock.Number().Uint64()+1)
 					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
 						continue
 					}
-					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
+					log.Info("ok empty condition 15", "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				} else {
 					log.Info("ok empty condition 120", "height", new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)), "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				}
@@ -568,7 +571,7 @@ func (w *worker) emptyLoop() {
 
 				if valiTotal == 15 {
 					w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-					gossipTimer.Reset(time.Second * 5)
+					gossipTimer.Reset(time.Second * 15)
 				}
 				//log.Info("emptyLoop start empty")
 			}
@@ -576,7 +579,7 @@ func (w *worker) emptyLoop() {
 		case <-gossipTimer.C:
 			{
 				//log.Info("emptyLoop gossipTimer", "w.isEmpty", w.isEmpty)
-				gossipTimer.Reset(time.Second * 5)
+				gossipTimer.Reset(time.Second * 15)
 				if !w.isEmpty {
 					continue
 				}
@@ -1063,7 +1066,33 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 		return errors.New("uncle already included")
 	}
 	env.uncles.Add(uncle.Hash())
+
+	// Record bad behavior to local database
+	w.RecordEvilAction(uncle)
+
 	return nil
+}
+
+func (w *worker) RecordEvilAction(uncle *types.Header) {
+	if uncle.Coinbase == (common.Address{}) { // do not handle empty block forks
+		return
+	}
+
+	evilAction, err := w.eth.BlockChain().ReadEvilAction(uncle.Number.Uint64())
+	if err != nil {
+		log.Error("err read evil action", "err", err.Error())
+		return
+	}
+
+	if evilAction != nil && !evilAction.Handled && !evilAction.Exist(uncle) {
+		evilAction.EvilHeaders = append(evilAction.EvilHeaders, uncle)
+	}
+
+	if evilAction == nil {
+		evilAction = types.NewEvilAction(uncle)
+	}
+
+	w.eth.BlockChain().WriteEvilAction(uncle.Number.Uint64(), *evilAction)
 }
 
 // updateSnapshot updates pending snapshot block and state.

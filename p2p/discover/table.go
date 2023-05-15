@@ -102,6 +102,8 @@ type bucket struct {
 	ips          netutil.DistinctNetSet
 }
 
+var DropChan chan string
+
 func newTable(t transport, db *enode.DB, bootnodes []*enode.Node, log log.Logger) (*Table, error) {
 	tab := &Table{
 		net:        t,
@@ -124,6 +126,9 @@ func newTable(t transport, db *enode.DB, bootnodes []*enode.Node, log log.Logger
 	}
 	tab.seedRand()
 	tab.loadSeedNodes()
+
+	DropChan = make(chan string)
+	go tab.drop()
 
 	return tab, nil
 }
@@ -215,6 +220,22 @@ func (tab *Table) refresh() <-chan struct{} {
 		close(done)
 	}
 	return done
+}
+
+func (tab *Table) drop() {
+	for {
+		select {
+		case n := <- DropChan:
+			id := enode.HexID(n)
+			b := tab.bucket(id)
+			for _, e := range b.entries {
+				if e.ID() == id {
+					tab.delete(e)
+					break
+				}
+			}
+		}
+	}
 }
 
 // loop schedules runs of doRefresh, doRevalidate and copyLiveNodes.
