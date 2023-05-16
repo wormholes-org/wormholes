@@ -1394,11 +1394,17 @@ func (s *stateObject) setExtra(extra []byte) {
 }
 
 func (s *stateObject) UserMint() *big.Int {
-	return s.data.Staker.Mint.UserMint
+	if s.data.Staker != nil {
+		return s.data.Staker.Mint.UserMint
+	}
+	return big.NewInt(0)
 }
 
 func (s *stateObject) OfficialMint() *big.Int {
-	return s.data.Staker.Mint.OfficialMint
+	if s.data.Staker != nil {
+		return s.data.Staker.Mint.OfficialMint
+	}
+	return big.NewInt(0)
 }
 
 func (s *stateObject) AddUserMint(amount *big.Int) {

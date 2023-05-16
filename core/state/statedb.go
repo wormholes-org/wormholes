@@ -3237,3 +3237,23 @@ func (s *StateDB) GetNominee(addr common.Address) *types.NominatedOfficialNFT {
 
 	return nil
 }
+
+func (s *StateDB) GetOfficialMint() *big.Int {
+	mintStateObject := s.GetOrNewStakerStateObject(types.MintDeepStorageAddress)
+	if mintStateObject != nil {
+		officialMint := mintStateObject.OfficialMint()
+		return new(big.Int).Set(officialMint)
+	}
+
+	return nil
+}
+
+func (s *StateDB) GetUserMint() *big.Int {
+	mintStateObject := s.GetOrNewStakerStateObject(types.MintDeepStorageAddress)
+	if mintStateObject != nil {
+		userMint := mintStateObject.UserMint()
+		return new(big.Int).Set(userMint)
+	}
+
+	return nil
+}
