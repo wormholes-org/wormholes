@@ -502,7 +502,7 @@ func (w *worker) emptyLoop() {
 					if w.totalCondition != valiTotal {
 						continue
 					}
-					log.Info("len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1))", "len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)), "height", curBlock.Number().Uint64()+1)
+					log.Info("w.engine.OnlineValidators(curBlock.Number().Uint64()+1)", "len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)), "height", curBlock.Number().Uint64()+1)
 					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
 						continue
 					}
@@ -575,7 +575,7 @@ func (w *worker) emptyLoop() {
 
 				if valiTotal == 15 {
 					w.cerytify.AssembleAndBroadcastMessage(new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)))
-					gossipTimer.Reset(time.Second * 15)
+					gossipTimer.Reset(time.Second * 5)
 				}
 				//log.Info("emptyLoop start empty")
 			}
@@ -583,7 +583,7 @@ func (w *worker) emptyLoop() {
 		case <-gossipTimer.C:
 			{
 				//log.Info("emptyLoop gossipTimer", "w.isEmpty", w.isEmpty)
-				gossipTimer.Reset(time.Second * 15)
+				gossipTimer.Reset(time.Second * 5)
 				if !w.isEmpty {
 					continue
 				}
