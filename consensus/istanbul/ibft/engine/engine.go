@@ -272,15 +272,15 @@ func (e *Engine) verifyEmptyVote(chain consensus.ChainHeaderReader, header *type
 	parent := chain.GetHeaderByHash(header.ParentHash)
 	stateDb, err := bc.StateAt(parent.Root)
 	if err != nil {
-		log.Info("azh|stateDb", "err", err)
+		log.Error("azh|stateDb", "err", err)
 		return errors.New("new statdb failed")
 	}
 
 	log.Info("azh|stateDb", "height", bc.CurrentHeader().Number, "empty height", header.Number)
-	validatorList, err := bc.ReadValidatorPool(parent)
-	if err != nil {
-		log.Info("azh|validatorList", "err", err)
-		return err
+	validatorList := stateDb.GetValidators(types.ValidatorStorageAddress)
+	if validatorList == nil {
+		log.Error("azh|validatorList", "err", err)
+		return errors.New("get validators error")
 	}
 
 	extra, err := types.ExtractIstanbulExtra(header)
@@ -1003,8 +1003,14 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 		return
 	}
 
-	valset, err := bc.ReadValidatorPool(parent)
+	statedb, err := bc.StateAt(parent.Root)
 	if err != nil {
+		log.Error("punishEvilValidators", "err", err)
+		return
+	}
+	valset := statedb.GetValidators(types.ValidatorStorageAddress)
+	if valset == nil {
+		log.Error("punishEvilValidators, get validators error")
 		return
 	}
 
