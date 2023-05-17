@@ -21,12 +21,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -440,6 +441,7 @@ func (w *worker) emptyLoop() {
 	checkTimer.Reset(1 * time.Second)
 
 	var valiTotal int
+	var currentHash common.Hash
 
 	for {
 		select {
@@ -483,11 +485,14 @@ func (w *worker) emptyLoop() {
 
 				//log.Info("azh|onlinesLen", "len", len(w.engine.OnlineValidators(w.cacheHeight.Uint64())))
 
-				rs, err := w.chain.IsValidatorByHight(w.chain.CurrentHeader(), w.cerytify.self)
-				if err == nil && rs {
-					valiTotal = 15
-				} else {
-					valiTotal = 16
+				if currentHash != curBlock.Hash() {
+					currentHash = curBlock.Hash()
+					rs, err := w.chain.IsValidatorByHight(w.chain.CurrentHeader(), w.cerytify.self)
+					if err == nil && rs {
+						valiTotal = 15
+					} else {
+						valiTotal = 16
+					}
 				}
 
 				//if curTime-int64(curBlock.Time()) < 120 && curBlock.Number().Uint64() > 0 {
