@@ -206,15 +206,37 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	if data.Root == (common.Hash{}) {
 		data.Root = emptyRoot
 	}
-	return &stateObject{
+	newStateObject := &stateObject{
 		db:             db,
 		address:        address,
 		addrHash:       crypto.Keccak256Hash(address[:]),
-		data:           data,
 		originStorage:  make(Storage),
 		pendingStorage: make(Storage),
 		dirtyStorage:   make(Storage),
 	}
+
+	newStateObject.data.Nonce = data.Nonce
+	newStateObject.data.Balance = new(big.Int).Set(data.Balance)
+	newStateObject.data.CodeHash = make([]byte, len(data.CodeHash))
+	copy(newStateObject.data.CodeHash, data.CodeHash)
+	newStateObject.data.Root = data.Root
+
+	if data.Worm != nil {
+		newStateObject.data.Worm = data.Worm.DeepCopy()
+	}
+
+	if data.Nft != nil {
+		newStateObject.data.Nft = data.Nft.DeepCopy()
+	}
+
+	if data.Staker != nil {
+		newStateObject.data.Staker = data.Staker.DeepCopy()
+	}
+
+	newStateObject.data.Extra = make([]byte, len(data.Extra))
+	copy(newStateObject.data.Extra, data.Extra)
+
+	return newStateObject
 }
 
 // EncodeRLP implements rlp.Encoder.
@@ -881,14 +903,14 @@ func (s *stateObject) cleanNFT() {
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-	//price *big.Int,
-	//direction uint8,
+//price *big.Int,
+//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-	//pledgedflag bool,
-	//nftpledgedblocknumber *big.Int,
+//pledgedflag bool,
+//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -932,14 +954,14 @@ func (s *stateObject) SetNFTInfo(
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-	//price *big.Int,
-	//direction uint8,
+//price *big.Int,
+//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-	//pledgedflag bool,
-	//nftpledgedblocknumber *big.Int,
+//pledgedflag bool,
+//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -993,14 +1015,14 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
-	//*big.Int,
-	//uint8,
+//*big.Int,
+//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-	//bool,
-	//*big.Int,
+//bool,
+//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,

@@ -35,6 +35,39 @@ type WormholesExtension struct {
 	//RewardFlag uint8 // 0:SNFT 1:ERB default:1
 }
 
+func (worm *WormholesExtension) DeepCopy() *WormholesExtension {
+	var newWorm WormholesExtension
+
+	if worm.PledgedBalance != nil {
+		newWorm.PledgedBalance = new(big.Int).Set(worm.PledgedBalance)
+	}
+	if worm.PledgedBlockNumber != nil {
+		newWorm.PledgedBlockNumber = new(big.Int).Set(worm.PledgedBlockNumber)
+	}
+	newWorm.ExchangerFlag = worm.ExchangerFlag
+	if worm.BlockNumber != nil {
+		newWorm.BlockNumber = new(big.Int).Set(worm.BlockNumber)
+	}
+	if worm.ExchangerBalance != nil {
+		newWorm.ExchangerBalance = new(big.Int).Set(worm.ExchangerBalance)
+	}
+	if worm.VoteBlockNumber != nil {
+		newWorm.VoteBlockNumber = new(big.Int).Set(worm.VoteBlockNumber)
+	}
+	if worm.VoteWeight != nil {
+		newWorm.VoteWeight = new(big.Int).Set(worm.VoteWeight)
+	}
+	newWorm.Coefficient = worm.Coefficient
+	newWorm.FeeRate = worm.FeeRate
+	newWorm.ExchangerName = worm.ExchangerName
+	newWorm.ExchangerURL = worm.ExchangerURL
+
+	newWorm.ApproveAddressList = make([]common.Address, len(worm.ApproveAddressList))
+	copy(newWorm.ApproveAddressList, worm.ApproveAddressList)
+
+	return &newWorm
+}
+
 type AccountNFT struct {
 	//Account
 	Name   string
@@ -56,10 +89,58 @@ type AccountNFT struct {
 	MetaURL   string
 }
 
+func (nft *AccountNFT) DeepCopy() *AccountNFT {
+	newNft := &AccountNFT{
+		Name:                  nft.Name,
+		Symbol:                nft.Symbol,
+		Owner:                 nft.Owner,
+		NFTApproveAddressList: nft.NFTApproveAddressList,
+		MergeLevel:            nft.MergeLevel,
+		MergeNumber:           nft.MergeNumber,
+		Creator:               nft.Creator,
+		Royalty:               nft.Royalty,
+		Exchanger:             nft.Exchanger,
+		MetaURL:               nft.MetaURL,
+	}
+
+	return newNft
+}
+
 type AccountStaker struct {
 	Mint       MintDeep
 	Validators ValidatorList
 	Stakers    StakerList
 	Snfts      InjectedOfficialNFTList
 	Nominee    *NominatedOfficialNFT `rlp:"nil"`
+}
+
+func (staker *AccountStaker) DeepCopy() *AccountStaker {
+	var newStaker AccountStaker
+
+	if staker.Mint.OfficialMint != nil {
+		newStaker.Mint.OfficialMint = new(big.Int).Set(staker.Mint.OfficialMint)
+	}
+	if staker.Mint.UserMint != nil {
+		newStaker.Mint.UserMint = new(big.Int).Set(staker.Mint.UserMint)
+	}
+
+	newStaker.Validators = *staker.Validators.DeepCopy()
+	newStaker.Stakers = *staker.Stakers.DeepCopy()
+	newStaker.Snfts = *staker.Snfts.DeepCopy()
+
+	if staker.Nominee != nil {
+		nominee := &NominatedOfficialNFT{}
+		
+		nominee.Dir = staker.Nominee.Dir
+		nominee.StartIndex = new(big.Int).Set(staker.Nominee.StartIndex)
+		nominee.Number = staker.Nominee.Number
+		nominee.Royalty = staker.Nominee.Royalty
+		nominee.Creator = staker.Nominee.Creator
+		nominee.Address = staker.Nominee.Address
+		nominee.VoteWeight = new(big.Int).Set(staker.Nominee.VoteWeight)
+
+		newStaker.Nominee = nominee
+	}
+
+	return &newStaker
 }

@@ -1670,6 +1670,21 @@ func (s *StateDB) GetNFTOwner16(nftAddr common.Address) common.Address {
 	return common.Address{}
 }
 
+func (s *StateDB) IsBeyondOfficialMint(parentAddr string) bool {
+	var strF string
+	for i := common.AddressLength*2 - len(parentAddr); i > 0; i-- {
+		strF = strF + "F"
+	}
+	parentAddr = parentAddr + strF
+	addrInt := big.NewInt(0)
+	addrInt.SetString(parentAddr, 16)
+	if s.GetOfficialMint().Cmp(addrInt) < 0 {
+		return true
+	}
+
+	return false
+}
+
 func (s *StateDB) IsCanMergeNFT16(nftAddr common.Address) bool {
 	if len(nftAddr) == 0 {
 		return false
@@ -1696,6 +1711,9 @@ func (s *StateDB) IsCanMergeNFT16(nftAddr common.Address) bool {
 
 	// 2. convert nft Addr to bigInt
 	parentAddrS := string([]byte(nftAddrS)[:len(nftAddrS)-int((mergeLevel+1))])
+	if s.IsBeyondOfficialMint(parentAddrS) {
+		return false
+	}
 	addrInt := big.NewInt(0)
 	addrInt.SetString(parentAddrS, 16)
 	addrInt.Lsh(addrInt, 4)
