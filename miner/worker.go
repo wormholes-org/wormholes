@@ -394,6 +394,7 @@ func (w *worker) resetEmptyCondition() {
 	w.cerytify.voteIndex = 0
 	w.cerytify.round = 0
 	w.cerytify.selfMessages.Purge()
+	w.cerytify.purge <- struct{}{}
 }
 
 // recalcRecommit recalculates the resubmitting interval upon feedback.
@@ -501,17 +502,24 @@ func (w *worker) emptyLoop() {
 					if w.totalCondition != valiTotal {
 						continue
 					}
+					log.Info("w.engine.OnlineValidators(curBlock.Number().Uint64()+1)", "len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)), "height", curBlock.Number().Uint64()+1)
 					if len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) >= 7 {
 						continue
 					}
-					//log.Info("ok empty condition 15", "totalCondition", totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len",len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)) )
+					log.Info("ok empty condition 15", "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				} else {
 					log.Info("ok empty condition 120", "height", new(big.Int).Add(w.chain.CurrentHeader().Number, big.NewInt(1)), "totalCondition", w.totalCondition, "time", curTime, "blocktime", int64(w.chain.CurrentBlock().Time()), "online len", len(w.engine.OnlineValidators(curBlock.Number().Uint64()+1)))
 				}
 				w.totalCondition = 0
 
-				stakes, err := w.chain.ReadValidatorPool(w.chain.CurrentHeader())
+				statedb, err := w.chain.StateAt(w.chain.CurrentHeader().Root)
 				if err != nil {
+					log.Error("emptyTimer.C : get statedb error", "no", w.chain.CurrentBlock().NumberU64())
+					continue
+				}
+
+				stakes := statedb.GetValidators(types.ValidatorStorageAddress)
+				if stakes == nil {
 					log.Error("emptyTimer.C : invalid validtor list", "no", w.chain.CurrentBlock().NumberU64())
 					continue
 				}
@@ -980,74 +988,6 @@ func (w *worker) makeEmptyCurrent(parent *types.Block, header *types.Header) err
 	}
 	state.StartPrefetcher("miner")
 
-	var mintDeep *types.MintDeep
-	//var exchangeList *types.SNFTExchangeList
-	if parent.NumberU64() > 0 {
-		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
-		if err != nil {
-			log.Error("Failed get mintdeep ", "err", err)
-			return err
-		}
-		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
-		//if exchangeList == nil {
-		//	exchangeList = &types.SNFTExchangeList{
-		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//	}
-		//}
-
-	} else {
-		mintDeep = new(types.MintDeep)
-		//mintDeep.OfficialMint = big.NewInt(1)
-		//
-		//mintDeep.UserMint = big.NewInt(0)
-		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
-		mintDeep.UserMint = big.NewInt(1)
-
-		mintDeep.OfficialMint = big.NewInt(0)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
-
-		//exchangeList = &types.SNFTExchangeList{
-		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//}
-	}
-	state.MintDeep = mintDeep
-	//state.SNFTExchangePool = exchangeList
-
-	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
-	state.OfficialNFTPool = officialNFTList
-	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
-		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
-	}
-
-	var nominatedOfficialNFT *types.NominatedOfficialNFT
-	if parent.NumberU64() > 0 {
-		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
-		if err != nil {
-			state.NominatedOfficialNFT = nil
-		} else {
-			state.NominatedOfficialNFT = nominatedOfficialNFT
-		}
-	} else {
-		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
-		nominatedOfficialNFT.Number = types.DefaultNumber
-		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
-		nominatedOfficialNFT.Creator = types.DefaultCreator
-		nominatedOfficialNFT.Address = common.Address{}
-		state.NominatedOfficialNFT = nominatedOfficialNFT
-	}
-
-	vallist, err := w.chain.ReadValidatorPool(parent.Header())
-	if err != nil {
-		log.Error("makeEmptyCurrent : invalid validator list", "no", header.Number, "err", err)
-		return err
-	}
-
-	state.ValidatorPool = vallist.Validators
-
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),
 		state:     state,
@@ -1085,73 +1025,6 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		return err
 	}
 	state.StartPrefetcher("miner")
-
-	var mintDeep *types.MintDeep
-	//var exchangeList *types.SNFTExchangeList
-	if parent.NumberU64() > 0 {
-		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
-		if err != nil {
-			log.Error("Failed get mintdeep ", "err", err)
-			return err
-		}
-		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
-		//if exchangeList == nil {
-		//	exchangeList = &types.SNFTExchangeList{
-		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//	}
-		//}
-
-	} else {
-		mintDeep = new(types.MintDeep)
-		//mintDeep.OfficialMint = big.NewInt(1)
-		//
-		//mintDeep.UserMint = big.NewInt(0)
-		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
-		mintDeep.UserMint = big.NewInt(1)
-
-		mintDeep.OfficialMint = big.NewInt(0)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
-
-		//exchangeList = &types.SNFTExchangeList{
-		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//}
-	}
-	state.MintDeep = mintDeep
-	//state.SNFTExchangePool = exchangeList
-
-	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
-	state.OfficialNFTPool = officialNFTList
-	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
-		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
-	}
-
-	var nominatedOfficialNFT *types.NominatedOfficialNFT
-	if parent.NumberU64() > 0 {
-		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
-		if err != nil {
-			state.NominatedOfficialNFT = nil
-		} else {
-			state.NominatedOfficialNFT = nominatedOfficialNFT
-		}
-	} else {
-		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
-		nominatedOfficialNFT.Number = types.DefaultNumber
-		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
-		nominatedOfficialNFT.Creator = types.DefaultCreator
-		nominatedOfficialNFT.Address = common.Address{}
-		state.NominatedOfficialNFT = nominatedOfficialNFT
-	}
-
-	vallist, err := w.chain.ReadValidatorPool(parent.Header())
-	if err != nil {
-		log.Error("makeCurrent : invalid validator list", "no", header.Number, "err", err)
-		return err
-	}
-	state.ValidatorPool = vallist.Validators
 
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),
@@ -1197,7 +1070,33 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 		return errors.New("uncle already included")
 	}
 	env.uncles.Add(uncle.Hash())
+
+	// Record bad behavior to local database
+	w.RecordEvilAction(uncle)
+
 	return nil
+}
+
+func (w *worker) RecordEvilAction(uncle *types.Header) {
+	if uncle.Coinbase == (common.Address{}) { // do not handle empty block forks
+		return
+	}
+
+	evilAction, err := w.eth.BlockChain().ReadEvilAction(uncle.Number.Uint64())
+	if err != nil {
+		log.Error("err read evil action", "err", err.Error())
+		return
+	}
+
+	if evilAction != nil && !evilAction.Handled && !evilAction.Exist(uncle) {
+		evilAction.EvilHeaders = append(evilAction.EvilHeaders, uncle)
+	}
+
+	if evilAction == nil {
+		evilAction = types.NewEvilAction(uncle)
+	}
+
+	w.eth.BlockChain().WriteEvilAction(uncle.Number.Uint64(), *evilAction)
 }
 
 // updateSnapshot updates pending snapshot block and state.
@@ -1956,72 +1855,6 @@ func (w *worker) makeProofCurrent(parent *types.Block, header *types.Header) err
 		return err
 	}
 	state.StartPrefetcher("miner")
-
-	var mintDeep *types.MintDeep
-	//var exchangeList *types.SNFTExchangeList
-	if parent.NumberU64() > 0 {
-		mintDeep, err = w.chain.ReadMintDeep(parent.Header())
-		if err != nil {
-			log.Error("Failed get mintdeep ", "err", err)
-			return err
-		}
-		//exchangeList, _ = w.chain.ReadSNFTExchangePool(parent.Header())
-		//if exchangeList == nil {
-		//	exchangeList = &types.SNFTExchangeList{
-		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//	}
-		//}
-	} else {
-		mintDeep = new(types.MintDeep)
-		//mintDeep.OfficialMint = big.NewInt(1)
-		//
-		//mintDeep.UserMint = big.NewInt(0)
-		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
-		mintDeep.UserMint = big.NewInt(1)
-
-		mintDeep.OfficialMint = big.NewInt(0)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
-
-		//exchangeList = &types.SNFTExchangeList{
-		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//}
-	}
-	state.MintDeep = mintDeep
-	//state.SNFTExchangePool = exchangeList
-
-	officialNFTList, _ := w.chain.ReadOfficialNFTPool(parent.Header())
-	state.OfficialNFTPool = officialNFTList
-	for _, v := range state.OfficialNFTPool.InjectedOfficialNFTs {
-		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
-	}
-
-	var nominatedOfficialNFT *types.NominatedOfficialNFT
-	if parent.NumberU64() > 0 {
-		nominatedOfficialNFT, err = w.chain.ReadNominatedOfficialNFT(parent.Header())
-		if err != nil {
-			state.NominatedOfficialNFT = nil
-		} else {
-			state.NominatedOfficialNFT = nominatedOfficialNFT
-		}
-	} else {
-		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(state.OfficialNFTPool.MaxIndex())
-		nominatedOfficialNFT.Number = types.DefaultNumber
-		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
-		nominatedOfficialNFT.Creator = types.DefaultCreator
-		nominatedOfficialNFT.Address = common.Address{}
-		state.NominatedOfficialNFT = nominatedOfficialNFT
-	}
-
-	vallist, err := w.chain.ReadValidatorPool(parent.Header())
-	if err != nil {
-		log.Error("makeProofCurrent : invalid validator list", "no", header.Number, "err", err)
-		return err
-	}
-	state.ValidatorPool = vallist.Validators
 
 	env := &environment{
 		signer:    types.MakeSigner(w.chainConfig, header.Number),

@@ -19,7 +19,6 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math"
 	"math/big"
 	"sync"
@@ -781,37 +780,35 @@ func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]
 	return m
 }
 
-//func (h *handler) FindPeerSet(targets map[common.Address]bool) map[common.Address]miner.Peer {
-//	//m := make(map[common.Address]miner.Peer)
-//	//for _, p := range h.peers.peers {
-//	//	pubKey := p.Node().Pubkey()
-//	//	addr := crypto.PubkeyToAddress(*pubKey)
-//	//	if targets[addr] {
-//	//		log.Info("FindPeerSet")
-//	//		m[addr] = p
-//	//	}
-//	//}
-//	//return m
-//
-//	m := make(map[common.Address]miner.Peer)
-//	for _, p := range h.peers.peers {
-//		pubKey := p.Node().Pubkey()
-//		addr := crypto.PubkeyToAddress(*pubKey)
-//		m[addr] = p
-//	}
-//	return m
-//}
+func (h *handler) FindPeerSet() map[string]miner.Peer {
+	//m := make(map[common.Address]miner.Peer)
+	//for _, p := range h.peers.peers {
+	//	pubKey := p.Node().Pubkey()
+	//	addr := crypto.PubkeyToAddress(*pubKey)
+	//	if targets[addr] {
+	//		log.Info("FindPeerSet")
+	//		m[addr] = p
+	//	}
+	//}
+	//return m
 
-//func (h *handler) FindPeerSet(hash common.Hash) map[common.Address]miner.Peer {
-//	peers := h.peers.peerWithoutEmptyBlockMsg(hash)
-//	return peers
-//}
-
-func (h *handler) BroadcastEmptyBlockMsg(msg []byte) {
-	hash := istanbul.RLPHash(msg)
-	peers := h.peers.peerWithoutEmptyBlockMsg(hash)
-
-	for _, p := range peers {
-		p.WriteQueueEmptyBlockMsg(msg)
+	m := make(map[string]miner.Peer)
+	for _, p := range h.peers.peers {
+		m[p.ID()] = p
 	}
+	return m
+}
+
+func (h *handler) EmptyResponse() chan string {
+	return eth.GetPeerCh()
+}
+
+func (h *handler) PeerStatus() map[string]struct{} {
+	status := make(map[string]struct{})
+	for _, p := range h.peers.peers {
+		if p.GetQueueStatus() == 10 {
+			status[p.ID()] = struct{}{}
+		}
+	}
+	return status
 }

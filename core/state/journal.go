@@ -17,6 +17,7 @@
 package state
 
 import (
+	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -229,6 +230,36 @@ type (
 	extraChange struct {
 		account *common.Address
 		prev    []byte
+	}
+
+	userMintChange struct {
+		account *common.Address
+		prev    *big.Int
+	}
+
+	officialMintChange struct {
+		account *common.Address
+		prev    *big.Int
+	}
+
+	validatorsChange struct {
+		account       *common.Address
+		oldValidators types.ValidatorList
+	}
+
+	stakersChange struct {
+		account    *common.Address
+		oldStakers types.StakerList
+	}
+
+	snftsChange struct {
+		account  *common.Address
+		oldSnfts types.InjectedOfficialNFTList
+	}
+
+	nomineeChange struct {
+		account    *common.Address
+		oldNominee types.NominatedOfficialNFT
 	}
 )
 
@@ -497,5 +528,58 @@ func (ch extraChange) revert(s *StateDB) {
 }
 
 func (ch extraChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch userMintChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setUserMint(ch.prev)
+}
+
+func (ch userMintChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch officialMintChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setOfficialMint(ch.prev)
+}
+
+func (ch officialMintChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch validatorsChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setValidators(&ch.oldValidators)
+}
+
+func (ch validatorsChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch stakersChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setStakers(&ch.oldStakers)
+}
+
+func (ch stakersChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch snftsChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setSnfts(&ch.oldSnfts)
+}
+
+func (ch snftsChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch nomineeChange) revert(s *StateDB) {
+	emptyNominee := types.NominatedOfficialNFT{}
+	if ch.oldNominee != emptyNominee {
+		s.getStateObject(*ch.account).setNominee(&ch.oldNominee)
+	} else {
+		s.getStateObject(*ch.account).setNominee(nil)
+	}
+}
+
+func (ch nomineeChange) dirtied() *common.Address {
 	return ch.account
 }

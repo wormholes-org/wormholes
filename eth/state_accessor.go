@@ -19,7 +19,6 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -156,73 +155,6 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, err
 	}
-
-	var mintDeep *types.MintDeep
-	//var exchangeList *types.SNFTExchangeList
-	if parent.NumberU64() > 0 {
-		mintDeep, err = eth.blockchain.ReadMintDeep(parent.Header())
-		if err != nil {
-			log.Error("Failed get mintdeep ", "err", err)
-			return nil, vm.BlockContext{}, nil, err
-		}
-		//exchangeList, _ = eth.blockchain.ReadSNFTExchangePool(parent.Header())
-		//if exchangeList == nil {
-		//	exchangeList = &types.SNFTExchangeList{
-		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//	}
-		//}
-
-	} else {
-		mintDeep = new(types.MintDeep)
-		//mintDeep.OfficialMint = big.NewInt(1)
-		//
-		//mintDeep.UserMint = big.NewInt(0)
-		//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		//mintDeep.UserMint.Add(big.NewInt(1), maskB)
-		mintDeep.UserMint = big.NewInt(1)
-
-		mintDeep.OfficialMint = big.NewInt(0)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
-
-		//exchangeList = &types.SNFTExchangeList{
-		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//}
-	}
-	statedb.MintDeep = mintDeep
-	//statedb.SNFTExchangePool = exchangeList
-
-	officialNFTList, _ := eth.blockchain.ReadOfficialNFTPool(parent.Header())
-	statedb.OfficialNFTPool = officialNFTList
-	for _, v := range statedb.OfficialNFTPool.InjectedOfficialNFTs {
-		log.Info("makeCurrent()", "state.OfficialNFTPool.InjectedOfficialNFTs", v)
-	}
-
-	var nominatedOfficialNFT *types.NominatedOfficialNFT
-	if parent.NumberU64() > 0 {
-		nominatedOfficialNFT, err = eth.blockchain.ReadNominatedOfficialNFT(parent.Header())
-		if err != nil {
-			statedb.NominatedOfficialNFT = nil
-		} else {
-			statedb.NominatedOfficialNFT = nominatedOfficialNFT
-		}
-	} else {
-		nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-		nominatedOfficialNFT.Dir = types.DefaultDir
-		nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.OfficialNFTPool.MaxIndex())
-		nominatedOfficialNFT.Number = types.DefaultNumber
-		nominatedOfficialNFT.Royalty = types.DefaultRoyalty
-		nominatedOfficialNFT.Creator = types.DefaultCreator
-		nominatedOfficialNFT.Address = common.Address{}
-		statedb.NominatedOfficialNFT = nominatedOfficialNFT
-	}
-
-	vallist, err := eth.blockchain.ReadValidatorPool(parent.Header())
-	if err != nil {
-		log.Error("stateAtTransaction : invalid validator list", "err", err)
-		return nil, vm.BlockContext{}, nil, err
-	}
-	statedb.ValidatorPool = vallist.Validators
 
 	if txIndex == 0 && len(block.Transactions()) == 0 {
 		return nil, vm.BlockContext{}, statedb, nil

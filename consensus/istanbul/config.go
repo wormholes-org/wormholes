@@ -28,6 +28,7 @@ type ProposerPolicyId uint64
 const (
 	RoundRobin ProposerPolicyId = iota
 	Sticky
+	Coefficient
 )
 
 // ProposerPolicy represents the Validator Proposer Policy
@@ -48,8 +49,13 @@ func NewStickyProposerPolicy() *ProposerPolicy {
 	return NewProposerPolicy(Sticky)
 }
 
+// NewCoefficientProposerPolicy return a Coefficient ProposerPolicy with ValidatorSortByCoefficient as default sort function
+func NewCoefficientProposerPolicy() *ProposerPolicy {
+	return NewProposerPolicy(Coefficient)
+}
+
 func NewProposerPolicy(id ProposerPolicyId) *ProposerPolicy {
-	return NewProposerPolicyByIdAndSortFunc(id, ValidatorSortByString())
+	return NewProposerPolicyByIdAndSortFunc(id, ValidatorSortByCoefficient())
 }
 
 func NewProposerPolicyByIdAndSortFunc(id ProposerPolicyId, by ValidatorSortByFunc) *ProposerPolicy {
@@ -118,7 +124,7 @@ type Config struct {
 var DefaultConfig = &Config{
 	RequestTimeout:         10000,
 	BlockPeriod:            5,
-	ProposerPolicy:         NewRoundRobinProposerPolicy(),
+	ProposerPolicy:         NewCoefficientProposerPolicy(),
 	Epoch:                  30000,
 	Ceil2Nby3Block:         big.NewInt(0),
 	AllowedFutureBlockTime: 0,

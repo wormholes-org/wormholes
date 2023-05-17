@@ -370,8 +370,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// load staker pool
-	bc.loadStakerPool()
-	go bc.WriteStakersToDB()
+	//bc.loadStakerPool()
+	//go bc.WriteStakersToDB()
 
 	// The first thing the node will do is reconstruct the verification data for
 	// the head block (ethash cache or clique voting snapshot). Might as well do
@@ -1663,85 +1663,16 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		}
 	}
 
-	// write mintdeep
-	bc.WriteMintDeep(block.Header(), state.MintDeep)
-	//// write SNFTExchangePool
-	//bc.WriteSNFTExchangePool(block.Header(), state.SNFTExchangePool)
-	// write OfficialNFTPool
-	bc.WriteOfficialNFTPool(block.Header(), state.OfficialNFTPool)
-	// write NominatedOfficialNFT
-	bc.WriteNominatedOfficialNFT(block.Header(), state.NominatedOfficialNFT)
-
-	// modify Pledge list
-	//exchangerPool := bc.ReadStakePool(bc.GetHeaderByHash(block.Header().ParentHash))
-	log.Info("caver|stake-before", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
-	var dbStakers types.DBStakerList
-	if len(state.ExchangerTokenPool) > 0 {
-		for _, v := range state.ExchangerTokenPool {
-			var dbStaker types.DBStaker
-			dbStaker.Addr = v.Address
-			dbStaker.Balance = v.Amount
-			if v.Flag {
-				bc.stakerPool.AddStaker(v.Address, v.Amount)
-				dbStaker.DeleteFlag = false
-			} else {
-				bc.stakerPool.RemoveStaker(v.Address, v.Amount)
-				dbStaker.DeleteFlag = true
-			}
-			dbStakers.DBStakers = append(dbStakers.DBStakers, &dbStaker)
-		}
-		state.ExchangerTokenPool = state.ExchangerTokenPool[:0]
-	}
-	bc.WriteDBStakerPool(block.Header(), &dbStakers)
-	//bc.WriteStakePool(block.Header(), exchangerPool)
-
-	log.Info("caver|stake-after", "no", block.Header().Number, "len", bc.stakerPool.Len(), "state.ExchangerTokenPool", len(state.ExchangerTokenPool))
-
-	validatorPool, err := bc.ReadValidatorPool(bc.GetHeaderByHash(block.Header().ParentHash))
-	if err != nil {
-		log.Error("writeBlockWithoutState : invalid validator list", "no", block.Header().Number, "err", err)
-		return NonStatTy, err
-	}
-	log.Info("caver|validator-before", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
 	validatorsCoe := make(map[common.Address]uint8)
-	if len(state.PledgedTokenPool) > 0 {
-		for _, v := range state.PledgedTokenPool {
-			if v.Flag {
-				validatorPool.AddValidator(v.Address, v.Amount, v.ProxyAddress)
-			} else {
-				validatorPool.RemoveValidator(v.Address, v.Amount)
-			}
-		}
-		state.PledgedTokenPool = state.PledgedTokenPool[:0]
-	}
-
-	// Recalculate the weight, which needs to be calculated after the list is determined
-	for _, account := range validatorPool.Validators {
+	validatorList := state.GetValidators(types.ValidatorStorageAddress)
+	for _, account := range validatorList.Validators {
 		coefficient := state.GetValidatorCoefficient(account.Addr)
 		validatorsCoe[account.Addr] = coefficient
-		validatorPool.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
 	bc.cmu.Lock()
 	bc.coefficients[block.NumberU64()] = validatorsCoe
 	bc.cmu.Unlock()
 	bc.DeleteExpiredCoefficents()
-
-	bc.WriteValidatorPool(block.Header(), validatorPool)
-	log.Info("caver|validator-after", "no", block.Header().Number, "len", validatorPool.Len(), "state.PledgedTokenPool", len(state.PledgedTokenPool))
-
-	// write the all exchangers to leveldb per WriteStakersFrequency blocks
-	if block.NumberU64()%WriteStakersFrequency == 0 {
-		data, err := rlp.EncodeToBytes(bc.stakerPool)
-		if err == nil {
-			stakers := BytesStakerList{
-				Header:     block.Header(),
-				StakerList: data,
-			}
-			bc.bytesStakersCh <- stakers
-		} else {
-			log.Error("Failed to RLP stakePool", "err", err)
-		}
-	}
 
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
@@ -2078,77 +2009,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		// Process block using the parent state as reference point
 		substart := time.Now()
 
-		var mintDeep *types.MintDeep
-		//var exchangeList *types.SNFTExchangeList
-		if parent.Number.Uint64() > 0 {
-			mintDeep, err = bc.ReadMintDeep(parent)
-			if err != nil {
-				log.Error("Failed get mintdeep ", "err", err)
-				return it.index, err
-			}
-			//exchangeList, _ = bc.ReadSNFTExchangePool(parent)
-			//if exchangeList == nil {
-			//	exchangeList = &types.SNFTExchangeList{
-			//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-			//	}
-			//}
-
-		} else {
-			mintDeep = new(types.MintDeep)
-			//mintDeep.OfficialMint = big.NewInt(1)
-			//
-			//mintDeep.UserMint = big.NewInt(0)
-			//maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-			//mintDeep.UserMint.Add(big.NewInt(1), maskB)
-			mintDeep.UserMint = big.NewInt(1)
-
-			mintDeep.OfficialMint = big.NewInt(0)
-			maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-			mintDeep.OfficialMint.Add(big.NewInt(0), maskB)
-
-			//exchangeList = &types.SNFTExchangeList{
-			//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-			//}
-		}
-		statedb.MintDeep = mintDeep
-		//statedb.SNFTExchangePool = exchangeList
-		log.Info("caver|MintDeep", "no", parent.Number.Text(10), "OfficialMint", statedb.MintDeep.OfficialMint.Text(16),
-			"UserMint", statedb.MintDeep.UserMint.Text(16))
-		officialNFTList, _ := bc.ReadOfficialNFTPool(parent)
-		statedb.OfficialNFTPool = officialNFTList
-
-		var nominatedOfficialNFT *types.NominatedOfficialNFT
-		if parent.Number.Uint64() > 0 {
-			nominatedOfficialNFT, err = bc.ReadNominatedOfficialNFT(parent)
-			if err != nil {
-				statedb.NominatedOfficialNFT = nil
-			} else {
-				statedb.NominatedOfficialNFT = nominatedOfficialNFT
-			}
-		} else {
-			nominatedOfficialNFT = new(types.NominatedOfficialNFT)
-			nominatedOfficialNFT.Dir = types.DefaultDir
-			nominatedOfficialNFT.StartIndex = new(big.Int).Set(statedb.OfficialNFTPool.MaxIndex())
-			nominatedOfficialNFT.Number = types.DefaultNumber
-			nominatedOfficialNFT.Royalty = types.DefaultRoyalty
-			nominatedOfficialNFT.Creator = types.DefaultCreator
-			nominatedOfficialNFT.Address = common.Address{}
-			statedb.NominatedOfficialNFT = nominatedOfficialNFT
-		}
-
-		valList, err := bc.ReadValidatorPool(parent)
-		if err != nil {
-			log.Error("insertChain: invalid validator list", "err", err)
-			return it.index, err
-		}
-		statedb.ValidatorPool = valList.Validators
-
-		emptyBlockErr := bc.VerifyEmptyBlock(block, statedb, valList)
-		if emptyBlockErr != nil {
-			log.Error("insertChain: invalid validators of empty block", "emptyBlockErr", emptyBlockErr)
-			return it.index, emptyBlockErr
-		}
-
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -2254,77 +2114,16 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 	return it.index, err
 }
 
-func (bc *BlockChain) VerifyEmptyBlock(block *types.Block, statedb *state.StateDB, list *types.ValidatorList) error {
-	// if the block is empty block, validate it
-	if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.NumberU64() > 0 {
-		adjustedTimeNow := time.Now().Unix()
-		if block.Time() > uint64(adjustedTimeNow) {
-			log.Error("VerifyEmptyBlock:futureBlock",
-				"no", block.Number,
-				"adjustedTimeNow", adjustedTimeNow,
-				"header.Time", block.Time())
-			return consensus.ErrFutureBlock
-		}
-		if block.Difficulty().Uint64() != 24 {
-			return errors.New("invalid difficulty of empty block")
-		}
-		istanbulExtra, checkerr := types.ExtractIstanbulExtra(block.Header())
-		if checkerr != nil {
-			log.Error("BlockChain.VerifyEmptyBlock()", "VerifyHeadersAndcheckerr checkerr:", checkerr)
-			return checkerr
-		}
-
-		var allWeightBalance = big.NewInt(0)
-		var voteBalance *big.Int
-		var coe uint8
-
-		//averageCoefficient := bc.GetAverageCoefficient(statedb)
-
-		for _, validator := range statedb.ValidatorPool {
-			coe = statedb.GetValidatorCoefficient(validator.Addr)
-			voteBalance = new(big.Int).Mul(validator.Balance, big.NewInt(int64(coe)))
-			allWeightBalance.Add(allWeightBalance, voteBalance)
-		}
-		allWeightBalance50 := new(big.Int).Mul(big.NewInt(50), allWeightBalance)
-		allWeightBalance50 = new(big.Int).Div(allWeightBalance50, big.NewInt(100))
-
-		var validators []common.Address
-		for _, emptyBlockMessage := range istanbulExtra.EmptyBlockMessages[1:] {
-			msg := &types.EmptyMsg{}
-			sender, err := msg.RecoverAddress(emptyBlockMessage)
-			if err != nil {
-				return err
-			}
-			validators = append(validators, sender)
-		}
-
-		var blockWeightBalance = big.NewInt(0)
-		for _, v := range validators {
-			//coe = statedb.GetValidatorCoefficient(list.GetValidatorAddr(v))
-			//voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(int64(coe)))
-			voteBalance = new(big.Int).Mul(list.StakeBalance(v), big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
-			//voteBalance.Div(voteBalance, big.NewInt(10))
-			blockWeightBalance.Add(blockWeightBalance, voteBalance)
-		}
-		if blockWeightBalance.Cmp(allWeightBalance50) > 0 {
-			return nil
-		} else {
-			log.Error("BlockChain.VerifyEmptyBlock(), verify validators of empty block error ",
-				"blockWeightBalance", blockWeightBalance, "allWeightBalance50", allWeightBalance50)
-			return errors.New("verify validators of empty block error")
-		}
-	}
-	return nil
-}
-
 func (w *BlockChain) GetAverageCoefficient(statedb *state.StateDB) uint64 {
 	var total = big.NewInt(0)
 	var maxTotal = big.NewInt(0)
 	var voteBalance *big.Int
 	var maxVoteBalance *big.Int
 	var coe uint8
-	log.Info("BlockChain.GetAverageCoefficient:", "len", len(statedb.ValidatorPool))
-	for _, voter := range statedb.ValidatorPool {
+
+	validatorList := statedb.GetValidators(types.ValidatorStorageAddress)
+	log.Info("BlockChain.GetAverageCoefficient:", "len", len(validatorList.Validators))
+	for _, voter := range validatorList.Validators {
 		coe = statedb.GetValidatorCoefficient(voter.Addr)
 		voteBalance = new(big.Int).Mul(voter.Balance, big.NewInt(int64(coe)))
 		total.Add(total, voteBalance)
@@ -2985,10 +2784,17 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 		log.Error("Random11ValidatorFromPool: header is nil", "no", bc.CurrentHeader().Number.Uint64())
 		return nil, errors.New("err Random11ValidatorFromPool invalid header")
 	}
-	validatorList, err := bc.ReadValidatorPool(header)
+
+	db, err := bc.StateAt(header.Root)
 	if err != nil {
-		log.Error("Random11ValidatorFromPool: ReadValidatorPool", "err", err, "no", bc.CurrentHeader().Number.Uint64())
-		return nil, err
+		log.Error("Random11ValidatorFromPool invalid root", "no", header.Number.Uint64())
+		return nil, errors.New("Random11ValidatorFromPool invalid root")
+	}
+
+	validatorList := db.GetValidators(types.ValidatorStorageAddress)
+	if validatorList == nil {
+		log.Error("Random11ValidatorFromPool: get validators error", "no", header.Number.Uint64())
+		return nil, errors.New("get validators error")
 	}
 
 	// Obtain random landing points according to the surrounding chain algorithm
@@ -2998,13 +2804,6 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 		return nil, err
 	}
 	log.Info("Random11ValidatorFromPool : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
-
-	// Get the weights of all validators
-	db, err := bc.StateAt(header.Root)
-	if err != nil {
-		log.Error("Random11ValidatorFromPool invalid root", "no", header.Number.Uint64())
-		return nil, errors.New("Random11ValidatorFromPool invalid root")
-	}
 
 	// Get all validator weights
 	var weights []uint8
@@ -3059,10 +2858,17 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 		log.Error("Random11ValidatorWithOutProxy: header is nil", "no", bc.CurrentHeader().Number.Uint64())
 		return nil, errors.New("err Random11ValidatorFromPool invalid header")
 	}
-	validatorList, err := bc.ReadValidatorPool(header)
+
+	db, err := bc.StateAt(header.Root)
 	if err != nil {
-		log.Error("Random11ValidatorWithOutProxy: ReadValidatorPool", "err", err, "no", bc.CurrentHeader().Number.Uint64())
-		return nil, err
+		log.Error("Random11ValidatorWithOutProxy invalid root", "no", header.Number.Uint64())
+		return nil, errors.New("Random11ValidatorWithOutProxy invalid root")
+	}
+
+	validatorList := db.GetValidators(types.ValidatorStorageAddress)
+	if validatorList == nil {
+		log.Error("Random11ValidatorWithOutProxy: get validators error", "no", header.Number.Uint64())
+		return nil, errors.New("get validators error")
 	}
 
 	// Obtain random landing points according to the surrounding chain algorithm
@@ -3072,13 +2878,6 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 		return nil, err
 	}
 	log.Info("Random11ValidatorWithOutProxy : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
-
-	// Get the weights of all validators
-	db, err := bc.StateAt(header.Root)
-	if err != nil {
-		log.Error("Random11ValidatorWithOutProxy invalid root", "no", header.Number.Uint64())
-		return nil, errors.New("Random11ValidatorWithOutProxy invalid root")
-	}
 
 	// Get all validator weights
 	var weights []uint8
@@ -3174,22 +2973,13 @@ func (bc *BlockChain) ReadNominatedOfficialNFT(header *types.Header) (*types.Nom
 
 func (bc *BlockChain) QueryMinerProxy(ctx context.Context, number int64, minerAddress *common.Address) (*types.ValidatorList, error) {
 	log.Info("QueryMinerProxy", "number", number, "minerAddress", minerAddress.Hex())
-	vList, err := bc.ReadValidatorPool(bc.GetHeaderByNumber(uint64(number)))
+	statedb, err := bc.StateAt(bc.GetHeaderByNumber(uint64(number)).Root)
 	if err != nil {
 		return nil, err
 	}
-	//empty := common.Address{}
+	vList := statedb.GetValidators(types.ValidatorStorageAddress)
 
-	//if minerAddress == nil || minerAddress.Hex() == empty.Hex() {
 	return vList, nil
-	//}
-
-	//for _, v := range vList.Validators {
-	//	if v.Address().Hex() == minerAddress.Hex() && v.Proxy != empty {
-	//		return &v.Proxy, nil
-	//	}
-	//}
-	//return nil, errors.New("proxy is empty")
 }
 
 func GetRandomDrop(validators *types.ValidatorList, header *types.Header) common.Hash {
@@ -3376,3 +3166,15 @@ func getSurroundingChainNo(i, Nr, Np int) []int {
 //		vm.FrozenAcconts = tempFrozenAccounts
 //	}
 //}
+
+func (bc *BlockChain) WriteEvilAction(no uint64, ea types.EvilAction) {
+	batch := bc.db.NewBatch()
+	rawdb.WriteEvilAction(batch, no, ea)
+	if err := batch.Write(); err != nil {
+		log.Crit("Failed to write evil action disk", "err", err)
+	}
+}
+
+func (bc *BlockChain) ReadEvilAction(no uint64) (*types.EvilAction, error) {
+	return rawdb.ReadEvilAction(bc.db, no)
+}

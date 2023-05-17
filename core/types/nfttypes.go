@@ -184,6 +184,28 @@ func (list *InjectedOfficialNFTList) MaxIndex() *big.Int {
 	return max
 }
 
+func (list *InjectedOfficialNFTList) DeepCopy() *InjectedOfficialNFTList {
+	tempList := &InjectedOfficialNFTList{
+		InjectedOfficialNFTs: make([]*InjectedOfficialNFT, 0, len(list.InjectedOfficialNFTs)),
+	}
+
+	for _, v := range list.InjectedOfficialNFTs {
+		tempInjected := &InjectedOfficialNFT{
+			Dir:        v.Dir,
+			StartIndex: new(big.Int).Set(v.StartIndex),
+			Number:     v.Number,
+			Royalty:    v.Royalty,
+			Creator:    v.Creator,
+			Address:    v.Address,
+			VoteWeight: new(big.Int).Set(v.VoteWeight),
+		}
+
+		tempList.InjectedOfficialNFTs = append(tempList.InjectedOfficialNFTs, tempInjected)
+	}
+
+	return tempList
+}
+
 // Wormholes struct for handling NFT transactions
 type Wormholes struct {
 	Type         uint8  `json:"type"`

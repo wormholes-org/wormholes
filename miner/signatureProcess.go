@@ -2,11 +2,12 @@ package miner
 
 import (
 	"errors"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
 )
 
 func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
@@ -18,13 +19,13 @@ func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
 	} else {
 		voteAddress = vote.Proxy
 	}
+	log.Info("azh|start to vote", "validators", len(c.stakers.Validators), "index", c.voteIndex, "round", c.round, "vote", vote, "height:", height)
 	c.voteIndex++
 	if c.voteIndex == len(c.stakers.Validators) {
 		c.voteIndex = 0
 		c.round++
 	}
 
-	log.Info("azh|start to vote", "validators", len(c.stakers.Validators), "index", c.voteIndex, "vote", vote, "height:", height)
 	err, payload := c.assembleMessage(height, voteAddress)
 	if err != nil {
 		return
@@ -41,9 +42,7 @@ func (c *Certify) AssembleAndBroadcastMessage(height *big.Int) {
 		}
 		go c.eventMux.Post(emptyMsg)
 	} else {
-		if miner, ok := c.miner.(*Miner); ok {
-			miner.broadcaster.BroadcastEmptyBlockMsg(payload)
-		}
+		c.requestEmpty <- payload
 	}
 	//log.Info("AssembleAndBroadcastMessage end")
 }

@@ -993,7 +993,7 @@ func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rp
 		if err == nil {
 			if nominatedNFT.Address != emptyAddr {
 				acc := st.GetAccountInfo(nominatedNFT.Address)
-				Info.VoteWeight = new(big.Int).Set(acc.VoteWeight)
+				Info.VoteWeight = new(big.Int).Set(acc.Worm.VoteWeight)
 			} else {
 				Info.VoteWeight = big.NewInt(0)
 			}
@@ -2427,7 +2427,7 @@ func (w *PublicWormholesAPI) GetNominatedNFTInfo(ctx context.Context, number rpc
 		if err == nil {
 			if nominatedNFT.Address != emptyAddr {
 				acc := st.GetAccountInfo(nominatedNFT.Address)
-				Info.VoteWeight = new(big.Int).Set(acc.VoteWeight)
+				Info.VoteWeight = new(big.Int).Set(acc.Worm.VoteWeight)
 			} else {
 				Info.VoteWeight = big.NewInt(0)
 			}
