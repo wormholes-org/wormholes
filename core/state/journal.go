@@ -177,10 +177,11 @@ type (
 		oldMergeNumber           uint32
 		//oldPledgedFlag           bool
 		//oldNFTPledgedBlockNumber *big.Int
-		oldCreator   common.Address
-		oldRoyalty   uint16
-		oldExchanger common.Address
-		oldMetaURL   string
+		oldCreator       common.Address
+		oldRoyalty       uint16
+		oldExchanger     common.Address
+		oldMetaURL       string
+		oldSNFTRecipient common.Address
 	}
 
 	pledgedBalanceChange struct {

@@ -919,23 +919,25 @@ func (s *stateObject) cleanNFT() {
 	s.data.Nft.Royalty = 0
 	s.data.Nft.Exchanger = common.Address{}
 	s.data.Nft.MetaURL = ""
+	s.data.Nft.SNFTRecipient = common.Address{}
 }
 
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-//pledgedflag bool,
-//nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
-	metaURL string) {
+	metaURL string,
+	snftRecipient common.Address) {
 	//if s.data.NFTPledgedBlockNumber == nil {
 	//	s.data.NFTPledgedBlockNumber = big.NewInt(0)
 	//}
@@ -948,10 +950,11 @@ func (s *stateObject) SetNFTInfo(
 		oldMergeNumber: s.data.Nft.MergeNumber,
 		//oldPledgedFlag:           s.data.PledgedFlag,
 		//oldNFTPledgedBlockNumber: new(big.Int).Set(s.data.NFTPledgedBlockNumber),
-		oldCreator:   s.data.Nft.Creator,
-		oldRoyalty:   s.data.Nft.Royalty,
-		oldExchanger: s.data.Nft.Exchanger,
-		oldMetaURL:   s.data.Nft.MetaURL,
+		oldCreator:       s.data.Nft.Creator,
+		oldRoyalty:       s.data.Nft.Royalty,
+		oldExchanger:     s.data.Nft.Exchanger,
+		oldMetaURL:       s.data.Nft.MetaURL,
+		oldSNFTRecipient: s.data.Nft.SNFTRecipient,
 	}
 	//change.oldNFTApproveAddressList = append(change.oldNFTApproveAddressList, s.data.NFTApproveAddressList...)
 	change.oldNFTApproveAddressList = s.data.Nft.NFTApproveAddressList
@@ -969,24 +972,26 @@ func (s *stateObject) SetNFTInfo(
 		creator,
 		royalty,
 		exchanger,
-		metaURL)
+		metaURL,
+		snftRecipient)
 }
 
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-//pledgedflag bool,
-//nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
-	metaURL string) {
+	metaURL string,
+	snftRecipient common.Address) {
 
 	s.data.Nft.Name = name
 	s.data.Nft.Symbol = symbol
@@ -1001,6 +1006,7 @@ func (s *stateObject) setNFTInfo(
 	s.data.Nft.Royalty = royalty
 	s.data.Nft.Exchanger = exchanger
 	s.data.Nft.MetaURL = metaURL
+	s.data.Nft.SNFTRecipient = snftRecipient
 
 }
 
@@ -1036,14 +1042,14 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -1623,6 +1629,10 @@ func (s *stateObject) GetNominee() *types.NominatedOfficialNFT {
 	}
 
 	return nil
+}
+
+func (s *stateObject) GetSNFTAgentRecipient() common.Address {
+	return s.data.Worm.SNFTAgentRecipient
 }
 
 func (s *stateObject) SetSNFTAgentRecipient(recipient common.Address) {
