@@ -63,7 +63,7 @@ const (
 	WormholesTx26 uint64 = 42000
 	WormholesTx27 uint64 = 166000
 	WormholesTx28 uint64 = 126000
-	WormholesTx30 uint64 = 52500
+	WormholesTx30 uint64 = 42000
 	WormholesTx31 uint64 = 73500
 
 	Sha3Gas     uint64 = 30 // Once per SHA3 operation.
