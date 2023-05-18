@@ -139,6 +139,7 @@ type StateDB interface {
 	GetOfficialMint() *big.Int
 	GetUserMint() *big.Int
 	ChangeSNFTAgentRecipient(common.Address, common.Address)
+	ChangeSNFTNoMerge(common.Address, bool)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

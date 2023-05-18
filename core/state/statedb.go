@@ -1695,6 +1695,12 @@ func (s *StateDB) IsCanMergeNFT16(nftAddr common.Address) bool {
 	}
 	emptyAddress := common.Address{}
 
+	// snfts are not merged that the account's SNFTNoMerge is true
+	nftOwner := s.GetNFTOwner16(nftAddr)
+	if nftOwner != emptyAddress && s.GetSNFTNoMerge(nftOwner) {
+		return false
+	}
+
 	nftAddrS := nftAddr.String()
 	if strings.HasPrefix(nftAddrS, "0x") ||
 		strings.HasPrefix(nftAddrS, "0X") {
@@ -1707,6 +1713,7 @@ func (s *StateDB) IsCanMergeNFT16(nftAddr common.Address) bool {
 	if nftStateObject == nil {
 		return false
 	}
+
 	mergeLevel := nftStateObject.GetNFTMergeLevel()
 	if mergeLevel >= QUERYDEPTHLIMIT16 {
 		return false
@@ -3304,4 +3311,20 @@ func (s *StateDB) GetSNFTAgentRecipient(addr common.Address) common.Address {
 	}
 
 	return common.Address{}
+}
+
+func (s *StateDB) GetSNFTNoMerge(addr common.Address) bool {
+	accountStateObject := s.GetOrNewAccountStateObject(addr)
+	if accountStateObject != nil {
+		return accountStateObject.GetSNFTNoMerge()
+	}
+
+	return false
+}
+
+func (s *StateDB) ChangeSNFTNoMerge(addr common.Address, flag bool) {
+	accountStateObject := s.GetOrNewAccountStateObject(addr)
+	if accountStateObject != nil {
+		accountStateObject.SetSNFTNoMerge(flag)
+	}
 }

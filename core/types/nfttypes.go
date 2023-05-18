@@ -232,6 +232,7 @@ type Wormholes struct {
 	RewardFlag    uint8            `json:"reward_flag,omitempty"`
 	BuyerAuth     TraderPayload    `json:"buyer_auth,omitempty"`
 	SellerAuth    TraderPayload    `json:"seller_auth,omitempty"`
+	NoAutoMerge   bool             `json:"no_automerge,omitempty"`
 }
 
 const WormholesVersion = "v0.0.1"
