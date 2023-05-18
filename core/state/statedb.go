@@ -2700,14 +2700,15 @@ func (s *StateDB) OpenExchanger(addr common.Address,
 	blocknumber *big.Int,
 	feerate uint16,
 	exchangername string,
-	exchangerurl string) {
+	exchangerurl string,
+	agentrecipient common.Address) {
 	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
 		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
 		stakerStateObject.AddStaker(addr, amount)
 		stateObject.SubBalance(amount)
 		stateObject.SetExchangerBalance(amount)
-		stateObject.OpenExchanger(blocknumber, feerate, exchangername, exchangerurl)
+		stateObject.OpenExchanger(blocknumber, feerate, exchangername, exchangerurl, agentrecipient)
 	}
 }
 
@@ -3270,4 +3271,11 @@ func (s *StateDB) GetUserMint() *big.Int {
 	}
 
 	return nil
+}
+
+func (s *StateDB) ChangeSNFTAgentRecipient(addr common.Address, recipient common.Address) {
+	accountStateObject := s.GetOrNewAccountStateObject(addr)
+	if accountStateObject != nil {
+		accountStateObject.SetSNFTAgentRecipient(recipient)
+	}
 }

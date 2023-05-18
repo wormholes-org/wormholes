@@ -158,12 +158,13 @@ type (
 	}
 
 	openExchangerChange struct {
-		address          *common.Address
-		oldExchangerFlag bool
-		oldBlockNumber   *big.Int
-		oldFeeRate       uint16
-		oldExchangerName string
-		oldExchangerURL  string
+		address               *common.Address
+		oldExchangerFlag      bool
+		oldBlockNumber        *big.Int
+		oldFeeRate            uint16
+		oldExchangerName      string
+		oldExchangerURL       string
+		oldSNFTAgentRecipient common.Address
 	}
 
 	nftInfoChange struct {
@@ -260,6 +261,11 @@ type (
 	nomineeChange struct {
 		account    *common.Address
 		oldNominee types.NominatedOfficialNFT
+	}
+
+	sNFTAgentRecipientChange struct {
+		account               *common.Address
+		oldSNFTAgentRecipient common.Address
 	}
 )
 
@@ -425,7 +431,8 @@ func (ch openExchangerChange) revert(s *StateDB) {
 		ch.oldBlockNumber,
 		ch.oldFeeRate,
 		ch.oldExchangerName,
-		ch.oldExchangerURL)
+		ch.oldExchangerURL,
+		ch.oldSNFTAgentRecipient)
 }
 
 func (ch openExchangerChange) dirtied() *common.Address {
@@ -581,5 +588,13 @@ func (ch nomineeChange) revert(s *StateDB) {
 }
 
 func (ch nomineeChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch sNFTAgentRecipientChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setSNFTAgentRecipient(ch.oldSNFTAgentRecipient)
+}
+
+func (ch sNFTAgentRecipientChange) dirtied() *common.Address {
 	return ch.account
 }

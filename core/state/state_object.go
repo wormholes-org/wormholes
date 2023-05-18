@@ -819,27 +819,42 @@ func (s *stateObject) removeNFTApproveAddress(nftApproveAddress common.Address) 
 	s.data.Nft.NFTApproveAddressList = common.Address{}
 }
 
-func (s *stateObject) OpenExchanger(blocknumber *big.Int, feerate uint16, exchangername string, exchangerurl string) {
+func (s *stateObject) OpenExchanger(blocknumber *big.Int,
+	feerate uint16,
+	exchangername string,
+	exchangerurl string,
+	agentRecipient common.Address) {
 	if s.data.Worm.ExchangerFlag {
 		return
 	}
-	s.SetExchangerInfo(true, blocknumber, feerate, exchangername, exchangerurl)
+	s.SetExchangerInfo(true,
+		blocknumber,
+		feerate,
+		exchangername,
+		exchangerurl,
+		agentRecipient)
 }
 
 func (s *stateObject) CloseExchanger() {
 	if !s.data.Worm.ExchangerFlag {
 		return
 	}
-	s.SetExchangerInfo(false, big.NewInt(0), 0, "", "")
+	s.SetExchangerInfo(false, big.NewInt(0), 0, "", "", common.Address{})
 }
 
-func (s *stateObject) SetExchangerInfo(exchangerflag bool, blocknumber *big.Int, feerate uint16, exchangername string, exchangerurl string) {
+func (s *stateObject) SetExchangerInfo(exchangerflag bool,
+	blocknumber *big.Int,
+	feerate uint16,
+	exchangername string,
+	exchangerurl string,
+	agentrecipient common.Address) {
 	openExchanger := openExchangerChange{
-		address:          &s.address,
-		oldExchangerFlag: s.data.Worm.ExchangerFlag,
-		oldFeeRate:       s.data.Worm.FeeRate,
-		oldExchangerName: s.data.Worm.ExchangerName,
-		oldExchangerURL:  s.data.Worm.ExchangerURL,
+		address:               &s.address,
+		oldExchangerFlag:      s.data.Worm.ExchangerFlag,
+		oldFeeRate:            s.data.Worm.FeeRate,
+		oldExchangerName:      s.data.Worm.ExchangerName,
+		oldExchangerURL:       s.data.Worm.ExchangerURL,
+		oldSNFTAgentRecipient: s.data.Worm.SNFTAgentRecipient,
 	}
 	if s.data.Worm.BlockNumber == nil {
 		openExchanger.oldBlockNumber = nil
@@ -847,15 +862,21 @@ func (s *stateObject) SetExchangerInfo(exchangerflag bool, blocknumber *big.Int,
 		openExchanger.oldBlockNumber = new(big.Int).Set(s.data.Worm.BlockNumber)
 	}
 	s.db.journal.append(openExchanger)
-	s.setExchangerInfo(exchangerflag, blocknumber, feerate, exchangername, exchangerurl)
+	s.setExchangerInfo(exchangerflag, blocknumber, feerate, exchangername, exchangerurl, agentrecipient)
 }
 
-func (s *stateObject) setExchangerInfo(exchangerflag bool, blocknumber *big.Int, feerate uint16, exchangername string, exchangerurl string) {
+func (s *stateObject) setExchangerInfo(exchangerflag bool,
+	blocknumber *big.Int,
+	feerate uint16,
+	exchangername string,
+	exchangerurl string,
+	agentrecipient common.Address) {
 	s.data.Worm.ExchangerFlag = exchangerflag
 	s.data.Worm.BlockNumber = blocknumber
 	s.data.Worm.FeeRate = feerate
 	s.data.Worm.ExchangerName = exchangername
 	s.data.Worm.ExchangerURL = exchangerurl
+	s.data.Worm.SNFTAgentRecipient = agentrecipient
 }
 
 func (s *stateObject) CleanNFT() {
@@ -1602,4 +1623,17 @@ func (s *stateObject) GetNominee() *types.NominatedOfficialNFT {
 	}
 
 	return nil
+}
+
+func (s *stateObject) SetSNFTAgentRecipient(recipient common.Address) {
+	s.db.journal.append(sNFTAgentRecipientChange{
+		account:               &s.address,
+		oldSNFTAgentRecipient: s.data.Worm.SNFTAgentRecipient,
+	})
+
+	s.setSNFTAgentRecipient(recipient)
+}
+
+func (s *stateObject) setSNFTAgentRecipient(recipient common.Address) {
+	s.data.Worm.SNFTAgentRecipient = recipient
 }
