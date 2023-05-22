@@ -49,7 +49,7 @@ type revision struct {
 var (
 	// emptyRoot is the known root hash of an empty trie.
 	emptyRoot      = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	DREBlockReward = big.NewInt(1.1e+17)
+	DREBlockReward = big.NewInt(1.6e+17)
 	// reduce 12% block reward in per period
 	ReduceRewardPeriod = uint64(365 * 720 * 24)
 	ExchangePeriod     = uint64(6160) // 365 * 720 * 24 * 4 / 4096
@@ -2238,7 +2238,7 @@ MetaURL string
 
 func GetRewardAmount(blocknumber uint64, initamount *big.Int) *big.Int {
 	times := blocknumber / ReduceRewardPeriod
-	rewardratio := gomath.Pow(0.88, float64(times))
+	rewardratio := gomath.Pow(0.86, float64(times))
 	u, _ := new(big.Float).Mul(big.NewFloat(rewardratio), new(big.Float).SetInt(initamount)).Uint64()
 
 	return new(big.Int).SetUint64(u)
@@ -2515,7 +2515,7 @@ func (s *StateDB) GetExchangAmount(nftaddress common.Address, initamount *big.In
 	//nftInt.Add(nftInt, big.NewInt(1))
 	nftInt.Div(nftInt, big.NewInt(4096))
 	times := nftInt.Uint64() / ExchangePeriod
-	rewardratio := gomath.Pow(0.88, float64(times))
+	rewardratio := gomath.Pow(0.86, float64(times))
 	result := big.NewInt(0)
 	new(big.Float).Mul(big.NewFloat(rewardratio), new(big.Float).SetInt(initamount)).Int(result)
 
@@ -2530,13 +2530,13 @@ func (s *StateDB) calculateExchangeAmount(level uint8, mergenumber uint32) *big.
 		radix, _ := big.NewInt(0).SetString("30000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	case level == 1:
-		radix, _ := big.NewInt(0).SetString("143000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("140000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	case level == 2:
-		radix, _ := big.NewInt(0).SetString("271000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("600000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	default:
-		radix, _ := big.NewInt(0).SetString("650000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("1450000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	}
 }
