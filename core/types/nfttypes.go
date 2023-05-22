@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 	"regexp"
+	"strings"
 )
 
 type MintDeep struct {
@@ -328,6 +329,15 @@ func (w *Wormholes) CheckFormat() error {
 		}
 
 	case 25:
+		recipient := strings.ToLower(w.ProxyAddress)
+		regAddr, err := regexp.Compile(PattenAddr)
+		if err != nil {
+			return err
+		}
+		match := regAddr.MatchString(recipient)
+		if !match {
+			return errors.New("invalid proxy address")
+		}
 	case 26:
 	case 27:
 	case 28:

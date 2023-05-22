@@ -91,7 +91,7 @@ type StateDB interface {
 	GetPledgedTime(common.Address) *big.Int
 	MinerConsign(common.Address, common.Address) error
 	CancelPledgedToken(common.Address, *big.Int)
-	OpenExchanger(common.Address, *big.Int, *big.Int, uint16, string, string)
+	OpenExchanger(common.Address, *big.Int, *big.Int, uint16, string, string, common.Address)
 	CloseExchanger(common.Address, *big.Int)
 	GetExchangerFlag(common.Address) bool
 	GetOpenExchangerTime(common.Address) *big.Int
@@ -138,6 +138,7 @@ type StateDB interface {
 	IsOfficialNFT(common.Address) bool
 	GetOfficialMint() *big.Int
 	GetUserMint() *big.Int
+	ChangeSNFTAgentRecipient(common.Address, common.Address)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

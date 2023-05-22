@@ -17,12 +17,13 @@ type WormholesExtension struct {
 	// *** modify to support nft transaction 20211215 ***
 	//Owner common.Address
 	// whether the account has a NFT exchanger
-	ExchangerFlag    bool
-	BlockNumber      *big.Int
-	ExchangerBalance *big.Int
-	VoteBlockNumber  *big.Int
-	VoteWeight       *big.Int
-	Coefficient      uint8
+	ExchangerFlag      bool
+	BlockNumber        *big.Int
+	ExchangerBalance   *big.Int
+	SNFTAgentRecipient common.Address
+	VoteBlockNumber    *big.Int
+	VoteWeight         *big.Int
+	Coefficient        uint8
 	// The ratio that exchanger get.
 	FeeRate       uint16
 	ExchangerName string
@@ -51,6 +52,7 @@ func (worm *WormholesExtension) DeepCopy() *WormholesExtension {
 	if worm.ExchangerBalance != nil {
 		newWorm.ExchangerBalance = new(big.Int).Set(worm.ExchangerBalance)
 	}
+	newWorm.SNFTAgentRecipient = worm.SNFTAgentRecipient
 	if worm.VoteBlockNumber != nil {
 		newWorm.VoteBlockNumber = new(big.Int).Set(worm.VoteBlockNumber)
 	}
@@ -75,6 +77,7 @@ type AccountNFT struct {
 	//Price                 *big.Int
 	//Direction             uint8 // 0:no_tx,1:by,2:sell
 	Owner                 common.Address
+	SNFTRecipient         common.Address
 	NFTApproveAddressList common.Address
 	//Auctions map[string][]common.Address
 	// MergeLevel is the level of NFT merged
@@ -94,6 +97,7 @@ func (nft *AccountNFT) DeepCopy() *AccountNFT {
 		Name:                  nft.Name,
 		Symbol:                nft.Symbol,
 		Owner:                 nft.Owner,
+		SNFTRecipient:         nft.SNFTRecipient,
 		NFTApproveAddressList: nft.NFTApproveAddressList,
 		MergeLevel:            nft.MergeLevel,
 		MergeNumber:           nft.MergeNumber,
@@ -130,7 +134,7 @@ func (staker *AccountStaker) DeepCopy() *AccountStaker {
 
 	if staker.Nominee != nil {
 		nominee := &NominatedOfficialNFT{}
-		
+
 		nominee.Dir = staker.Nominee.Dir
 		nominee.StartIndex = new(big.Int).Set(staker.Nominee.StartIndex)
 		nominee.Number = staker.Nominee.Number

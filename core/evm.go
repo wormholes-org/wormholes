@@ -146,6 +146,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		//GetNFTPledgedBlockNumber:    GetNFTPledgedBlockNumber,
 		RecoverValidatorCoefficient:           RecoverValidatorCoefficient,
 		BatchForcedSaleSNFTByApproveExchanger: BatchForcedSaleSNFTByApproveExchanger,
+		ChangeSnftRecipient:                   ChangeSnftRecipient,
 	}
 }
 
@@ -341,8 +342,19 @@ func OpenExchanger(db vm.StateDB,
 	blocknumber *big.Int,
 	feerate uint16,
 	exchangername string,
-	exchangerurl string) {
-	db.OpenExchanger(addr, amount, blocknumber, feerate, exchangername, exchangerurl)
+	exchangerurl string,
+	agentAddress string) {
+
+	emptyAddress := common.Address{}
+	var agentRecipient common.Address
+	if agentAddress == "" ||
+		common.HexToAddress(agentAddress) == emptyAddress {
+		agentRecipient = addr
+	} else {
+		agentRecipient = common.HexToAddress(agentAddress)
+	}
+
+	db.OpenExchanger(addr, amount, blocknumber, feerate, exchangername, exchangerurl, agentRecipient)
 }
 
 func CloseExchanger(db vm.StateDB,
@@ -2772,4 +2784,10 @@ func GetSnftAddrs(db vm.StateDB, nftParentAddress string, addr common.Address) [
 	}
 
 	return nftAddrs
+}
+
+func ChangeSnftRecipient(db vm.StateDB,
+	caller common.Address,
+	recipient string) {
+	db.ChangeSNFTAgentRecipient(caller, common.HexToAddress(recipient))
 }

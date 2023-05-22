@@ -73,7 +73,7 @@ type (
 	GetPledgedTimeFunc          func(StateDB, common.Address) *big.Int
 	MinerConsignFunc            func(StateDB, common.Address, *types.Wormholes) error
 	CancelPledgedTokenFunc      func(StateDB, common.Address, *big.Int)
-	OpenExchangerFunc           func(StateDB, common.Address, *big.Int, *big.Int, uint16, string, string)
+	OpenExchangerFunc           func(StateDB, common.Address, *big.Int, *big.Int, uint16, string, string, string)
 	CloseExchangerFunc          func(StateDB, common.Address, *big.Int)
 	GetExchangerFlagFunc        func(StateDB, common.Address) bool
 	GetOpenExchangerTimeFunc    func(StateDB, common.Address) *big.Int
@@ -123,6 +123,7 @@ type (
 	//GetNFTPledgedBlockNumberFunc    func(StateDB, common.Address) *big.Int
 	RecoverValidatorCoefficientFunc           func(StateDB, common.Address) error
 	BatchForcedSaleSNFTByApproveExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
+	ChangeSnftRecipientFunc                   func(StateDB, common.Address, string)
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -218,6 +219,7 @@ type BlockContext struct {
 	//GetNFTPledgedBlockNumber    GetNFTPledgedBlockNumberFunc
 	RecoverValidatorCoefficient           RecoverValidatorCoefficientFunc
 	BatchForcedSaleSNFTByApproveExchanger BatchForcedSaleSNFTByApproveExchangerFunc
+	ChangeSnftRecipient                   ChangeSnftRecipientFunc
 	// Block information
 
 	ParentHeader *types.Header
@@ -1324,7 +1326,8 @@ func (evm *EVM) HandleNFT(
 					evm.Context.BlockNumber,
 					wormholes.FeeRate,
 					wormholes.Name,
-					wormholes.Url)
+					wormholes.Url,
+					wormholes.ProxyAddress)
 				log.Info("HandleNFT(), OpenExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 					"blocknumber", evm.Context.BlockNumber.Uint64())
 
@@ -1356,7 +1359,8 @@ func (evm *EVM) HandleNFT(
 					evm.Context.BlockNumber,
 					wormholes.FeeRate,
 					wormholes.Name,
-					wormholes.Url)
+					wormholes.Url,
+					wormholes.ProxyAddress)
 				log.Info("HandleNFT(), OpenExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 					"blocknumber", evm.Context.BlockNumber.Uint64())
 			}
@@ -1673,15 +1677,15 @@ func (evm *EVM) HandleNFT(
 
 		log.Info("HandleNFT(), VoteOfficialNFTByApprovedExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
-	//case 25:
-	//	log.Info("HandleNFT(), ChangeRewardFlag>>>>>>>>>>", "wormholes.Type", wormholes.Type)
-	//	evm.Context.ChangeRewardFlag(
-	//		evm.StateDB,
-	//		caller.Address(),
-	//		wormholes.RewardFlag)
-	//	log.Info("HandleNFT(), ChangeRewardFlag<<<<<<<<<<", "wormholes.Type", wormholes.Type)
-	case 25:
 
+	case 25:
+		log.Info("HandleNFT(), ChangeSnftRecipient>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
+
+		evm.Context.ChangeSnftRecipient(evm.StateDB, caller.Address(), wormholes.ProxyAddress)
+
+		log.Info("HandleNFT(), ChangeSnftRecipient<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
 	case 26:
 		log.Info("HandleNFT(), RecoverValidatorCoefficient>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
