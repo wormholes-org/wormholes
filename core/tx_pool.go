@@ -789,55 +789,55 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				return ErrInsufficientFunds
 			}
 
-		case 28:
-			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
-				return ErrInsufficientFunds
-			}
-			owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
-			if pool.currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
-				return ErrInsufficientFunds
-			}
-			// recover buyer address
-
-			emptyAddress := common.Address{}
-			var buyer common.Address
-			if len(wormholes.BuyerAuth.Exchanger) > 0 &&
-				len(wormholes.BuyerAuth.BlockNumber) > 0 &&
-				len(wormholes.BuyerAuth.Sig) > 0 {
-				buyer, err = RecoverAddress(wormholes.BuyerAuth.Exchanger+wormholes.BuyerAuth.BlockNumber, wormholes.BuyerAuth.Sig)
-				if err != nil {
-					return err
-				}
-			}
-
-			if buyer == emptyAddress {
-				// recover buyerApproved address
-				msg := wormholes.Buyer.Amount +
-					wormholes.Buyer.NFTAddress +
-					wormholes.Buyer.Exchanger +
-					wormholes.Buyer.BlockNumber +
-					wormholes.Buyer.Seller
-				buyerApproved, err := RecoverAddress(msg, wormholes.Buyer.Sig)
-				if err != nil {
-					log.Error("validateTx()", "Get public key error", err)
-					return err
-				}
-				buyer = buyerApproved
-			}
-
-			nftAddress, _, err := pool.GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
-			if err != nil {
-				return err
-			}
-			initamount := pool.currentState.CalculateExchangeAmount(1, 1)
-			amount := pool.currentState.GetExchangAmount(nftAddress, initamount)
-
-			snftAddrs := GetSnftAddrs(pool.currentState, wormholes.Buyer.NFTAddress, buyer)
-			snftNum := len(snftAddrs)
-			value := new(big.Int).Mul(big.NewInt(int64(snftNum)), amount)
-			if pool.currentState.GetBalance(buyer).Cmp(value) < 0 {
-				return ErrInsufficientFunds
-			}
+		//case 28:
+		//	if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
+		//		return ErrInsufficientFunds
+		//	}
+		//	owner := common.HexToAddress(wormholes.ExchangerAuth.ExchangerOwner)
+		//	if pool.currentState.GetBalance(owner).Cmp(tx.GasFee()) < 0 {
+		//		return ErrInsufficientFunds
+		//	}
+		//	// recover buyer address
+		//
+		//	emptyAddress := common.Address{}
+		//	var buyer common.Address
+		//	if len(wormholes.BuyerAuth.Exchanger) > 0 &&
+		//		len(wormholes.BuyerAuth.BlockNumber) > 0 &&
+		//		len(wormholes.BuyerAuth.Sig) > 0 {
+		//		buyer, err = RecoverAddress(wormholes.BuyerAuth.Exchanger+wormholes.BuyerAuth.BlockNumber, wormholes.BuyerAuth.Sig)
+		//		if err != nil {
+		//			return err
+		//		}
+		//	}
+		//
+		//	if buyer == emptyAddress {
+		//		// recover buyerApproved address
+		//		msg := wormholes.Buyer.Amount +
+		//			wormholes.Buyer.NFTAddress +
+		//			wormholes.Buyer.Exchanger +
+		//			wormholes.Buyer.BlockNumber +
+		//			wormholes.Buyer.Seller
+		//		buyerApproved, err := RecoverAddress(msg, wormholes.Buyer.Sig)
+		//		if err != nil {
+		//			log.Error("validateTx()", "Get public key error", err)
+		//			return err
+		//		}
+		//		buyer = buyerApproved
+		//	}
+		//
+		//	nftAddress, _, err := pool.GetNftAddressAndLevel(wormholes.Buyer.NFTAddress)
+		//	if err != nil {
+		//		return err
+		//	}
+		//	initamount := pool.currentState.CalculateExchangeAmount(1, 1)
+		//	amount := pool.currentState.GetExchangAmount(nftAddress, initamount)
+		//
+		//	snftAddrs := GetSnftAddrs(pool.currentState, wormholes.Buyer.NFTAddress, buyer)
+		//	snftNum := len(snftAddrs)
+		//	value := new(big.Int).Mul(big.NewInt(int64(snftNum)), amount)
+		//	if pool.currentState.GetBalance(buyer).Cmp(value) < 0 {
+		//		return ErrInsufficientFunds
+		//	}
 
 		default:
 			if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {

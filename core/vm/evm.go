@@ -1711,23 +1711,23 @@ func (evm *EVM) HandleNFT(
 		}
 		log.Info("HandleNFT(), BatchBuyNFTByApproveExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
-	case 28:
-		log.Info("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64())
-		err := evm.Context.BatchForcedSaleSNFTByApproveExchanger(
-			evm.StateDB,
-			evm.Context.BlockNumber,
-			caller.Address(),
-			addr,
-			&wormholes,
-			value)
-		if err != nil {
-			log.Error("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger", "wormholes.Type", wormholes.Type,
-				"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, err
-		}
-		log.Info("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
-			"blocknumber", evm.Context.BlockNumber.Uint64())
+	//case 28:
+	//	log.Info("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+	//		"blocknumber", evm.Context.BlockNumber.Uint64())
+	//	err := evm.Context.BatchForcedSaleSNFTByApproveExchanger(
+	//		evm.StateDB,
+	//		evm.Context.BlockNumber,
+	//		caller.Address(),
+	//		addr,
+	//		&wormholes,
+	//		value)
+	//	if err != nil {
+	//		log.Error("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger", "wormholes.Type", wormholes.Type,
+	//			"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
+	//		return nil, gas, err
+	//	}
+	//	log.Info("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+	//		"blocknumber", evm.Context.BlockNumber.Uint64())
 	default:
 		log.Error("HandleNFT()", "wormholes.Type", wormholes.Type, "error", ErrNotExistNFTType,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
