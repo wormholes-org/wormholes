@@ -124,6 +124,7 @@ type (
 	RecoverValidatorCoefficientFunc           func(StateDB, common.Address) error
 	BatchForcedSaleSNFTByApproveExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	ChangeSnftRecipientFunc                   func(StateDB, common.Address, string)
+	ChangeSNFTNoMergeFunc                     func(StateDB, common.Address, bool)
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -220,6 +221,7 @@ type BlockContext struct {
 	RecoverValidatorCoefficient           RecoverValidatorCoefficientFunc
 	BatchForcedSaleSNFTByApproveExchanger BatchForcedSaleSNFTByApproveExchangerFunc
 	ChangeSnftRecipient                   ChangeSnftRecipientFunc
+	ChangeSNFTNoMerge                     ChangeSNFTNoMergeFunc
 	// Block information
 
 	ParentHeader *types.Header
@@ -1732,6 +1734,14 @@ func (evm *EVM) HandleNFT(
 	//	}
 	//	log.Info("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 	//		"blocknumber", evm.Context.BlockNumber.Uint64())
+	case 30:
+		log.Info("HandleNFT(), ChangeSNFTNoMerge>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
+
+		evm.Context.ChangeSNFTNoMerge(evm.StateDB, caller.Address(), wormholes.NoAutoMerge)
+
+		log.Info("HandleNFT(), ChangeSNFTNoMerge<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
 	default:
 		log.Error("HandleNFT()", "wormholes.Type", wormholes.Type, "error", ErrNotExistNFTType,
 			"blocknumber", evm.Context.BlockNumber.Uint64())

@@ -925,14 +925,14 @@ func (s *stateObject) cleanNFT() {
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-	//price *big.Int,
-	//direction uint8,
+//price *big.Int,
+//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-	//pledgedflag bool,
-	//nftpledgedblocknumber *big.Int,
+//pledgedflag bool,
+//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -979,14 +979,14 @@ func (s *stateObject) SetNFTInfo(
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-	//price *big.Int,
-	//direction uint8,
+//price *big.Int,
+//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-	//pledgedflag bool,
-	//nftpledgedblocknumber *big.Int,
+//pledgedflag bool,
+//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -1042,14 +1042,14 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
-	//*big.Int,
-	//uint8,
+//*big.Int,
+//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-	//bool,
-	//*big.Int,
+//bool,
+//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -1646,4 +1646,21 @@ func (s *stateObject) SetSNFTAgentRecipient(recipient common.Address) {
 
 func (s *stateObject) setSNFTAgentRecipient(recipient common.Address) {
 	s.data.Worm.SNFTAgentRecipient = recipient
+}
+
+func (s *stateObject) GetSNFTNoMerge() bool {
+	return s.data.Worm.SNFTNoMerge
+}
+
+func (s *stateObject) SetSNFTNoMerge(flag bool) {
+	s.db.journal.append(sNFTNoMergeChange{
+		account:        &s.address,
+		oldSNFTNoMerge: s.data.Worm.SNFTNoMerge,
+	})
+
+	s.setSNFTNoMerge(flag)
+}
+
+func (s *stateObject) setSNFTNoMerge(flag bool) {
+	s.data.Worm.SNFTNoMerge = flag
 }

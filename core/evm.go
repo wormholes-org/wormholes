@@ -147,6 +147,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		RecoverValidatorCoefficient:           RecoverValidatorCoefficient,
 		BatchForcedSaleSNFTByApproveExchanger: BatchForcedSaleSNFTByApproveExchanger,
 		ChangeSnftRecipient:                   ChangeSnftRecipient,
+		ChangeSNFTNoMerge:                     ChangeSNFTNoMerge,
 	}
 }
 
@@ -2790,4 +2791,8 @@ func ChangeSnftRecipient(db vm.StateDB,
 	caller common.Address,
 	recipient string) {
 	db.ChangeSNFTAgentRecipient(caller, common.HexToAddress(recipient))
+}
+
+func ChangeSNFTNoMerge(db vm.StateDB, caller common.Address, noAutoMerge bool) {
+	db.ChangeSNFTNoMerge(caller, noAutoMerge)
 }

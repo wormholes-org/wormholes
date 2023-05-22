@@ -268,6 +268,11 @@ type (
 		account               *common.Address
 		oldSNFTAgentRecipient common.Address
 	}
+
+	sNFTNoMergeChange struct {
+		account        *common.Address
+		oldSNFTNoMerge bool
+	}
 )
 
 func (ch createObjectChange) revert(s *StateDB) {
@@ -597,5 +602,13 @@ func (ch sNFTAgentRecipientChange) revert(s *StateDB) {
 }
 
 func (ch sNFTAgentRecipientChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch sNFTNoMergeChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setSNFTNoMerge(ch.oldSNFTNoMerge)
+}
+
+func (ch sNFTNoMergeChange) dirtied() *common.Address {
 	return ch.account
 }
