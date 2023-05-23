@@ -790,7 +790,7 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 	//}
 
 	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
-	rewardAmount := state.GetRewardAmount(header.Number.Uint64(), big.NewInt(1.1e+17))
+	rewardAmount := state.GetRewardAmount(header.Number.Uint64(), big.NewInt(1.6e+17))
 	for _, owner := range validators {
 
 		beneficiaryAddress := BeneficiaryAddress{
@@ -2249,7 +2249,7 @@ func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Cont
 	//}
 
 	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
-	rewardAmount := state.GetRewardAmount(header.Number.Uint64(), big.NewInt(1.1e+17))
+	rewardAmount := state.GetRewardAmount(header.Number.Uint64(), big.NewInt(1.6e+17))
 	for _, owner := range validators {
 
 		beneficiaryAddress := BeneficiaryAddress{
