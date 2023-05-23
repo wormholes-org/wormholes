@@ -17,7 +17,6 @@
 package ethapi
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -30,8 +29,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/discover"
-
-	"github.com/ethereum/go-ethereum/core/rawdb"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
@@ -749,45 +746,15 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 		return nil, err
 	}
 
-	var deep *types.MintDeep
-	//var snftExchangePool *types.SNFTExchangeList
-	if parentHeader.Number.Uint64() > 0 {
-		db := s.b.ChainDb()
-		deep, err = rawdb.ReadMintDeep(db, parentHeader.Hash(), parentHeader.Number.Uint64())
-		if err != nil {
-			return nil, err
-		}
-
-		//snftExchangePool, err = rawdb.ReadSNFTExchangePool(db, parentHeader.Hash(), parentHeader.Number.Uint64())
-		//if err != nil {
-		//	return nil, err
-		//}
-		//if snftExchangePool == nil {
-		//	snftExchangePool = &types.SNFTExchangeList{
-		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//	}
-		//}
-	} else {
-		deep = new(types.MintDeep)
-		deep.UserMint = big.NewInt(1)
-
-		deep.OfficialMint = big.NewInt(0)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		deep.OfficialMint.Add(big.NewInt(0), maskB)
-
-		//snftExchangePool = &types.SNFTExchangeList{
-		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//}
+	statedb, _, err := s.b.StateAndHeaderByNumber(ctx, number-1)
+	if err != nil {
+		return nil, err
 	}
+
+	officialMint := statedb.GetOfficialMint()
 
 	validators := istanbulExtra.ValidatorAddr
 	exchangers := istanbulExtra.ExchangerAddr
-	//for _, addr := range validators {
-	//	log.Info("GetBlockBeneficiaryAddressByNumber", "validators=", addr)
-	//}
-	//for _, addr := range exchangers {
-	//	log.Info("GetBlockBeneficiaryAddressByNumber", "exchangers=", addr)
-	//}
 
 	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
 	rewardAmount := state.GetRewardAmount(header.Number.Uint64(), big.NewInt(1.6e+17))
@@ -803,8 +770,8 @@ func (s *PublicBlockChainAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Con
 	for _, owner := range exchangers {
 		//nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
 		//if !ok {
-		nftAddr := common.BytesToAddress(deep.OfficialMint.Bytes())
-		deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
+		nftAddr := common.BytesToAddress(officialMint.Bytes())
+		officialMint.Add(officialMint, big.NewInt(1))
 		//}
 
 		beneficiaryAddress := BeneficiaryAddress{
@@ -834,132 +801,80 @@ func (s *PublicBlockChainAPI) checkBeneficiaryList(ctx context.Context, number r
 }
 
 func (s *PublicBlockChainAPI) GetUserMintDeep(ctx context.Context, number rpc.BlockNumber) string {
-	header, err := s.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return ""
-	}
-
-	db := s.b.ChainDb()
-	data, err := db.Get(rawdb.MintDeepKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := s.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return ""
 	}
-	mintDeep := &types.MintDeep{
-		UserMint:     big.NewInt(0),
-		OfficialMint: big.NewInt(0),
-	}
-	if err := rlp.Decode(bytes.NewReader(data), mintDeep); err != nil {
-		log.Error("Invalid mintdeep RLP", "blocknumber", number, "err", err)
-		return ""
-	}
 
-	return mintDeep.UserMint.Text(16)
+	userMint := statedb.GetUserMint()
+
+	return userMint.Text(16)
 }
 
 func (s *PublicBlockChainAPI) GetOfficialMintDeep(ctx context.Context, number rpc.BlockNumber) string {
-	header, err := s.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return ""
-	}
-
-	db := s.b.ChainDb()
-	data, err := db.Get(rawdb.MintDeepKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := s.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return ""
 	}
-	mintDeep := &types.MintDeep{
-		UserMint:     big.NewInt(0),
-		OfficialMint: big.NewInt(0),
-	}
-	if err := rlp.Decode(bytes.NewReader(data), mintDeep); err != nil {
-		log.Error("Invalid mintdeep RLP", "blocknumber", number, "err", err)
-		return ""
-	}
 
-	return mintDeep.OfficialMint.Text(16)
+	officialMint := statedb.GetOfficialMint()
+
+	return officialMint.Text(16)
 }
 
-func (s *PublicBlockChainAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.DBStakerList {
-	header, err := s.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return types.DBStakerList{}
-	}
-
-	db := s.b.ChainDb()
-	data, err := db.Get(rawdb.DBStakerPoolKey(header.Number.Uint64(), header.Hash()))
-	if err != nil {
-		return types.DBStakerList{}
-	}
-
-	stakeList := new(types.DBStakerList)
-	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
-		log.Error("Invalid stakeAddr RLP", "blocknumber", number, "err", err)
-		return types.DBStakerList{}
-	}
-	return *stakeList
-}
+//func (s *PublicBlockChainAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.DBStakerList {
+//	header, err := s.b.HeaderByNumber(ctx, number)
+//	if header == nil || err != nil {
+//		return types.DBStakerList{}
+//	}
+//
+//	db := s.b.ChainDb()
+//	data, err := db.Get(rawdb.DBStakerPoolKey(header.Number.Uint64(), header.Hash()))
+//	if err != nil {
+//		return types.DBStakerList{}
+//	}
+//
+//	stakeList := new(types.DBStakerList)
+//	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
+//		log.Error("Invalid stakeAddr RLP", "blocknumber", number, "err", err)
+//		return types.DBStakerList{}
+//	}
+//	return *stakeList
+//}
 
 func (s *PublicBlockChainAPI) GetAllStakers(ctx context.Context) *types.StakerList {
 	return s.b.GetAllStakers(ctx)
 }
 
 func (s *PublicBlockChainAPI) GetStakerLen(ctx context.Context, number rpc.BlockNumber) int {
-	header, err := s.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return 0
-	}
-
-	db := s.b.ChainDb()
-	data, err := db.Get(rawdb.StakePoolKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := s.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return 0
 	}
 
-	stakeList := new(types.StakerList)
-	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
-		log.Error("Invalid stakeAddr RLP", "blocknumber", number, "err", err)
-		return 0
-	}
+	stakeList := statedb.GetStakers(types.StakerStorageAddress)
+
 	return len(stakeList.Stakers)
 }
 
 func (s *PublicBlockChainAPI) GetValidator(ctx context.Context, number rpc.BlockNumber) types.ValidatorList {
-	header, err := s.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return types.ValidatorList{}
-	}
-
-	db := s.b.ChainDb()
-	data, err := db.Get(rawdb.ValidatorPoolKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := s.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return types.ValidatorList{}
 	}
 
-	validatorList := new(types.ValidatorList)
-	if err := rlp.Decode(bytes.NewReader(data), validatorList); err != nil {
-		log.Error("Invalid validatorAddr RLP", "blocknumber", number, "err", err)
-		return types.ValidatorList{}
-	}
+	validatorList := statedb.GetValidators(types.ValidatorStorageAddress)
+
 	return *validatorList
 }
 
 func (s *PublicBlockChainAPI) GetValidatorLen(ctx context.Context, number rpc.BlockNumber) int {
-	header, err := s.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return 0
-	}
-
-	db := s.b.ChainDb()
-	data, err := db.Get(rawdb.ValidatorPoolKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := s.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return 0
 	}
 
-	validatorList := new(types.ValidatorList)
-	if err := rlp.Decode(bytes.NewReader(data), validatorList); err != nil {
-		log.Error("Invalid validatorAddr RLP", "blocknumber", number, "err", err)
-		return 0
-	}
+	validatorList := statedb.GetValidators(types.ValidatorStorageAddress)
 	return len(validatorList.Validators)
 }
 
@@ -974,62 +889,31 @@ type NominatedNFTInfo struct {
 }
 
 func (s *PublicBlockChainAPI) GetNominatedNFTInfo(ctx context.Context, number rpc.BlockNumber) *NominatedNFTInfo {
-	header, err := s.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return nil
-	}
-
 	st, _, err := s.b.StateAndHeaderByNumber(ctx, number)
 	if st == nil || err != nil {
 		return nil
 	}
 
+	nominee := st.GetNominee(types.NominatedStorageAddress)
+
 	var Info NominatedNFTInfo
-	emptyAddr := common.Address{}
-	if number > 0 {
-		db := s.b.ChainDb()
-
-		nominatedNFT, err := rawdb.ReadNominatedOfficialNFT(db, header.Hash(), header.Number.Uint64())
-		if err == nil {
-			if nominatedNFT.Address != emptyAddr {
-				acc := st.GetAccountInfo(nominatedNFT.Address)
-				Info.VoteWeight = new(big.Int).Set(acc.Worm.VoteWeight)
-			} else {
-				Info.VoteWeight = big.NewInt(0)
-			}
-
-			Info.Address = nominatedNFT.Address
-			Info.Dir = nominatedNFT.Dir
-			Info.StartIndex = new(big.Int).Set(nominatedNFT.StartIndex)
-			Info.Number = nominatedNFT.Number
-			Info.Royalty = nominatedNFT.Royalty
-			Info.Creator = nominatedNFT.Creator
-
-		} else {
-			return nil
-		}
-	} else {
-		Info.Address = common.Address{}
-		Info.VoteWeight = big.NewInt(0)
-		Info.Dir = types.DefaultDir
-		Info.StartIndex = big.NewInt(0)
-		Info.Number = types.DefaultNumber
-		Info.Royalty = types.DefaultRoyalty
-		Info.Creator = types.DefaultCreator
-	}
+	Info.Address = nominee.Address
+	Info.VoteWeight = nominee.VoteWeight
+	Info.Dir = nominee.Dir
+	Info.StartIndex = nominee.StartIndex
+	Info.Number = nominee.Number
+	Info.Royalty = nominee.Royalty
+	Info.Creator = nominee.Creator
 
 	return &Info
 }
 
 func (s *PublicBlockChainAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFT {
-	header, err := s.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
+	st, _, err := s.b.StateAndHeaderByNumber(ctx, number)
+	if st == nil || err != nil {
 		return nil
 	}
-	InjectedList, err := rawdb.ReadOfficialNFTPool(s.b.ChainDb(), header.Hash(), header.Number.Uint64())
-	if err != nil {
-		return nil
-	}
+	InjectedList := st.GetSnfts(types.SnftInjectedStorageAddress)
 	if length := len(InjectedList.InjectedOfficialNFTs); length > 0 {
 		return InjectedList.InjectedOfficialNFTs[length-1]
 	} else {
@@ -1038,18 +922,11 @@ func (s *PublicBlockChainAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.
 }
 
 func (s *PublicBlockChainAPI) GetInjectedNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFTList {
-	header, err := s.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
+	st, _, err := s.b.StateAndHeaderByNumber(ctx, number)
+	if st == nil || err != nil {
 		return nil
 	}
-
-	db := s.b.ChainDb()
-
-	InjectedList, err := rawdb.ReadOfficialNFTPool(db, header.Hash(), header.Number.Uint64())
-	if err != nil {
-		return nil
-	}
-
+	InjectedList := st.GetSnfts(types.SnftInjectedStorageAddress)
 	return InjectedList
 }
 
@@ -1142,7 +1019,7 @@ func (s *PublicBlockChainAPI) GetExchangAmount(nftaddress common.Address, initam
 	//nftInt.Add(nftInt, big.NewInt(1))
 	nftInt.Div(nftInt, big.NewInt(4096))
 	times := nftInt.Uint64() / ExchangePeriod
-	rewardratio := gomath.Pow(0.88, float64(times))
+	rewardratio := gomath.Pow(0.86, float64(times))
 	result := big.NewInt(0)
 	new(big.Float).Mul(big.NewFloat(rewardratio), new(big.Float).SetInt(initamount)).Int(result)
 
@@ -1157,13 +1034,13 @@ func (s *PublicBlockChainAPI) CalculateExchangeAmount(level uint8, mergenumber u
 		radix, _ := big.NewInt(0).SetString("30000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	case level == 1:
-		radix, _ := big.NewInt(0).SetString("143000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("140000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	case level == 2:
-		radix, _ := big.NewInt(0).SetString("271000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("600000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	default:
-		radix, _ := big.NewInt(0).SetString("650000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString("1450000000000000000", 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	}
 }
@@ -2208,45 +2085,15 @@ func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Cont
 		return nil, err
 	}
 
-	var deep *types.MintDeep
-	//var snftExchangePool *types.SNFTExchangeList
-	if parentHeader.Number.Uint64() > 0 {
-		db := w.b.ChainDb()
-		deep, err = rawdb.ReadMintDeep(db, parentHeader.Hash(), parentHeader.Number.Uint64())
-		if err != nil {
-			return nil, err
-		}
-
-		//snftExchangePool, err = rawdb.ReadSNFTExchangePool(db, parentHeader.Hash(), parentHeader.Number.Uint64())
-		//if err != nil {
-		//	return nil, err
-		//}
-		//if snftExchangePool == nil {
-		//	snftExchangePool = &types.SNFTExchangeList{
-		//		SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//	}
-		//}
-	} else {
-		deep = new(types.MintDeep)
-		deep.UserMint = big.NewInt(1)
-
-		deep.OfficialMint = big.NewInt(0)
-		maskB, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
-		deep.OfficialMint.Add(big.NewInt(0), maskB)
-
-		//snftExchangePool = &types.SNFTExchangeList{
-		//	SNFTExchanges: make([]*types.SNFTExchange, 0),
-		//}
+	statedb, _, err := w.b.StateAndHeaderByNumber(ctx, number-1)
+	if err != nil {
+		return nil, err
 	}
+
+	officialMint := statedb.GetOfficialMint()
 
 	validators := istanbulExtra.ValidatorAddr
 	exchangers := istanbulExtra.ExchangerAddr
-	//for _, addr := range validators {
-	//	log.Info("GetBlockBeneficiaryAddressByNumber", "validators=", addr)
-	//}
-	//for _, addr := range exchangers {
-	//	log.Info("GetBlockBeneficiaryAddressByNumber", "exchangers=", addr)
-	//}
 
 	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
 	rewardAmount := state.GetRewardAmount(header.Number.Uint64(), big.NewInt(1.6e+17))
@@ -2262,8 +2109,8 @@ func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Cont
 	for _, owner := range exchangers {
 		//nftAddr, _, ok := snftExchangePool.PopAddress(new(big.Int).SetUint64(uint64(number)))
 		//if !ok {
-		nftAddr := common.BytesToAddress(deep.OfficialMint.Bytes())
-		deep.OfficialMint.Add(deep.OfficialMint, big.NewInt(1))
+		nftAddr := common.BytesToAddress(officialMint.Bytes())
+		officialMint.Add(officialMint, big.NewInt(1))
 		//}
 
 		beneficiaryAddress := BeneficiaryAddress{
@@ -2278,192 +2125,109 @@ func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Cont
 }
 
 func (w *PublicWormholesAPI) GetUserMintDeep(ctx context.Context, number rpc.BlockNumber) string {
-	header, err := w.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return ""
-	}
-
-	db := w.b.ChainDb()
-	data, err := db.Get(rawdb.MintDeepKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := w.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return ""
 	}
-	mintDeep := &types.MintDeep{
-		UserMint:     big.NewInt(0),
-		OfficialMint: big.NewInt(0),
-	}
-	if err := rlp.Decode(bytes.NewReader(data), mintDeep); err != nil {
-		log.Error("Invalid mintdeep RLP", "blocknumber", number, "err", err)
-		return ""
-	}
 
-	return mintDeep.UserMint.Text(16)
+	userMint := statedb.GetUserMint()
+
+	return userMint.Text(16)
 }
 
 func (w *PublicWormholesAPI) GetOfficialMintDeep(ctx context.Context, number rpc.BlockNumber) string {
-	header, err := w.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return ""
-	}
-
-	db := w.b.ChainDb()
-	data, err := db.Get(rawdb.MintDeepKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := w.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return ""
 	}
-	mintDeep := &types.MintDeep{
-		UserMint:     big.NewInt(0),
-		OfficialMint: big.NewInt(0),
-	}
-	if err := rlp.Decode(bytes.NewReader(data), mintDeep); err != nil {
-		log.Error("Invalid mintdeep RLP", "blocknumber", number, "err", err)
-		return ""
-	}
 
-	return mintDeep.OfficialMint.Text(16)
+	officialMint := statedb.GetOfficialMint()
+
+	return officialMint.Text(16)
 }
 
-func (w *PublicWormholesAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.DBStakerList {
-	header, err := w.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return types.DBStakerList{}
-	}
-
-	db := w.b.ChainDb()
-	data, err := db.Get(rawdb.DBStakerPoolKey(header.Number.Uint64(), header.Hash()))
-	if err != nil {
-		return types.DBStakerList{}
-	}
-
-	stakeList := new(types.DBStakerList)
-	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
-		log.Error("Invalid stakeAddr RLP", "blocknumber", number, "err", err)
-		return types.DBStakerList{}
-	}
-	return *stakeList
-}
+//func (w *PublicWormholesAPI) GetStaker(ctx context.Context, number rpc.BlockNumber) types.DBStakerList {
+//	header, err := w.b.HeaderByNumber(ctx, number)
+//	if header == nil || err != nil {
+//		return types.DBStakerList{}
+//	}
+//
+//	db := w.b.ChainDb()
+//	data, err := db.Get(rawdb.DBStakerPoolKey(header.Number.Uint64(), header.Hash()))
+//	if err != nil {
+//		return types.DBStakerList{}
+//	}
+//
+//	stakeList := new(types.DBStakerList)
+//	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
+//		log.Error("Invalid stakeAddr RLP", "blocknumber", number, "err", err)
+//		return types.DBStakerList{}
+//	}
+//	return *stakeList
+//}
 
 func (w *PublicWormholesAPI) GetAllStakers(ctx context.Context) *types.StakerList {
 	return w.b.GetAllStakers(ctx)
 }
 
 func (w *PublicWormholesAPI) GetStakerLen(ctx context.Context, number rpc.BlockNumber) int {
-	header, err := w.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return 0
-	}
-
-	db := w.b.ChainDb()
-	data, err := db.Get(rawdb.StakePoolKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := w.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return 0
 	}
 
-	stakeList := new(types.StakerList)
-	if err := rlp.Decode(bytes.NewReader(data), stakeList); err != nil {
-		log.Error("Invalid stakeAddr RLP", "blocknumber", number, "err", err)
-		return 0
-	}
+	stakeList := statedb.GetStakers(types.StakerStorageAddress)
+
 	return len(stakeList.Stakers)
 }
 
 func (w *PublicWormholesAPI) GetValidator(ctx context.Context, number rpc.BlockNumber) types.ValidatorList {
-	header, err := w.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return types.ValidatorList{}
-	}
-
-	db := w.b.ChainDb()
-	data, err := db.Get(rawdb.ValidatorPoolKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := w.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return types.ValidatorList{}
 	}
 
-	validatorList := new(types.ValidatorList)
-	if err := rlp.Decode(bytes.NewReader(data), validatorList); err != nil {
-		log.Error("Invalid validatorAddr RLP", "blocknumber", number, "err", err)
-		return types.ValidatorList{}
-	}
+	validatorList := statedb.GetValidators(types.ValidatorStorageAddress)
+
 	return *validatorList
 }
 
 func (w *PublicWormholesAPI) GetValidatorLen(ctx context.Context, number rpc.BlockNumber) int {
-	header, err := w.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return 0
-	}
-
-	db := w.b.ChainDb()
-	data, err := db.Get(rawdb.ValidatorPoolKey(header.Number.Uint64(), header.Hash()))
+	statedb, _, err := w.b.StateAndHeaderByNumber(ctx, number)
 	if err != nil {
 		return 0
 	}
 
-	validatorList := new(types.ValidatorList)
-	if err := rlp.Decode(bytes.NewReader(data), validatorList); err != nil {
-		log.Error("Invalid validatorAddr RLP", "blocknumber", number, "err", err)
-		return 0
-	}
+	validatorList := statedb.GetValidators(types.ValidatorStorageAddress)
 	return len(validatorList.Validators)
 }
 
 func (w *PublicWormholesAPI) GetNominatedNFTInfo(ctx context.Context, number rpc.BlockNumber) *NominatedNFTInfo {
-	header, err := w.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
-		return nil
-	}
-
 	st, _, err := w.b.StateAndHeaderByNumber(ctx, number)
 	if st == nil || err != nil {
 		return nil
 	}
 
+	nominee := st.GetNominee(types.NominatedStorageAddress)
+
 	var Info NominatedNFTInfo
-	emptyAddr := common.Address{}
-	if number > 0 {
-		db := w.b.ChainDb()
-
-		nominatedNFT, err := rawdb.ReadNominatedOfficialNFT(db, header.Hash(), header.Number.Uint64())
-		if err == nil {
-			if nominatedNFT.Address != emptyAddr {
-				acc := st.GetAccountInfo(nominatedNFT.Address)
-				Info.VoteWeight = new(big.Int).Set(acc.Worm.VoteWeight)
-			} else {
-				Info.VoteWeight = big.NewInt(0)
-			}
-
-			Info.Address = nominatedNFT.Address
-			Info.Dir = nominatedNFT.Dir
-			Info.StartIndex = new(big.Int).Set(nominatedNFT.StartIndex)
-			Info.Number = nominatedNFT.Number
-			Info.Royalty = nominatedNFT.Royalty
-			Info.Creator = nominatedNFT.Creator
-
-		} else {
-			return nil
-		}
-	} else {
-		Info.Address = common.Address{}
-		Info.VoteWeight = big.NewInt(0)
-		Info.Dir = "/ipfs/QmS2U6Mu2X5HaUbrbVp6JoLmdcFphXiD98avZnq1My8vef"
-		Info.StartIndex = big.NewInt(0)
-		Info.Number = 4096
-		Info.Royalty = 100
-		Info.Creator = "0x35636d53Ac3DfF2b2347dDfa37daD7077b3f5b6F"
-	}
+	Info.Address = nominee.Address
+	Info.VoteWeight = nominee.VoteWeight
+	Info.Dir = nominee.Dir
+	Info.StartIndex = nominee.StartIndex
+	Info.Number = nominee.Number
+	Info.Royalty = nominee.Royalty
+	Info.Creator = nominee.Creator
 
 	return &Info
 }
 
 func (w *PublicWormholesAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFT {
-	header, err := w.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
+	st, _, err := w.b.StateAndHeaderByNumber(ctx, number)
+	if st == nil || err != nil {
 		return nil
 	}
-	InjectedList, err := rawdb.ReadOfficialNFTPool(w.b.ChainDb(), header.Hash(), header.Number.Uint64())
-	if err != nil {
-		return nil
-	}
+	InjectedList := st.GetSnfts(types.SnftInjectedStorageAddress)
 	if length := len(InjectedList.InjectedOfficialNFTs); length > 0 {
 		return InjectedList.InjectedOfficialNFTs[length-1]
 	} else {
@@ -2472,18 +2236,11 @@ func (w *PublicWormholesAPI) GetCurrentNFTInfo(ctx context.Context, number rpc.B
 }
 
 func (w *PublicWormholesAPI) GetInjectedNFTInfo(ctx context.Context, number rpc.BlockNumber) *types.InjectedOfficialNFTList {
-	header, err := w.b.HeaderByNumber(ctx, number)
-	if header == nil || err != nil {
+	st, _, err := w.b.StateAndHeaderByNumber(ctx, number)
+	if st == nil || err != nil {
 		return nil
 	}
-
-	db := w.b.ChainDb()
-
-	InjectedList, err := rawdb.ReadOfficialNFTPool(db, header.Hash(), header.Number.Uint64())
-	if err != nil {
-		return nil
-	}
-
+	InjectedList := st.GetSnfts(types.SnftInjectedStorageAddress)
 	return InjectedList
 }
 
