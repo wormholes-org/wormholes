@@ -10,6 +10,14 @@ var ValidatorStorageAddress = common.HexToAddress("0x000000000000000000000000000
 var StakerStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000003")
 var SnftInjectedStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000004")
 var NominatedStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000005")
+var PreDividendAmountAddress = common.HexToAddress("0x0000000000000000000000000000000000000006")
+var DividendAmountEachBlock, _ = new(big.Int).SetString("1000000000000000000", 10)
+var DividendAmountAddress = common.HexToAddress("0x0000000000000000000000000000000000000007")
+var DividendBlockInterval uint64 = 120960 // a week
+var SNFTLevel3AddressList = common.HexToAddress("0x0000000000000000000000000000000000000008")
+var DividendAddressList = common.HexToAddress("0x0000000000000000000000000000000000000009")
+var VoteContractAddress = common.HexToAddress("0x0000000000000000000000000000000000000010")
+var VoteAmountEachBlock, _ = new(big.Int).SetString("1000000000000000000", 10)
 
 type WormholesExtension struct {
 	PledgedBalance     *big.Int
@@ -113,11 +121,13 @@ func (nft *AccountNFT) DeepCopy() *AccountNFT {
 }
 
 type AccountStaker struct {
-	Mint       MintDeep
-	Validators ValidatorList
-	Stakers    StakerList
-	Snfts      InjectedOfficialNFTList
-	Nominee    *NominatedOfficialNFT `rlp:"nil"`
+	Mint          MintDeep
+	Validators    ValidatorList
+	Stakers       StakerList
+	Snfts         InjectedOfficialNFTList
+	Nominee       *NominatedOfficialNFT `rlp:"nil"`
+	SNFTL3Addrs   []common.Address
+	DividendAddrs []common.Address
 }
 
 func (staker *AccountStaker) DeepCopy() *AccountStaker {
@@ -147,6 +157,9 @@ func (staker *AccountStaker) DeepCopy() *AccountStaker {
 
 		newStaker.Nominee = nominee
 	}
+
+	newStaker.SNFTL3Addrs = append(newStaker.SNFTL3Addrs, staker.SNFTL3Addrs...)
+	newStaker.DividendAddrs = append(newStaker.DividendAddrs, staker.DividendAddrs...)
 
 	return &newStaker
 }

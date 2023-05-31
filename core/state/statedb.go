@@ -589,7 +589,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 	return obj
 }
 
-//for test
+// for test
 func (s *StateDB) getDeletedStateObject2(addr common.Address) *stateObject {
 	// Prefer live objects if any is available
 	//if obj := s.stateObjects[addr]; obj != nil {
@@ -774,8 +774,8 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 // CreateAccount is called during the EVM CREATE operation. The situation might arise that
 // a contract does the following:
 //
-//   1. sends funds to sha(account ++ (nonce + 1))
-//   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
+//  1. sends funds to sha(account ++ (nonce + 1))
+//  2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
 func (s *StateDB) CreateAccount(addr common.Address) {
@@ -1475,12 +1475,12 @@ func (s *StateDB) GetNFTStoreAddress(address common.Address,
 	}
 }
 
-//1. find store address according nft address which need to transfer.
-//2. nft address which need to transfer is not exist if store address is empty.
-//3. get stateobject of store address, then get mergeLevel
-//4. return directly if mergelevel less than level
-//5. if mergelevel more than level, check whether nft address is child address which's mergelevel equal level
-//6. split snft
+// 1. find store address according nft address which need to transfer.
+// 2. nft address which need to transfer is not exist if store address is empty.
+// 3. get stateobject of store address, then get mergeLevel
+// 4. return directly if mergelevel less than level
+// 5. if mergelevel more than level, check whether nft address is child address which's mergelevel equal level
+// 6. split snft
 func (s *StateDB) SplitNFT(nftAddr common.Address, level int) {
 	storeAddr, owner, ok := s.GetNFTStoreAddress(nftAddr, 0)
 	if !ok {
@@ -1651,19 +1651,21 @@ func (s *StateDB) ChangeNFTOwner(nftAddr common.Address,
 }
 
 // GetNFTOwner16 retrieves the nft owner from the given nft address
-//func (s *StateDB) GetNFTOwner16(nftAddr common.Address) common.Address {
-//	storeAddr, _, ok := s.GetNFTStoreAddress16(nftAddr, 0)
-//	if ok {
-//		log.Info("StateDB.GetNFTOwner16()", "nftAddr", nftAddr.String(), "storeAddr", storeAddr.String())
-//		stateObject := s.GetOrNewNFTStateObject(storeAddr)
-//		//stateObject := s.getDeletedStateObject2(nftAddr)
-//		if stateObject != nil {
-//			return stateObject.NFTOwner()
+//
+//	func (s *StateDB) GetNFTOwner16(nftAddr common.Address) common.Address {
+//		storeAddr, _, ok := s.GetNFTStoreAddress16(nftAddr, 0)
+//		if ok {
+//			log.Info("StateDB.GetNFTOwner16()", "nftAddr", nftAddr.String(), "storeAddr", storeAddr.String())
+//			stateObject := s.GetOrNewNFTStateObject(storeAddr)
+//			//stateObject := s.getDeletedStateObject2(nftAddr)
+//			if stateObject != nil {
+//				return stateObject.NFTOwner()
+//			}
 //		}
+//
+//		return common.Address{}
 //	}
 //
-//	return common.Address{}
-//}
 // if snfts have been merged, original snfts are not exist, they become a new merged snft
 func (s *StateDB) GetNFTOwner16(nftAddr common.Address) common.Address {
 	stateObject := s.GetOrNewNFTStateObject(nftAddr)
@@ -2003,6 +2005,10 @@ func (s *StateDB) MergeNFT16(nftAddr common.Address, blocknumber *big.Int) (*big
 		blocknumber,
 		mergedNFTs)
 	s.AddLog(log)
+
+	if newMergeStateObject.data.Nft.MergeLevel >= 3 {
+		s.AddSNFTL3Addrs(types.SNFTLevel3AddressList, newMergedAddr)
+	}
 
 	tempValue, _ := s.MergeNFT16(newMergedAddr, blocknumber)
 
@@ -2351,21 +2357,21 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	}
 }
 
-//- create a nft by user :creator can get a nft , include exchanger, royalty and meta.
-//wormholes chain will assign a nft address to the nft.
-//````
-//{
+// - create a nft by user :creator can get a nft , include exchanger, royalty and meta.
+// wormholes chain will assign a nft address to the nft.
+// ````
+// {
+// data:{
+// royalty:
+// metaUrl:
+// }
+// }
+// ````
+//
 //from:exchanger addr
 //to:creator
-//data:{
 //version:0
 //type:0
-//royalty:
-//metaUrl:
-//}
-//}
-//````
-//
 func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 	owner common.Address,
 	royalty uint16,
@@ -2399,20 +2405,21 @@ func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 	return common.Address{}, false
 }
 
-//- approve nft's authority:[?]
-//````
-//{
-//from: owner
-//to:address who get the authority
-//data:{
-//version:0
-//type:2
-//nftAddress:NFT address
-//}
-//}
-//````
+// - approve nft's authority:[?]
+// ````
+// {
+// from: owner
+// data:{
+// nftAddress:NFT address
+// }
+// }
+// ````
 //
 // ChangeApproveAddress is to approve all nfts
+//
+//to:address who get the authority
+//version:0
+//type:2
 func (s *StateDB) ChangeApproveAddress(addr common.Address, approveAddr common.Address) {
 	stateObject := s.GetOrNewAccountStateObject(addr)
 	if stateObject != nil {
@@ -2442,20 +2449,20 @@ func (s *StateDB) CancelNFTApproveAddress(nftAddr common.Address, approveAddr co
 	}
 }
 
-//- exchange nft:the nft which is exchanged will be add to exchange pool.
-//user can get erb according to snft level
-//````
-//{
+// - exchange nft:the nft which is exchanged will be add to exchange pool.
+// user can get erb according to snft level
+// ````
+// {
+// data:{
+// nftAddress:NFT address
+// }
+// }
+// ````
+//
 //from:owner
 //to:0xffff....ffff
-//data:{
 //version:0
 //type:3
-//nftAddress:NFT address
-//}
-//}
-//````
-//
 func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 	nftaddress common.Address,
 	blocknumber *big.Int,
@@ -2604,19 +2611,19 @@ func (s *StateDB) CalculateExchangeAmount(level uint8, mergenumber uint32) *big.
 //	}
 //}
 
-//-  pledge token: a user who want to be a miner need to pledge token, must more than 100000 erb
-//````
-//{
+// -  pledge token: a user who want to be a miner need to pledge token, must more than 100000 erb
+// ````
+// {
+// balance:????
+// data:{
+// }
+// }
+// ````
+//
 //from:owner
 //to:0xffff...ffff
-//balance:????
-//data:{
 //version:0
 //type:6
-//}
-//}
-//````
-//
 func (s *StateDB) PledgeToken(address common.Address,
 	amount *big.Int,
 	proxy common.Address,
@@ -2680,19 +2687,19 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 	return nil
 }
 
-//- cancel pledged token
-//````
-//{
-//from: holder
+// - cancel pledged token
+// ````
+// {
+// from: holder
+// balance:???? amount of recall ERB
+// data:{
+// }
+// }
+// ````
+//
 //to:0xffff...ffff
-//balance:???? amount of recall ERB
-//data:{
 //version:0
 //type:7
-//}
-//}
-//````
-//
 func (s *StateDB) CancelPledgedToken(address common.Address, amount *big.Int) {
 	stateObject := s.GetOrNewAccountStateObject(address)
 	if stateObject != nil {
@@ -2704,21 +2711,22 @@ func (s *StateDB) CancelPledgedToken(address common.Address, amount *big.Int) {
 	}
 }
 
-//- open exchanger:
-//````
-//{
-//from: address which owns the new exchanger
+// - open exchanger:
+// ````
+// {
+// from: address which owns the new exchanger
+// data:{
+// feeRate:the ratio that exchanger can get
+// }
+// }
+// ````
+//
 //to:0xffff...ffff
 //balance:50ERB
-//data:{
 //version:0
 //type:8
-//feeRate:the ratio that exchanger can get
 //name:exchanger name
 //url:exchanger url
-//}
-//}
-//````
 func (s *StateDB) OpenExchanger(addr common.Address,
 	amount *big.Int,
 	blocknumber *big.Int,
@@ -2897,13 +2905,13 @@ func (s *StateDB) GetNFTSymbol(addr common.Address) string {
 	return ""
 }
 
-//func (s *StateDB) GetNFTApproveAddress(addr common.Address) []common.Address {
-//	stateObject := s.GetOrNewNFTStateObject(addr)
-//	if stateObject != nil {
-//		return stateObject.GetNFTApproveAddress()
+//	func (s *StateDB) GetNFTApproveAddress(addr common.Address) []common.Address {
+//		stateObject := s.GetOrNewNFTStateObject(addr)
+//		if stateObject != nil {
+//			return stateObject.GetNFTApproveAddress()
+//		}
+//		return []common.Address{}
 //	}
-//	return []common.Address{}
-//}
 func (s *StateDB) GetNFTApproveAddress(addr common.Address) common.Address {
 	stateObject := s.GetOrNewNFTStateObject(addr)
 	if stateObject != nil {
@@ -3326,5 +3334,72 @@ func (s *StateDB) ChangeSNFTNoMerge(addr common.Address, flag bool) {
 	accountStateObject := s.GetOrNewAccountStateObject(addr)
 	if accountStateObject != nil {
 		accountStateObject.SetSNFTNoMerge(flag)
+	}
+}
+
+func (s *StateDB) GetSNFTL3Addrs(addr common.Address) []common.Address {
+	snftL3StateObject := s.GetOrNewStakerStateObject(addr)
+	if snftL3StateObject != nil {
+		return snftL3StateObject.GetSNFTL3Addrs()
+	}
+
+	return nil
+}
+
+func (s *StateDB) AddSNFTL3Addrs(addr common.Address, snftAddr common.Address) {
+	snftL3StateObject := s.GetOrNewStakerStateObject(addr)
+	if snftL3StateObject != nil {
+		snftL3StateObject.AddSNFTL3Addrs(snftAddr)
+	}
+}
+
+func (s *StateDB) RemoveSNFTL3Addrs(addr common.Address, snftAddr common.Address) {
+	snftL3StateObject := s.GetOrNewStakerStateObject(addr)
+	if snftL3StateObject != nil {
+		snftL3StateObject.RemoveSNFTL3Addrs(snftAddr)
+	}
+}
+
+func (s *StateDB) GetDividendAddrs(addr common.Address) []common.Address {
+	dividendStateObject := s.GetOrNewStakerStateObject(addr)
+	if dividendStateObject != nil {
+		return dividendStateObject.GetDividendAddrs()
+	}
+
+	return nil
+}
+
+func (s *StateDB) SetDividendAddrs(addr common.Address, snftAddrs []common.Address) {
+	dividendStateObject := s.GetOrNewStakerStateObject(addr)
+	if dividendStateObject != nil {
+		dividendStateObject.SetDividendAddrs(snftAddrs)
+	}
+}
+
+func (s *StateDB) AddDividendAddrsOne(addr common.Address, snftAddr common.Address) {
+	dividendStateObject := s.GetOrNewStakerStateObject(addr)
+	if dividendStateObject != nil {
+		dividendStateObject.AddDividendAddrsOne(snftAddr)
+	}
+}
+
+func (s *StateDB) AddDividendAddrs(addr common.Address, snftAddrs []common.Address) {
+	dividendStateObject := s.GetOrNewStakerStateObject(addr)
+	if dividendStateObject != nil {
+		dividendStateObject.AddDividendAddrs(snftAddrs)
+	}
+}
+
+func (s *StateDB) RemoveDividendAddrsOne(addr common.Address, snftAddr common.Address) {
+	dividendStateObject := s.GetOrNewStakerStateObject(addr)
+	if dividendStateObject != nil {
+		dividendStateObject.RemoveDividendAddrsOne(snftAddr)
+	}
+}
+
+func (s *StateDB) RemoveDividendAddrsAll(addr common.Address) {
+	dividendStateObject := s.GetOrNewStakerStateObject(addr)
+	if dividendStateObject != nil {
+		dividendStateObject.RemoveDividendAddrsAll()
 	}
 }

@@ -273,6 +273,16 @@ type (
 		account        *common.Address
 		oldSNFTNoMerge bool
 	}
+
+	sNFTL3AddrsChange struct {
+		account        *common.Address
+		oldSNFTL3Addrs []common.Address
+	}
+
+	dividendAddrsChange struct {
+		account          *common.Address
+		oldDividendAddrs []common.Address
+	}
 )
 
 func (ch createObjectChange) revert(s *StateDB) {
@@ -610,5 +620,21 @@ func (ch sNFTNoMergeChange) revert(s *StateDB) {
 }
 
 func (ch sNFTNoMergeChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch sNFTL3AddrsChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setSNFTL3Addrs(ch.oldSNFTL3Addrs)
+}
+
+func (ch sNFTL3AddrsChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch dividendAddrsChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setDividendAddrs(ch.oldDividendAddrs)
+}
+
+func (ch dividendAddrsChange) dirtied() *common.Address {
 	return ch.account
 }

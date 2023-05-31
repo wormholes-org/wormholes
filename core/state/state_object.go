@@ -925,14 +925,14 @@ func (s *stateObject) cleanNFT() {
 func (s *stateObject) SetNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-//pledgedflag bool,
-//nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -979,14 +979,14 @@ func (s *stateObject) SetNFTInfo(
 func (s *stateObject) setNFTInfo(
 	name string,
 	symbol string,
-//price *big.Int,
-//direction uint8,
+	//price *big.Int,
+	//direction uint8,
 	owner common.Address,
 	nftApproveAddress common.Address,
 	mergeLevel uint8,
 	mergenumber uint32,
-//pledgedflag bool,
-//nftpledgedblocknumber *big.Int,
+	//pledgedflag bool,
+	//nftpledgedblocknumber *big.Int,
 	creator common.Address,
 	royalty uint16,
 	exchanger common.Address,
@@ -1042,14 +1042,14 @@ func (s *stateObject) setJournalNFTInfo(
 func (s *stateObject) GetNFTInfo() (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -1102,9 +1102,9 @@ func (s *stateObject) GetSymbol() string {
 	return s.data.Nft.Symbol
 }
 
-//func (s *stateObject) GetNFTApproveAddress() []common.Address {
-//	return s.data.NFTApproveAddressList
-//}
+//	func (s *stateObject) GetNFTApproveAddress() []common.Address {
+//		return s.data.NFTApproveAddressList
+//	}
 func (s *stateObject) GetNFTApproveAddress() common.Address {
 	return s.data.Nft.NFTApproveAddressList
 }
@@ -1225,16 +1225,16 @@ func (s *stateObject) setCoefficient(coe uint8) {
 	s.data.Worm.Coefficient = coe
 }
 
-//func (s *stateObject) AddCoefficient(coe uint8) {
-//	var sum uint8
-//	preSum := s.Coefficient() + coe
-//	if preSum <= VALIDATOR_COEFFICIENT {
-//		sum = preSum
-//	} else {
-//		sum = VALIDATOR_COEFFICIENT
+//	func (s *stateObject) AddCoefficient(coe uint8) {
+//		var sum uint8
+//		preSum := s.Coefficient() + coe
+//		if preSum <= VALIDATOR_COEFFICIENT {
+//			sum = preSum
+//		} else {
+//			sum = VALIDATOR_COEFFICIENT
+//		}
+//		s.SetCoefficient(sum)
 //	}
-//	s.SetCoefficient(sum)
-//}
 func (s *stateObject) AddCoefficient(coe uint8) {
 	s.SetCoefficient(VALIDATOR_COEFFICIENT)
 }
@@ -1663,4 +1663,98 @@ func (s *stateObject) SetSNFTNoMerge(flag bool) {
 
 func (s *stateObject) setSNFTNoMerge(flag bool) {
 	s.data.Worm.SNFTNoMerge = flag
+}
+
+func (s *stateObject) GetSNFTL3Addrs() []common.Address {
+	newSNFTL3Addrs := make([]common.Address, 0)
+	newSNFTL3Addrs = append(newSNFTL3Addrs, s.data.Staker.SNFTL3Addrs...)
+	return newSNFTL3Addrs
+}
+
+func (s *stateObject) AddSNFTL3Addrs(snftAddr common.Address) {
+	newSNFTL3Addrs := make([]common.Address, 0)
+	newSNFTL3Addrs = append(newSNFTL3Addrs, s.data.Staker.SNFTL3Addrs...)
+	newSNFTL3Addrs = append(newSNFTL3Addrs, snftAddr)
+	s.SetSNFTL3Addrs(newSNFTL3Addrs)
+}
+
+func (s *stateObject) RemoveSNFTL3Addrs(snftAddr common.Address) {
+	var index int
+	newSNFTL3Addrs := make([]common.Address, 0)
+	newSNFTL3Addrs = append(newSNFTL3Addrs, s.data.Staker.SNFTL3Addrs...)
+	for i, addr := range newSNFTL3Addrs {
+		if addr == snftAddr {
+			index = i
+			break
+		}
+	}
+	newSNFTL3Addrs = append(newSNFTL3Addrs[:index], newSNFTL3Addrs[index+1:]...)
+	s.setSNFTL3Addrs(newSNFTL3Addrs)
+}
+
+func (s *stateObject) SetSNFTL3Addrs(snftAddrs []common.Address) {
+	oldSNFTL3AddrsChange := sNFTL3AddrsChange{
+		account: &s.address,
+	}
+	oldSNFTL3AddrsChange.oldSNFTL3Addrs = append(oldSNFTL3AddrsChange.oldSNFTL3Addrs, s.data.Staker.SNFTL3Addrs...)
+	s.db.journal.append(oldSNFTL3AddrsChange)
+
+	s.setSNFTL3Addrs(snftAddrs)
+}
+
+func (s *stateObject) setSNFTL3Addrs(snftAddrs []common.Address) {
+	s.data.Staker.SNFTL3Addrs = snftAddrs[:]
+}
+
+func (s *stateObject) GetDividendAddrs() []common.Address {
+	newDividendAddrs := make([]common.Address, 0)
+	newDividendAddrs = append(newDividendAddrs, s.data.Staker.DividendAddrs...)
+	return newDividendAddrs
+}
+
+func (s *stateObject) AddDividendAddrsOne(snftAddr common.Address) {
+	newDividendAddrs := make([]common.Address, 0)
+	newDividendAddrs = append(newDividendAddrs, s.data.Staker.DividendAddrs...)
+	newDividendAddrs = append(newDividendAddrs, snftAddr)
+	s.SetDividendAddrs(newDividendAddrs)
+}
+
+func (s *stateObject) AddDividendAddrs(snftAddrs []common.Address) {
+	newDividendAddrs := make([]common.Address, 0)
+	newDividendAddrs = append(newDividendAddrs, s.data.Staker.DividendAddrs...)
+	newDividendAddrs = append(newDividendAddrs, snftAddrs...)
+	s.SetDividendAddrs(newDividendAddrs)
+}
+
+func (s *stateObject) RemoveDividendAddrsOne(snftAddr common.Address) {
+	var index int
+	newDividendAddrs := make([]common.Address, 0)
+	newDividendAddrs = append(newDividendAddrs, s.data.Staker.DividendAddrs...)
+	for i, addr := range newDividendAddrs {
+		if addr == snftAddr {
+			index = i
+			break
+		}
+	}
+	newDividendAddrs = append(newDividendAddrs[:index], newDividendAddrs[index+1:]...)
+	s.SetDividendAddrs(newDividendAddrs)
+}
+
+func (s *stateObject) RemoveDividendAddrsAll() {
+	newDividendAddrs := make([]common.Address, 0)
+	s.SetDividendAddrs(newDividendAddrs)
+}
+
+func (s *stateObject) SetDividendAddrs(snftAddrs []common.Address) {
+	oldDividendAddrsChange := dividendAddrsChange{
+		account: &s.address,
+	}
+	oldDividendAddrsChange.oldDividendAddrs = append(oldDividendAddrsChange.oldDividendAddrs, s.data.Staker.DividendAddrs...)
+	s.db.journal.append(oldDividendAddrsChange)
+
+	s.setDividendAddrs(snftAddrs)
+}
+
+func (s *stateObject) setDividendAddrs(snftAddrs []common.Address) {
+	s.data.Staker.DividendAddrs = snftAddrs[:]
 }

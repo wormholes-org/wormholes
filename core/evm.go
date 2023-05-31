@@ -148,6 +148,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		BatchForcedSaleSNFTByApproveExchanger: BatchForcedSaleSNFTByApproveExchanger,
 		ChangeSnftRecipient:                   ChangeSnftRecipient,
 		ChangeSNFTNoMerge:                     ChangeSNFTNoMerge,
+		GetDividend:                           GetDividend,
 	}
 }
 
@@ -400,9 +401,9 @@ func GetNFTSymbol(db vm.StateDB, addr common.Address) string {
 	return db.GetNFTSymbol(addr)
 }
 
-//func GetNFTApproveAddress(db vm.StateDB, addr common.Address) []common.Address {
-//	return db.GetNFTApproveAddress(addr)
-//}
+//	func GetNFTApproveAddress(db vm.StateDB, addr common.Address) []common.Address {
+//		return db.GetNFTApproveAddress(addr)
+//	}
 func GetNFTApproveAddress(db vm.StateDB, addr common.Address) common.Address {
 	return db.GetNFTApproveAddress(addr)
 }
@@ -2795,4 +2796,34 @@ func ChangeSnftRecipient(db vm.StateDB,
 
 func ChangeSNFTNoMerge(db vm.StateDB, caller common.Address, noAutoMerge bool) {
 	db.ChangeSNFTNoMerge(caller, noAutoMerge)
+}
+
+func GetDividend(db vm.StateDB, caller common.Address) error {
+	dividendAddrs := make([]common.Address, 0)
+	NotDividendAddrs := make([]common.Address, 0)
+
+	snftAddrs := db.GetDividendAddrs(types.DividendAddressList)
+	if snftAddrs == nil {
+		return errors.New("no addresses of snft level 3")
+	}
+
+	for _, addr := range snftAddrs {
+		if db.GetNFTOwner16(addr) == caller {
+			dividendAddrs = append(dividendAddrs, addr)
+		} else {
+			NotDividendAddrs = append(NotDividendAddrs, addr)
+		}
+	}
+
+	if len(dividendAddrs) == 0 {
+		return errors.New("no right to get dividend")
+	}
+
+	dividendBalance := db.GetBalance(types.DividendAmountAddress)
+	averageDividend := new(big.Int).Div(dividendBalance, new(big.Int).SetUint64(uint64(len(snftAddrs))))
+	deservedDividend := new(big.Int).Mul(averageDividend, new(big.Int).SetUint64(uint64(len(dividendAddrs))))
+	db.AddBalance(caller, deservedDividend)
+	db.SetDividendAddrs(types.DividendAddressList, NotDividendAddrs)
+
+	return nil
 }

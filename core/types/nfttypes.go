@@ -238,8 +238,8 @@ type Wormholes struct {
 const WormholesVersion = "v0.0.1"
 const PattenAddr = "^0x[0-9a-fA-F]{40}$"
 
-//var PattenAddr = "^0[xX][0-9a-fA-F]{40}$"
-//var PattenHex = "^[0-9a-fA-F]+$"
+// var PattenAddr = "^0[xX][0-9a-fA-F]{40}$"
+// var PattenHex = "^[0-9a-fA-F]+$"
 func (w *Wormholes) CheckFormat() error {
 	//regHex, _ := regexp.Compile(PattenHex)
 	//regAddr, _ := regexp.Compile(PattenAddr)
@@ -342,6 +342,7 @@ func (w *Wormholes) CheckFormat() error {
 	case 26:
 	case 27:
 	case 28:
+	case 29:
 	case 30:
 	case 31:
 	default:
@@ -413,6 +414,8 @@ func (w *Wormholes) TxGas() (uint64, error) {
 		return params.WormholesTx27, nil
 	case 28:
 		return params.WormholesTx28, nil
+	case 29:
+		return params.WormholesTx29, nil
 	case 30:
 		return params.WormholesTx30, nil
 	case 31:

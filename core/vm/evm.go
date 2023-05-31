@@ -41,11 +41,11 @@ import (
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 
-//const CancelPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
+// const CancelPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
 const CancelPledgedInterval = 3 * 24 // for test
-//const CloseExchangerInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
+// const CloseExchangerInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
 const CloseExchangerInterval = 3 * 24 // for test
-//const CancelNFTPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
+// const CancelNFTPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
 const CancelNFTPledgedInterval = 3 * 24 // for test
 const VALIDATOR_COEFFICIENT = 70
 
@@ -125,6 +125,7 @@ type (
 	BatchForcedSaleSNFTByApproveExchangerFunc func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	ChangeSnftRecipientFunc                   func(StateDB, common.Address, string)
 	ChangeSNFTNoMergeFunc                     func(StateDB, common.Address, bool)
+	GetDividendFunc                           func(StateDB, common.Address) error
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -222,6 +223,7 @@ type BlockContext struct {
 	BatchForcedSaleSNFTByApproveExchanger BatchForcedSaleSNFTByApproveExchangerFunc
 	ChangeSnftRecipient                   ChangeSnftRecipientFunc
 	ChangeSNFTNoMerge                     ChangeSNFTNoMergeFunc
+	GetDividend                           GetDividendFunc
 	// Block information
 
 	ParentHeader *types.Header
@@ -1734,6 +1736,17 @@ func (evm *EVM) HandleNFT(
 	//	}
 	//	log.Info("HandleNFT(), BatchForcedSaleSNFTByApproveExchanger<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 	//		"blocknumber", evm.Context.BlockNumber.Uint64())
+	case 29:
+		log.Info("HandleNFT(), GetDividend>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
+		err := evm.Context.GetDividend(evm.StateDB, caller.Address())
+		if err != nil {
+			log.Error("HandleNFT(), GetDividend", "wormholes.Type", wormholes.Type,
+				"error", err, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, err
+		}
+		log.Info("HandleNFT(), GetDividend<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
 	case 30:
 		log.Info("HandleNFT(), ChangeSNFTNoMerge>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())

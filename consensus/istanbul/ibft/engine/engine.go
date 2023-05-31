@@ -904,6 +904,23 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			}
 		}
 
+		// modify for dividend of snft level 3
+		state.AddBalance(types.PreDividendAmountAddress, types.DividendAmountEachBlock)
+		state.AddBalance(types.VoteContractAddress, types.VoteAmountEachBlock)
+		if header.Number.Uint64()%types.DividendBlockInterval == 0 {
+			//first, remove the data of last week
+			state.SubBalance(types.DividendAmountAddress, state.GetBalance(types.DividendAmountAddress))
+			state.RemoveDividendAddrsAll(types.DividendAddressList)
+
+			// update the data of a new week
+			PreBalance := state.GetBalance(types.PreDividendAmountAddress)
+			state.AddBalance(types.DividendAmountAddress, PreBalance)
+
+			PreSnftL3Addrs := state.GetSNFTL3Addrs(types.SNFTLevel3AddressList)
+			state.AddDividendAddrs(types.DividendAddressList, PreSnftL3Addrs)
+		}
+		// modify for dividend of snft level 3 end
+
 		e.punishEvilValidators(c, state, istanbulExtra, header)
 
 		state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
@@ -961,6 +978,23 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		for _, v := range istanbulExtra.ValidatorAddr {
 			state.AddValidatorCoefficient(v, 20)
 		}
+
+		// modify for dividend of snft level 3
+		state.AddBalance(types.PreDividendAmountAddress, types.DividendAmountEachBlock)
+		state.AddBalance(types.VoteContractAddress, types.VoteAmountEachBlock)
+		if header.Number.Uint64()%types.DividendBlockInterval == 0 {
+			//first, remove the data of last week
+			state.SubBalance(types.DividendAmountAddress, state.GetBalance(types.DividendAmountAddress))
+			state.RemoveDividendAddrsAll(types.DividendAddressList)
+
+			// update the data of a new week
+			PreBalance := state.GetBalance(types.PreDividendAmountAddress)
+			state.AddBalance(types.DividendAmountAddress, PreBalance)
+
+			PreSnftL3Addrs := state.GetSNFTL3Addrs(types.SNFTLevel3AddressList)
+			state.AddDividendAddrs(types.DividendAddressList, PreSnftL3Addrs)
+		}
+
 	}
 
 	e.punishEvilValidators(c, state, istanbulExtra, header)
