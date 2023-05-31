@@ -2471,32 +2471,17 @@ func (s *StateDB) ExchangeNFTToCurrency(address common.Address,
 	nftStateObject := s.GetOrNewNFTStateObject(nftaddress)
 	stateObject := s.GetOrNewAccountStateObject(address)
 	if nftStateObject != nil && stateObject != nil {
-		//LastIndex := strings.LastIndex(nftStateObject.data.MetaURL, "/")
-		//Url := string([]byte(nftStateObject.data.MetaURL)[:LastIndex])
-		//nftExchange := types.SNFTExchange{
-		//	NFTAddress:         nftStateObject.address,
-		//	MergeLevel:         nftStateObject.data.MergeLevel,
-		//	CurrentMintAddress: nftStateObject.address,
-		//	BlockNumber:        new(big.Int).Set(blocknumber),
-		//	InjectedInfo: types.InjectedInfo{
-		//		//MetalUrl: nftStateObject.data.MetaURL,
-		//		MetalUrl: Url,
-		//		Royalty:  nftStateObject.data.Royalty,
-		//		Creator:  nftStateObject.data.Creator.String(),
-		//	},
-		//}
-		//s.SNFTExchangePool.SNFTExchanges = append(s.SNFTExchangePool.SNFTExchanges, &nftExchange)
-
 		emptyAddress := common.Address{}
-		//creator := nftStateObject.GetCreator()
-		//creatorObj := s.GetOrNewAccountStateObject(creator)
 		initAmount := s.calculateExchangeAmount(nftStateObject.GetNFTMergeLevel(), nftStateObject.GetMergeNumber())
 		amount := s.GetExchangAmount(nftaddress, initAmount)
-
-		//if creator != emptyAddress && creatorObj != nil {
-		//	creatorObj.AddBalance(big.NewInt(0).Div(amount, big.NewInt(10)))
-		//}
 		mergeLevel := nftStateObject.GetNFTMergeLevel()
+
+		//remove snft address from dividend list
+		if mergeLevel >= 3 {
+			s.RemoveSNFTL3Addrs(types.SNFTLevel3AddressList, nftStateObject.Address())
+			s.RemoveDividendAddrsOne(types.DividendAddressList, nftStateObject.Address())
+		}
+
 		nftStateObject.CleanNFT()
 		stateObject.AddBalance(amount)
 		stateObject.SubVoteWeight(amount)
@@ -2799,14 +2784,14 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-	//*big.Int,
-	//uint8,
+//*big.Int,
+//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-	//bool,
-	//*big.Int,
+//bool,
+//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,

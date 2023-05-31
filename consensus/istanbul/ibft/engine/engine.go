@@ -909,7 +909,9 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		state.AddBalance(types.VoteContractAddress, types.VoteAmountEachBlock)
 		if header.Number.Uint64()%types.DividendBlockInterval == 0 {
 			//first, remove the data of last week
-			state.SubBalance(types.DividendAmountAddress, state.GetBalance(types.DividendAmountAddress))
+			lastDividendAmount := state.GetBalance(types.DividendAmountAddress)
+			state.SubBalance(types.DividendAmountAddress, lastDividendAmount)
+			state.AddBalance(common.Address{}, lastDividendAmount)
 			state.RemoveDividendAddrsAll(types.DividendAddressList)
 
 			// update the data of a new week
@@ -984,7 +986,9 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		state.AddBalance(types.VoteContractAddress, types.VoteAmountEachBlock)
 		if header.Number.Uint64()%types.DividendBlockInterval == 0 {
 			//first, remove the data of last week
-			state.SubBalance(types.DividendAmountAddress, state.GetBalance(types.DividendAmountAddress))
+			lastDividendAmount := state.GetBalance(types.DividendAmountAddress)
+			state.SubBalance(types.DividendAmountAddress, lastDividendAmount)
+			state.AddBalance(common.Address{}, lastDividendAmount)
 			state.RemoveDividendAddrsAll(types.DividendAddressList)
 
 			// update the data of a new week
