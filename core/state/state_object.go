@@ -1758,3 +1758,20 @@ func (s *stateObject) SetDividendAddrs(snftAddrs []common.Address) {
 func (s *stateObject) setDividendAddrs(snftAddrs []common.Address) {
 	s.data.Staker.DividendAddrs = snftAddrs[:]
 }
+
+func (s *stateObject) GetLockSNFTFlag() bool {
+	return s.data.Worm.LockSNFTFlag
+}
+
+func (s *stateObject) SetLockSNFTFlag(flag bool) {
+	s.db.journal.append(lockSNFTFlagChange{
+		account:         &s.address,
+		oldLockSNFTFlag: s.data.Worm.LockSNFTFlag,
+	})
+
+	s.setLockSNFTFlag(flag)
+}
+
+func (s *stateObject) setLockSNFTFlag(flag bool) {
+	s.data.Worm.LockSNFTFlag = flag
+}

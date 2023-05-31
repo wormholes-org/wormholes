@@ -2784,14 +2784,14 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -3386,5 +3386,21 @@ func (s *StateDB) RemoveDividendAddrsAll(addr common.Address) {
 	dividendStateObject := s.GetOrNewStakerStateObject(addr)
 	if dividendStateObject != nil {
 		dividendStateObject.RemoveDividendAddrsAll()
+	}
+}
+
+func (s *StateDB) GetLockSNFTFlag(addr common.Address) bool {
+	accountStateObject := s.GetOrNewAccountStateObject(addr)
+	if accountStateObject != nil {
+		return accountStateObject.GetLockSNFTFlag()
+	}
+
+	return false
+}
+
+func (s *StateDB) ChangeLockSNFTFlag(addr common.Address, flag bool) {
+	accountStateObject := s.GetOrNewAccountStateObject(addr)
+	if accountStateObject != nil {
+		accountStateObject.SetLockSNFTFlag(flag)
 	}
 }

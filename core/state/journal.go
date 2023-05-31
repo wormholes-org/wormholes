@@ -283,6 +283,11 @@ type (
 		account          *common.Address
 		oldDividendAddrs []common.Address
 	}
+
+	lockSNFTFlagChange struct {
+		account         *common.Address
+		oldLockSNFTFlag bool
+	}
 )
 
 func (ch createObjectChange) revert(s *StateDB) {
@@ -636,5 +641,13 @@ func (ch dividendAddrsChange) revert(s *StateDB) {
 }
 
 func (ch dividendAddrsChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch lockSNFTFlagChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setLockSNFTFlag(ch.oldLockSNFTFlag)
+}
+
+func (ch lockSNFTFlagChange) dirtied() *common.Address {
 	return ch.account
 }
