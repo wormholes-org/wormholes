@@ -163,6 +163,11 @@ func (h *Header) EmptyReceipts() bool {
 	return h.ReceiptHash == EmptyRootHash
 }
 
+// EmptyBlock returns true if block is empty
+func (h *Header) EmptyBlock() bool {
+	return h.Coinbase == common.Address{}
+}
+
 // Body is a simple (mutable, non-safe) data container for storing and moving
 // a block's data contents (transactions and uncles) together.
 type Body struct {
