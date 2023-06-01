@@ -566,8 +566,16 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			return errors.New("get validators error")
 		}
 
+		stakers := statedb.GetStakers(types.StakerStorageAddress)
+		if stakers == nil {
+			log.Error("Engine: Prepare get stakers error", "no", parent.Number.Uint64())
+			return errors.New("get stakers error")
+		}
+
+		prevCreator := statedb.GetSnfts(types.SnftInjectedStorageAddress).InjectedOfficialNFTs[0].Creator
+
 		// Obtain random landing points according to the surrounding chain algorithm
-		randomHash := core.GetRandomDrop(validatorList, parent)
+		randomHash := core.GetRandomDropV2(validatorList, stakers, parent, common.HexToAddress(prevCreator))
 		if randomHash == (common.Hash{}) {
 			log.Error("Engine: Prepare : invalid random hash", "no", c.CurrentHeader().Number.Uint64())
 			return err

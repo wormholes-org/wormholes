@@ -2797,8 +2797,16 @@ func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.Va
 		return nil, errors.New("get validators error")
 	}
 
+	stakers := db.GetStakers(types.StakerStorageAddress)
+	if stakers == nil {
+		log.Error("Engine: Prepare get stakers error", "no", header.Number.Uint64())
+		return nil, errors.New("get stakers error")
+	}
+
+	prevCreator := db.GetSnfts(types.SnftInjectedStorageAddress).InjectedOfficialNFTs[0].Creator
+
 	// Obtain random landing points according to the surrounding chain algorithm
-	randomHash := GetRandomDrop(validatorList, header)
+	randomHash := GetRandomDropV2(validatorList, stakers, header, common.HexToAddress(prevCreator))
 	if randomHash == (common.Hash{}) {
 		log.Error("Random11ValidatorFromPool : invalid random hash", "no", bc.CurrentHeader().Number.Uint64())
 		return nil, err
@@ -2871,8 +2879,16 @@ func (bc *BlockChain) Random11ValidatorWithOutProxy(header *types.Header) (*type
 		return nil, errors.New("get validators error")
 	}
 
+	stakers := db.GetStakers(types.StakerStorageAddress)
+	if stakers == nil {
+		log.Error("Engine: Prepare get stakers error", "no", header.Number.Uint64())
+		return nil, errors.New("get stakers error")
+	}
+
+	prevCreator := db.GetSnfts(types.SnftInjectedStorageAddress).InjectedOfficialNFTs[0].Creator
+
 	// Obtain random landing points according to the surrounding chain algorithm
-	randomHash := GetRandomDrop(validatorList, header)
+	randomHash := GetRandomDropV2(validatorList, stakers, header, common.HexToAddress(prevCreator))
 	if randomHash == (common.Hash{}) {
 		log.Error("Random11ValidatorWithOutProxy : invalid random hash", "no", bc.CurrentHeader().Number.Uint64())
 		return nil, err
@@ -3177,4 +3193,152 @@ func (bc *BlockChain) WriteEvilAction(no uint64, ea types.EvilAction) {
 
 func (bc *BlockChain) ReadEvilAction(no uint64) (*types.EvilAction, error) {
 	return rawdb.ReadEvilAction(bc.db, no)
+}
+
+type Factors struct {
+	// factors
+	validators  *types.ValidatorList
+	stakers     *types.StakerList
+	prevHeader  *types.Header
+	prevCreator common.Address
+
+	// option params
+	randomIndex []int
+}
+
+type Option func(factors *Factors) []string
+type FactorsBuilder struct {
+	factors *Factors
+	options []Option
+}
+
+func NewFactorsBuilder() *FactorsBuilder {
+	return &FactorsBuilder{
+		factors: &Factors{},
+	}
+}
+
+func (fb *FactorsBuilder) SetStakers(stakers *types.StakerList) *FactorsBuilder {
+	fb.factors.stakers = stakers
+	return fb
+}
+
+func (fb *FactorsBuilder) SetPrevHeader(prevHeader *types.Header) *FactorsBuilder {
+	fb.factors.prevHeader = prevHeader
+	return fb
+}
+
+func (fb *FactorsBuilder) SetPrevCreator(prevCreator common.Address) *FactorsBuilder {
+	fb.factors.prevCreator = prevCreator
+	return fb
+}
+
+func (fb *FactorsBuilder) SetValidators(validators *types.ValidatorList) *FactorsBuilder {
+	fb.factors.validators = validators
+	return fb
+}
+
+func (fb *FactorsBuilder) SetRandomIndex(randomIndex []int) *FactorsBuilder {
+	fb.factors.randomIndex = randomIndex
+	return fb
+}
+
+func (fb *FactorsBuilder) AddOption(f Option) *FactorsBuilder {
+	fb.options = append(fb.options, f)
+	return fb
+}
+
+func opOnValidators(factors *Factors) (result []string) {
+	for _, v := range factors.randomIndex {
+		val := factors.validators.GetByIndex(uint64(v))
+		if val.Address() == (common.Address{}) {
+			continue
+		} else {
+			result = append(result, val.Addr.Hex())
+		}
+	}
+	return
+}
+
+func opOnStakers(factors *Factors) (result []string) {
+	for _, v := range factors.randomIndex {
+		st := factors.stakers.GetByIndex(uint64(v))
+		if st.Address() == (common.Address{}) {
+			continue
+		} else {
+			result = append(result, st.Addr.Hex())
+		}
+	}
+	return
+}
+
+func opOnPrevHeader(factors *Factors) (result []string) {
+	result = append(result, factors.prevHeader.Number.String())
+	return
+}
+
+func opOnPrevCreator(factors *Factors) (result []string) {
+	result = append(result, factors.prevCreator.Hex())
+	return
+}
+
+func (fb *FactorsBuilder) build() (result []string) {
+	for _, f := range fb.options {
+		result = append(result, f(fb.factors)...)
+	}
+	return result
+}
+
+func GetRandomDropV2(v *types.ValidatorList, s *types.StakerList, prevHeader *types.Header, prevCreator common.Address) common.Hash {
+	if emptyList(v) || emptyList(s) { // Determine if the validator or stakers is empty
+		return common.Hash{}
+	}
+
+	indexs := random3Index(v, prevHeader) // Obtain three random indexes
+
+	fb := NewFactorsBuilder()
+	fb.SetValidators(v).SetStakers(s). // set factors
+						SetPrevHeader(prevHeader).SetPrevCreator(prevCreator).
+						SetRandomIndex(indexs)
+
+	fb.AddOption(opOnValidators).AddOption(opOnStakers). // set options
+								AddOption(opOnPrevHeader).AddOption(opOnPrevCreator)
+
+	factors := fb.build() // Construct all factors
+
+	return calculateHashByFactors(factors...) // Calculate hash based on factors
+}
+
+func emptyList(v interface{}) bool {
+	switch t := v.(type) {
+	case *types.StakerList:
+		return t == nil || len(t.Stakers) == 0
+	case *types.ValidatorList:
+		return t == nil || len(t.Validators) == 0
+	default:
+		return false
+	}
+}
+
+// random3Index get three random validator indexes
+func random3Index(v *types.ValidatorList, prevHeader *types.Header) (vals []int) {
+	i := 0
+	if prevHeader.Number.Uint64() > 0 {
+		i = v.GetByAddress(prevHeader.Coinbase)
+	}
+
+	np := v.Len()/4 + 1
+	vals = getSurroundingChainNo(i, 4, np)
+	return
+}
+
+// calculateHashByFactors calculate hash based on factors
+func calculateHashByFactors(factors ...string) common.Hash {
+	var buffer bytes.Buffer
+
+	for _, v := range factors {
+		buffer.WriteString(v)
+	}
+
+	return crypto.Keccak256Hash(buffer.Bytes())
 }
