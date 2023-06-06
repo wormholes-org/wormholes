@@ -249,6 +249,10 @@ type (
 		oldValidators types.ValidatorList
 	}
 
+	validatorExtensionChange struct {
+		account               *common.Address
+		oldValidatorExtension types.ValidatorExtensionList
+	}
 	stakersChange struct {
 		account    *common.Address
 		oldStakers types.StakerList
@@ -580,6 +584,14 @@ func (ch validatorsChange) revert(s *StateDB) {
 }
 
 func (ch validatorsChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch validatorExtensionChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setValidatorExtension(&ch.oldValidatorExtension)
+}
+
+func (ch validatorExtensionChange) dirtied() *common.Address {
 	return ch.account
 }
 

@@ -2641,6 +2641,56 @@ func (s *StateDB) PledgeToken(address common.Address,
 	return nil
 }
 
+//func (s *StateDB) StakerToken(from common.Address, address common.Address, amount *big.Int) error {
+//	stateObject := s.GetOrNewAccountStateObject(address)
+//	fromObject := s.GetOrNewAccountStateObject(from)
+//	if amount == nil {
+//		amount = big.NewInt(0)
+//	}
+//
+//	//Resolving duplicates is delegated
+//	empty := common.Address{}
+//	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+//	validators := validatorStateObject.GetValidators()
+//	for _, v := range validators.Validators {
+//		if v.Proxy != empty && v.Addr != address && v.Proxy == proxy {
+//			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
+//			return errors.New("cannot delegate repeatedly")
+//		}
+//	}
+//
+//	if stateObject != nil {
+//		validatorStateObject.AddValidator(address, amount, proxy)
+//		stateObject.SubBalance(amount)
+//		stateObject.AddPledgedBalance(amount)
+//		stateObject.SetPledgedBlockNumber(blocknumber)
+//	}
+//	return nil
+//}
+
+func (s *StateDB) StakerPledge(from common.Address, address common.Address,
+	amount *big.Int,
+	blocknumber *big.Int) error {
+
+	if amount == nil {
+		amount = big.NewInt(0)
+	}
+
+	toObject := s.GetOrNewAccountStateObject(address)
+	fromObject := s.GetOrNewAccountStateObject(from)
+	//Resolving duplicates is delegated
+	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+
+	if fromObject != nil && toObject != nil {
+		validatorStateObject.AddStakerPledge(from, address, amount, blocknumber)
+		fromObject.SubBalance(amount)
+		toObject.AddPledgedBalance(amount)
+		fromObject.SetPledgedBlockNumber(blocknumber)
+
+	}
+	return nil
+}
+
 func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) error {
 	stateObject := s.GetOrNewAccountStateObject(address)
 	empty := common.Address{}
@@ -2657,6 +2707,32 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 	if !existAddress {
 		log.Info("MinerConsign", "err", "no repeated pledge")
 		return errors.New("no repeated pledge")
+	}
+
+	//Resolving duplicates is delegated
+	for _, v := range validators.Validators {
+		if v.Proxy != empty && v.Proxy == proxy {
+			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
+			return errors.New("cannot delegate repeatedly")
+		}
+	}
+	if stateObject != nil {
+		validatorStateObject.AddValidator(address, big.NewInt(0), proxy)
+	}
+	return nil
+}
+
+func (s *StateDB) MinerBecome(address common.Address, proxy common.Address) error {
+	stateObject := s.GetOrNewAccountStateObject(address)
+	empty := common.Address{}
+
+	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+	validators := validatorStateObject.GetValidators()
+	for _, v := range validators.Validators {
+		if address == v.Addr {
+			log.Info("MinerBecome", "err", "already pledge")
+			return errors.New("already pledge")
+		}
 	}
 
 	//Resolving duplicates is delegated

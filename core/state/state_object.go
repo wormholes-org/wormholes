@@ -1539,6 +1539,30 @@ func (s *stateObject) GetValidators() *types.ValidatorList {
 	return nil
 }
 
+func (s *stateObject) AddStakerPledge(from common.Address, addr common.Address, balance *big.Int, blocknumber *big.Int) bool {
+	newValidators := s.data.Staker.ValidatorExtension.DeepCopy()
+	ok := newValidators.AddStaker(from, addr, balance, blocknumber)
+	if !ok {
+		return false
+	}
+
+	s.SetValidatorExtension(newValidators)
+	return true
+}
+
+func (s *stateObject) SetValidatorExtension(varlidators *types.ValidatorExtensionList) {
+	s.db.journal.append(validatorExtensionChange{
+		account:               &s.address,
+		oldValidatorExtension: s.data.Staker.ValidatorExtension,
+	})
+
+	s.setValidatorExtension(varlidators)
+}
+
+func (s *stateObject) setValidatorExtension(varlidators *types.ValidatorExtensionList) {
+	s.data.Staker.ValidatorExtension = *varlidators
+}
+
 func (s *stateObject) AddStaker(addr common.Address, balance *big.Int) {
 	newStakers := s.data.Staker.Stakers.DeepCopy()
 	newStakers.AddStaker(addr, balance)

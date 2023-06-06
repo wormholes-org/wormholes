@@ -88,8 +88,10 @@ type StateDB interface {
 	CancelNFTApproveAddress(common.Address, common.Address)
 	ExchangeNFTToCurrency(common.Address, common.Address, *big.Int, int)
 	PledgeToken(common.Address, *big.Int, common.Address, *big.Int) error
+	StakerPledge(common.Address, common.Address, *big.Int, *big.Int) error
 	GetPledgedTime(common.Address) *big.Int
 	MinerConsign(common.Address, common.Address) error
+	MinerBecome(common.Address, common.Address) error
 	CancelPledgedToken(common.Address, *big.Int)
 	OpenExchanger(common.Address, *big.Int, *big.Int, uint16, string, string, common.Address)
 	CloseExchanger(common.Address, *big.Int)

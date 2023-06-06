@@ -94,8 +94,10 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		CancelNFTApproveAddress: CancelNFTApproveAddress,
 		ExchangeNFTToCurrency:   ExchangeNFTToCurrency,
 		PledgeToken:             PledgeToken,
+		StakerPledge:            StakerPledge,
 		GetPledgedTime:          GetPledgedTime,
 		MinerConsign:            MinerConsign,
+		MinerBecome:             MinerBecome,
 		CancelPledgedToken:      CancelPledgedToken,
 		OpenExchanger:           OpenExchanger,
 		CloseExchanger:          CloseExchanger,
@@ -321,6 +323,22 @@ func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *typ
 	return db.PledgeToken(address, amount, common.HexToAddress(wh.ProxyAddress), blocknumber)
 }
 
+func StakerPledge(db vm.StateDB, from, address common.Address, amount *big.Int, blocknumber *big.Int, wh *types.Wormholes) error {
+	empty := common.Address{}
+	log.Info("StakerPledge", "proxy", wh.ProxyAddress, "sign", wh.ProxySign)
+	if wh.ProxyAddress != "" && wh.ProxyAddress != empty.Hex() {
+		msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
+		addr, err := RecoverAddress(msg, wh.ProxySign)
+		log.Info("StakerPledge", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
+		if err != nil || wh.ProxyAddress != addr.Hex() {
+			log.Error("StakerPledge()", "Get public key error", err)
+			return errors.New("recover proxy address error!")
+		}
+	}
+
+	return db.StakerPledge(from, address, amount, blocknumber)
+}
+
 func GetPledgedTime(db vm.StateDB, addr common.Address) *big.Int {
 	return db.GetPledgedTime(addr)
 }
@@ -335,6 +353,18 @@ func MinerConsign(db vm.StateDB, address common.Address, wh *types.Wormholes) er
 	}
 	return db.MinerConsign(address, common.HexToAddress(wh.ProxyAddress))
 }
+
+func MinerBecome(db vm.StateDB, address common.Address, wh *types.Wormholes) error {
+	msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
+	addr, err := RecoverAddress(msg, wh.ProxySign)
+	log.Info("MinerBecome", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
+	if err != nil || wh.ProxyAddress != addr.Hex() {
+		log.Error("MinerBecome()", "Get public key error", err)
+		return err
+	}
+	return db.MinerBecome(address, common.HexToAddress(wh.ProxyAddress))
+}
+
 func CancelPledgedToken(db vm.StateDB, address common.Address, amount *big.Int) {
 	db.CancelPledgedToken(address, amount)
 }

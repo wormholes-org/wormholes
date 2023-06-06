@@ -41,6 +41,7 @@ import (
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 
+const CancelDayPledgedInterval = 720 * 24 // blockNumber of per hour * 24h
 // const CancelPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
 const CancelPledgedInterval = 3 * 24 // for test
 // const CloseExchangerInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
@@ -70,8 +71,10 @@ type (
 	CancelNFTApproveAddressFunc func(StateDB, common.Address, common.Address)
 	ExchangeNFTToCurrencyFunc   func(StateDB, common.Address, string, *big.Int) error
 	PledgeTokenFunc             func(StateDB, common.Address, *big.Int, *types.Wormholes, *big.Int) error
+	StakerPledgeFunc            func(StateDB, common.Address, common.Address, *big.Int, *big.Int, *types.Wormholes) error
 	GetPledgedTimeFunc          func(StateDB, common.Address) *big.Int
 	MinerConsignFunc            func(StateDB, common.Address, *types.Wormholes) error
+	MinerBecomeFunc             func(StateDB, common.Address, *types.Wormholes) error
 	CancelPledgedTokenFunc      func(StateDB, common.Address, *big.Int)
 	OpenExchangerFunc           func(StateDB, common.Address, *big.Int, *big.Int, uint16, string, string, string)
 	CloseExchangerFunc          func(StateDB, common.Address, *big.Int)
@@ -169,8 +172,10 @@ type BlockContext struct {
 	CancelNFTApproveAddress CancelNFTApproveAddressFunc
 	ExchangeNFTToCurrency   ExchangeNFTToCurrencyFunc
 	PledgeToken             PledgeTokenFunc
+	StakerPledge            StakerPledgeFunc
 	GetPledgedTime          GetPledgedTimeFunc
 	MinerConsign            MinerConsignFunc
+	MinerBecome             MinerBecomeFunc
 	CancelPledgedToken      CancelPledgedTokenFunc
 	OpenExchanger           OpenExchangerFunc
 	CloseExchanger          CloseExchangerFunc
@@ -665,6 +670,79 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		//	evm.StateDB.DiscardSnapshot(snapshot)
 	}
 	return ret, gas, err
+}
+
+func (evm *EVM) IsContractAddress(address common.Address) bool {
+	emptyHash := common.Hash{}
+	codeHash := evm.StateDB.GetCodeHash(address)
+	if codeHash != emptyHash {
+		return true
+	}
+	return false
+}
+
+func (evm *EVM) TransferNFTByContract(caller ContractRef, input []byte, gas uint64) (ret []byte, overGas uint64, err error) {
+	prefix := "21eceff7"
+	//strInput := "b88d4fde" +
+	//	"000000000000000000000000d9145cce52d386f254917e481eb44e9943f39138" +
+	//	"000000000000000000000000d9145cce52d386f254917e481eb44e9943f39138" +
+	//	"0000000000000000000000000000000000000000000000000000000000000003" +
+	//	"0000000000000000000000000000000000000000000000000000000000000008" +
+	//	"0000000000000000000000000000000000000000000000000000000000000002" +
+	//	"0102000000000000000000000000000000000000000000000000000000000000"
+	strInput := hex.EncodeToString(input)
+	constData1 := "0000000000000000000000000000000000000000000000000000000000000008"
+	//0x21eceff70000000000000000000000005b38da6a701c568545dcfcb03fcb875f56beddc40000000000000000000000000000000000000000000000000000000000000001
+
+	if len(input) != 138 {
+		return nil, gas, errors.New("input len error")
+	}
+	if !strings.HasPrefix(strInput, prefix) {
+		return nil, gas, errors.New("input data error")
+	}
+	fromBytes := input[16:36]
+	toBytes := input[48:68]
+	nftAddressBytes := input[80:100]
+
+	data1 := input[100:132]
+	data2 := input[132:164]
+	//data3 := input[164:196]
+
+	if hex.EncodeToString(data1) != constData1 {
+		return nil, gas, errors.New("input format error")
+	}
+	bigData3Len, _ := new(big.Int).SetString(hex.EncodeToString(data2), 16)
+	if bigData3Len.Uint64() > 32 {
+		return nil, gas, errors.New("input data error")
+	}
+
+	from := common.BytesToAddress(fromBytes)
+	to := common.BytesToAddress(toBytes)
+
+	bigNftAddr := new(big.Int).SetBytes(nftAddressBytes)
+	bigSnft, _ := new(big.Int).SetString("8000000000000000000000000000000000000", 16)
+	var strNftAddress string
+	strNftAddress = "0x"
+	if bigNftAddr.Cmp(bigSnft) >= 0 { // snft
+		strNftAddress = strNftAddress + bigNftAddr.Text(16)
+	} else {
+		strNftAddress = strNftAddress + hex.EncodeToString(nftAddressBytes)
+	}
+	//nftAddress := common.BytesToAddress(nftAddressBytes)
+
+	if evm.Context.VerifyNFTOwner(evm.StateDB, strNftAddress, from) {
+		err := evm.Context.TransferNFT(evm.StateDB, strNftAddress, to, evm.Context.BlockNumber)
+		if err != nil {
+			return nil, gas, err
+		}
+	}
+
+	//if evm.IsContractAddress(to) {
+	//	erc721 := OnERC721Received(caller.Address(), from, strNftAddress)
+	//	ret, overGas, err = evm.Call(AccountRef(SnftVirtualContractAddress), to, erc721, gas, big.NewInt(0))
+	//}
+
+	return ret, overGas, err
 }
 
 // CallCode executes the contract associated with the addr with the given input
@@ -1202,19 +1280,102 @@ func (evm *EVM) HandleNFT(
 		//log.Info("HandleNFT(), CancelPledgedNFT<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 		//	"blocknumber", evm.Context.BlockNumber.Uint64())
 
-	case 9: // pledge token
-		var firstTime bool = false
+	//case 9: // pledge token
+	//	var firstTime bool = false
+	//	baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+	//	Erb100000 := big.NewInt(70000)
+	//	Erb100000.Mul(Erb100000, baseErb)
+	//
+	//	if !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
+	//		//if this account has not pledged
+	//		if value.Cmp(Erb100000) < 0 {
+	//			log.Error("HandleNFT(), PledgeToken", "wormholes.Type", wormholes.Type,
+	//				"error", ErrNotMoreThan100000ERB, "blocknumber", evm.Context.BlockNumber.Uint64())
+	//			return nil, gas, ErrNotMoreThan100000ERB
+	//		}
+	//		firstTime = true
+	//	}
+	//
+	//	currentBlockNumber := new(big.Int).Set(evm.Context.BlockNumber)
+	//	pledgedBalance := evm.StateDB.GetPledgedBalance(caller.Address())
+	//	// if append pledgebalance, reset pledgedblocknumber
+	//	if pledgedBalance != nil && pledgedBalance.Cmp(big.NewInt(0)) > 0 {
+	//		pledgedBlockNumber := evm.StateDB.GetPledgedTime(caller.Address())
+	//		height, err := UnstakingHeight(pledgedBalance, value, pledgedBlockNumber.Uint64(), currentBlockNumber.Uint64(), CancelPledgedInterval)
+	//		if err != nil {
+	//			return nil, gas, err
+	//		}
+	//		bigHeight := new(big.Int).SetUint64(height)
+	//		bigCancelPledgedInterval := new(big.Int).SetUint64(CancelPledgedInterval)
+	//		currentBlockNumber = new(big.Int).Add(currentBlockNumber, bigHeight)
+	//		currentBlockNumber = new(big.Int).Sub(currentBlockNumber, bigCancelPledgedInterval)
+	//	}
+	//
+	//	log.Info("HandleNFT()", "PledgeToken.req", wormholes, "blocknumber", evm.Context.BlockNumber.Uint64())
+	//	if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+	//		log.Info("HandleNFT(), PledgeToken>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+	//			"blocknumber", evm.Context.BlockNumber.Uint64())
+	//		err := evm.Context.PledgeToken(evm.StateDB, caller.Address(), value, &wormholes, currentBlockNumber)
+	//		if err != nil {
+	//			log.Error("HandleNFT(), PledgeToken", "wormholes.Type", wormholes.Type,
+	//				"blocknumber", evm.Context.BlockNumber.Uint64())
+	//			return nil, gas, err
+	//		}
+	//		if firstTime {
+	//			evm.StateDB.AddValidatorCoefficient(caller.Address(), VALIDATOR_COEFFICIENT)
+	//		}
+	//		log.Info("HandleNFT(), PledgeToken<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+	//			"blocknumber", evm.Context.BlockNumber.Uint64())
+	//	} else {
+	//		log.Error("HandleNFT(), PledgeToken", "wormholes.Type", wormholes.Type,
+	//			"error", ErrInsufficientBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
+	//		return nil, gas, ErrInsufficientBalance
+	//	}
+
+	case 9: //staker token
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-		Erb100000 := big.NewInt(70000)
-		Erb100000.Mul(Erb100000, baseErb)
-		if !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
-			//if this account has not pledged
-			if value.Cmp(Erb100000) < 0 {
-				log.Error("HandleNFT(), PledgeToken", "wormholes.Type", wormholes.Type,
-					"error", ErrNotMoreThan100000ERB, "blocknumber", evm.Context.BlockNumber.Uint64())
-				return nil, gas, ErrNotMoreThan100000ERB
+		Erb100 := big.NewInt(700)
+		Erb100.Mul(Erb100, baseErb)
+
+		if value.Cmp(new(big.Int).Mul(Erb100, value)) < 0 {
+			log.Error("HandleNFT(), StakerPledge", "wormholes.Type", wormholes.Type,
+				"error", ErrNotMoreThan100ERB, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrNotMoreThan100ERB
+		}
+		exchangerFlag := evm.Context.GetExchangerFlag(evm.StateDB, caller.Address())
+		//if caller.Address() != addr {
+		//	// caller give addr a exchanger as a gift, if addr has been a exchanger, add value to exchangerbalance.
+		//	if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+		//		evm.Context.Transfer(evm.StateDB, caller.Address(), addr, value)
+		//	} else {
+		//		log.Error("HandleNFT(), StakerExchanger", "wormholes.Type", wormholes.Type,
+		//			"error", ErrInsufficientBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//		return nil, gas, ErrInsufficientBalance
+		//	}
+		//}
+
+		if evm.Context.CanTransfer(evm.StateDB, addr, value) {
+			if exchangerFlag == true {
+				evm.Context.AddExchangerToken(evm.StateDB, caller.Address(), value)
+			} else {
+				log.Info("HandleNFT(), StakerPledge>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+					"blocknumber", evm.Context.BlockNumber.Uint64())
+				evm.Context.OpenExchanger(
+					evm.StateDB,
+					caller.Address(),
+					value,
+					evm.Context.BlockNumber,
+					0,
+					"",
+					"",
+					wormholes.ProxyAddress)
+				log.Info("HandleNFT(), StakerPledge<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+					"blocknumber", evm.Context.BlockNumber.Uint64())
 			}
-			firstTime = true
+		} else {
+			log.Error("HandleNFT(), StakerPledge", "wormholes.Type", wormholes.Type,
+				"error", ErrInsufficientBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrInsufficientBalance
 		}
 
 		currentBlockNumber := new(big.Int).Set(evm.Context.BlockNumber)
@@ -1222,33 +1383,36 @@ func (evm *EVM) HandleNFT(
 		// if append pledgebalance, reset pledgedblocknumber
 		if pledgedBalance != nil && pledgedBalance.Cmp(big.NewInt(0)) > 0 {
 			pledgedBlockNumber := evm.StateDB.GetPledgedTime(caller.Address())
-			height, err := UnstakingHeight(pledgedBalance, value, pledgedBlockNumber.Uint64(), currentBlockNumber.Uint64(), CancelPledgedInterval)
+			height, err := UnstakingHeight(pledgedBalance, value, pledgedBlockNumber.Uint64(), currentBlockNumber.Uint64(), CancelDayPledgedInterval)
 			if err != nil {
 				return nil, gas, err
 			}
 			bigHeight := new(big.Int).SetUint64(height)
-			bigCancelPledgedInterval := new(big.Int).SetUint64(CancelPledgedInterval)
+			bigCancelPledgedInterval := new(big.Int).SetUint64(CancelDayPledgedInterval)
 			currentBlockNumber = new(big.Int).Add(currentBlockNumber, bigHeight)
 			currentBlockNumber = new(big.Int).Sub(currentBlockNumber, bigCancelPledgedInterval)
 		}
 
-		log.Info("HandleNFT()", "PledgeToken.req", wormholes, "blocknumber", evm.Context.BlockNumber.Uint64())
+		log.Info("HandleNFT()", "StakerPledge.req", wormholes, "blocknumber", evm.Context.BlockNumber.Uint64())
 		if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
-			log.Info("HandleNFT(), PledgeToken>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+			log.Info("HandleNFT(), StakerPledge>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
-			err := evm.Context.PledgeToken(evm.StateDB, caller.Address(), value, &wormholes, currentBlockNumber)
+			//err := evm.Context.PledgeToken(evm.StateDB, caller.Address(), value, &wormholes, currentBlockNumber)
+			//if err != nil {
+			//	log.Error("HandleNFT(), PledgeToken", "wormholes.Type", wormholes.Type,
+			//		"blocknumber", evm.Context.BlockNumber.Uint64())
+			//	return nil, gas, err
+			//}
+			err := evm.Context.StakerPledge(evm.StateDB, caller.Address(), addr, value, currentBlockNumber, &wormholes)
 			if err != nil {
-				log.Error("HandleNFT(), PledgeToken", "wormholes.Type", wormholes.Type,
+				log.Error("HandleNFT(), StakerPledge", "wormholes.Type", wormholes.Type,
 					"blocknumber", evm.Context.BlockNumber.Uint64())
 				return nil, gas, err
 			}
-			if firstTime {
-				evm.StateDB.AddValidatorCoefficient(caller.Address(), VALIDATOR_COEFFICIENT)
-			}
-			log.Info("HandleNFT(), PledgeToken<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+			log.Info("HandleNFT(), StakerPledge<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
 		} else {
-			log.Error("HandleNFT(), PledgeToken", "wormholes.Type", wormholes.Type,
+			log.Error("HandleNFT(), StakerPledge", "wormholes.Type", wormholes.Type,
 				"error", ErrInsufficientBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, ErrInsufficientBalance
 		}
@@ -1601,6 +1765,29 @@ func (evm *EVM) HandleNFT(
 		//	log.Error("HandleNFT(), MinerConsign error", "wormholes.Type", wormholes.Type, "error", ErrInsufficientBalance)
 		//	return nil, gas, ErrInsufficientBalance
 		//}
+	case 32: // become miner
+		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+		Erb100000 := big.NewInt(70000)
+		Erb100000.Mul(Erb100000, baseErb)
+
+		if !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
+			//if this account has not pledged
+			log.Info("HandleNFT()", "MinerBecome.req", wormholes, "blocknumber", evm.Context.BlockNumber.Uint64())
+			//if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+			log.Info("HandleNFT(), Start|MinerBecome>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+				"blocknumber", evm.Context.BlockNumber.Uint64())
+			err := evm.Context.MinerBecome(evm.StateDB, caller.Address(), &wormholes)
+			if err != nil {
+				log.Error("HandleNFT(), End|MinerBecome<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+					"blocknumber", evm.Context.BlockNumber.Uint64())
+				return nil, gas, err
+			}
+			evm.StateDB.AddValidatorCoefficient(caller.Address(), VALIDATOR_COEFFICIENT)
+
+			log.Info("HandleNFT(), End|MinerBecome<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+				"blocknumber", evm.Context.BlockNumber.Uint64())
+
+		}
 	case 23:
 		log.Info("HandleNFT(), VoteOfficialNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
