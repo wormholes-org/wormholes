@@ -42,8 +42,9 @@ type WormholesExtension struct {
 	//NFTBalance uint64
 	// Indicates the reward method chosen by the miner
 	//RewardFlag uint8 // 0:SNFT 1:ERB default:1
-	SNFTNoMerge  bool
-	LockSNFTFlag bool
+	SNFTNoMerge     bool
+	LockSNFTFlag    bool
+	StakerExtension StakersExtensionList
 }
 
 func (worm *WormholesExtension) DeepCopy() *WormholesExtension {
@@ -123,14 +124,13 @@ func (nft *AccountNFT) DeepCopy() *AccountNFT {
 }
 
 type AccountStaker struct {
-	Mint               MintDeep
-	Validators         ValidatorList
-	Stakers            StakerList
-	ValidatorExtension ValidatorExtensionList
-	Snfts              InjectedOfficialNFTList
-	Nominee            *NominatedOfficialNFT `rlp:"nil"`
-	SNFTL3Addrs        []common.Address
-	DividendAddrs      []common.Address
+	Mint          MintDeep
+	Validators    ValidatorList
+	Stakers       StakerList
+	Snfts         InjectedOfficialNFTList
+	Nominee       *NominatedOfficialNFT `rlp:"nil"`
+	SNFTL3Addrs   []common.Address
+	DividendAddrs []common.Address
 }
 
 func (staker *AccountStaker) DeepCopy() *AccountStaker {
@@ -167,75 +167,11 @@ func (staker *AccountStaker) DeepCopy() *AccountStaker {
 	return &newStaker
 }
 
-type ValidatorExtensionList struct {
-	Validator []*ValidatorExtension
+type StakersExtensionList struct {
+	StakerExtension []*StakerExtension
 }
-type ValidatorExtension struct {
-	ValidatorAddr common.Address
-	Stakers       []StakerExtension
-}
-
 type StakerExtension struct {
 	Addr        common.Address
 	Balance     *big.Int
 	BlockNumber *big.Int
-}
-
-func (vl *ValidatorExtensionList) Len() int {
-	return len(vl.Validator)
-}
-
-func (vl *ValidatorExtensionList) DeepCopy() *ValidatorExtensionList {
-	tempValidatorList := &ValidatorExtensionList{
-		Validator: make([]*ValidatorExtension, 0, vl.Len()),
-	}
-	tempValidatorList = vl
-	//for _, validator := range vl.Validators {
-	//	tempValidator := Validator{
-	//		Addr:    validator.Addr,
-	//		Balance: new(big.Int).Set(validator.Balance),
-	//		Proxy:   validator.Proxy,
-	//	}
-	//	for _, v := range validator.Weight {
-	//		tempValidator.Weight = append(tempValidator.Weight, new(big.Int).Set(v))
-	//	}
-	//
-	//	tempValidatorList.Validator = append(tempValidatorList.Validator, &tempValidator)
-	//}
-
-	return tempValidatorList
-}
-
-func (vl *ValidatorExtensionList) AddStaker(from common.Address, addr common.Address, balance *big.Int, blocknumber *big.Int) bool {
-
-	for _, v := range vl.Validator {
-		if v.ValidatorAddr == addr {
-			// Usage scenarios: pledge, additional pledge, delegation
-			for _, j := range v.Stakers {
-				if j.Addr == from {
-					j.Balance.Add(j.Balance, balance)
-					j.BlockNumber = blocknumber
-					return true
-
-				}
-			}
-			v.Stakers = append(v.Stakers, StakerExtension{
-				Addr:        from,
-				BlockNumber: blocknumber,
-				Balance:     balance,
-			})
-			return true
-		}
-	}
-	vl.Validator = append(vl.Validator, &ValidatorExtension{
-		ValidatorAddr: addr,
-		Stakers: []StakerExtension{
-			{
-				Addr:        from,
-				BlockNumber: blocknumber,
-				Balance:     balance,
-			},
-		},
-	})
-	return true
 }

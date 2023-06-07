@@ -2679,11 +2679,12 @@ func (s *StateDB) StakerPledge(from common.Address, address common.Address,
 	toObject := s.GetOrNewAccountStateObject(address)
 	fromObject := s.GetOrNewAccountStateObject(from)
 	//Resolving duplicates is delegated
-	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+	//validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
 
 	if fromObject != nil && toObject != nil {
-		validatorStateObject.AddStakerPledge(from, address, amount, blocknumber)
 		fromObject.SubBalance(amount)
+		fromObject.SetExchangerInfoflag(true)
+		fromObject.StakerPledge(address, amount, blocknumber)
 		toObject.AddPledgedBalance(amount)
 		fromObject.SetPledgedBlockNumber(blocknumber)
 

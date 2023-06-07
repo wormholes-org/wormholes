@@ -60,6 +60,35 @@ func (sl *StakerList) AddStaker(addr common.Address, balance *big.Int) bool {
 	return true
 }
 
+func (sl *StakersExtensionList) Len() int {
+	return len(sl.StakerExtension)
+}
+
+func (sl *StakersExtensionList) Less(i, j int) bool {
+	return sl.StakerExtension[i].Addr.Hash().Big().Cmp(sl.StakerExtension[j].Addr.Hash().Big()) < 0
+}
+
+func (sl *StakersExtensionList) Swap(i, j int) {
+	sl.StakerExtension[i], sl.StakerExtension[j] = sl.StakerExtension[j], sl.StakerExtension[i]
+}
+
+func (sl *StakersExtensionList) AddStakerPledge(addr common.Address, balance *big.Int, blocknumber *big.Int) bool {
+	for _, v := range sl.StakerExtension {
+		if v.Addr == addr {
+			v.Balance.Add(v.Balance, balance)
+			sort.Sort(sl)
+			return true
+		}
+	}
+	sl.StakerExtension = append(sl.StakerExtension, NewStakerPledge(addr, balance, blocknumber))
+	sort.Sort(sl)
+	return true
+}
+
+func NewStakerPledge(addr common.Address, balance *big.Int, blocknumber *big.Int) *StakerExtension {
+	return &StakerExtension{Addr: addr, Balance: balance, BlockNumber: blocknumber}
+}
+
 func (sl *StakerList) RemoveStaker(addr common.Address, balance *big.Int) bool {
 	for i, v := range sl.Stakers {
 		if v.Address() == addr {

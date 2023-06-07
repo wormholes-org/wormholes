@@ -879,6 +879,43 @@ func (s *stateObject) setExchangerInfo(exchangerflag bool,
 	s.data.Worm.SNFTAgentRecipient = agentrecipient
 }
 
+func (s *stateObject) SetExchangerInfoflag(exchangerflag bool) {
+	openExchanger := openExchangerChange{
+		address:               &s.address,
+		oldExchangerFlag:      s.data.Worm.ExchangerFlag,
+		oldFeeRate:            s.data.Worm.FeeRate,
+		oldExchangerName:      s.data.Worm.ExchangerName,
+		oldExchangerURL:       s.data.Worm.ExchangerURL,
+		oldSNFTAgentRecipient: s.data.Worm.SNFTAgentRecipient,
+	}
+	if s.data.Worm.BlockNumber == nil {
+		openExchanger.oldBlockNumber = nil
+	} else {
+		openExchanger.oldBlockNumber = new(big.Int).Set(s.data.Worm.BlockNumber)
+	}
+	s.db.journal.append(openExchanger)
+	s.setExchangerInfoflag(exchangerflag)
+}
+
+func (s *stateObject) setExchangerInfoflag(exchangerflag bool) {
+	s.data.Worm.ExchangerFlag = exchangerflag
+}
+
+func (s *stateObject) StakerPledge(addr common.Address, amount *big.Int, blocknumber *big.Int) {
+	newStakers := s.data.Worm.DeepCopy()
+	newStakers.StakerExtension.AddStakerPledge(addr, amount, blocknumber)
+	openExchanger := stakerExtensionChange{
+		account:            &s.address,
+		oldStakerExtension: s.data.Worm.StakerExtension,
+	}
+	s.db.journal.append(openExchanger)
+	s.stakerPledge(&newStakers.StakerExtension)
+}
+
+func (s *stateObject) stakerPledge(stakers *types.StakersExtensionList) {
+	s.data.Worm.StakerExtension = *stakers
+}
+
 func (s *stateObject) CleanNFT() {
 	//if s.data.NFTPledgedBlockNumber == nil {
 	//	s.data.NFTPledgedBlockNumber = big.NewInt(0)
@@ -1537,30 +1574,6 @@ func (s *stateObject) GetValidators() *types.ValidatorList {
 	}
 
 	return nil
-}
-
-func (s *stateObject) AddStakerPledge(from common.Address, addr common.Address, balance *big.Int, blocknumber *big.Int) bool {
-	newValidators := s.data.Staker.ValidatorExtension.DeepCopy()
-	ok := newValidators.AddStaker(from, addr, balance, blocknumber)
-	if !ok {
-		return false
-	}
-
-	s.SetValidatorExtension(newValidators)
-	return true
-}
-
-func (s *stateObject) SetValidatorExtension(varlidators *types.ValidatorExtensionList) {
-	s.db.journal.append(validatorExtensionChange{
-		account:               &s.address,
-		oldValidatorExtension: s.data.Staker.ValidatorExtension,
-	})
-
-	s.setValidatorExtension(varlidators)
-}
-
-func (s *stateObject) setValidatorExtension(varlidators *types.ValidatorExtensionList) {
-	s.data.Staker.ValidatorExtension = *varlidators
 }
 
 func (s *stateObject) AddStaker(addr common.Address, balance *big.Int) {
