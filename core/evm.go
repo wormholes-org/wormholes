@@ -2823,6 +2823,7 @@ func GetDividend(db vm.StateDB, caller common.Address) error {
 	averageDividend := new(big.Int).Div(dividendBalance, new(big.Int).SetUint64(uint64(len(snftAddrs))))
 	deservedDividend := new(big.Int).Mul(averageDividend, new(big.Int).SetUint64(uint64(len(dividendAddrs))))
 	db.AddBalance(caller, deservedDividend)
+	db.SubBalance(types.DividendAmountAddress, deservedDividend)
 	db.SetDividendAddrs(types.DividendAddressList, NotDividendAddrs)
 
 	return nil
