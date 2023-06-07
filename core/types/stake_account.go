@@ -2,11 +2,12 @@ package types
 
 import (
 	"errors"
+	"math/big"
+	"sort"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"sort"
 )
 
 type Staker struct {
@@ -188,6 +189,13 @@ func (sl *StakerList) SelectRandom4Address(num int, hash []byte) ([]common.Addre
 	}
 
 	return random4Address, nil
+}
+
+func (sl *StakerList) GetByIndex(i uint64) *Staker {
+	if i >= uint64(sl.Len()) {
+		return &Staker{}
+	}
+	return sl.Stakers[i]
 }
 
 func rankByWordCount(wordFrequencies map[*big.Int]*big.Int) PairList {
