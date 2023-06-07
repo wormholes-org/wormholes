@@ -804,6 +804,12 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		return
 	}
 
+	randomDrop, err := c.GetRandomDrop(parent.Header())
+	if err != nil {
+		log.Error("Engine.Finalize()", "get randomDrop error", err)
+		return
+	}
+
 	if header.Coinbase == (common.Address{}) {
 		// reduce 1 weight
 		for _, v := range random11Validators.Validators {
@@ -851,7 +857,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 	}
 
 	if header.Coinbase == (common.Address{}) {
-		state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+		state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number, randomDrop.Bytes())
 	} else {
 		// pick 7 validator from rewardSeals
 		var validatorAddr []common.Address
@@ -935,7 +941,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 		e.punishEvilValidators(c, state, istanbulExtra, header)
 
-		state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+		state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number, randomDrop.Bytes())
 	}
 
 	// Recalculate the weight, which needs to be calculated after the list is determined
@@ -978,6 +984,12 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		return nil, err
 	}
 
+	randomDrop, err := c.GetRandomDrop(parent.Header())
+	if err != nil {
+		log.Error("Engine.Finalize()", "get randomDrop error", err)
+		return nil, err
+	}
+
 	if header.Coinbase == (common.Address{}) {
 		for _, v := range random11Validators.Validators {
 			state.SubValidatorCoefficient(v.Address(), 20)
@@ -1013,7 +1025,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 
 	e.punishEvilValidators(c, state, istanbulExtra, header)
 
-	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number)
+	state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number, randomDrop.Bytes())
 
 	// Recalculate the weight, which needs to be calculated after the list is determined
 	validatorStateObject := state.GetOrNewStakerStateObject(types.ValidatorStorageAddress)

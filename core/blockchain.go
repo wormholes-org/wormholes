@@ -2779,6 +2779,37 @@ func (bc *BlockChain) IsValidatorByHight(header *types.Header, addr common.Addre
 	return false, nil
 }
 
+func (bc *BlockChain) GetRandomDrop(header *types.Header) (hash common.Hash, err error) {
+	db, err := bc.StateAt(header.Root)
+	if err != nil {
+		log.Error("GetRandomDrop invalid root", "no", header.Number.Uint64())
+		return common.Hash{}, errors.New("Random11ValidatorFromPool invalid root")
+	}
+
+	validatorList := db.GetValidators(types.ValidatorStorageAddress)
+	if validatorList == nil {
+		log.Error("GetRandomDrop: get validators error", "no", header.Number.Uint64())
+		return common.Hash{}, errors.New("get validators error")
+	}
+
+	stakers := db.GetStakers(types.StakerStorageAddress)
+	if stakers == nil {
+		log.Error("GetRandomDrop get stakers error", "no", header.Number.Uint64())
+		return common.Hash{}, errors.New("get stakers error")
+	}
+
+	prevCreator := db.GetSnfts(types.SnftInjectedStorageAddress).InjectedOfficialNFTs[0].Creator
+
+	// Obtain random landing points according to the surrounding chain algorithm
+	randomHash := GetRandomDropV2(validatorList, stakers, header, common.HexToAddress(prevCreator))
+	if randomHash == (common.Hash{}) {
+		log.Error("GetRandomDrop : invalid random hash", "no", bc.CurrentHeader().Number.Uint64())
+		return common.Hash{}, err
+	}
+
+	return randomHash, nil
+}
+
 func (bc *BlockChain) Random11ValidatorFromPool(header *types.Header) (*types.ValidatorList, error) {
 	if header == nil {
 		log.Error("Random11ValidatorFromPool: header is nil", "no", bc.CurrentHeader().Number.Uint64())

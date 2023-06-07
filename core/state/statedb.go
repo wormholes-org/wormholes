@@ -2250,7 +2250,7 @@ func GetRewardAmount(blocknumber uint64, initamount *big.Int) *big.Int {
 	return new(big.Int).SetUint64(u)
 }
 
-func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address, blocknumber *big.Int) {
+func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address, blocknumber *big.Int, hash []byte) {
 	emptyAddress := common.Address{}
 	// reward ERB or SNFT to validators
 	log.Info("CreateNFTByOfficial16", "validators len=", len(validators), "blocknumber=", blocknumber.Uint64())
@@ -2353,7 +2353,8 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 	snftStateObject.RemoveInjectSnfts(new(big.Int).Sub(mintStateObject.OfficialMint(), big.NewInt(1)))
 
 	if InjectedSnfts.RemainderNum(mintStateObject.OfficialMint()) <= 110 {
-		s.ElectNominatedOfficialNFT(blocknumber)
+		//s.ElectNominatedOfficialNFT(blocknumber)
+		s.ElectNominatedOfficialNFT2(blocknumber, hash)
 	}
 }
 
@@ -2784,14 +2785,14 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
@@ -3104,6 +3105,7 @@ func (s *StateDB) VoteOfficialNFT(nominatedOfficialNFT *types.NominatedOfficialN
 	return errors.New("voteweight less than previous one")
 }
 
+// vote to be snfts
 func (s *StateDB) ElectNominatedOfficialNFT(blocknumber *big.Int) {
 	emptyAddress := common.Address{}
 	snftStateObject := s.GetOrNewStakerStateObject(types.SnftInjectedStorageAddress)
@@ -3150,6 +3152,52 @@ func (s *StateDB) ElectNominatedOfficialNFT(blocknumber *big.Int) {
 	tempNominatedNFT.Creator = types.DefaultCreator
 	tempNominatedNFT.Address = common.Address{}
 	nomineeStateObject.SetNominee(&tempNominatedNFT)
+}
+
+// select nft to be snfts
+func (s *StateDB) ElectNominatedOfficialNFT2(blocknumber *big.Int, hash []byte) {
+	emptyAddress := common.Address{}
+	mod := big.NewInt(0)
+	snftStateObject := s.GetOrNewStakerStateObject(types.SnftInjectedStorageAddress)
+	userMint := s.GetUserMint()
+
+	if userMint.Cmp(big.NewInt(1)) > 0 {
+		for {
+			hash = crypto.Keccak256(hash)
+			mod = new(big.Int).Mod(new(big.Int).SetBytes(hash), userMint)
+			if mod.Cmp(big.NewInt(0)) != 0 {
+				break
+			}
+		}
+
+		nftAddress := common.BytesToAddress(mod.Bytes())
+		nftStateObject := s.GetOrNewNFTStateObject(nftAddress)
+		if nftStateObject != nil {
+			if nftStateObject.NFTOwner() != emptyAddress {
+				injectNFT := &types.InjectedOfficialNFT{
+					Dir:        nftStateObject.GetMetaURL(),
+					StartIndex: new(big.Int).Set(snftStateObject.GetSnfts().MaxIndex()),
+					Number:     types.DefaultNumber,
+					Royalty:    types.DefaultRoyalty,
+					Creator:    nftStateObject.NFTOwner().Hex(),
+					Address:    nftStateObject.NFTOwner(),
+				}
+				snftStateObject.AddInjectedSnfts(injectNFT)
+
+				return
+			}
+		}
+	}
+
+	injectNFT := &types.InjectedOfficialNFT{
+		Dir:        types.DefaultDir,
+		StartIndex: new(big.Int).Set(snftStateObject.GetSnfts().MaxIndex()),
+		Number:     types.DefaultNumber,
+		Royalty:    types.DefaultRoyalty,
+		Creator:    types.DefaultCreator,
+	}
+	snftStateObject.AddInjectedSnfts(injectNFT)
+
 }
 
 // AddVoteWeight adds amount to the VoteWeight associated with addr.
