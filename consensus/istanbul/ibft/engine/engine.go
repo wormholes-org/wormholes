@@ -927,6 +927,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			// update the data of a new week
 			PreBalance := state.GetBalance(types.PreDividendAmountAddress)
 			state.AddBalance(types.DividendAmountAddress, PreBalance)
+			state.SubBalance(types.PreDividendAmountAddress, PreBalance)
 
 			PreSnftL3Addrs := state.GetSNFTL3Addrs(types.SNFTLevel3AddressList)
 			state.AddDividendAddrs(types.DividendAddressList, PreSnftL3Addrs)
@@ -1004,6 +1005,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 			// update the data of a new week
 			PreBalance := state.GetBalance(types.PreDividendAmountAddress)
 			state.AddBalance(types.DividendAmountAddress, PreBalance)
+			state.SubBalance(types.PreDividendAmountAddress, PreBalance)
 
 			PreSnftL3Addrs := state.GetSNFTL3Addrs(types.SNFTLevel3AddressList)
 			state.AddDividendAddrs(types.DividendAddressList, PreSnftL3Addrs)
