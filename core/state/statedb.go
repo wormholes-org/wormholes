@@ -2682,6 +2682,8 @@ func (s *StateDB) StakerPledge(from common.Address, address common.Address,
 	//validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
 
 	if fromObject != nil && toObject != nil {
+		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
+		stakerStateObject.AddStaker(from, amount)
 		fromObject.SubBalance(amount)
 		fromObject.SetExchangerInfoflag(true)
 		fromObject.StakerPledge(address, amount, blocknumber)
@@ -2893,12 +2895,24 @@ func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 		""
 }
 
-func (s *StateDB) GetPledgedTime(addr common.Address) *big.Int {
-	stateObject := s.GetOrNewAccountStateObject(addr)
+func (s *StateDB) GetPledgedTime(from, addr common.Address) *big.Int {
+	stateObject := s.GetOrNewAccountStateObject(from)
 	if stateObject != nil {
-		return new(big.Int).Set(stateObject.PledgedBlockNumber())
+		return new(big.Int).Set(stateObject.StakerPledgedBlockNumber(addr))
 	}
 	return common.Big0
+}
+
+func (s *StateDB) GetStakerPledged(from, addr common.Address) *types.StakerExtension {
+	stateObject := s.GetOrNewAccountStateObject(from)
+	if stateObject != nil {
+		for _, value := range stateObject.data.Worm.StakerExtension.StakerExtension {
+			if value.Addr == addr {
+				return value
+			}
+		}
+	}
+	return &types.StakerExtension{}
 }
 
 func (s *StateDB) GetExchangerFlag(addr common.Address) bool {

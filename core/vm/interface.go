@@ -89,7 +89,8 @@ type StateDB interface {
 	ExchangeNFTToCurrency(common.Address, common.Address, *big.Int, int)
 	PledgeToken(common.Address, *big.Int, common.Address, *big.Int) error
 	StakerPledge(common.Address, common.Address, *big.Int, *big.Int) error
-	GetPledgedTime(common.Address) *big.Int
+	GetPledgedTime(common.Address, common.Address) *big.Int
+	GetStakerPledged(common.Address, common.Address) *types.StakerExtension
 	MinerConsign(common.Address, common.Address) error
 	MinerBecome(common.Address, common.Address) error
 	CancelPledgedToken(common.Address, *big.Int)

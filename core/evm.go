@@ -96,6 +96,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		PledgeToken:             PledgeToken,
 		StakerPledge:            StakerPledge,
 		GetPledgedTime:          GetPledgedTime,
+		GetStakerPledged:        GetStakerPledged,
 		MinerConsign:            MinerConsign,
 		MinerBecome:             MinerBecome,
 		CancelPledgedToken:      CancelPledgedToken,
@@ -339,8 +340,11 @@ func StakerPledge(db vm.StateDB, from, address common.Address, amount *big.Int, 
 	return db.StakerPledge(from, address, amount, blocknumber)
 }
 
-func GetPledgedTime(db vm.StateDB, addr common.Address) *big.Int {
-	return db.GetPledgedTime(addr)
+func GetPledgedTime(db vm.StateDB, from, addr common.Address) *big.Int {
+	return db.GetPledgedTime(from, addr)
+}
+func GetStakerPledged(db vm.StateDB, from, addr common.Address) *types.StakerExtension {
+	return db.GetStakerPledged(from, addr)
 }
 
 func MinerConsign(db vm.StateDB, address common.Address, wh *types.Wormholes) error {

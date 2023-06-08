@@ -1188,6 +1188,19 @@ func (s *stateObject) PledgedBlockNumber() *big.Int {
 	return new(big.Int).Set(s.data.Worm.PledgedBlockNumber)
 }
 
+func (s *stateObject) StakerPledgedBlockNumber(addr common.Address) *big.Int {
+	if s.data.Worm.PledgedBlockNumber == nil {
+		return big.NewInt(0)
+	}
+	for _, value := range s.data.Worm.StakerExtension.StakerExtension {
+		if value.Addr == addr {
+			return new(big.Int).Set(value.BlockNumber)
+		}
+	}
+	return big.NewInt(0)
+
+}
+
 // AddPledgedBalance adds amount to s's pledged balance.
 // It is used to add funds to the destination account of a transfer.
 func (s *stateObject) AddPledgedBalance(amount *big.Int) {

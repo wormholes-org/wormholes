@@ -72,7 +72,8 @@ type (
 	ExchangeNFTToCurrencyFunc   func(StateDB, common.Address, string, *big.Int) error
 	PledgeTokenFunc             func(StateDB, common.Address, *big.Int, *types.Wormholes, *big.Int) error
 	StakerPledgeFunc            func(StateDB, common.Address, common.Address, *big.Int, *big.Int, *types.Wormholes) error
-	GetPledgedTimeFunc          func(StateDB, common.Address) *big.Int
+	GetPledgedTimeFunc          func(StateDB, common.Address, common.Address) *big.Int
+	GetStakerPledgedFunc        func(StateDB, common.Address, common.Address) *types.StakerExtension
 	MinerConsignFunc            func(StateDB, common.Address, *types.Wormholes) error
 	MinerBecomeFunc             func(StateDB, common.Address, *types.Wormholes) error
 	CancelPledgedTokenFunc      func(StateDB, common.Address, *big.Int)
@@ -174,6 +175,7 @@ type BlockContext struct {
 	PledgeToken             PledgeTokenFunc
 	StakerPledge            StakerPledgeFunc
 	GetPledgedTime          GetPledgedTimeFunc
+	GetStakerPledged        GetStakerPledgedFunc
 	MinerConsign            MinerConsignFunc
 	MinerBecome             MinerBecomeFunc
 	CancelPledgedToken      CancelPledgedTokenFunc
@@ -1403,14 +1405,15 @@ func (evm *EVM) HandleNFT(
 	case 10: // cancel pledge of token
 		log.Info("HandleNFT(), CancelPledgedToken>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
-		pledgedTime := evm.Context.GetPledgedTime(evm.StateDB, caller.Address())
-		if big.NewInt(CancelPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, pledgedTime)) > 0 {
+		stakerpledged := evm.Context.GetStakerPledged(evm.StateDB, caller.Address(), addr)
+		pledgedTime := stakerpledged.BlockNumber
+		if big.NewInt(CancelDayPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, pledgedTime)) > 0 {
 			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type,
 				"error", ErrTooCloseToCancel, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, ErrTooCloseToCancel
 		}
 
-		pledgedBalance := evm.StateDB.GetPledgedBalance(caller.Address())
+		pledgedBalance := stakerpledged.Balance
 		if pledgedBalance.Cmp(value) == 0 {
 			// cancel pledged balance
 			log.Info("HandleNFT(), CancelPledgedToken, cancel all", "wormholes.Type", wormholes.Type,
