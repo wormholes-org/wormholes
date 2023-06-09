@@ -79,6 +79,7 @@ func (worm *WormholesExtension) DeepCopy() *WormholesExtension {
 	copy(newWorm.ApproveAddressList, worm.ApproveAddressList)
 	newWorm.SNFTNoMerge = worm.SNFTNoMerge
 	newWorm.LockSNFTFlag = worm.LockSNFTFlag
+	newWorm.StakerExtension = *worm.StakerExtension.DeepCopy()
 
 	return &newWorm
 }
