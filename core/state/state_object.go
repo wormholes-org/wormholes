@@ -902,14 +902,14 @@ func (s *stateObject) setExchangerInfoflag(exchangerflag bool) {
 }
 
 func (s *stateObject) StakerPledge(addr common.Address, amount *big.Int, blocknumber *big.Int) {
-	newStakers := s.data.Worm.DeepCopy()
-	newStakers.StakerExtension.AddStakerPledge(addr, amount, blocknumber)
-	openExchanger := stakerExtensionChange{
+	newStakers := s.data.Worm.StakerExtension.DeepCopy()
+	newStakers.AddStakerPledge(addr, amount, blocknumber)
+	staker := stakerExtensionChange{
 		account:            &s.address,
 		oldStakerExtension: s.data.Worm.StakerExtension,
 	}
-	s.db.journal.append(openExchanger)
-	s.stakerPledge(&newStakers.StakerExtension)
+	s.db.journal.append(staker)
+	s.stakerPledge(newStakers)
 }
 
 func (s *stateObject) stakerPledge(stakers *types.StakersExtensionList) {
