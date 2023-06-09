@@ -1192,7 +1192,7 @@ func (s *stateObject) StakerPledgedBlockNumber(addr common.Address) *big.Int {
 	if s.data.Worm.PledgedBlockNumber == nil {
 		return big.NewInt(0)
 	}
-	for _, value := range s.data.Worm.StakerExtension.StakerExtension {
+	for _, value := range s.data.Worm.StakerExtension.StakerExtensions {
 		if value.Addr == addr {
 			return new(big.Int).Set(value.BlockNumber)
 		}

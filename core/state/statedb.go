@@ -2912,7 +2912,7 @@ func (s *StateDB) GetPledgedTime(from, addr common.Address) *big.Int {
 func (s *StateDB) GetStakerPledged(from, addr common.Address) *types.StakerExtension {
 	stateObject := s.GetOrNewAccountStateObject(from)
 	if stateObject != nil {
-		for _, value := range stateObject.data.Worm.StakerExtension.StakerExtension {
+		for _, value := range stateObject.data.Worm.StakerExtension.StakerExtensions {
 			if value.Addr == addr {
 				return value
 			}
