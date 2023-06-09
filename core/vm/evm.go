@@ -1339,7 +1339,7 @@ func (evm *EVM) HandleNFT(
 		Erb100 := big.NewInt(700)
 		Erb100.Mul(Erb100, baseErb)
 
-		if value.Cmp(new(big.Int).Mul(Erb100, value)) < 0 {
+		if value.Cmp(new(big.Int).Mul(Erb100, value)) <= 0 {
 			log.Error("HandleNFT(), StakerPledge", "wormholes.Type", wormholes.Type,
 				"error", ErrNotMoreThan100ERB, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, ErrNotMoreThan100ERB
