@@ -1419,8 +1419,8 @@ func (evm *EVM) HandleNFT(
 			log.Info("HandleNFT(), CancelPledgedToken, cancel all", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
 			evm.Context.CancelPledgedToken(evm.StateDB, caller.Address(), value)
-			coe := evm.StateDB.GetValidatorCoefficient(caller.Address())
-			evm.StateDB.SubValidatorCoefficient(caller.Address(), coe)
+			//coe := evm.StateDB.GetValidatorCoefficient(caller.Address())
+			//evm.StateDB.SubValidatorCoefficient(caller.Address(), coe)
 
 		} else {
 			// cancel partial pledged balance

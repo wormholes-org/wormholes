@@ -2770,6 +2770,17 @@ func (s *StateDB) CancelPledgedToken(address common.Address, amount *big.Int) {
 	}
 }
 
+func (s *StateDB) CancelStakerPledged(address common.Address, amount *big.Int) {
+	stateObject := s.GetOrNewAccountStateObject(address)
+	if stateObject != nil {
+		validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+		validatorStateObject.RemoveValidator(address, amount)
+
+		stateObject.SubPledgedBalance(amount)
+		stateObject.AddBalance(amount)
+	}
+}
+
 // - open exchanger:
 // ````
 // {
