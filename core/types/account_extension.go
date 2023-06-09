@@ -168,7 +168,7 @@ func (staker *AccountStaker) DeepCopy() *AccountStaker {
 }
 
 type StakersExtensionList struct {
-	StakerExtension []*StakerExtension
+	StakerExtensions []*StakerExtension
 }
 type StakerExtension struct {
 	Addr        common.Address
