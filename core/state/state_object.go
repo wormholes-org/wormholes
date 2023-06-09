@@ -903,7 +903,7 @@ func (s *stateObject) setExchangerInfoflag(exchangerflag bool) {
 
 func (s *stateObject) StakerPledge(addr common.Address, amount *big.Int, blocknumber *big.Int) {
 	newStakers := s.data.Worm.StakerExtension.DeepCopy()
-	newStakers.AddStakerPledge(addr, amount, blocknumber)
+	//newStakers.AddStakerPledge(addr, amount, blocknumber)
 	s.SetStakerPledge(newStakers)
 }
 
