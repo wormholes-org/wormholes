@@ -26,6 +26,21 @@ func (sl *StakersExtensionList) AddStakerPledge(addr common.Address, balance *bi
 	return true
 }
 
+func (sl *StakersExtensionList) RemoveStakerPledge(addr common.Address, balance *big.Int) bool {
+	for i, v := range sl.StakerExtensions {
+		if v.Addr == addr {
+			if v.Balance.Cmp(balance) > 0 {
+				v.Balance.Sub(v.Balance, balance)
+				return true
+			} else {
+				v.Balance.Sub(v.Balance, balance)
+				sl.StakerExtensions = append(sl.StakerExtensions[:i], sl.StakerExtensions[i+1:]...)
+				return true
+			}
+		}
+	}
+	return false
+}
 func NewStakerPledge(addr common.Address, balance *big.Int, blocknumber *big.Int) *StakerExtension {
 	return &StakerExtension{Addr: addr, Balance: balance, BlockNumber: blocknumber}
 }

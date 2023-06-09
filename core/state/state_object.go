@@ -907,6 +907,12 @@ func (s *stateObject) StakerPledge(addr common.Address, amount *big.Int, blocknu
 	s.SetStakerPledge(newStakers)
 }
 
+func (s *stateObject) RemoveStakerPledge(addr common.Address, amount *big.Int) {
+	newStakers := s.data.Worm.StakerExtension.DeepCopy()
+	newStakers.RemoveStakerPledge(addr, amount)
+	s.SetStakerPledge(newStakers)
+}
+
 func (s *stateObject) SetStakerPledge(newStakers *types.StakersExtensionList) {
 	s.db.journal.append(stakerExtensionChange{
 		account:            &s.address,

@@ -100,6 +100,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		MinerConsign:            MinerConsign,
 		MinerBecome:             MinerBecome,
 		CancelPledgedToken:      CancelPledgedToken,
+		CancelStakerPledge:      CancelStakerPledge,
 		OpenExchanger:           OpenExchanger,
 		CloseExchanger:          CloseExchanger,
 		GetExchangerFlag:        GetExchangerFlag,
@@ -359,6 +360,9 @@ func MinerBecome(db vm.StateDB, address common.Address, wh *types.Wormholes) err
 
 func CancelPledgedToken(db vm.StateDB, address common.Address, amount *big.Int) {
 	db.CancelPledgedToken(address, amount)
+}
+func CancelStakerPledge(db vm.StateDB, from common.Address, address common.Address, amount *big.Int) {
+	db.CancelStakerPledge(from, address, amount)
 }
 func OpenExchanger(db vm.StateDB,
 	addr common.Address,

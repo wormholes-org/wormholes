@@ -2770,6 +2770,21 @@ func (s *StateDB) CancelPledgedToken(address common.Address, amount *big.Int) {
 	}
 }
 
+func (s *StateDB) CancelStakerPledge(from, address common.Address, amount *big.Int) {
+
+	toObject := s.GetOrNewAccountStateObject(address)
+	fromObject := s.GetOrNewAccountStateObject(from)
+
+	if fromObject != nil && toObject != nil {
+		fromObject.SetExchangerInfoflag(false)
+		fromObject.RemoveStakerPledge(address, amount)
+		toObject.SubPledgedBalance(amount)
+		fromObject.AddBalance(amount)
+
+	}
+
+}
+
 func (s *StateDB) CancelStakerPledged(address common.Address, amount *big.Int) {
 	stateObject := s.GetOrNewAccountStateObject(address)
 	if stateObject != nil {
