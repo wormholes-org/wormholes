@@ -1756,7 +1756,7 @@ func (evm *EVM) HandleNFT(
 		Erb100000 := big.NewInt(70000)
 		Erb100000.Mul(Erb100000, baseErb)
 
-		if !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
+		if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
 			//if this account has not pledged
 			log.Info("HandleNFT()", "MinerBecome.req", wormholes, "blocknumber", evm.Context.BlockNumber.Uint64())
 			//if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
@@ -1773,6 +1773,10 @@ func (evm *EVM) HandleNFT(
 			log.Info("HandleNFT(), End|MinerBecome<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
 
+		} else {
+			log.Error("HandleNFT(), MinerBecome", "wormholes.Type", wormholes.Type,
+				"error", ErrInsufficientPledgedBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrInsufficientPledgedBalance
 		}
 	case 23:
 		log.Info("HandleNFT(), VoteOfficialNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
