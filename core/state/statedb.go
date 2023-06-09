@@ -2776,6 +2776,9 @@ func (s *StateDB) CancelStakerPledge(from, address common.Address, amount *big.I
 	fromObject := s.GetOrNewAccountStateObject(from)
 
 	if fromObject != nil && toObject != nil {
+		validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+		validatorStateObject.RemoveValidator(address, amount)
+
 		fromObject.SetExchangerInfoflag(false)
 		fromObject.RemoveStakerPledge(address, amount)
 		toObject.SubPledgedBalance(amount)

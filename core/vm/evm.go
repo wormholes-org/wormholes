@@ -1408,12 +1408,12 @@ func (evm *EVM) HandleNFT(
 		log.Info("HandleNFT(), CancelPledgedToken>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 		stakerpledged := evm.Context.GetStakerPledged(evm.StateDB, caller.Address(), addr)
-		pledgedTime := stakerpledged.BlockNumber
-		if big.NewInt(CancelDayPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, pledgedTime)) > 0 {
-			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type,
-				"error", ErrTooCloseToCancel, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrTooCloseToCancel
-		}
+		//pledgedTime := stakerpledged.BlockNumber
+		//if big.NewInt(CancelDayPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, pledgedTime)) > 0 {
+		//	log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type,
+		//		"error", ErrTooCloseToCancel, "blocknumber", evm.Context.BlockNumber.Uint64())
+		//	return nil, gas, ErrTooCloseToCancel
+		//}
 
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
 		Erb100 := big.NewInt(700)
@@ -1436,6 +1436,7 @@ func (evm *EVM) HandleNFT(
 				"blocknumber", evm.Context.BlockNumber.Uint64())
 			coe := evm.StateDB.GetValidatorCoefficient(addr)
 			evm.StateDB.SubValidatorCoefficient(addr, coe)
+			evm.Context.CancelPledgedToken(evm.StateDB, caller.Address(), value)
 		}
 		log.Info("HandleNFT(), CancelPledgedToken<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())

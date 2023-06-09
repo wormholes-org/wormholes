@@ -364,6 +364,7 @@ func CancelPledgedToken(db vm.StateDB, address common.Address, amount *big.Int) 
 func CancelStakerPledge(db vm.StateDB, from common.Address, address common.Address, amount *big.Int) {
 	db.CancelStakerPledge(from, address, amount)
 }
+
 func OpenExchanger(db vm.StateDB,
 	addr common.Address,
 	amount *big.Int,
