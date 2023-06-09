@@ -166,12 +166,3 @@ func (staker *AccountStaker) DeepCopy() *AccountStaker {
 
 	return &newStaker
 }
-
-type StakersExtensionList struct {
-	StakerExtensions []*StakerExtension
-}
-type StakerExtension struct {
-	Addr        common.Address
-	Balance     *big.Int
-	BlockNumber *big.Int
-}

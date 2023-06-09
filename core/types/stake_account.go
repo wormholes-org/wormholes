@@ -60,37 +60,6 @@ func (sl *StakerList) AddStaker(addr common.Address, balance *big.Int) bool {
 	return true
 }
 
-func (sl *StakersExtensionList) AddStakerPledge(addr common.Address, balance *big.Int, blocknumber *big.Int) bool {
-	for _, v := range sl.StakerExtensions {
-		if v.Addr == addr {
-			v.Balance.Add(v.Balance, balance)
-			v.BlockNumber = blocknumber
-			return true
-		}
-	}
-	sl.StakerExtensions = append(sl.StakerExtensions, &StakerExtension{Addr: addr, Balance: balance, BlockNumber: blocknumber})
-	return true
-}
-
-func NewStakerPledge(addr common.Address, balance *big.Int, blocknumber *big.Int) *StakerExtension {
-	return &StakerExtension{Addr: addr, Balance: balance, BlockNumber: blocknumber}
-}
-
-func (sl *StakersExtensionList) DeepCopy() *StakersExtensionList {
-	tempStakerList := &StakersExtensionList{
-		StakerExtensions: make([]*StakerExtension, 0, len(sl.StakerExtensions)),
-	}
-	for _, staker := range sl.StakerExtensions {
-		tempStaker := StakerExtension{
-			Addr:        staker.Addr,
-			Balance:     new(big.Int).Set(staker.Balance),
-			BlockNumber: new(big.Int).Set(staker.BlockNumber),
-		}
-		tempStakerList.StakerExtensions = append(tempStakerList.StakerExtensions, &tempStaker)
-	}
-	return tempStakerList
-}
-
 func (sl *StakerList) RemoveStaker(addr common.Address, balance *big.Int) bool {
 	for i, v := range sl.Stakers {
 		if v.Address() == addr {
