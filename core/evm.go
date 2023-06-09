@@ -325,18 +325,6 @@ func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *typ
 }
 
 func StakerPledge(db vm.StateDB, from, address common.Address, amount *big.Int, blocknumber *big.Int, wh *types.Wormholes) error {
-	empty := common.Address{}
-	log.Info("StakerPledge", "proxy", wh.ProxyAddress, "sign", wh.ProxySign)
-	if wh.ProxyAddress != "" && wh.ProxyAddress != empty.Hex() {
-		msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
-		addr, err := RecoverAddress(msg, wh.ProxySign)
-		log.Info("StakerPledge", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
-		if err != nil || wh.ProxyAddress != addr.Hex() {
-			log.Error("StakerPledge()", "Get public key error", err)
-			return errors.New("recover proxy address error!")
-		}
-	}
-
 	return db.StakerPledge(from, address, amount, blocknumber)
 }
 

@@ -2669,12 +2669,7 @@ func (s *StateDB) PledgeToken(address common.Address,
 //}
 
 func (s *StateDB) StakerPledge(from common.Address, address common.Address,
-	amount *big.Int,
-	blocknumber *big.Int) error {
-
-	if amount == nil {
-		amount = big.NewInt(0)
-	}
+	amount *big.Int, blocknumber *big.Int) error {
 
 	toObject := s.GetOrNewAccountStateObject(address)
 	fromObject := s.GetOrNewAccountStateObject(from)
