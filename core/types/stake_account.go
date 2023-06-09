@@ -61,13 +61,16 @@ func (sl *StakerList) AddStaker(addr common.Address, balance *big.Int) bool {
 }
 
 func (sl *StakersExtensionList) AddStakerPledge(addr common.Address, balance *big.Int, blocknumber *big.Int) bool {
-	for _, v := range sl.StakerExtensions {
-		if v.Addr == addr {
-			v.Balance.Add(v.Balance, balance)
-			return true
+	if sl.StakerExtensions != nil {
+		for _, v := range sl.StakerExtensions {
+			if v.Addr == addr {
+				v.Balance.Add(v.Balance, balance)
+				v.BlockNumber = blocknumber
+				return true
+			}
 		}
 	}
-	sl.StakerExtensions = append(sl.StakerExtensions, NewStakerPledge(addr, balance, blocknumber))
+	sl.StakerExtensions = append(sl.StakerExtensions, &StakerExtension{Addr: addr, Balance: balance, BlockNumber: blocknumber})
 	return true
 }
 
