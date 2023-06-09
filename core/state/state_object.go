@@ -903,18 +903,18 @@ func (s *stateObject) setExchangerInfoflag(exchangerflag bool) {
 
 func (s *stateObject) StakerPledge(addr common.Address, amount *big.Int, blocknumber *big.Int) {
 	newStakers := s.data.Worm.StakerExtension.DeepCopy()
-	fmt.Println("old staker = ", newStakers)
 	newStakers.AddStakerPledge(addr, amount, blocknumber)
-	fmt.Println("new staker = ", newStakers)
-	staker := stakerExtensionChange{
-		account:            &s.address,
-		oldStakerExtension: s.data.Worm.StakerExtension,
-	}
-	s.db.journal.append(staker)
-	s.stakerPledge(newStakers)
+	s.SetStakerPledge(newStakers)
 }
 
-func (s *stateObject) stakerPledge(stakers *types.StakersExtensionList) {
+func (s *stateObject) SetStakerPledge(newStakers *types.StakersExtensionList) {
+	s.db.journal.append(stakerExtensionChange{
+		account:            &s.address,
+		oldStakerExtension: s.data.Worm.StakerExtension})
+	s.setStakerPledge(newStakers)
+}
+
+func (s *stateObject) setStakerPledge(stakers *types.StakersExtensionList) {
 	s.data.Worm.StakerExtension = *stakers
 }
 

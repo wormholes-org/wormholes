@@ -597,7 +597,7 @@ func (ch stakersChange) dirtied() *common.Address {
 }
 
 func (ch stakerExtensionChange) revert(s *StateDB) {
-	s.getStateObject(*ch.account).stakerPledge(&ch.oldStakerExtension)
+	s.getStateObject(*ch.account).setStakerPledge(&ch.oldStakerExtension)
 }
 
 func (ch stakerExtensionChange) dirtied() *common.Address {
