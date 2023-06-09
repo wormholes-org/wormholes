@@ -1751,7 +1751,7 @@ func (evm *EVM) HandleNFT(
 		//	log.Error("HandleNFT(), MinerConsign error", "wormholes.Type", wormholes.Type, "error", ErrInsufficientBalance)
 		//	return nil, gas, ErrInsufficientBalance
 		//}
-	case 32: // become miner
+	case 12: // become miner
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
 		Erb100000 := big.NewInt(70000)
 		Erb100000.Mul(Erb100000, baseErb)
