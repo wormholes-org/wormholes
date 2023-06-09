@@ -1436,7 +1436,6 @@ func (evm *EVM) HandleNFT(
 				"blocknumber", evm.Context.BlockNumber.Uint64())
 			coe := evm.StateDB.GetValidatorCoefficient(addr)
 			evm.StateDB.SubValidatorCoefficient(addr, coe)
-			evm.Context.CancelPledgedToken(evm.StateDB, caller.Address(), value)
 		}
 		log.Info("HandleNFT(), CancelPledgedToken<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
