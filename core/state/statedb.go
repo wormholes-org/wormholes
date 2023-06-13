@@ -2375,7 +2375,8 @@ func (s *StateDB) CreateNFTByOfficial16(validators, exchangers []common.Address,
 func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 	owner common.Address,
 	royalty uint16,
-	metaurl string) (common.Address, bool) {
+	metaurl string,
+	blocknumber *big.Int) (common.Address, bool) {
 
 	mintStateObject := s.GetOrNewStakerStateObject(types.MintDeepStorageAddress)
 
@@ -2399,10 +2400,36 @@ func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 			metaurl,
 			owner)
 		mintStateObject.AddUserMint(big.NewInt(1))
+
+		nftLog := s.MintNFTLog(nftAddr, owner, blocknumber)
+		s.AddLog(nftLog)
 		return nftAddr, true
 	}
 
 	return common.Address{}, false
+}
+
+func (s *StateDB) MintNFTLog(nftAddress common.Address, owner common.Address, blockNumber *big.Int) *types.Log {
+	//hash1 is crypto.Keccak256([]byte("MintNFT"))
+	hash1 := common.HexToHash("3284a047588bc01e3107fd451c8792cb3ad91a5ba79a80493978b8d8f60dbaef")
+	nftString := nftAddress.Hex()
+	nftString = string([]byte(nftString)[2:])
+	hash2 := common.HexToHash("000000000000000000000000" + nftString)
+	ownerString := owner.Hex()
+	ownerString = string([]byte(ownerString)[2:])
+	hash3 := common.HexToHash("000000000000000000000000" + ownerString)
+	log := &types.Log{
+		Address: common.Address{},
+		Topics: []common.Hash{
+			hash1,
+			hash2,
+			hash3,
+		},
+		Data:        big.NewInt(1).FillBytes(make([]byte, 32)),
+		BlockNumber: blockNumber.Uint64(),
+	}
+
+	return log
 }
 
 // - approve nft's authority:[?]
@@ -2784,14 +2811,14 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,

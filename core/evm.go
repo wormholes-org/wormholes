@@ -275,8 +275,9 @@ func TransferNFT(db vm.StateDB, nftAddr string, newOwner common.Address, blocknu
 func CreateNFTByUser(db vm.StateDB, exchanger common.Address,
 	owner common.Address,
 	royalty uint16,
-	metaurl string) (common.Address, bool) {
-	return db.CreateNFTByUser(exchanger, owner, royalty, metaurl)
+	metaurl string,
+	blocknumber *big.Int) (common.Address, bool) {
+	return db.CreateNFTByUser(exchanger, owner, royalty, metaurl, blocknumber)
 }
 
 func ChangeApproveAddress(db vm.StateDB, addr common.Address, approveAddr common.Address) {
@@ -934,13 +935,13 @@ func BuyAndMintNFTByBuyer(
 			log.Error("BuyAndMintNFTByBuyer(), not a exchanger!", "exchanger", exchanger.String())
 			return errors.New("not a exchanger")
 		}
-		nftAddress, ok = db.CreateNFTByUser(exchanger, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL)
+		nftAddress, ok = db.CreateNFTByUser(exchanger, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL, blocknumber)
 		if !ok {
 			log.Error("BuyAndMintNFTByBuyer(), mint nft error!")
 			return errors.New("mint nft error!")
 		}
 	} else {
-		nftAddress, ok = db.CreateNFTByUser(common.Address{}, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL)
+		nftAddress, ok = db.CreateNFTByUser(common.Address{}, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL, blocknumber)
 		if !ok {
 			log.Error("BuyAndMintNFTByBuyer(), mint nft error!")
 			return errors.New("mint nft error!")
@@ -1137,13 +1138,13 @@ func BuyAndMintNFTByExchanger(
 
 	var nftAddress common.Address
 	if exclusiveFlag == "1" {
-		nftAddress, ok = db.CreateNFTByUser(caller, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL)
+		nftAddress, ok = db.CreateNFTByUser(caller, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL, blocknumber)
 		if !ok {
 			log.Error("BuyAndMintNFTByExchanger(), mint nft error!", "exclusiveFlag", exclusiveFlag)
 			return errors.New("mint nft error!")
 		}
 	} else {
-		nftAddress, ok = db.CreateNFTByUser(common.Address{}, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL)
+		nftAddress, ok = db.CreateNFTByUser(common.Address{}, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL, blocknumber)
 		if !ok {
 			log.Error("BuyAndMintNFTByExchanger(), mint nft error!", "exclusiveFlag", exclusiveFlag)
 			return errors.New("mint nft error!")
@@ -1600,14 +1601,14 @@ func BuyAndMintNFTByApprovedExchanger(
 
 	var nftAddress common.Address
 	if exclusiveFlag == "1" {
-		nftAddress, ok = db.CreateNFTByUser(originalExchanger, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL)
+		nftAddress, ok = db.CreateNFTByUser(originalExchanger, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL, blocknumber)
 		if !ok {
 			log.Error("BuyAndMintNFTByApprovedExchanger(), mint nft error!",
 				"exclusiveFlag", exclusiveFlag)
 			return errors.New("mint nft error!")
 		}
 	} else {
-		nftAddress, ok = db.CreateNFTByUser(common.Address{}, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL)
+		nftAddress, ok = db.CreateNFTByUser(common.Address{}, seller, uint16(sellerRoyalty.Uint64()), wormholes.Seller2.MetaURL, blocknumber)
 		if !ok {
 			log.Error("BuyAndMintNFTByApprovedExchanger(), mint nft error!",
 				"exclusiveFlag", exclusiveFlag)

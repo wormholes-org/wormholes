@@ -63,7 +63,7 @@ type (
 	// TransferNFTFunc is the signature of a TransferNFT function
 	TransferNFTFunc func(StateDB, string, common.Address, *big.Int) error
 	//CreateNFTByOfficialFunc     func(StateDB, []common.Address, *big.Int)
-	CreateNFTByUserFunc         func(StateDB, common.Address, common.Address, uint16, string) (common.Address, bool)
+	CreateNFTByUserFunc         func(StateDB, common.Address, common.Address, uint16, string, *big.Int) (common.Address, bool)
 	ChangeApproveAddressFunc    func(StateDB, common.Address, common.Address)
 	CancelApproveAddressFunc    func(StateDB, common.Address, common.Address)
 	ChangeNFTApproveAddressFunc func(StateDB, common.Address, common.Address)
@@ -964,7 +964,8 @@ func (evm *EVM) HandleNFT(
 			exchanger,
 			addr,
 			wormholes.Royalty,
-			wormholes.MetaURL)
+			wormholes.MetaURL,
+			evm.Context.BlockNumber)
 		log.Info("HandleNFT(), CreateNFTByUser<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
 
