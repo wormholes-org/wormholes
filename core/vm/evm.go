@@ -1419,7 +1419,8 @@ func (evm *EVM) HandleNFT(
 		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
 		Erb100 := big.NewInt(700)
 		Erb100.Mul(Erb100, baseErb)
-		pledgedBalance := stakerpledged.Balance
+		pledgedBalance := big.NewInt(0)
+		pledgedBalance.Add(pledgedBalance, stakerpledged.Balance)
 		if Erb100.Cmp(new(big.Int).Sub(pledgedBalance, value)) > 0 {
 			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type,
 				"error", "the after revocation is less than 700ERB", "blocknumber", evm.Context.BlockNumber.Uint64())
@@ -1445,7 +1446,33 @@ func (evm *EVM) HandleNFT(
 		}
 		log.Info("HandleNFT(), CancelPledgedToken<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
+	case 12: // become miner
+		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+		Erb100000 := big.NewInt(70000)
+		Erb100000.Mul(Erb100000, baseErb)
 
+		if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
+			//if this account has not pledged
+			log.Info("HandleNFT()", "MinerBecome.req", wormholes, "blocknumber", evm.Context.BlockNumber.Uint64())
+			//if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+			log.Info("HandleNFT(), Start|MinerBecome>>>>>>>>>>", "wormholes.Type", wormholes.Type,
+				"blocknumber", evm.Context.BlockNumber.Uint64())
+			err := evm.Context.MinerBecome(evm.StateDB, caller.Address(), &wormholes)
+			if err != nil {
+				log.Error("HandleNFT(), End|MinerBecome<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+					"blocknumber", evm.Context.BlockNumber.Uint64())
+				return nil, gas, err
+			}
+			evm.StateDB.AddValidatorCoefficient(caller.Address(), VALIDATOR_COEFFICIENT)
+
+			log.Info("HandleNFT(), End|MinerBecome<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+				"blocknumber", evm.Context.BlockNumber.Uint64())
+
+		} else {
+			log.Error("HandleNFT(), MinerBecome", "wormholes.Type", wormholes.Type,
+				"error", ErrInsufficientPledgedBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
+			return nil, gas, ErrInsufficientPledgedBalance
+		}
 	//case 11: //open exchanger
 	//	log.Info("HandleNFT(), OpenExchanger>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 	//		"blocknumber", evm.Context.BlockNumber.Uint64())
@@ -1756,33 +1783,7 @@ func (evm *EVM) HandleNFT(
 		//	log.Error("HandleNFT(), MinerConsign error", "wormholes.Type", wormholes.Type, "error", ErrInsufficientBalance)
 		//	return nil, gas, ErrInsufficientBalance
 		//}
-	case 12: // become miner
-		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-		Erb100000 := big.NewInt(70000)
-		Erb100000.Mul(Erb100000, baseErb)
 
-		if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
-			//if this account has not pledged
-			log.Info("HandleNFT()", "MinerBecome.req", wormholes, "blocknumber", evm.Context.BlockNumber.Uint64())
-			//if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
-			log.Info("HandleNFT(), Start|MinerBecome>>>>>>>>>>", "wormholes.Type", wormholes.Type,
-				"blocknumber", evm.Context.BlockNumber.Uint64())
-			err := evm.Context.MinerBecome(evm.StateDB, caller.Address(), &wormholes)
-			if err != nil {
-				log.Error("HandleNFT(), End|MinerBecome<<<<<<<<<<", "wormholes.Type", wormholes.Type,
-					"blocknumber", evm.Context.BlockNumber.Uint64())
-				return nil, gas, err
-			}
-			evm.StateDB.AddValidatorCoefficient(caller.Address(), VALIDATOR_COEFFICIENT)
-
-			log.Info("HandleNFT(), End|MinerBecome<<<<<<<<<<", "wormholes.Type", wormholes.Type,
-				"blocknumber", evm.Context.BlockNumber.Uint64())
-
-		} else {
-			log.Error("HandleNFT(), MinerBecome", "wormholes.Type", wormholes.Type,
-				"error", ErrInsufficientPledgedBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, ErrInsufficientPledgedBalance
-		}
 	case 23:
 		log.Info("HandleNFT(), VoteOfficialNFT>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 			"blocknumber", evm.Context.BlockNumber.Uint64())
