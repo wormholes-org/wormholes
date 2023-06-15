@@ -2932,11 +2932,17 @@ func (s *StateDB) GetStakerPledged(from, addr common.Address) *types.StakerExten
 	if stateObject != nil {
 		for _, value := range stateObject.data.Worm.StakerExtension.StakerExtensions {
 			if value.Addr == addr {
+				if value.Balance == nil {
+					value.Balance = big.NewInt(0)
+				}
+				if value.BlockNumber == nil {
+					value.BlockNumber = big.NewInt(0)
+				}
 				return value
 			}
 		}
 	}
-	return &types.StakerExtension{}
+	return &types.StakerExtension{BlockNumber: common.Big0, Balance: common.Big0}
 }
 
 func (s *StateDB) GetExchangerFlag(addr common.Address) bool {
