@@ -1456,8 +1456,8 @@ func (evm *EVM) HandleNFT(
 			//if evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 			log.Info("HandleNFT(), Start|MinerBecome>>>>>>>>>>", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
-			minerr := evm.Context.MinerBecome(evm.StateDB, caller.Address(), &wormholes)
-			if minerr != nil {
+			err := evm.Context.MinerBecome(evm.StateDB, caller.Address(), &wormholes)
+			if err != nil {
 				log.Error("HandleNFT(), End|MinerBecome<<<<<<<<<<", "wormholes.Type", wormholes.Type,
 					"blocknumber", evm.Context.BlockNumber.Uint64())
 				return nil, gas, err

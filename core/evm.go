@@ -351,9 +351,13 @@ func MinerBecome(db vm.StateDB, address common.Address, wh *types.Wormholes) err
 	msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
 	addr, err := RecoverAddress(msg, wh.ProxySign)
 	log.Info("MinerBecome", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
-	if err != nil || wh.ProxyAddress != addr.Hex() {
+	if err != nil {
 		log.Error("MinerBecome()", "Get public key error", err)
 		return err
+	}
+	if wh.ProxyAddress != addr.Hex() {
+		log.Error("MinerBecome()", "Get public key error", err)
+		return errors.New("MinerBecome recover address proxy Address != address")
 	}
 	return db.MinerBecome(address, common.HexToAddress(wh.ProxyAddress))
 }
