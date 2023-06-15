@@ -626,7 +626,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				return ErrInsufficientFunds
 			}
 
-			pledgedBalance := pool.currentState.GetPledgedBalance(from)
+			pledgedBalance := pool.currentState.GetPledgedBalance(*tx.To())
 			if pledgedBalance.Cmp(tx.Value()) != 0 {
 				// cancel partial pledged balance
 				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
