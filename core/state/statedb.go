@@ -2744,7 +2744,7 @@ func (s *StateDB) MinerBecome(address common.Address, proxy common.Address) erro
 		}
 	}
 	if stateObject != nil {
-		validatorStateObject.AddValidator(address, big.NewInt(0), proxy)
+		validatorStateObject.AddValidator(address, stateObject.Value(), proxy)
 	}
 	return nil
 }
