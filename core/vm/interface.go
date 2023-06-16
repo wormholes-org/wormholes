@@ -131,6 +131,7 @@ type StateDB interface {
 	AddVoteWeight(common.Address, *big.Int)
 	AddValidatorCoefficient(common.Address, uint8)
 	SubValidatorCoefficient(common.Address, uint8)
+	RemoveValidatorCoefficient(common.Address)
 	GetValidatorCoefficient(common.Address) uint8
 	NextIndex() *big.Int
 	//PledgeNFT(common.Address, *big.Int)

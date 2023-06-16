@@ -3366,6 +3366,13 @@ func (s *StateDB) SubValidatorCoefficient(addr common.Address, coe uint8) {
 	}
 }
 
+func (s *StateDB) RemoveValidatorCoefficient(addr common.Address) {
+	stateObject := s.GetOrNewAccountStateObject(addr)
+	if stateObject != nil {
+		stateObject.RemoveCoefficient()
+	}
+}
+
 // GetValidatorCoefficient retrieves the ValidatorCoefficient from the given address or 0 if object not found
 func (s *StateDB) GetValidatorCoefficient(addr common.Address) uint8 {
 	stateObject := s.GetOrNewAccountStateObject(addr)

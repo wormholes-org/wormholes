@@ -1320,6 +1320,12 @@ func (s *stateObject) SubCoefficient(coe uint8) {
 	s.SetCoefficient(result)
 }
 
+func (s *stateObject) RemoveCoefficient() {
+	var result uint8
+	result = 0
+	s.SetCoefficient(result)
+}
+
 // AddVoteWeight adds amount to s's vote weight.
 // It is used to add funds to the destination account of a vote.
 func (s *stateObject) AddVoteWeight(amount *big.Int) {
