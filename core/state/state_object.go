@@ -896,8 +896,7 @@ func (s *stateObject) SetExchangerInfoflag(exchangerflag bool, blocknumber *big.
 	}
 	emptyAddress := common.Address{}
 	var agentRecipient common.Address
-	if proxy == "" ||
-		common.HexToAddress(proxy) == emptyAddress {
+	if proxy == "" && s.GetSNFTAgentRecipient() == emptyAddress {
 		agentRecipient = s.address
 	} else {
 		agentRecipient = common.HexToAddress(proxy)

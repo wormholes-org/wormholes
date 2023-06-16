@@ -1431,7 +1431,7 @@ func (evm *EVM) HandleNFT(
 		}
 
 		Erb100000 := big.NewInt(70000)
-		Erb100000.Mul(Erb100, baseErb)
+		Erb100000.Mul(Erb100000, baseErb)
 		if !evm.Context.VerifyPledgedBalance(evm.StateDB, addr, new(big.Int).Add(Erb100000, value)) {
 			log.Info("HandleNFT(), CancelPledgedToken, cancel partial", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
