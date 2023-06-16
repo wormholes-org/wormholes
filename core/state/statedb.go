@@ -2677,6 +2677,9 @@ func (s *StateDB) StakerPledge(from common.Address, address common.Address,
 	//validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
 
 	if fromObject != nil && toObject != nil {
+		validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+		validatorStateObject.AddValidatorAmount(address, amount)
+
 		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
 		stakerStateObject.AddStaker(from, amount)
 		fromObject.SubBalance(amount)

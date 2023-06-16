@@ -1577,6 +1577,16 @@ func (s *stateObject) SetOfficialMint(amount *big.Int) {
 func (s *stateObject) setOfficialMint(amount *big.Int) {
 	s.data.Staker.Mint.OfficialMint = amount
 }
+func (s *stateObject) AddValidatorAmount(addr common.Address, balance *big.Int) bool {
+	newValidators := s.data.Staker.Validators.DeepCopy()
+	ok := newValidators.AddValidatorAmount(addr, balance)
+	if !ok {
+		return false
+	}
+
+	s.SetValidators(newValidators)
+	return true
+}
 
 func (s *stateObject) AddValidator(addr common.Address, balance *big.Int, proxy common.Address) bool {
 	newValidators := s.data.Staker.Validators.DeepCopy()

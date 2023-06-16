@@ -94,6 +94,18 @@ func (vl *ValidatorList) AddValidator(addr common.Address, balance *big.Int, pro
 	return true
 }
 
+func (vl *ValidatorList) AddValidatorAmount(addr common.Address, balance *big.Int) bool {
+	for _, v := range vl.Validators {
+		if v.Address() == addr /*&& v.Proxy.String() == "0x0000000000000000000000000000000000000000" */ {
+			// Usage scenarios: pledge, additional pledge, delegation
+			v.Balance.Add(v.Balance, balance)
+			sort.Sort(vl)
+			return true
+		}
+	}
+	return true
+}
+
 func (vl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) bool {
 	for i, v := range vl.Validators {
 		if v.Address() == addr {
