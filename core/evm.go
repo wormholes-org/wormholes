@@ -366,8 +366,8 @@ func MinerBecome(db vm.StateDB, address common.Address, wh *types.Wormholes) err
 func CancelPledgedToken(db vm.StateDB, address common.Address, amount *big.Int) {
 	db.CancelPledgedToken(address, amount)
 }
-func CancelStakerPledge(db vm.StateDB, from common.Address, address common.Address, amount *big.Int) {
-	db.CancelStakerPledge(from, address, amount)
+func CancelStakerPledge(db vm.StateDB, from common.Address, address common.Address, amount *big.Int, blocknumber *big.Int) {
+	db.CancelStakerPledge(from, address, amount, blocknumber)
 }
 
 func OpenExchanger(db vm.StateDB,

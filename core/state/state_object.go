@@ -879,7 +879,7 @@ func (s *stateObject) setExchangerInfo(exchangerflag bool,
 	s.data.Worm.SNFTAgentRecipient = agentrecipient
 }
 
-func (s *stateObject) SetExchangerInfoflag(exchangerflag bool) {
+func (s *stateObject) SetExchangerInfoflag(exchangerflag bool, blocknumber *big.Int) {
 	openExchanger := openExchangerChange{
 		address:               &s.address,
 		oldExchangerFlag:      s.data.Worm.ExchangerFlag,
@@ -887,6 +887,7 @@ func (s *stateObject) SetExchangerInfoflag(exchangerflag bool) {
 		oldExchangerName:      s.data.Worm.ExchangerName,
 		oldExchangerURL:       s.data.Worm.ExchangerURL,
 		oldSNFTAgentRecipient: s.data.Worm.SNFTAgentRecipient,
+		oldBlockNumber:        s.data.Worm.BlockNumber,
 	}
 	if s.data.Worm.BlockNumber == nil {
 		openExchanger.oldBlockNumber = nil
@@ -894,11 +895,16 @@ func (s *stateObject) SetExchangerInfoflag(exchangerflag bool) {
 		openExchanger.oldBlockNumber = new(big.Int).Set(s.data.Worm.BlockNumber)
 	}
 	s.db.journal.append(openExchanger)
-	s.setExchangerInfoflag(exchangerflag)
+	s.setExchangerInfoflag(exchangerflag, blocknumber)
 }
 
-func (s *stateObject) setExchangerInfoflag(exchangerflag bool) {
+func (s *stateObject) setExchangerInfoflag(exchangerflag bool, blocknumber *big.Int) {
 	s.data.Worm.ExchangerFlag = exchangerflag
+	if exchangerflag {
+		s.data.Worm.BlockNumber = blocknumber
+	} else {
+		s.data.Worm.BlockNumber = common.Big0
+	}
 }
 
 func (s *stateObject) StakerPledge(addr common.Address, amount *big.Int, blocknumber *big.Int) {

@@ -78,7 +78,7 @@ type (
 	MinerConsignFunc            func(StateDB, common.Address, *types.Wormholes) error
 	MinerBecomeFunc             func(StateDB, common.Address, *types.Wormholes) error
 	CancelPledgedTokenFunc      func(StateDB, common.Address, *big.Int)
-	CancelStakerPledgeFunc      func(StateDB, common.Address, common.Address, *big.Int)
+	CancelStakerPledgeFunc      func(StateDB, common.Address, common.Address, *big.Int, *big.Int)
 	OpenExchangerFunc           func(StateDB, common.Address, *big.Int, *big.Int, uint16, string, string, string)
 	CloseExchangerFunc          func(StateDB, common.Address, *big.Int)
 	GetExchangerFlagFunc        func(StateDB, common.Address) bool
@@ -1430,7 +1430,7 @@ func (evm *EVM) HandleNFT(
 		if big.NewInt(CancelDayPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, stakerpledged.BlockNumber)) <= 0 {
 			log.Info("HandleNFT(), CancelPledgedToken, cancel all", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
-			evm.Context.CancelStakerPledge(evm.StateDB, caller.Address(), addr, value)
+			evm.Context.CancelStakerPledge(evm.StateDB, caller.Address(), addr, value, evm.Context.BlockNumber)
 		} else {
 			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type,
 				"error", ErrTooCloseToCancel, "blocknumber", evm.Context.BlockNumber.Uint64())

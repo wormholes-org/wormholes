@@ -2680,7 +2680,7 @@ func (s *StateDB) StakerPledge(from common.Address, address common.Address,
 		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
 		stakerStateObject.AddStaker(from, amount)
 		fromObject.SubBalance(amount)
-		fromObject.SetExchangerInfoflag(true)
+		fromObject.SetExchangerInfoflag(true, blocknumber)
 		fromObject.StakerPledge(address, amount, blocknumber)
 		toObject.AddPledgedBalance(amount)
 		fromObject.SetPledgedBlockNumber(blocknumber)
@@ -2770,7 +2770,7 @@ func (s *StateDB) CancelPledgedToken(address common.Address, amount *big.Int) {
 	}
 }
 
-func (s *StateDB) CancelStakerPledge(from, address common.Address, amount *big.Int) {
+func (s *StateDB) CancelStakerPledge(from, address common.Address, amount *big.Int, blocknumber *big.Int) {
 
 	toObject := s.GetOrNewAccountStateObject(address)
 	fromObject := s.GetOrNewAccountStateObject(from)
@@ -2788,7 +2788,7 @@ func (s *StateDB) CancelStakerPledge(from, address common.Address, amount *big.I
 
 		pledgedBalance := s.GetStakerPledgedBalance(from, address)
 		if Erb100.Cmp(new(big.Int).Sub(pledgedBalance, amount)) > 0 {
-			fromObject.SetExchangerInfoflag(false)
+			fromObject.SetExchangerInfoflag(false, blocknumber)
 		}
 		fromObject.RemoveStakerPledge(address, amount)
 		toObject.SubPledgedBalance(amount)
