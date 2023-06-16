@@ -447,7 +447,6 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		case 10:
 			pledgedBalance := evm.StateDB.GetStakerPledgedBalance(caller.Address(), addr)
 			if pledgedBalance.Cmp(value) != 0 {
-				// cancel partial pledged balance
 				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
 				Erb1000 := big.NewInt(700)
 				Erb1000.Mul(Erb1000, baseErb)
@@ -1426,26 +1425,25 @@ func (evm *EVM) HandleNFT(
 		Erb100 := big.NewInt(700)
 		Erb100.Mul(Erb100, baseErb)
 		pledgedBalance := stakerpledged.Balance
-		if Erb100.Cmp(new(big.Int).Sub(pledgedBalance, value)) != 0 {
+
+		if pledgedBalance.Cmp(value) != 0 {
 			if Erb100.Cmp(new(big.Int).Sub(pledgedBalance, value)) > 0 {
 				log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type,
 					"error", "the after revocation is less than 700ERB", "blocknumber", evm.Context.BlockNumber.Uint64())
 				return nil, gas, errors.New("the after revocation is less than 700ERB")
 			}
 		}
-
-		Erb100000 := big.NewInt(70000)
-		Erb100000.Mul(Erb100000, baseErb)
-		if !evm.Context.VerifyPledgedBalance(evm.StateDB, addr, new(big.Int).Add(Erb100000, value)) {
-			log.Info("HandleNFT(), CancelPledgedToken, cancel partial", "wormholes.Type", wormholes.Type,
-				"blocknumber", evm.Context.BlockNumber.Uint64())
-			//coe := evm.StateDB.GetValidatorCoefficient(addr)
-			evm.StateDB.RemoveValidatorCoefficient(addr)
-		}
-
 		if big.NewInt(CancelDayPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, stakerpledged.BlockNumber)) <= 0 {
 			log.Info("HandleNFT(), CancelPledgedToken, cancel all", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
+			Erb100000 := big.NewInt(70000)
+			Erb100000.Mul(Erb100000, baseErb)
+			if !evm.Context.VerifyPledgedBalance(evm.StateDB, addr, new(big.Int).Add(Erb100000, value)) {
+				log.Info("HandleNFT(), CancelPledgedToken, cancel partial", "wormholes.Type", wormholes.Type,
+					"blocknumber", evm.Context.BlockNumber.Uint64())
+				//coe := evm.StateDB.GetValidatorCoefficient(addr)
+				evm.StateDB.RemoveValidatorCoefficient(addr)
+			}
 			evm.Context.CancelStakerPledge(evm.StateDB, caller.Address(), addr, value, evm.Context.BlockNumber)
 		} else {
 			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type,
