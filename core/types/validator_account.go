@@ -98,6 +98,7 @@ func (vl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) 
 	for i, v := range vl.Validators {
 		if v.Address() == addr {
 			validator := v.Balance
+			log.Info("validator balance=", validator, "  balance = ", balance)
 			if v.Balance.Cmp(balance) > 0 {
 				v.Balance.Sub(v.Balance, balance)
 				sort.Sort(vl)
