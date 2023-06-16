@@ -327,7 +327,7 @@ func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *typ
 }
 
 func StakerPledge(db vm.StateDB, from, address common.Address, amount *big.Int, blocknumber *big.Int, wh *types.Wormholes) error {
-	return db.StakerPledge(from, address, amount, blocknumber)
+	return db.StakerPledge(from, address, amount, blocknumber, wh.ProxyAddress)
 }
 
 func GetPledgedTime(db vm.StateDB, from, addr common.Address) *big.Int {
