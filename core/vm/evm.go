@@ -1422,10 +1422,12 @@ func (evm *EVM) HandleNFT(
 		Erb100 := big.NewInt(700)
 		Erb100.Mul(Erb100, baseErb)
 		pledgedBalance := stakerpledged.Balance
-		if Erb100.Cmp(new(big.Int).Sub(pledgedBalance, value)) > 0 {
-			log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type,
-				"error", "the after revocation is less than 700ERB", "blocknumber", evm.Context.BlockNumber.Uint64())
-			return nil, gas, errors.New("the after revocation is less than 700ERB")
+		if Erb100.Cmp(new(big.Int).Sub(pledgedBalance, value)) != 0 {
+			if Erb100.Cmp(new(big.Int).Sub(pledgedBalance, value)) > 0 {
+				log.Error("HandleNFT(), CancelPledgedToken", "wormholes.Type", wormholes.Type,
+					"error", "the after revocation is less than 700ERB", "blocknumber", evm.Context.BlockNumber.Uint64())
+				return nil, gas, errors.New("the after revocation is less than 700ERB")
+			}
 		}
 		if big.NewInt(CancelDayPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, stakerpledged.BlockNumber)) <= 0 {
 			log.Info("HandleNFT(), CancelPledgedToken, cancel all", "wormholes.Type", wormholes.Type,
