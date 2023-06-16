@@ -3139,6 +3139,21 @@ func (s *StateDB) GetPledgedBalance(addr common.Address) *big.Int {
 	return common.Big0
 }
 
+func (s *StateDB) GetStakerPledgedBalance(from, addr common.Address) *big.Int {
+	stateObject := s.GetOrNewAccountStateObject(from)
+	if stateObject != nil {
+		for _, value := range stateObject.data.Worm.StakerExtension.StakerExtensions {
+			if value.Addr == addr {
+				if value.Balance == nil {
+					return common.Big0
+				}
+				return value.Balance
+			}
+		}
+	}
+	return common.Big0
+}
+
 func (s *StateDB) GetAccountInfo(addr common.Address) Account {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {

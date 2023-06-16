@@ -123,6 +123,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		IsApprovedOne:                      IsApprovedOne,
 		IsApprovedForAll:                   IsApprovedForAll,
 		VerifyPledgedBalance:               VerifyPledgedBalance,
+		VerifyStakerPledgedBalance:         VerifyStakerPledgedBalance,
 		InjectOfficialNFT:                  InjectOfficialNFT,
 		BuyNFTBySellerOrExchanger:          BuyNFTBySellerOrExchanger,
 		BuyNFTByBuyer:                      BuyNFTByBuyer,
@@ -478,6 +479,10 @@ func IsApprovedForAll(db vm.StateDB, ownerAddr common.Address, addr common.Addre
 // This does not take the necessary gas in to account to make the transfer valid.
 func VerifyPledgedBalance(db vm.StateDB, addr common.Address, amount *big.Int) bool {
 	return db.GetPledgedBalance(addr).Cmp(amount) >= 0
+}
+
+func VerifyStakerPledgedBalance(db vm.StateDB, from common.Address, addr common.Address, amount *big.Int) bool {
+	return db.GetStakerPledgedBalance(from, addr).Cmp(amount) >= 0
 }
 
 func InjectOfficialNFT(db vm.StateDB, dir string, startIndex *big.Int, number uint64, royalty uint16, creator string) {

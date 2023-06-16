@@ -118,6 +118,7 @@ type StateDB interface {
 	IsApprovedOne(common.Address, common.Address) bool
 	IsApprovedForAll(common.Address, common.Address) bool
 	GetPledgedBalance(common.Address) *big.Int
+	GetStakerPledgedBalance(common.Address, common.Address) *big.Int
 	InjectOfficialNFT(string, *big.Int, uint64, uint16, string)
 	AddExchangerToken(common.Address, *big.Int)
 	ModifyOpenExchangerTime(common.Address, *big.Int)

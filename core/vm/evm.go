@@ -102,6 +102,7 @@ type (
 	IsApprovedOneFunc                      func(StateDB, common.Address, common.Address) bool
 	IsApprovedForAllFunc                   func(StateDB, common.Address, common.Address) bool
 	VerifyPledgedBalanceFunc               func(StateDB, common.Address, *big.Int) bool
+	VerifyStakerPledgedBalanceFunc         func(StateDB, common.Address, common.Address, *big.Int) bool
 	InjectOfficialNFTFunc                  func(StateDB, string, *big.Int, uint64, uint16, string)
 	BuyNFTBySellerOrExchangerFunc          func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
 	BuyNFTByBuyerFunc                      func(StateDB, *big.Int, common.Address, common.Address, *types.Wormholes, *big.Int) error
@@ -204,6 +205,7 @@ type BlockContext struct {
 	IsApprovedOne                      IsApprovedOneFunc
 	IsApprovedForAll                   IsApprovedForAllFunc
 	VerifyPledgedBalance               VerifyPledgedBalanceFunc
+	VerifyStakerPledgedBalance         VerifyStakerPledgedBalanceFunc
 	InjectOfficialNFT                  InjectOfficialNFTFunc
 	BuyNFTBySellerOrExchanger          BuyNFTBySellerOrExchangerFunc
 	BuyNFTByBuyer                      BuyNFTByBuyerFunc
@@ -443,13 +445,13 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if nftTransaction {
 		switch wormholes.Type {
 		case 10:
-			pledgedBalance := evm.StateDB.GetPledgedBalance(caller.Address())
+			pledgedBalance := evm.StateDB.GetStakerPledgedBalance(caller.Address(), addr)
 			if pledgedBalance.Cmp(value) != 0 {
 				// cancel partial pledged balance
 				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-				Erb100000 := big.NewInt(70000)
-				Erb100000.Mul(Erb100000, baseErb)
-				if value.Sign() > 0 && !evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), new(big.Int).Add(value, Erb100000)) {
+				Erb1000 := big.NewInt(700)
+				Erb1000.Mul(Erb1000, baseErb)
+				if value.Sign() > 0 && !evm.Context.VerifyStakerPledgedBalance(evm.StateDB, caller.Address(), addr, new(big.Int).Add(value, Erb1000)) {
 					return nil, gas, ErrInsufficientBalance
 				}
 			}
