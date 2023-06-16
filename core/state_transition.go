@@ -410,16 +410,16 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	if err == nil {
 		switch wormholes.Type {
 		case 10:
-			pledgedBalance := st.state.GetStakerPledgedBalance(msg.From(), *msg.To())
-			if pledgedBalance.Cmp(msg.Value()) != 0 {
-				// cancel partial pledged balance
-				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-				Erb1000 := big.NewInt(700)
-				Erb1000.Mul(Erb1000, baseErb)
-				if msg.Value().Sign() > 0 && !st.evm.Context.VerifyStakerPledgedBalance(st.state, msg.From(), *msg.To(), new(big.Int).Add(msg.Value(), Erb1000)) {
-					return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
-				}
-			}
+			//pledgedBalance := st.state.GetStakerPledgedBalance(msg.From(), *msg.To())
+			//if pledgedBalance.Cmp(msg.Value()) != 0 {
+			//	// cancel partial pledged balance
+			//	baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+			//	Erb1000 := big.NewInt(700)
+			//	Erb1000.Mul(Erb1000, baseErb)
+			//	if msg.Value().Sign() > 0 && !st.evm.Context.VerifyStakerPledgedBalance(st.state, msg.From(), *msg.To(), new(big.Int).Add(msg.Value(), Erb1000)) {
+			//		return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+			//	}
+			//}
 
 		case 14:
 			// recover buyer address
