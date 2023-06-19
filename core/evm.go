@@ -94,9 +94,13 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		CancelNFTApproveAddress: CancelNFTApproveAddress,
 		ExchangeNFTToCurrency:   ExchangeNFTToCurrency,
 		PledgeToken:             PledgeToken,
+		StakerPledge:            StakerPledge,
 		GetPledgedTime:          GetPledgedTime,
+		GetStakerPledged:        GetStakerPledged,
 		MinerConsign:            MinerConsign,
+		MinerBecome:             MinerBecome,
 		CancelPledgedToken:      CancelPledgedToken,
+		CancelStakerPledge:      CancelStakerPledge,
 		OpenExchanger:           OpenExchanger,
 		CloseExchanger:          CloseExchanger,
 		GetExchangerFlag:        GetExchangerFlag,
@@ -119,6 +123,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		IsApprovedOne:                      IsApprovedOne,
 		IsApprovedForAll:                   IsApprovedForAll,
 		VerifyPledgedBalance:               VerifyPledgedBalance,
+		VerifyStakerPledgedBalance:         VerifyStakerPledgedBalance,
 		InjectOfficialNFT:                  InjectOfficialNFT,
 		BuyNFTBySellerOrExchanger:          BuyNFTBySellerOrExchanger,
 		BuyNFTByBuyer:                      BuyNFTByBuyer,
@@ -322,8 +327,15 @@ func PledgeToken(db vm.StateDB, address common.Address, amount *big.Int, wh *typ
 	return db.PledgeToken(address, amount, common.HexToAddress(wh.ProxyAddress), blocknumber)
 }
 
-func GetPledgedTime(db vm.StateDB, addr common.Address) *big.Int {
-	return db.GetPledgedTime(addr)
+func StakerPledge(db vm.StateDB, from, address common.Address, amount *big.Int, blocknumber *big.Int, wh *types.Wormholes) error {
+	return db.StakerPledge(from, address, amount, blocknumber, wh.ProxyAddress)
+}
+
+func GetPledgedTime(db vm.StateDB, from, addr common.Address) *big.Int {
+	return db.GetPledgedTime(from, addr)
+}
+func GetStakerPledged(db vm.StateDB, from, addr common.Address) *types.StakerExtension {
+	return db.GetStakerPledged(from, addr)
 }
 
 func MinerConsign(db vm.StateDB, address common.Address, wh *types.Wormholes) error {
@@ -336,9 +348,29 @@ func MinerConsign(db vm.StateDB, address common.Address, wh *types.Wormholes) er
 	}
 	return db.MinerConsign(address, common.HexToAddress(wh.ProxyAddress))
 }
+
+func MinerBecome(db vm.StateDB, address common.Address, wh *types.Wormholes) error {
+	msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
+	addr, err := RecoverAddress(msg, wh.ProxySign)
+	log.Info("MinerBecome", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
+	if err != nil {
+		log.Error("MinerBecome()", "Get public key error", err)
+		return err
+	}
+	if wh.ProxyAddress != addr.Hex() {
+		log.Error("MinerBecome()", "Get public key error", err)
+		return errors.New("MinerBecome recover address proxy Address != address")
+	}
+	return db.MinerBecome(address, common.HexToAddress(wh.ProxyAddress))
+}
+
 func CancelPledgedToken(db vm.StateDB, address common.Address, amount *big.Int) {
 	db.CancelPledgedToken(address, amount)
 }
+func CancelStakerPledge(db vm.StateDB, from common.Address, address common.Address, amount *big.Int, blocknumber *big.Int) {
+	db.CancelStakerPledge(from, address, amount, blocknumber)
+}
+
 func OpenExchanger(db vm.StateDB,
 	addr common.Address,
 	amount *big.Int,
@@ -448,6 +480,10 @@ func IsApprovedForAll(db vm.StateDB, ownerAddr common.Address, addr common.Addre
 // This does not take the necessary gas in to account to make the transfer valid.
 func VerifyPledgedBalance(db vm.StateDB, addr common.Address, amount *big.Int) bool {
 	return db.GetPledgedBalance(addr).Cmp(amount) >= 0
+}
+
+func VerifyStakerPledgedBalance(db vm.StateDB, from common.Address, addr common.Address, amount *big.Int) bool {
+	return db.GetStakerPledgedBalance(from, addr).Cmp(amount) >= 0
 }
 
 func InjectOfficialNFT(db vm.StateDB, dir string, startIndex *big.Int, number uint64, royalty uint16, creator string) {

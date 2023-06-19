@@ -2669,6 +2669,57 @@ func (s *StateDB) PledgeToken(address common.Address,
 	return nil
 }
 
+//func (s *StateDB) StakerToken(from common.Address, address common.Address, amount *big.Int) error {
+//	stateObject := s.GetOrNewAccountStateObject(address)
+//	fromObject := s.GetOrNewAccountStateObject(from)
+//	if amount == nil {
+//		amount = big.NewInt(0)
+//	}
+//
+//	//Resolving duplicates is delegated
+//	empty := common.Address{}
+//	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+//	validators := validatorStateObject.GetValidators()
+//	for _, v := range validators.Validators {
+//		if v.Proxy != empty && v.Addr != address && v.Proxy == proxy {
+//			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
+//			return errors.New("cannot delegate repeatedly")
+//		}
+//	}
+//
+//	if stateObject != nil {
+//		validatorStateObject.AddValidator(address, amount, proxy)
+//		stateObject.SubBalance(amount)
+//		stateObject.AddPledgedBalance(amount)
+//		stateObject.SetPledgedBlockNumber(blocknumber)
+//	}
+//	return nil
+//}
+
+func (s *StateDB) StakerPledge(from common.Address, address common.Address,
+	amount *big.Int, blocknumber *big.Int, proxy string) error {
+
+	toObject := s.GetOrNewAccountStateObject(address)
+	fromObject := s.GetOrNewAccountStateObject(from)
+	//Resolving duplicates is delegated
+	//validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+
+	if fromObject != nil && toObject != nil {
+		validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+		validatorStateObject.AddValidatorAmount(address, amount)
+
+		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
+		stakerStateObject.AddStaker(from, amount)
+		fromObject.SubBalance(amount)
+		fromObject.SetExchangerInfoflag(true, blocknumber, proxy)
+		fromObject.StakerPledge(address, amount, blocknumber)
+		toObject.AddPledgedBalance(amount)
+		fromObject.SetPledgedBlockNumber(blocknumber)
+
+	}
+	return nil
+}
+
 func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) error {
 	stateObject := s.GetOrNewAccountStateObject(address)
 	empty := common.Address{}
@@ -2700,6 +2751,32 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 	return nil
 }
 
+func (s *StateDB) MinerBecome(address common.Address, proxy common.Address) error {
+	stateObject := s.GetOrNewAccountStateObject(address)
+	empty := common.Address{}
+
+	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+	validators := validatorStateObject.GetValidators()
+	for _, v := range validators.Validators {
+		if address == v.Addr {
+			log.Info("MinerBecome", "err", "already pledge")
+			return errors.New("already pledge")
+		}
+	}
+
+	//Resolving duplicates is delegated
+	for _, v := range validators.Validators {
+		if v.Proxy != empty && v.Proxy == proxy {
+			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
+			return errors.New("cannot delegate repeatedly")
+		}
+	}
+	if stateObject != nil {
+		validatorStateObject.AddValidator(address, stateObject.PledgedBalance(), proxy)
+	}
+	return nil
+}
+
 // - cancel pledged token
 // ````
 // {
@@ -2714,6 +2791,45 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 //version:0
 //type:7
 func (s *StateDB) CancelPledgedToken(address common.Address, amount *big.Int) {
+	stateObject := s.GetOrNewAccountStateObject(address)
+	if stateObject != nil {
+		validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+		validatorStateObject.RemoveValidator(address, amount)
+
+		stateObject.SubPledgedBalance(amount)
+		stateObject.AddBalance(amount)
+	}
+}
+
+func (s *StateDB) CancelStakerPledge(from, address common.Address, amount *big.Int, blocknumber *big.Int) {
+
+	toObject := s.GetOrNewAccountStateObject(address)
+	fromObject := s.GetOrNewAccountStateObject(from)
+
+	if fromObject != nil && toObject != nil {
+		validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+		validatorStateObject.RemoveValidator(address, amount)
+
+		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
+		stakerStateObject.RemoveStaker(from, amount)
+
+		Erb100 := big.NewInt(700)
+		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+		Erb100.Mul(Erb100, baseErb)
+
+		pledgedBalance := s.GetStakerPledgedBalance(from, address)
+		if Erb100.Cmp(new(big.Int).Sub(pledgedBalance, amount)) > 0 {
+			fromObject.SetExchangerInfoflag(false, blocknumber, "")
+		}
+		fromObject.RemoveStakerPledge(address, amount)
+		toObject.SubPledgedBalance(amount)
+		fromObject.AddBalance(amount)
+
+	}
+
+}
+
+func (s *StateDB) CancelStakerPledged(address common.Address, amount *big.Int) {
 	stateObject := s.GetOrNewAccountStateObject(address)
 	if stateObject != nil {
 		validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
@@ -2844,12 +2960,30 @@ func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 		""
 }
 
-func (s *StateDB) GetPledgedTime(addr common.Address) *big.Int {
-	stateObject := s.GetOrNewAccountStateObject(addr)
+func (s *StateDB) GetPledgedTime(from, addr common.Address) *big.Int {
+	stateObject := s.GetOrNewAccountStateObject(from)
 	if stateObject != nil {
-		return new(big.Int).Set(stateObject.PledgedBlockNumber())
+		return new(big.Int).Set(stateObject.StakerPledgedBlockNumber(addr))
 	}
 	return common.Big0
+}
+
+func (s *StateDB) GetStakerPledged(from, addr common.Address) *types.StakerExtension {
+	stateObject := s.GetOrNewAccountStateObject(from)
+	if stateObject != nil {
+		for _, value := range stateObject.data.Worm.StakerExtension.StakerExtensions {
+			if value.Addr == addr {
+				if value.Balance == nil {
+					value.Balance = big.NewInt(0)
+				}
+				if value.BlockNumber == nil {
+					value.BlockNumber = big.NewInt(0)
+				}
+				return value
+			}
+		}
+	}
+	return &types.StakerExtension{BlockNumber: common.Big0, Balance: common.Big0}
 }
 
 func (s *StateDB) GetExchangerFlag(addr common.Address) bool {
@@ -3041,6 +3175,21 @@ func (s *StateDB) GetPledgedBalance(addr common.Address) *big.Int {
 			return pledgedBalance
 		} else {
 			return common.Big0
+		}
+	}
+	return common.Big0
+}
+
+func (s *StateDB) GetStakerPledgedBalance(from, addr common.Address) *big.Int {
+	stateObject := s.GetOrNewAccountStateObject(from)
+	if stateObject != nil {
+		for _, value := range stateObject.data.Worm.StakerExtension.StakerExtensions {
+			if value.Addr == addr {
+				if value.Balance == nil {
+					return common.Big0
+				}
+				return value.Balance
+			}
 		}
 	}
 	return common.Big0
@@ -3295,6 +3444,13 @@ func (s *StateDB) SubValidatorCoefficient(addr common.Address, coe uint8) {
 	}
 }
 
+func (s *StateDB) RemoveValidatorCoefficient(addr common.Address) {
+	stateObject := s.GetOrNewAccountStateObject(addr)
+	if stateObject != nil {
+		stateObject.RemoveCoefficient()
+	}
+}
+
 // GetValidatorCoefficient retrieves the ValidatorCoefficient from the given address or 0 if object not found
 func (s *StateDB) GetValidatorCoefficient(addr common.Address) uint8 {
 	stateObject := s.GetOrNewAccountStateObject(addr)
@@ -3461,5 +3617,21 @@ func (s *StateDB) RemoveDividendAddrsAll(addr common.Address) {
 	dividendStateObject := s.GetOrNewStakerStateObject(addr)
 	if dividendStateObject != nil {
 		dividendStateObject.RemoveDividendAddrsAll()
+	}
+}
+
+func (s *StateDB) GetLockSNFTFlag(addr common.Address) bool {
+	accountStateObject := s.GetOrNewAccountStateObject(addr)
+	if accountStateObject != nil {
+		return accountStateObject.GetLockSNFTFlag()
+	}
+
+	return false
+}
+
+func (s *StateDB) ChangeLockSNFTFlag(addr common.Address, flag bool) {
+	accountStateObject := s.GetOrNewAccountStateObject(addr)
+	if accountStateObject != nil {
+		accountStateObject.SetLockSNFTFlag(flag)
 	}
 }

@@ -879,6 +879,69 @@ func (s *stateObject) setExchangerInfo(exchangerflag bool,
 	s.data.Worm.SNFTAgentRecipient = agentrecipient
 }
 
+func (s *stateObject) SetExchangerInfoflag(exchangerflag bool, blocknumber *big.Int, proxy string) {
+	openExchanger := openExchangerChange{
+		address:               &s.address,
+		oldExchangerFlag:      s.data.Worm.ExchangerFlag,
+		oldFeeRate:            s.data.Worm.FeeRate,
+		oldExchangerName:      s.data.Worm.ExchangerName,
+		oldExchangerURL:       s.data.Worm.ExchangerURL,
+		oldSNFTAgentRecipient: s.data.Worm.SNFTAgentRecipient,
+		oldBlockNumber:        s.data.Worm.BlockNumber,
+	}
+	if s.data.Worm.BlockNumber == nil {
+		openExchanger.oldBlockNumber = nil
+	} else {
+		openExchanger.oldBlockNumber = new(big.Int).Set(s.data.Worm.BlockNumber)
+	}
+	emptyAddress := common.Address{}
+	var agentRecipient common.Address
+	if proxy == "" && s.GetSNFTAgentRecipient() == emptyAddress {
+		agentRecipient = s.address
+	} else {
+		agentRecipient = common.HexToAddress(proxy)
+	}
+	s.db.journal.append(openExchanger)
+	s.setExchangerInfoflag(exchangerflag, blocknumber, agentRecipient)
+}
+
+func (s *stateObject) setExchangerInfoflag(exchangerflag bool, blocknumber *big.Int, proxy common.Address) {
+	s.data.Worm.ExchangerFlag = exchangerflag
+	if exchangerflag {
+		s.data.Worm.BlockNumber = blocknumber
+	} else {
+		s.data.Worm.BlockNumber = common.Big0
+	}
+
+	s.data.Worm.ExchangerFlag = exchangerflag
+	s.data.Worm.BlockNumber = blocknumber
+	s.data.Worm.SNFTAgentRecipient = proxy
+
+}
+
+func (s *stateObject) StakerPledge(addr common.Address, amount *big.Int, blocknumber *big.Int) {
+	newStakers := s.data.Worm.StakerExtension.DeepCopy()
+	newStakers.AddStakerPledge(addr, amount, blocknumber)
+	s.SetStakerPledge(newStakers)
+}
+
+func (s *stateObject) RemoveStakerPledge(addr common.Address, amount *big.Int) {
+	newStakers := s.data.Worm.StakerExtension.DeepCopy()
+	newStakers.RemoveStakerPledge(addr, amount)
+	s.SetStakerPledge(newStakers)
+}
+
+func (s *stateObject) SetStakerPledge(newStakers *types.StakersExtensionList) {
+	s.db.journal.append(stakerExtensionChange{
+		account:            &s.address,
+		oldStakerExtension: s.data.Worm.StakerExtension})
+	s.setStakerPledge(newStakers)
+}
+
+func (s *stateObject) setStakerPledge(stakers *types.StakersExtensionList) {
+	s.data.Worm.StakerExtension = *stakers
+}
+
 func (s *stateObject) CleanNFT() {
 	//if s.data.NFTPledgedBlockNumber == nil {
 	//	s.data.NFTPledgedBlockNumber = big.NewInt(0)
@@ -1151,6 +1214,19 @@ func (s *stateObject) PledgedBlockNumber() *big.Int {
 	return new(big.Int).Set(s.data.Worm.PledgedBlockNumber)
 }
 
+func (s *stateObject) StakerPledgedBlockNumber(addr common.Address) *big.Int {
+	if s.data.Worm.PledgedBlockNumber == nil {
+		return big.NewInt(0)
+	}
+	for _, value := range s.data.Worm.StakerExtension.StakerExtensions {
+		if value.Addr == addr {
+			return new(big.Int).Set(value.BlockNumber)
+		}
+	}
+	return big.NewInt(0)
+
+}
+
 // AddPledgedBalance adds amount to s's pledged balance.
 // It is used to add funds to the destination account of a transfer.
 func (s *stateObject) AddPledgedBalance(amount *big.Int) {
@@ -1253,6 +1329,12 @@ func (s *stateObject) SubCoefficient(coe uint8) {
 		}
 	}
 
+	s.SetCoefficient(result)
+}
+
+func (s *stateObject) RemoveCoefficient() {
+	var result uint8
+	result = 0
 	s.SetCoefficient(result)
 }
 
@@ -1494,6 +1576,16 @@ func (s *stateObject) SetOfficialMint(amount *big.Int) {
 
 func (s *stateObject) setOfficialMint(amount *big.Int) {
 	s.data.Staker.Mint.OfficialMint = amount
+}
+func (s *stateObject) AddValidatorAmount(addr common.Address, balance *big.Int) bool {
+	newValidators := s.data.Staker.Validators.DeepCopy()
+	ok := newValidators.AddValidatorAmount(addr, balance)
+	if !ok {
+		return false
+	}
+
+	s.SetValidators(newValidators)
+	return true
 }
 
 func (s *stateObject) AddValidator(addr common.Address, balance *big.Int, proxy common.Address) bool {
@@ -1757,4 +1849,21 @@ func (s *stateObject) SetDividendAddrs(snftAddrs []common.Address) {
 
 func (s *stateObject) setDividendAddrs(snftAddrs []common.Address) {
 	s.data.Staker.DividendAddrs = snftAddrs[:]
+}
+
+func (s *stateObject) GetLockSNFTFlag() bool {
+	return s.data.Worm.LockSNFTFlag
+}
+
+func (s *stateObject) SetLockSNFTFlag(flag bool) {
+	s.db.journal.append(lockSNFTFlagChange{
+		account:         &s.address,
+		oldLockSNFTFlag: s.data.Worm.LockSNFTFlag,
+	})
+
+	s.setLockSNFTFlag(flag)
+}
+
+func (s *stateObject) setLockSNFTFlag(flag bool) {
+	s.data.Worm.LockSNFTFlag = flag
 }

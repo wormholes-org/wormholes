@@ -94,25 +94,46 @@ func (vl *ValidatorList) AddValidator(addr common.Address, balance *big.Int, pro
 	return true
 }
 
-func (vl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) bool {
-	for i, v := range vl.Validators {
-		if v.Address() == addr {
-			if v.Balance.Cmp(balance) > 0 {
-				v.Balance.Sub(v.Balance, balance)
-				sort.Sort(vl)
-				//vl.CalculateAddressRange(addr, balance)
-				return true
-			} else if v.Balance.Cmp(balance) == 0 {
-				v.Balance.Sub(v.Balance, balance)
-				vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
-				//vl.CalculateAddressRange(addr, balance)
-				return true
-			}
-			vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
-			//vl.CalculateAddressRange(addr, balance)
+func (vl *ValidatorList) AddValidatorAmount(addr common.Address, balance *big.Int) bool {
+	for _, v := range vl.Validators {
+		if v.Address() == addr /*&& v.Proxy.String() == "0x0000000000000000000000000000000000000000" */ {
+			// Usage scenarios: pledge, additional pledge, delegation
+			v.Balance.Add(v.Balance, balance)
+			sort.Sort(vl)
 			return true
 		}
 	}
+	return true
+}
+
+func (vl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) bool {
+	for i, v := range vl.Validators {
+		if v.Address() == addr {
+			//validator := v.Balance
+			//if v.Balance.Cmp(balance) > 0 {
+			//v.Balance.Sub(v.Balance, balance)
+			//sort.Sort(vl)
+			//return true
+			//} else if v.Balance.Cmp(balance) == 0 {
+			//v.Balance.Sub(v.Balance, balance)
+			//vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
+			//return true
+			//}
+
+			Erb100000 := big.NewInt(70000)
+			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+			Erb100000.Mul(Erb100000, baseErb)
+			v.Balance.Sub(v.Balance, balance)
+			if v.Balance.Cmp(Erb100000) < 0 {
+				log.Info("validator balance =", v.Balance.String())
+				vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
+			}
+			sort.Sort(vl)
+
+			return true
+		}
+	}
+
 	return false
 }
 

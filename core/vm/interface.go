@@ -88,9 +88,13 @@ type StateDB interface {
 	CancelNFTApproveAddress(common.Address, common.Address)
 	ExchangeNFTToCurrency(common.Address, common.Address, *big.Int, int)
 	PledgeToken(common.Address, *big.Int, common.Address, *big.Int) error
-	GetPledgedTime(common.Address) *big.Int
+	StakerPledge(common.Address, common.Address, *big.Int, *big.Int, string) error
+	GetPledgedTime(common.Address, common.Address) *big.Int
+	GetStakerPledged(common.Address, common.Address) *types.StakerExtension
 	MinerConsign(common.Address, common.Address) error
+	MinerBecome(common.Address, common.Address) error
 	CancelPledgedToken(common.Address, *big.Int)
+	CancelStakerPledge(common.Address, common.Address, *big.Int, *big.Int)
 	OpenExchanger(common.Address, *big.Int, *big.Int, uint16, string, string, common.Address)
 	CloseExchanger(common.Address, *big.Int)
 	GetExchangerFlag(common.Address) bool
@@ -114,6 +118,7 @@ type StateDB interface {
 	IsApprovedOne(common.Address, common.Address) bool
 	IsApprovedForAll(common.Address, common.Address) bool
 	GetPledgedBalance(common.Address) *big.Int
+	GetStakerPledgedBalance(common.Address, common.Address) *big.Int
 	InjectOfficialNFT(string, *big.Int, uint64, uint16, string)
 	AddExchangerToken(common.Address, *big.Int)
 	ModifyOpenExchangerTime(common.Address, *big.Int)
@@ -126,6 +131,7 @@ type StateDB interface {
 	AddVoteWeight(common.Address, *big.Int)
 	AddValidatorCoefficient(common.Address, uint8)
 	SubValidatorCoefficient(common.Address, uint8)
+	RemoveValidatorCoefficient(common.Address)
 	GetValidatorCoefficient(common.Address) uint8
 	NextIndex() *big.Int
 	//PledgeNFT(common.Address, *big.Int)

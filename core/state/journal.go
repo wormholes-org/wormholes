@@ -254,6 +254,11 @@ type (
 		oldStakers types.StakerList
 	}
 
+	stakerExtensionChange struct {
+		account            *common.Address
+		oldStakerExtension types.StakersExtensionList
+	}
+
 	snftsChange struct {
 		account  *common.Address
 		oldSnfts types.InjectedOfficialNFTList
@@ -282,6 +287,11 @@ type (
 	dividendAddrsChange struct {
 		account          *common.Address
 		oldDividendAddrs []common.Address
+	}
+
+	lockSNFTFlagChange struct {
+		account         *common.Address
+		oldLockSNFTFlag bool
 	}
 )
 
@@ -586,6 +596,14 @@ func (ch stakersChange) dirtied() *common.Address {
 	return ch.account
 }
 
+func (ch stakerExtensionChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setStakerPledge(&ch.oldStakerExtension)
+}
+
+func (ch stakerExtensionChange) dirtied() *common.Address {
+	return ch.account
+}
+
 func (ch snftsChange) revert(s *StateDB) {
 	s.getStateObject(*ch.account).setSnfts(&ch.oldSnfts)
 }
@@ -636,5 +654,13 @@ func (ch dividendAddrsChange) revert(s *StateDB) {
 }
 
 func (ch dividendAddrsChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch lockSNFTFlagChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setLockSNFTFlag(ch.oldLockSNFTFlag)
+}
+
+func (ch lockSNFTFlagChange) dirtied() *common.Address {
 	return ch.account
 }
