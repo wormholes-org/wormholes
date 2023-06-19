@@ -109,26 +109,27 @@ func (vl *ValidatorList) AddValidatorAmount(addr common.Address, balance *big.In
 func (vl *ValidatorList) RemoveValidator(addr common.Address, balance *big.Int) bool {
 	for i, v := range vl.Validators {
 		if v.Address() == addr {
-			validator := v.Balance
-			log.Info("validator balance=", validator.String(), "amount = ", balance.String())
-			if v.Balance.Cmp(balance) > 0 {
-				v.Balance.Sub(v.Balance, balance)
-				//sort.Sort(vl)
-				//return true
-			} else if v.Balance.Cmp(balance) == 0 {
-				v.Balance.Sub(v.Balance, balance)
-				//vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
-				//return true
-			}
+			//validator := v.Balance
+			//if v.Balance.Cmp(balance) > 0 {
+			//v.Balance.Sub(v.Balance, balance)
+			//sort.Sort(vl)
+			//return true
+			//} else if v.Balance.Cmp(balance) == 0 {
+			//v.Balance.Sub(v.Balance, balance)
+			//vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
+			//return true
+			//}
 			Erb100000 := big.NewInt(70000)
 			baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
 			Erb100000.Mul(Erb100000, baseErb)
-			if validator.Cmp(new(big.Int).Add(Erb100000, balance)) < 0 {
+			if v.Balance.Cmp(new(big.Int).Add(Erb100000, balance)) < 0 {
 				vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
 			}
+			v.Balance.Sub(v.Balance, balance)
 			sort.Sort(vl)
 			//vl.Validators = append(vl.Validators[:i], vl.Validators[i+1:]...)
 			//vl.CalculateAddressRange(addr, balance)
+
 			return true
 		}
 	}
