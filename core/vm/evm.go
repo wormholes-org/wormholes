@@ -41,14 +41,6 @@ import (
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 
-// const CancelDayPledgedInterval = 720 * 24 // blockNumber of per hour * 24h
-const CancelDayPledgedInterval = 5 // blockNumber of per hour * 24h
-// const CancelPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
-const CancelPledgedInterval = 3 * 24 // for test
-// const CloseExchangerInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
-const CloseExchangerInterval = 3 * 24 // for test
-// const CancelNFTPledgedInterval = 365 * 720 * 24 // day * blockNumber of per hour * 24h
-const CancelNFTPledgedInterval = 3 * 24 // for test
 const VALIDATOR_COEFFICIENT = 70
 
 type (
@@ -1435,7 +1427,7 @@ func (evm *EVM) HandleNFT(
 				return nil, gas, errors.New("the after revocation is less than 700ERB")
 			}
 		}
-		if big.NewInt(CancelDayPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, stakerpledged.BlockNumber)) <= 0 {
+		if big.NewInt(types.CancelDayPledgedInterval).Cmp(new(big.Int).Sub(evm.Context.BlockNumber, stakerpledged.BlockNumber)) <= 0 {
 			log.Info("HandleNFT(), CancelPledgedToken, cancel all", "wormholes.Type", wormholes.Type,
 				"blocknumber", evm.Context.BlockNumber.Uint64())
 			Erb100000 := big.NewInt(70000)

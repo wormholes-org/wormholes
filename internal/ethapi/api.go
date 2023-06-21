@@ -1011,15 +1011,14 @@ func (s *PublicBlockChainAPI) IsOfficialNFT(nftAddress common.Address) bool {
 	return false
 }
 
-var ExchangePeriod = uint64(6160) // 365 * 720 * 24 * 4 / 4096
 func (s *PublicBlockChainAPI) GetExchangAmount(nftaddress common.Address, initamount *big.Int) *big.Int {
 	nftInt := new(big.Int).SetBytes(nftaddress.Bytes())
 	baseInt, _ := big.NewInt(0).SetString("8000000000000000000000000000000000000000", 16)
 	nftInt.Sub(nftInt, baseInt)
 	//nftInt.Add(nftInt, big.NewInt(1))
 	nftInt.Div(nftInt, big.NewInt(4096))
-	times := nftInt.Uint64() / ExchangePeriod
-	rewardratio := gomath.Pow(0.86, float64(times))
+	times := nftInt.Uint64() / types.ExchangePeriod
+	rewardratio := gomath.Pow(types.DeflationRate, float64(times))
 	result := big.NewInt(0)
 	new(big.Float).Mul(big.NewFloat(rewardratio), new(big.Float).SetInt(initamount)).Int(result)
 
@@ -1031,16 +1030,16 @@ func (s *PublicBlockChainAPI) CalculateExchangeAmount(level uint8, mergenumber u
 	nftNumber := big.NewInt(int64(mergenumber))
 	switch {
 	case level == 0:
-		radix, _ := big.NewInt(0).SetString("30000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString(types.SNFTL0, 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	case level == 1:
-		radix, _ := big.NewInt(0).SetString("140000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString(types.SNFTL0, 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	case level == 2:
-		radix, _ := big.NewInt(0).SetString("600000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString(types.SNFTL0, 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	default:
-		radix, _ := big.NewInt(0).SetString("1450000000000000000", 10)
+		radix, _ := big.NewInt(0).SetString(types.SNFTL0, 10)
 		return big.NewInt(0).Mul(nftNumber, radix)
 	}
 }
@@ -2096,7 +2095,7 @@ func (w *PublicWormholesAPI) GetBlockBeneficiaryAddressByNumber(ctx context.Cont
 	exchangers := istanbulExtra.ExchangerAddr
 
 	//beneficiaryAddrs := append(istanbulExtra.ExchangerAddr, istanbulExtra.ValidatorAddr...)
-	rewardAmount := state.GetRewardAmount(header.Number.Uint64(), big.NewInt(1.6e+17))
+	rewardAmount := state.GetRewardAmount(header.Number.Uint64(), types.DREBlockReward)
 	for _, owner := range validators {
 
 		beneficiaryAddress := BeneficiaryAddress{

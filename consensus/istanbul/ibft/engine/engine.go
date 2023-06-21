@@ -582,7 +582,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		}
 		log.Info("Engine: Prepare : drop", "no", header.Number.Uint64(), "randomHash", randomHash.Hex(), "header.hash", header.Hash().Hex())
 
-		benifitedStakers, err = stakeList.SelectRandom4Address(4, randomHash.Bytes())
+		benifitedStakers, err = stakeList.SelectRandom4Address(types.StakerRewardNum, randomHash.Bytes())
 		if err != nil {
 			log.Error("Engine: Prepare", "SelectRandom4Address err", err, "no", c.CurrentHeader().Number.Uint64())
 			return err
@@ -922,7 +922,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 		// modify for dividend of snft level 3
 		state.AddBalance(types.PreDividendAmountAddress, types.DividendAmountEachBlock)
-		state.AddBalance(types.VoteContractAddress, types.VoteAmountEachBlock)
+		//state.AddBalance(types.VoteContractAddress, types.VoteAmountEachBlock)
 		if header.Number.Uint64()%types.DividendBlockInterval == 0 {
 			//first, remove the data of last week
 			lastDividendAmount := state.GetBalance(types.DividendAmountAddress)
@@ -1006,7 +1006,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 
 		// modify for dividend of snft level 3
 		state.AddBalance(types.PreDividendAmountAddress, types.DividendAmountEachBlock)
-		state.AddBalance(types.VoteContractAddress, types.VoteAmountEachBlock)
+		//state.AddBalance(types.VoteContractAddress, types.VoteAmountEachBlock)
 		if header.Number.Uint64()%types.DividendBlockInterval == 0 {
 			//first, remove the data of last week
 			lastDividendAmount := state.GetBalance(types.DividendAmountAddress)

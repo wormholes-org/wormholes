@@ -5,20 +5,6 @@ import (
 	"math/big"
 )
 
-var MintDeepStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000001")
-var ValidatorStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000002")
-var StakerStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000003")
-var SnftInjectedStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000004")
-var NominatedStorageAddress = common.HexToAddress("0x0000000000000000000000000000000000000005")
-var PreDividendAmountAddress = common.HexToAddress("0x0000000000000000000000000000000000000006")
-var DividendAmountEachBlock, _ = new(big.Int).SetString("1000000000000000000", 10)
-var DividendAmountAddress = common.HexToAddress("0x0000000000000000000000000000000000000007")
-var DividendBlockInterval uint64 = 120960 // a week
-var SNFTLevel3AddressList = common.HexToAddress("0x0000000000000000000000000000000000000008")
-var DividendAddressList = common.HexToAddress("0x0000000000000000000000000000000000000009")
-var VoteContractAddress = common.HexToAddress("0x0000000000000000000000000000000000000010")
-var VoteAmountEachBlock, _ = new(big.Int).SetString("1000000000000000000", 10)
-
 type WormholesExtension struct {
 	PledgedBalance     *big.Int
 	PledgedBlockNumber *big.Int
