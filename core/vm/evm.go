@@ -445,15 +445,15 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if nftTransaction {
 		switch wormholes.Type {
 		case 10:
-			//pledgedBalance := evm.StateDB.GetStakerPledgedBalance(caller.Address(), addr)
-			//if pledgedBalance.Cmp(value) != 0 {
-			//	baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-			//	Erb1000 := big.NewInt(700)
-			//	Erb1000.Mul(Erb1000, baseErb)
-			//	if value.Sign() > 0 && !evm.Context.VerifyStakerPledgedBalance(evm.StateDB, caller.Address(), addr, new(big.Int).Add(value, Erb1000)) {
-			//		return nil, gas, ErrInsufficientBalance
-			//	}
-			//}
+			pledgedBalance := evm.StateDB.GetStakerPledgedBalance(caller.Address(), addr)
+			if pledgedBalance.Cmp(value) != 0 {
+				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+				Erb1000 := big.NewInt(700)
+				Erb1000.Mul(Erb1000, baseErb)
+				if value.Sign() > 0 && !evm.Context.VerifyStakerPledgedBalance(evm.StateDB, caller.Address(), addr, new(big.Int).Add(value, Erb1000)) {
+					return nil, gas, ErrInsufficientBalance
+				}
+			}
 
 		case 14:
 			// recover buyer address
