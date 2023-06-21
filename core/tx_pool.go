@@ -628,16 +628,18 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 			pledgedBalance := pool.currentState.GetPledgedBalance(*tx.To())
 			if pledgedBalance.Cmp(tx.Value()) >= 0 {
-				//cancel partial pledged balance
-				//baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-				//Erb100000 := big.NewInt(700)
-				//Erb100000.Mul(Erb100000, baseErb)
-				//if pledgedBalance.Cmp(new(big.Int).Add(tx.Value(), Erb100000)) < 0 {
-				//	return ErrInsufficientFunds
-				//}
 				if pool.currentState.GetStakerPledgedBalance(from, *tx.To()).Cmp(tx.Value()) < 0 {
 					log.Error("validateTx()", "insufficient funds for gas * price + value")
 					return ErrInsufficientFunds
+				}
+				stakerBalance := pool.currentState.GetStakerPledgedBalance(from, *tx.To())
+				if stakerBalance.Cmp(tx.Value()) != 0 {
+					baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+					Erb1000 := big.NewInt(700)
+					Erb1000.Mul(Erb1000, baseErb)
+					if tx.Value().Sign() > 0 && stakerBalance.Cmp(new(big.Int).Add(tx.Value(), Erb1000)) < 0 {
+						return ErrInsufficientFundsForTransfer
+					}
 				}
 			} else {
 				log.Error("validateTx()", "insufficient funds for gas * price + value")
