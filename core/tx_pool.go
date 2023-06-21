@@ -636,9 +636,11 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 				//	return ErrInsufficientFunds
 				//}
 				if pool.currentState.GetStakerPledgedBalance(from, *tx.To()).Cmp(tx.Value()) < 0 {
+					log.Error("validateTx()", "insufficient funds for gas * price + value")
 					return ErrInsufficientFunds
 				}
 			} else {
+				log.Error("validateTx()", "insufficient funds for gas * price + value")
 				return ErrInsufficientFunds
 			}
 

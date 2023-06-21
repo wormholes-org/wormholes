@@ -451,6 +451,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 				Erb1000 := big.NewInt(700)
 				Erb1000.Mul(Erb1000, baseErb)
 				if value.Sign() > 0 && !evm.Context.VerifyStakerPledgedBalance(evm.StateDB, caller.Address(), addr, new(big.Int).Add(value, Erb1000)) {
+					log.Error("Call()", "insufficient balance for transfer")
 					return nil, gas, ErrInsufficientBalance
 				}
 			}
