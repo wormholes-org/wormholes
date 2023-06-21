@@ -78,10 +78,13 @@ type TxPool struct {
 //
 // Send instructs backend to forward new transactions
 // NewHead notifies backend about a new head after processed by the tx pool,
-//  including  mined and rolled back transactions since the last event
+//
+//	including  mined and rolled back transactions since the last event
+//
 // Discard notifies backend about transactions that should be discarded either
-//  because they have been replaced by a re-send or because they have been mined
-//  long ago and no rollback is expected
+//
+//	because they have been replaced by a re-send or because they have been mined
+//	long ago and no rollback is expected
 type TxRelayBackend interface {
 	Send(txs types.Transactions)
 	NewHead(head common.Hash, mined []common.Hash, rollback []common.Hash)
@@ -386,14 +389,23 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 			if currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
 				return core.ErrInsufficientFunds
 			}
-
-			pledgedBalance := currentState.GetPledgedBalance(from)
+			//pledgedBalance := currentState.GetPledgedBalance(from)
+			//if pledgedBalance.Cmp(tx.Value()) != 0 {
+			//	// cancel partial pledged balance
+			//	baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
+			//	Erb100000 := big.NewInt(70000)
+			//	Erb100000.Mul(Erb100000, baseErb)
+			//	if pledgedBalance.Cmp(new(big.Int).Add(tx.Value(), Erb100000)) < 0 {
+			//		return core.ErrInsufficientFunds
+			//	}
+			//}
+			pledgedBalance := currentState.GetStakerPledgedBalance(from, *tx.To())
 			if pledgedBalance.Cmp(tx.Value()) != 0 {
 				// cancel partial pledged balance
 				baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-				Erb100000 := big.NewInt(70000)
-				Erb100000.Mul(Erb100000, baseErb)
-				if pledgedBalance.Cmp(new(big.Int).Add(tx.Value(), Erb100000)) < 0 {
+				Erb1000 := big.NewInt(700)
+				Erb1000.Mul(Erb1000, baseErb)
+				if pledgedBalance.Cmp(new(big.Int).Add(tx.Value(), Erb1000)) < 0 {
 					return core.ErrInsufficientFunds
 				}
 			}
