@@ -1515,7 +1515,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 
 				case 27:
 
-				//case 28:
+				case 28:
 
 				default:
 					if args.Value.ToInt().Cmp(available) >= 0 {
