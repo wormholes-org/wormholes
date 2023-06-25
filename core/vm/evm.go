@@ -1338,7 +1338,7 @@ func (evm *EVM) HandleNFT(
 		Erb100.Mul(Erb100, baseErb)
 
 		stakerpledged := evm.Context.GetStakerPledged(evm.StateDB, caller.Address(), addr)
-		if stakerpledged.Balance == big0 {
+		if stakerpledged.Balance.Cmp(Erb100) < 0 {
 			if value.Cmp(Erb100) < 0 {
 				log.Error("HandleNFT(), StakerPledge", "wormholes.Type", wormholes.Type,
 					"error", ErrNotMoreThan100ERB, "blocknumber", evm.Context.BlockNumber.Uint64())
