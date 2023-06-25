@@ -632,6 +632,9 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 					return errors.New("from pledge balance not more than 700 ERB")
 				}
 			}
+			if pool.currentState.GetBalance(from).Cmp(big.NewInt(0).Add(tx.GasFee(), tx.Value())) < 0 {
+				return ErrInsufficientFunds
+			}
 		case 10:
 			if pool.currentState.GetBalance(from).Cmp(tx.GasFee()) < 0 {
 				return ErrInsufficientFunds
