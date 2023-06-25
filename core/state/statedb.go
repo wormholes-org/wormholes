@@ -3348,8 +3348,8 @@ func (s *StateDB) ElectNominatedOfficialNFT2(blocknumber *big.Int, hash []byte) 
 					StartIndex: new(big.Int).Set(snftStateObject.GetSnfts().MaxIndex()),
 					Number:     types.DefaultNumber,
 					Royalty:    types.DefaultRoyalty,
-					Creator:    nftStateObject.NFTOwner().Hex(),
-					Address:    nftStateObject.NFTOwner(),
+					Creator:    nftStateObject.GetCreator().Hex(),
+					Address:    nftAddress,
 				}
 				snftStateObject.AddInjectedSnfts(injectNFT)
 
