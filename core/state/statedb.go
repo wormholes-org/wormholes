@@ -2704,7 +2704,7 @@ func (s *StateDB) StakerPledge(from common.Address, address common.Address,
 		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
 		stakerStateObject.AddStaker(from, amount)
 		fromObject.SubBalance(amount)
-		fromObject.SetExchangerInfoflag(true, blocknumber, proxy, feerate)
+		fromObject.SetExchangerInfoflag(true, blocknumber, proxy, 100)
 		fromObject.StakerPledge(address, amount, blocknumber)
 		toObject.AddPledgedBalance(amount)
 		fromObject.SetPledgedBlockNumber(blocknumber)
