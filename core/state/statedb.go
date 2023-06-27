@@ -2690,7 +2690,7 @@ func (s *StateDB) PledgeToken(address common.Address,
 //}
 
 func (s *StateDB) StakerPledge(from common.Address, address common.Address,
-	amount *big.Int, blocknumber *big.Int, proxy string, feerate uint16) error {
+	amount *big.Int, blocknumber *big.Int, wh *types.Wormholes) error {
 
 	toObject := s.GetOrNewAccountStateObject(address)
 	fromObject := s.GetOrNewAccountStateObject(from)
@@ -2704,7 +2704,15 @@ func (s *StateDB) StakerPledge(from common.Address, address common.Address,
 		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
 		stakerStateObject.AddStaker(from, amount)
 		fromObject.SubBalance(amount)
-		fromObject.SetExchangerInfoflag(true, blocknumber, proxy, feerate)
+		emptyAddress := common.Address{}
+		var agentRecipient common.Address
+		if wh.ProxyAddress == "" && fromObject.GetSNFTAgentRecipient() == emptyAddress {
+			agentRecipient = fromObject.address
+		} else {
+			agentRecipient = common.HexToAddress(wh.ProxyAddress)
+		}
+		//fromObject.SetExchangerInfoflag(true, blocknumber, proxy, feerate)
+		fromObject.SetExchangerInfo(true, blocknumber, wh.FeeRate, wh.Name, wh.Url, agentRecipient)
 		fromObject.StakerPledge(address, amount, blocknumber)
 		toObject.AddPledgedBalance(amount)
 		fromObject.SetPledgedBlockNumber(blocknumber)
