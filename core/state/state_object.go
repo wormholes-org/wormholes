@@ -879,7 +879,7 @@ func (s *stateObject) setExchangerInfo(exchangerflag bool,
 	s.data.Worm.SNFTAgentRecipient = agentrecipient
 }
 
-func (s *stateObject) SetExchangerInfoflag(exchangerflag bool, blocknumber *big.Int, proxy string) {
+func (s *stateObject) SetExchangerInfoflag(exchangerflag bool, blocknumber *big.Int, proxy string, feerate uint16) {
 	openExchanger := openExchangerChange{
 		address:               &s.address,
 		oldExchangerFlag:      s.data.Worm.ExchangerFlag,
@@ -902,10 +902,10 @@ func (s *stateObject) SetExchangerInfoflag(exchangerflag bool, blocknumber *big.
 		agentRecipient = common.HexToAddress(proxy)
 	}
 	s.db.journal.append(openExchanger)
-	s.setExchangerInfoflag(exchangerflag, blocknumber, agentRecipient)
+	s.setExchangerInfoflag(exchangerflag, blocknumber, agentRecipient, feerate)
 }
 
-func (s *stateObject) setExchangerInfoflag(exchangerflag bool, blocknumber *big.Int, proxy common.Address) {
+func (s *stateObject) setExchangerInfoflag(exchangerflag bool, blocknumber *big.Int, proxy common.Address, feerate uint16) {
 	s.data.Worm.ExchangerFlag = exchangerflag
 	if exchangerflag {
 		s.data.Worm.BlockNumber = blocknumber
@@ -913,6 +913,7 @@ func (s *stateObject) setExchangerInfoflag(exchangerflag bool, blocknumber *big.
 		s.data.Worm.BlockNumber = common.Big0
 	}
 
+	s.data.Worm.FeeRate = feerate
 	s.data.Worm.ExchangerFlag = exchangerflag
 	s.data.Worm.BlockNumber = blocknumber
 	s.data.Worm.SNFTAgentRecipient = proxy
