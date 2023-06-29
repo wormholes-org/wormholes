@@ -20,7 +20,6 @@ package state
 import (
 	"bytes"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	gomath "math"
@@ -1577,8 +1576,14 @@ func (s *StateDB) ConstructLog(mergedNFTAddress common.Address,
 	blockNumber *big.Int,
 	mergedNFTs []*MergedNFT) *types.Log {
 	var temp string = ""
-	//event hash: MergeSNFT(address indexed snft,address indexed owner,uint256 pieces)
-	hash1 := common.HexToHash("2b2711f6ad8adbb2fc8751c8400b9c6ebdaf9ea371995641808a7c692d89d46a")
+	//struct SubNFT {
+	//	address nft;
+	//	uint256 num;
+	//}
+	//event MergeSNFT(address indexed snft,address indexed owner,uint256 pieces, SubNFT[] subNFTs)
+	//event hash: MergeSNFT(address indexed snft,address indexed owner,uint256 pieces, SubNFT[] subNFTs)
+	//0x77415a68a0d28daf11e1308e53371f573e0920810c9cd9de7904777d5fb9d625
+	hash1 := common.HexToHash("0x77415a68a0d28daf11e1308e53371f573e0920810c9cd9de7904777d5fb9d625")
 	nftAddrString := mergedNFTAddress.Hex()
 	nftAddrString = string([]byte(nftAddrString)[2 : len(nftAddrString)-int(mergedNFTLevel)])
 	for i := 0; i < 64-len(nftAddrString); i++ {
@@ -1600,10 +1605,20 @@ func (s *StateDB) ConstructLog(mergedNFTAddress common.Address,
 		BlockNumber: blockNumber.Uint64(),
 	}
 
-	nftsData, err := json.Marshal(mergedNFTs)
-	if err == nil {
-		toString := hex.EncodeToString(nftsData)
-		log.Data = append(log.Data, []byte(toString)...)
+	snftNum := len(mergedNFTs)
+	if snftNum > 0 {
+		temp, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000080")
+		log.Data = append(log.Data, temp...)
+
+		//sub snft num
+		log.Data = append(log.Data, big.NewInt(int64(snftNum)).FillBytes(make([]byte, 32))...)
+
+		temp, _ = hex.DecodeString("000000000000000000000000")
+		for _, snft := range mergedNFTs {
+			log.Data = append(log.Data, temp...)
+			log.Data = append(log.Data, snft.Address.Bytes()...)
+			log.Data = append(log.Data, big.NewInt(int64(snft.Number)).FillBytes(make([]byte, 32))...)
+		}
 	}
 
 	return log
@@ -2404,7 +2419,9 @@ func (s *StateDB) CreateNFTByUser(exchanger common.Address,
 }
 
 func (s *StateDB) MintNFTLog(nftAddress common.Address, blockNumber *big.Int) *types.Log {
+	//event MintNFT(address indexed nftaddress)
 	//hash1 is MintNFT(address indexed nftaddress)
+	//0x385e9e2ed650704f0fdc4ea7496f88a83ad457497f62b54efcb903a67c58a68f
 	hash1 := common.HexToHash("0x385e9e2ed650704f0fdc4ea7496f88a83ad457497f62b54efcb903a67c58a68f")
 	nftString := nftAddress.Hex()
 	nftString = string([]byte(nftString)[2:])
@@ -2924,14 +2941,14 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-	//*big.Int,
-	//uint8,
+//*big.Int,
+//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-	//bool,
-	//*big.Int,
+//bool,
+//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,
