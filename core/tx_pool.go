@@ -632,6 +632,10 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 					return errors.New("from pledge balance not more than 700 ERB")
 				}
 			}
+			if wormholes.FeeRate < 100 || wormholes.FeeRate > 10000 {
+				log.Error("validateTx()", "abnormal rate")
+				return errors.New("abnormal rate")
+			}
 			if pool.currentState.GetBalance(from).Cmp(big.NewInt(0).Add(tx.GasFee(), tx.Value())) < 0 {
 				return ErrInsufficientFunds
 			}
