@@ -2790,6 +2790,17 @@ func (s *StateDB) MinerBecome(address common.Address, value *big.Int) error {
 	return nil
 }
 
+func (s *StateDB) GenesisMinerBecome(address common.Address, proxy common.Address) error {
+	stateObject := s.GetOrNewAccountStateObject(address)
+
+	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+
+	if stateObject != nil {
+		validatorStateObject.AddValidator(address, stateObject.PledgedBalance(), proxy)
+	}
+	return nil
+}
+
 // - cancel pledged token
 // ````
 // {
