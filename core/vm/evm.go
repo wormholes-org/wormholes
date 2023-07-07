@@ -1368,7 +1368,7 @@ func (evm *EVM) HandleNFT(
 
 		Erb100000 := big.NewInt(70000)
 		Erb100000.Mul(Erb100000, baseErb)
-
+		Erb100000.Sub(Erb100000, value)
 		if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
 			err := evm.Context.MinerBecome(evm.StateDB, caller.Address(), &wormholes)
 			if err != nil {
