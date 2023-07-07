@@ -2766,24 +2766,24 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 
 func (s *StateDB) MinerBecome(address common.Address, proxy common.Address) error {
 	stateObject := s.GetOrNewAccountStateObject(address)
-	empty := common.Address{}
+	//empty := common.Address{}
 
 	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
-	validators := validatorStateObject.GetValidators()
-	for _, v := range validators.Validators {
-		if address == v.Addr {
-			log.Info("MinerBecome", "err", "already pledge")
-			return errors.New("already pledge")
-		}
-	}
-
-	//Resolving duplicates is delegated
-	for _, v := range validators.Validators {
-		if v.Proxy != empty && v.Proxy == proxy {
-			log.Info("PledgeToken|break", "address", address, "proxy", proxy)
-			return errors.New("cannot delegate repeatedly")
-		}
-	}
+	//validators := validatorStateObject.GetValidators()
+	//for _, v := range validators.Validators {
+	//	if address == v.Addr {
+	//		log.Info("MinerBecome", "err", "already pledge")
+	//		return errors.New("already pledge")
+	//	}
+	//}
+	//
+	////Resolving duplicates is delegated
+	//for _, v := range validators.Validators {
+	//	if v.Proxy != empty && v.Proxy == proxy {
+	//		log.Info("PledgeToken|break", "address", address, "proxy", proxy)
+	//		return errors.New("cannot delegate repeatedly")
+	//	}
+	//}
 	if stateObject != nil {
 		validatorStateObject.AddValidator(address, stateObject.PledgedBalance(), proxy)
 	}
@@ -2941,14 +2941,14 @@ func (s *StateDB) SubExchangerBalance(address common.Address, amount *big.Int) {
 func (s *StateDB) GetNFTInfo(nftAddr common.Address) (
 	string,
 	string,
-//*big.Int,
-//uint8,
+	//*big.Int,
+	//uint8,
 	common.Address,
 	common.Address,
 	uint8,
 	uint32,
-//bool,
-//*big.Int,
+	//bool,
+	//*big.Int,
 	common.Address,
 	uint16,
 	common.Address,

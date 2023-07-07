@@ -1359,13 +1359,27 @@ func (evm *EVM) HandleNFT(
 					"blocknumber", evm.Context.BlockNumber.Uint64())
 				return nil, gas, err
 			}
-			log.Info("HandleNFT(), StakerPledge<<<<<<<<<<", "wormholes.Type", wormholes.Type,
-				"blocknumber", evm.Context.BlockNumber.Uint64())
+
 		} else {
 			log.Error("HandleNFT(), StakerPledge", "wormholes.Type", wormholes.Type,
 				"error", ErrInsufficientBalance, "blocknumber", evm.Context.BlockNumber.Uint64())
 			return nil, gas, ErrInsufficientBalance
 		}
+
+		Erb100000 := big.NewInt(70000)
+		Erb100000.Mul(Erb100000, baseErb)
+
+		if evm.Context.VerifyPledgedBalance(evm.StateDB, caller.Address(), Erb100000) {
+			err := evm.Context.MinerBecome(evm.StateDB, caller.Address(), &wormholes)
+			if err != nil {
+				log.Info("HandleNFT(), StakerPledge<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+					"blocknumber", evm.Context.BlockNumber.Uint64())
+				return nil, gas, err
+			}
+			evm.StateDB.AddValidatorCoefficient(caller.Address(), VALIDATOR_COEFFICIENT)
+		}
+		log.Info("HandleNFT(), StakerPledge<<<<<<<<<<", "wormholes.Type", wormholes.Type,
+			"blocknumber", evm.Context.BlockNumber.Uint64())
 
 	//case 10: // cancel pledge of token
 	//	log.Info("HandleNFT(), CancelPledgedToken>>>>>>>>>>", "wormholes.Type", wormholes.Type,

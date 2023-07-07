@@ -269,7 +269,7 @@ func (w *Wormholes) CheckFormat() error {
 			w.Url = string([]byte(w.Url)[:128])
 		}
 
-	case 12:
+	//case 12:
 	case 13:
 	case 14:
 	case 15:
@@ -375,8 +375,8 @@ func (w *Wormholes) TxGas() (uint64, error) {
 	case 11:
 		return params.WormholesTx11, nil
 
-	case 12:
-		return params.WormholesTx12, nil
+	//case 12:
+	//	return params.WormholesTx12, nil
 	//case 13:
 	//	return params.WormholesTx13, nil
 	case 14:

@@ -159,10 +159,10 @@ func (e *GenesisMismatchError) Error() string {
 // SetupGenesisBlock writes or updates the genesis block in db.
 // The block that will be used is:
 //
-//                          genesis == nil       genesis != nil
-//                       +------------------------------------------
-//     db has no genesis |  main-net default  |  genesis
-//     db has genesis    |  from DB           |  genesis (if compatible)
+//	                     genesis == nil       genesis != nil
+//	                  +------------------------------------------
+//	db has no genesis |  main-net default  |  genesis
+//	db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The stored chain configuration will be updated if it is compatible (i.e. does not
 // specify a fork block below the local head block). In case of a conflict, the
@@ -293,13 +293,22 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 
 	for addr, account := range g.Stake {
 		log.Info("caver|ToBlock|stake", "addr", addr, "amount", account.Balance.String())
-		statedb.OpenExchanger(addr, account.Balance, big.NewInt(0), uint16(account.FeeRate), account.ExchangerName, account.ExchangerUrl, addr)
+		//statedb.OpenExchanger(addr, account.Balance, big.NewInt(0), uint16(account.FeeRate), account.ExchangerName, account.ExchangerUrl, addr)
+		var wh *types.Wormholes
+		wh.FeeRate = uint16(account.FeeRate)
+		wh.Exchanger = account.ExchangerName
+		wh.Url = account.ExchangerUrl
+		wh.ProxyAddress = addr.String()
+		statedb.StakerPledge(addr, addr, account.Balance, big.NewInt(0), wh)
 	}
 
 	for addr, account := range g.Validator {
 		log.Info("caver|ToBlock|validator", "addr", addr, "amount", account.Balance.String())
+		//proxy := common.HexToAddress(account.Proxy)
+		//statedb.PledgeToken(addr, account.Balance, proxy, big.NewInt(0))
+		//statedb.AddValidatorCoefficient(addr, VALIDATOR_COEFFICIENT)
 		proxy := common.HexToAddress(account.Proxy)
-		statedb.PledgeToken(addr, account.Balance, proxy, big.NewInt(0))
+		statedb.MinerBecome(addr, proxy)
 		statedb.AddValidatorCoefficient(addr, VALIDATOR_COEFFICIENT)
 	}
 	statedb.GetOrNewStakerStateObject(types.MintDeepStorageAddress)
