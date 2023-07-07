@@ -300,17 +300,18 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 		wh.Url = account.ExchangerUrl
 		wh.ProxyAddress = addr.String()
 		statedb.StakerPledge(addr, addr, account.Balance, big.NewInt(0), &wh)
-	}
 
-	for addr, account := range g.Validator {
-		log.Info("caver|ToBlock|validator", "addr", addr, "amount", account.Balance.String())
-		//proxy := common.HexToAddress(account.Proxy)
-		//statedb.PledgeToken(addr, account.Balance, proxy, big.NewInt(0))
-		//statedb.AddValidatorCoefficient(addr, VALIDATOR_COEFFICIENT)
 		proxy := common.HexToAddress(account.Proxy)
 		statedb.MinerBecome(addr, proxy)
 		statedb.AddValidatorCoefficient(addr, VALIDATOR_COEFFICIENT)
 	}
+
+	//for addr, account := range g.Validator {
+	//	log.Info("caver|ToBlock|validator", "addr", addr, "amount", account.Balance.String())
+	//	proxy := common.HexToAddress(account.Proxy)
+	//	statedb.PledgeToken(addr, account.Balance, proxy, big.NewInt(0))
+	//	statedb.AddValidatorCoefficient(addr, VALIDATOR_COEFFICIENT)
+	//}
 	statedb.GetOrNewStakerStateObject(types.MintDeepStorageAddress)
 
 	officialNFT := types.InjectedOfficialNFT{
