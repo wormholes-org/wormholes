@@ -294,12 +294,12 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 	for addr, account := range g.Stake {
 		log.Info("caver|ToBlock|stake", "addr", addr, "amount", account.Balance.String())
 		//statedb.OpenExchanger(addr, account.Balance, big.NewInt(0), uint16(account.FeeRate), account.ExchangerName, account.ExchangerUrl, addr)
-		var wh *types.Wormholes
+		var wh types.Wormholes
 		wh.FeeRate = uint16(account.FeeRate)
 		wh.Exchanger = account.ExchangerName
 		wh.Url = account.ExchangerUrl
 		wh.ProxyAddress = addr.String()
-		statedb.StakerPledge(addr, addr, account.Balance, big.NewInt(0), wh)
+		statedb.StakerPledge(addr, addr, account.Balance, big.NewInt(0), &wh)
 	}
 
 	for addr, account := range g.Validator {
