@@ -2764,9 +2764,9 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 	return nil
 }
 
-func (s *StateDB) MinerBecome(address common.Address, proxy common.Address) error {
+func (s *StateDB) MinerBecome(address common.Address, value *big.Int) error {
 	stateObject := s.GetOrNewAccountStateObject(address)
-	//empty := common.Address{}
+	empty := common.Address{}
 
 	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
 	//validators := validatorStateObject.GetValidators()
@@ -2785,7 +2785,7 @@ func (s *StateDB) MinerBecome(address common.Address, proxy common.Address) erro
 	//	}
 	//}
 	if stateObject != nil {
-		validatorStateObject.AddValidator(address, stateObject.PledgedBalance(), proxy)
+		validatorStateObject.AddValidator(address, stateObject.PledgedBalance().Add(stateObject.PledgedBalance(), value), empty)
 	}
 	return nil
 }
