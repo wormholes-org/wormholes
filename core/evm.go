@@ -350,7 +350,7 @@ func MinerConsign(db vm.StateDB, address common.Address, wh *types.Wormholes) er
 	return db.MinerConsign(address, common.HexToAddress(wh.ProxyAddress))
 }
 
-func MinerBecome(db vm.StateDB, address common.Address, value *big.Int) error {
+func MinerBecome(db vm.StateDB, address common.Address, proxy common.Address) error {
 	//msg := fmt.Sprintf("%v%v", wh.ProxyAddress, address.Hex())
 	//addr, err := RecoverAddress(msg, wh.ProxySign)
 	//log.Info("MinerBecome", "proxy", wh.ProxyAddress, "addr", addr, "sign", wh.ProxySign)
@@ -362,7 +362,7 @@ func MinerBecome(db vm.StateDB, address common.Address, value *big.Int) error {
 	//	log.Error("MinerBecome()", "Get public key error", err)
 	//	return errors.New("MinerBecome recover address proxy Address != address")
 	//}
-	return db.MinerBecome(address, value)
+	return db.MinerBecome(address, proxy)
 }
 
 func CancelPledgedToken(db vm.StateDB, address common.Address, amount *big.Int) {

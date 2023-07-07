@@ -316,7 +316,7 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 		wh.ProxyAddress = addr.String()
 		statedb.StakerPledge(addr, addr, account.Balance, big.NewInt(0), &wh)
 		proxy := common.HexToAddress(account.Proxy)
-		statedb.GenesisMinerBecome(addr, proxy)
+		statedb.MinerBecome(addr, proxy)
 		statedb.AddValidatorCoefficient(addr, VALIDATOR_COEFFICIENT)
 	}
 	statedb.GetOrNewStakerStateObject(types.MintDeepStorageAddress)

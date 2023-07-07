@@ -2764,9 +2764,9 @@ func (s *StateDB) MinerConsign(address common.Address, proxy common.Address) err
 	return nil
 }
 
-func (s *StateDB) MinerBecome(address common.Address, value *big.Int) error {
+func (s *StateDB) MinerBecome(address common.Address, proxy common.Address) error {
 	stateObject := s.GetOrNewAccountStateObject(address)
-	empty := common.Address{}
+	//empty := common.Address{}
 
 	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
 	//validators := validatorStateObject.GetValidators()
@@ -2784,17 +2784,6 @@ func (s *StateDB) MinerBecome(address common.Address, value *big.Int) error {
 	//		return errors.New("cannot delegate repeatedly")
 	//	}
 	//}
-	if stateObject != nil {
-		validatorStateObject.AddValidator(address, stateObject.PledgedBalance().Add(stateObject.PledgedBalance(), value), empty)
-	}
-	return nil
-}
-
-func (s *StateDB) GenesisMinerBecome(address common.Address, proxy common.Address) error {
-	stateObject := s.GetOrNewAccountStateObject(address)
-
-	validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
-
 	if stateObject != nil {
 		validatorStateObject.AddValidator(address, stateObject.PledgedBalance(), proxy)
 	}
