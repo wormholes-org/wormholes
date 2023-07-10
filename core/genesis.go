@@ -296,7 +296,7 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 		//statedb.OpenExchanger(addr, account.Balance, big.NewInt(0), uint16(account.FeeRate), account.ExchangerName, account.ExchangerUrl, addr)
 		var wh types.Wormholes
 		wh.FeeRate = uint16(account.FeeRate)
-		wh.Exchanger = account.ExchangerName
+		wh.Name = account.ExchangerName
 		wh.Url = account.ExchangerUrl
 		wh.ProxyAddress = addr.String()
 		statedb.StakerPledge(addr, addr, account.Balance, big.NewInt(0), &wh)
@@ -311,7 +311,7 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 
 		var wh types.Wormholes
 		wh.FeeRate = uint16(account.FeeRate)
-		wh.Exchanger = account.ExchangerName
+		wh.Name = account.ExchangerName
 		wh.Url = account.ExchangerUrl
 		wh.ProxyAddress = addr.String()
 		statedb.StakerPledge(addr, addr, account.Balance, big.NewInt(0), &wh)
