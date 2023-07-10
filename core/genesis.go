@@ -583,10 +583,15 @@ func DecodePreWormholesInfoV2(data string) GenesisAlloc {
 			} else {
 				bigBalance, _ = new(big.Int).SetString(balance, 16)
 			}
-
+			exchangename := strs[4]
+			url := strs[5]
+			uintfee, _ := strconv.Atoi(strs[3])
 			genesisAcc := GenesisAccount{
-				Balance: bigBalance,
-				Proxy:   proxy,
+				Balance:       bigBalance,
+				Proxy:         proxy,
+				FeeRate:       uint64(uintfee),
+				ExchangerUrl:  url,
+				ExchangerName: exchangename,
 			}
 			ga[common.HexToAddress(acc)] = genesisAcc
 		}
