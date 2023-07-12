@@ -3444,6 +3444,7 @@ func (s *StateDB) NextIndex() *big.Int {
 // AddValidatorCoefficient adds amount to the ValidatorCoefficient associated with addr.
 func (s *StateDB) AddValidatorCoefficient(addr common.Address, coe uint8) {
 	stateObject := s.GetOrNewAccountStateObject(addr)
+	log.Info("azh|AddCoefficient", "coe", stateObject.Coefficient())
 	if stateObject != nil {
 		stateObject.AddCoefficient(coe)
 	}

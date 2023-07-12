@@ -810,6 +810,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		return
 	}
 
+	log.Info("azh|Finalize", "root1", header.Root)
 	if header.Coinbase == (common.Address{}) {
 		// reduce 1 weight
 		for _, v := range random11Validators.Validators {
@@ -856,6 +857,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		}
 	}
 
+	log.Info("azh|Finalize", "root2", header.Root)
 	if header.Coinbase == (common.Address{}) {
 		state.CreateNFTByOfficial16(istanbulExtra.ValidatorAddr, istanbulExtra.ExchangerAddr, header.Number, randomDrop.Bytes())
 	} else {
@@ -944,6 +946,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 		state.CreateNFTByOfficial16(validatorAddr, istanbulExtra.ExchangerAddr, header.Number, randomDrop.Bytes())
 	}
+	log.Info("azh|Finalize", "root3", header.Root)
 
 	// Recalculate the weight, which needs to be calculated after the list is determined
 	validatorStateObject := state.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
@@ -953,9 +956,10 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		validatorList.CalculateAddressRangeV2(account.Addr, account.Balance, big.NewInt(int64(coefficient)))
 	}
 	validatorStateObject.SetValidators(validatorList)
-
+	log.Info("azh|Finalize", "root4", header.Root)
 	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+	log.Info("azh|Finalize", "root5", header.Root)
 	header.UncleHash = nilUncleHash
 
 }
