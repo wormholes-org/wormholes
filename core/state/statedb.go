@@ -3648,3 +3648,60 @@ func (s *StateDB) ChangeLockSNFTFlag(addr common.Address, flag bool) {
 		accountStateObject.SetLockSNFTFlag(flag)
 	}
 }
+
+func (s *StateDB) PunishEvilValidators(evilValidators []common.Address, blocknumber *big.Int) error {
+	if len(evilValidators) == 0 {
+		return nil
+	}
+	// get all stakers
+	stakers := s.GetStakers(types.StakerStorageAddress).DeepCopy()
+
+	for _, evil := range evilValidators {
+		evilStateObject := s.GetOrNewAccountStateObject(evil)
+		if evilStateObject == nil {
+			return errors.New("no exist account")
+		}
+
+		for _, staker := range stakers.Stakers {
+			accountStateObject := s.GetOrNewAccountStateObject(staker.Addr)
+			if accountStateObject == nil {
+				return errors.New("no exist account")
+			}
+
+			// get validators who staker pledge to
+			stakerExtension := accountStateObject.GetStakerExtension()
+			if stakerExtension.StakerExtensions == nil ||
+				len(stakerExtension.StakerExtensions) == 0 {
+				return errors.New("no validators")
+			}
+
+			if stakerExtension.IsExist(evil) {
+
+				evilBalance := stakerExtension.GetBalance(evil)
+				// subtract balance that staker pledged from the validator
+				evilStateObject.SubPledgedBalance(evilBalance)
+				// remove the validator from staker's StakerExtension
+				accountStateObject.RemoveStakerPledge(evil, evilBalance)
+				// discard the balance to address 0
+				s.AddBalance(common.HexToAddress("0x0000000000000000000000000000000000000000"), evilBalance)
+
+				// remove the validator from the validator list if remove condition is satisfied
+				validatorStateObject := s.GetOrNewStakerStateObject(types.ValidatorStorageAddress)
+				validatorStateObject.RemoveValidator(evil, evilBalance)
+
+				// remove the staker from the validator list if remove condition is satisfied
+				stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
+				stakerStateObject.RemoveStaker(staker.Addr, evilBalance)
+
+				// close exchanger if staker is no longer a staker
+				newStakerExtension := accountStateObject.GetStakerExtension()
+				if newStakerExtension.GetLen() == 0 {
+					accountStateObject.SetExchangerInfoflag(false, blocknumber, "", 0)
+				}
+
+			}
+		}
+	}
+
+	return nil
+}

@@ -1076,18 +1076,19 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 		return
 	}
 
+	var noProxyValidators []common.Address
 	for _, v := range evilValidators {
 		log.Info("PunishEvilValidators", "addr", v.Hex(), "no", e.backend.CurrentNumber())
-		delegateAddr := valset.GetValidatorAddr(v)
-		if delegateAddr == (common.Address{}) {
-			break
+		evilAddr := valset.GetValidatorAddr(v)
+		if evilAddr == (common.Address{}) {
+			continue
 		}
-		balance := state.GetBalance(delegateAddr)
-		state.SubBalance(delegateAddr, balance)
-		state.AddBalance(common.HexToAddress("0x0000000000000000000000000000000000000000"), balance)
-		log.Info("balance info", "addr", delegateAddr, "balance", state.GetBalance(delegateAddr).String(),
-			"zerobalance", state.GetBalance(common.HexToAddress("0x0000000000000000000000000000000000000000")).String())
+		noProxyValidators = append(noProxyValidators, evilAddr)
+		//log.Info("balance info", "addr", delegateAddr, "balance", state.GetBalance(delegateAddr).String(),
+		//	"zerobalance", state.GetBalance(common.HexToAddress("0x0000000000000000000000000000000000000000")).String())
 	}
+
+	statedb.PunishEvilValidators(noProxyValidators, header.Number)
 }
 
 func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {

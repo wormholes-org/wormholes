@@ -59,3 +59,40 @@ func (sl *StakersExtensionList) DeepCopy() *StakersExtensionList {
 	}
 	return tempStakerList
 }
+
+func (sl *StakersExtensionList) IsExist(addr common.Address) bool {
+	if sl == nil ||
+		len(sl.StakerExtensions) == 0 {
+		return false
+	}
+
+	for _, staker := range sl.StakerExtensions {
+		if staker.Addr == addr {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (sl *StakersExtensionList) GetBalance(addr common.Address) *big.Int {
+	if sl == nil || sl.StakerExtensions == nil {
+		return big.NewInt(0)
+	}
+
+	for _, staker := range sl.StakerExtensions {
+		if staker.Addr == addr {
+			return staker.Balance
+		}
+	}
+
+	return big.NewInt(0)
+}
+
+func (sl *StakersExtensionList) GetLen() int {
+	if sl == nil || sl.StakerExtensions == nil {
+		return 0
+	}
+
+	return len(sl.StakerExtensions)
+}

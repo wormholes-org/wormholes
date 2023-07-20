@@ -943,6 +943,10 @@ func (s *stateObject) setStakerPledge(stakers *types.StakersExtensionList) {
 	s.data.Worm.StakerExtension = *stakers
 }
 
+func (s *stateObject) GetStakerExtension() types.StakersExtensionList {
+	return s.data.Worm.StakerExtension
+}
+
 func (s *stateObject) CleanNFT() {
 	//if s.data.NFTPledgedBlockNumber == nil {
 	//	s.data.NFTPledgedBlockNumber = big.NewInt(0)
