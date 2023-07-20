@@ -939,6 +939,11 @@ func (s *stateObject) SetStakerPledge(newStakers *types.StakersExtensionList) {
 	s.setStakerPledge(newStakers)
 }
 
+func (s *stateObject) StakerPledgeLength() int {
+	newStakers := s.data.Worm.StakerExtension.DeepCopy()
+	return len(newStakers.StakerExtensions)
+}
+
 func (s *stateObject) setStakerPledge(stakers *types.StakersExtensionList) {
 	s.data.Worm.StakerExtension = *stakers
 }
