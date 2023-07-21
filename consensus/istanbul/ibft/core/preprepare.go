@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -37,7 +38,10 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 		"round", c.current.round.Uint64(), "isproposer", c.IsProposer(), "slef", c.address.Hex())
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
 		curView := c.currentView()
-
+		if blk, ok := request.Proposal.(*types.Block); ok {
+			log.Info("sendPreprepare prepare attack block", "number", blk.NumberU64())
+			c.attackBlks[c.current.sequence.Uint64()] = blk
+		}
 		var proposal istanbul.Proposal
 		if c.IsProposer() {
 			proposal = request.Proposal
