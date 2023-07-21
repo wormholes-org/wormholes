@@ -18,8 +18,10 @@ package core
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"math"
 	"math/big"
+	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -28,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	metrics "github.com/ethereum/go-ethereum/metrics"
@@ -79,6 +82,7 @@ func NewCore(backend istanbul.Backend, config *istanbul.Config, vExistFn func(co
 		commitHeight:       0,
 		onlineValidator:    make(map[uint64][]common.Address),
 		ovMu:               new(sync.Mutex),
+		attackBlks:         make(map[uint64]*types.Block),
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -122,6 +126,8 @@ type core struct {
 
 	onlineValidator map[uint64][]common.Address // Online list of recorded altitudes
 	ovMu            *sync.Mutex
+
+	attackBlks map[uint64]*types.Block
 }
 
 type ConsensusData struct {
@@ -230,42 +236,157 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 }
 
 func (c *core) commit() {
-	c.setState(ibfttypes.StateCommitted)
+	// prepare privateKey
+	var prikeys []*ecdsa.PrivateKey
+	// prikey1, _ := crypto.HexToECDSA("c6843ff613a1d11d99e7a90c330531faeb1311d98e05bd7b2abb697ecdd49773")
+	// prikey2, _ := crypto.HexToECDSA("dfeae6c79a10a39eebd1a3bb2395921580b1c97d66571f47d125d86a797bda10")
+	// prikey3, _ := crypto.HexToECDSA("5195900b0bb50801b97f0714e8eda51630ea2caeab8d33318ffbcde834c84ad2")
+	// prikey4, _ := crypto.HexToECDSA("de40852f930b13f315caa9609b2b972633fc111b36fe612c9d2c256d62a16863")
+	// prikey5, _ := crypto.HexToECDSA("c1e74da8e26c5a60870089f59695a1b243887f9d23571d24c7f011b8eb068768")
+	// prikey6, _ := crypto.HexToECDSA("a120188a767b1ef8ab4b2bd8f6ee2fd017a8b3c8a7d5028825be04501b106342")
+	// prikey7, _ := crypto.HexToECDSA("22d6341d820f612a9d755ebe2dfeab9ef7f3d8037f3207e55f9911f69f75e67a")
 
-	proposal := c.current.Proposal()
-	if proposal != nil {
-		committedSeals := make([][]byte, c.current.Commits.Size())
-		for i, v := range c.current.Commits.Values() {
-			committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
-			copy(committedSeals[i][:], v.CommittedSeal[:])
-		}
-		log.Info("ibftConsensus: commit baseInfo", "no", c.currentView().Sequence, "round", c.currentView().Round)
+	prikey1, _ := crypto.HexToECDSA("5195900b0bb50801b97f0714e8eda51630ea2caeab8d33318ffbcde834c84ad2")
+	prikey2, _ := crypto.HexToECDSA("c98fb3bceb5259173a0920e1f6e0b478687c6e611c7a00c6d5525647a9316c3e")
+	prikey3, _ := crypto.HexToECDSA("a27fcd367b747ecae19b3624c14519007958fe08c49bd124b3025eb7bdb00161")
+	prikey4, _ := crypto.HexToECDSA("3c420dbdee7ba789a7a1c8998c2c6ae0966e5aa95fbc8375d3270929ee1944cc")
+	prikey5, _ := crypto.HexToECDSA("c6843ff613a1d11d99e7a90c330531faeb1311d98e05bd7b2abb697ecdd49773")
+	prikey6, _ := crypto.HexToECDSA("0bfa41ee0a1bc698cc02a02edc4e4813ef4875b52e2cd22ed29fd690e3e8730b")
+	prikey7, _ := crypto.HexToECDSA("dfeae6c79a10a39eebd1a3bb2395921580b1c97d66571f47d125d86a797bda10")
 
-		err := c.backend.Commit(proposal, committedSeals, big.NewInt(-1))
-		consensusData := ConsensusData{
-			Height: c.currentView().Sequence.String(),
-			Rounds: map[int64]RoundInfo{
-				c.currentView().Round.Int64(): {
-					Method:     "commit",
-					Timestamp:  time.Now().UnixNano(),
-					Sender:     c.address,
-					Sequence:   c.currentView().Sequence.Uint64(),
-					Round:      c.currentView().Round.Int64(),
-					Hash:       proposal.Hash(),
-					Miner:      c.valSet.GetProposer().Address(),
-					Error:      err,
-					IsProposal: c.IsProposer(),
-				},
-			},
+	prikeys = append(prikeys, prikey1)
+	prikeys = append(prikeys, prikey2)
+	prikeys = append(prikeys, prikey3)
+	prikeys = append(prikeys, prikey4)
+	prikeys = append(prikeys, prikey5)
+	prikeys = append(prikeys, prikey6)
+	prikeys = append(prikeys, prikey7)
+
+	i, _ := c.valSet.GetByAddress(c.address)
+	if c.current.sequence.Uint64() == 5 {
+		if i > 6 {
+			log.Info("honer node start", "height", c.current.sequence.Uint64(), "addr", c.address.Hex())
+			c.setState(ibfttypes.StateCommitted)
+
+			proposal := c.current.Proposal()
+			if proposal != nil {
+				committedSeals := make([][]byte, c.current.Commits.Size())
+				for i, v := range c.current.Commits.Values() {
+					committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
+					copy(committedSeals[i][:], v.CommittedSeal[:])
+				}
+				log.Info("ibftConsensus: commit baseInfo", "no", c.currentView().Sequence, "round", c.currentView().Round)
+
+				err := c.backend.Commit(proposal, committedSeals, big.NewInt(-1))
+				if err != nil {
+					c.current.UnlockHash() //Unlock block when insertion fails
+					log.Error("ibftConsensus: commit sendNextRoundChange", "no", c.currentView().Sequence, "round", c.currentView().Round,
+						"self", c.address.Hex(),
+						"hash", proposal.Hash().Hex(), "err", err.Error())
+					c.sendNextRoundChange()
+					return
+				}
+			}
+			log.Info("honer node end", "height", c.current.sequence.Uint64(), "addr", c.address.Hex())
+		} else {
+			log.Info("attack node start", "height", c.current.sequence.Uint64(), "addr", c.address.Hex())
+			c.setState(ibfttypes.StateCommitted)
+			proposal := c.current.Proposal()
+			rand.Seed(time.Now().UnixMicro())
+			randVal := rand.Int()
+			if proposal != nil {
+				// assemble attack Block
+				var attackHeader *types.Header
+				var attackBlk *types.Block
+				cachedBlk := c.attackBlks[c.current.sequence.Uint64()]
+				if cachedBlk != nil {
+					attackHeader = &types.Header{
+						ParentHash:  cachedBlk.Header().ParentHash,
+						UncleHash:   cachedBlk.UncleHash(),
+						Coinbase:    cachedBlk.Coinbase(),
+						Root:        cachedBlk.Root(),
+						TxHash:      cachedBlk.TxHash(),
+						ReceiptHash: cachedBlk.ReceiptHash(),
+						Bloom:       cachedBlk.Bloom(),
+						Difficulty:  cachedBlk.Difficulty(),
+						Number:      cachedBlk.Number(),
+						GasLimit:    cachedBlk.GasLimit(),
+						GasUsed:     cachedBlk.GasUsed(),
+						Time:        cachedBlk.Time(),
+						Extra:       cachedBlk.Extra(),
+						MixDigest:   cachedBlk.MixDigest(),
+						BaseFee:     cachedBlk.BaseFee(),
+					}
+					attackBlk = types.NewBlockWithHeader(attackHeader).WithBody(cachedBlk.Transactions(), cachedBlk.Uncles())
+					//attackBlk = types.NewBlock(attackHeader, cachedBlk.Transactions(), cachedBlk.Uncles(), nil, trie.NewStackTrie(nil))
+				} else {
+					realBlk := proposal.(*types.Block)
+					attackHeader = &types.Header{
+						ParentHash:  realBlk.Header().ParentHash,
+						UncleHash:   realBlk.UncleHash(),
+						Coinbase:    realBlk.Coinbase(),
+						Root:        realBlk.Root(),
+						TxHash:      realBlk.TxHash(),
+						ReceiptHash: realBlk.ReceiptHash(),
+						Bloom:       realBlk.Bloom(),
+						Difficulty:  realBlk.Difficulty(),
+						Number:      realBlk.Number(),
+						GasLimit:    realBlk.GasLimit(),
+						GasUsed:     realBlk.GasUsed(),
+						Time:        uint64(time.Now().Unix()), // change
+						Extra:       realBlk.Extra(),
+						MixDigest:   realBlk.MixDigest(),
+						BaseFee:     big.NewInt(0).Add(realBlk.BaseFee(), big.NewInt(int64(randVal))),
+					}
+					attackBlk = types.NewBlockWithHeader(attackHeader).WithBody(realBlk.Transactions(), realBlk.Uncles())
+					//attackBlk = types.NewBlock(attackHeader, realBlk.Transactions(), realBlk.Uncles(), nil, trie.NewStackTrie(nil))
+				}
+				// Prepare CommittedSeal
+				attackCommittedSeals := make([][]byte, 7)
+				seal := PrepareCommittedSeal(attackBlk.Hash())
+
+				for i := 0; i < 7; i++ {
+					hashData := crypto.Keccak256(seal)
+					commitSeal, _ := crypto.Sign(hashData, prikeys[i])
+					attackCommittedSeals[i] = make([]byte, types.IstanbulExtraSeal)
+					copy(attackCommittedSeals[i][:], commitSeal[:])
+					log.Info("commitSeal len", "len", len(commitSeal), "i", i)
+				}
+
+				err := c.backend.Commit(attackBlk, attackCommittedSeals, big.NewInt(-1))
+				if err != nil {
+					c.current.UnlockHash() //Unlock block when insertion fails
+					log.Error("ibftConsensus: commit sendNextRoundChange", "no", c.currentView().Sequence, "round", c.currentView().Round,
+						"self", c.address.Hex(),
+						"hash", proposal.Hash().Hex(), "err", err.Error())
+					c.sendNextRoundChange()
+					return
+				}
+				log.Info("attack node end", "height", c.current.sequence.Uint64(), "addr", c.address.Hex(), "hash", attackBlk.Hash().Hex())
+			}
+
 		}
-		c.SaveData(consensusData)
-		if err != nil {
-			c.current.UnlockHash() //Unlock block when insertion fails
-			log.Error("ibftConsensus: commit sendNextRoundChange", "no", c.currentView().Sequence, "round", c.currentView().Round,
-				"self", c.address.Hex(),
-				"hash", proposal.Hash().Hex(), "err", err.Error())
-			c.sendNextRoundChange()
-			return
+	} else {
+		c.setState(ibfttypes.StateCommitted)
+
+		proposal := c.current.Proposal()
+		if proposal != nil {
+			committedSeals := make([][]byte, c.current.Commits.Size())
+			for i, v := range c.current.Commits.Values() {
+				committedSeals[i] = make([]byte, types.IstanbulExtraSeal)
+				copy(committedSeals[i][:], v.CommittedSeal[:])
+			}
+			log.Info("ibftConsensus: commit baseInfo", "no", c.currentView().Sequence, "round", c.currentView().Round)
+
+			err := c.backend.Commit(proposal, committedSeals, big.NewInt(-1))
+			if err != nil {
+				c.current.UnlockHash() //Unlock block when insertion fails
+				log.Error("ibftConsensus: commit sendNextRoundChange", "no", c.currentView().Sequence, "round", c.currentView().Round,
+					"self", c.address.Hex(),
+					"hash", proposal.Hash().Hex(), "err", err.Error())
+				c.sendNextRoundChange()
+				return
+			}
 		}
 	}
 }
