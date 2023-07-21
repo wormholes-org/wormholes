@@ -3653,8 +3653,6 @@ func (s *StateDB) PunishEvilValidators(evilValidators []common.Address, blocknum
 	if len(evilValidators) == 0 {
 		return nil
 	}
-	// get all stakers
-	stakers := s.GetStakers(types.StakerStorageAddress).DeepCopy()
 
 	for _, evil := range evilValidators {
 		evilStateObject := s.GetOrNewAccountStateObject(evil)
@@ -3662,6 +3660,8 @@ func (s *StateDB) PunishEvilValidators(evilValidators []common.Address, blocknum
 			return errors.New("no exist account")
 		}
 
+		// get all stakers
+		stakers := s.GetStakers(types.StakerStorageAddress).DeepCopy()
 		for _, staker := range stakers.Stakers {
 			accountStateObject := s.GetOrNewAccountStateObject(staker.Addr)
 			if accountStateObject == nil {
@@ -3702,6 +3702,11 @@ func (s *StateDB) PunishEvilValidators(evilValidators []common.Address, blocknum
 			}
 		}
 	}
+
+	//tempStakers := s.GetStakers(types.StakerStorageAddress)
+	//tempValidators := s.GetValidators(types.ValidatorStorageAddress)
+	//log.Info("PunishEvilValidators", "tempStakers", len(tempStakers.Stakers),
+	//	"tempValidators", len(tempValidators.Validators))
 
 	return nil
 }
