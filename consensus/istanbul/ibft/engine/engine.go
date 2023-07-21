@@ -1065,12 +1065,7 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 		return
 	}
 
-	statedb, err := bc.StateAt(parent.Root)
-	if err != nil {
-		log.Error("punishEvilValidators", "err", err)
-		return
-	}
-	valset := statedb.GetValidators(types.ValidatorStorageAddress)
+	valset := state.GetValidators(types.ValidatorStorageAddress)
 	if valset == nil {
 		log.Error("punishEvilValidators, get validators error")
 		return
@@ -1088,7 +1083,7 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 		//	"zerobalance", state.GetBalance(common.HexToAddress("0x0000000000000000000000000000000000000000")).String())
 	}
 
-	statedb.PunishEvilValidators(noProxyValidators, header.Number)
+	state.PunishEvilValidators(noProxyValidators, header.Number)
 }
 
 func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {
