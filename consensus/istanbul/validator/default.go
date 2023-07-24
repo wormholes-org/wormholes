@@ -71,10 +71,9 @@ func newDefaultSet(addrs []common.Address, policy *istanbul.ProposerPolicy, db *
 	// validators are kept the original order when db is nil
 	if db != nil {
 		valSet.SortValidators()
-	}
-
-	for i, addr := range valSet.validators {
-		log.Info("after sortValidators", "i", i, "addr", addr.String(), "Coefficient", db.GetCoefficient(addr.Address()))
+		for i, addr := range valSet.validators {
+			log.Info("after sortValidators", "i", i, "addr", addr.String(), "Coefficient", db.GetCoefficient(addr.Address()))
+		}
 	}
 
 	// init proposer
