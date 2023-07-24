@@ -64,7 +64,7 @@ var SNFTL2 = "180000000000000000"
 var SNFTL3 = "1000000000000000000"
 
 // Redemption staking time
-var CancelDayPledgedInterval int64 = 1 // blockNumber of per hour * 24h
+var CancelDayPledgedInterval int64 = 720 * 24 // blockNumber of per hour * 24h
 // for test
 // var CancelDayPledgedInterval int64 = 5 // blockNumber of per hour * 24h
 
