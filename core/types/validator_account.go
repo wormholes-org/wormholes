@@ -457,17 +457,26 @@ func (vl *ValidatorList) SelectRandom11AddressV2(num int, hash []byte) ([]common
 	var random11Address []common.Address
 	tempValidators := vl.DeepCopy()
 	//hsh256 := sha256.New()
-	for i := 0; i < num; i++ {
-		total := tempValidators.TotalStakeBalance()
-		//hash = hsh256.Sum(hash)
-		hash = crypto.Keccak256(hash)
-		mod := new(big.Int).Mod(new(big.Int).SetBytes(hash), total)
-		address, err := tempValidators.selectAddress(mod)
-		if err != nil {
-			return nil, err
+
+	// if number of all validators is less the selected validator number,
+	// return all valiators
+	if num > len(tempValidators.Validators) {
+		for _, addr := range tempValidators.Validators {
+			random11Address = append(random11Address, addr.Addr)
 		}
-		random11Address = append(random11Address, address)
-		tempValidators.RemoveValidator(address, new(big.Int).Set(tempValidators.StakeBalance(address)))
+	} else {
+		for i := 0; i < num; i++ {
+			total := tempValidators.TotalStakeBalance()
+			//hash = hsh256.Sum(hash)
+			hash = crypto.Keccak256(hash)
+			mod := new(big.Int).Mod(new(big.Int).SetBytes(hash), total)
+			address, err := tempValidators.selectAddress(mod)
+			if err != nil {
+				return nil, err
+			}
+			random11Address = append(random11Address, address)
+			tempValidators.RemoveValidator(address, new(big.Int).Set(tempValidators.StakeBalance(address)))
+		}
 	}
 
 	return random11Address, nil

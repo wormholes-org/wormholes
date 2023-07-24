@@ -1065,12 +1065,7 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 		return
 	}
 
-	statedb, err := bc.StateAt(parent.Root)
-	if err != nil {
-		log.Error("punishEvilValidators", "err", err)
-		return
-	}
-	valset := statedb.GetValidators(types.ValidatorStorageAddress)
+	valset := state.GetValidators(types.ValidatorStorageAddress)
 	if valset == nil {
 		log.Error("punishEvilValidators, get validators error")
 		return
@@ -1088,7 +1083,7 @@ func (e *Engine) punishEvilValidators(bc *core.BlockChain, state *state.StateDB,
 		//	"zerobalance", state.GetBalance(common.HexToAddress("0x0000000000000000000000000000000000000000")).String())
 	}
 
-	statedb.PunishEvilValidators(noProxyValidators, header.Number)
+	state.PunishEvilValidators(noProxyValidators, header.Number)
 }
 
 func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {
@@ -1106,6 +1101,7 @@ func (e *Engine) pickEvilValidators(ea *types.EvilAction) []common.Address {
 }
 
 // @dev Use map to return duplicate elements
+// pick evil validators
 func duplicateRemoval(target []common.Address) (duplicateElements []common.Address) {
 	temp := make(map[common.Address]struct{})
 	for _, v := range target {
@@ -1116,8 +1112,21 @@ func duplicateRemoval(target []common.Address) (duplicateElements []common.Addre
 			duplicateElements = append(duplicateElements, v)
 		}
 	}
-	return duplicateElements
+
+	// remove duplication address from evil validators
+	temp = make(map[common.Address]struct{})
+	evilValidators := make([]common.Address, 0)
+	for _, addr := range duplicateElements {
+		if _, ok := temp[addr]; !ok {
+			temp[addr] = struct{}{}
+			evilValidators = append(evilValidators, addr)
+		}
+	}
+
+	return evilValidators
 }
+
+// remove duplication address from evil validators
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
