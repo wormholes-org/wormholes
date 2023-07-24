@@ -2831,7 +2831,8 @@ func (s *StateDB) CancelStakerPledge(from, address common.Address, amount *big.I
 		fromObject.AddBalance(amount)
 
 		if fromObject.StakerPledgeLength() == 0 {
-			fromObject.SetExchangerInfoflag(false, blocknumber, "", 0)
+			fromObject.SetExchangerInfo(false, blocknumber, 0, "", "", common.Address{})
+			//fromObject.SetExchangerInfoflag(false, blocknumber, "", 0)
 		}
 	}
 
@@ -3691,7 +3692,9 @@ func (s *StateDB) PunishEvilValidators(evilValidators []common.Address, blocknum
 				// close exchanger if staker is no longer a staker
 				newStakerExtension := accountStateObject.GetStakerExtension()
 				if newStakerExtension.GetLen() == 0 {
-					accountStateObject.SetExchangerInfoflag(false, blocknumber, "", 0)
+					//accountStateObject.SetExchangerInfoflag(false, blocknumber, "", 0)
+					accountStateObject.SetExchangerInfo(false, blocknumber, 0, "", "", common.Address{})
+
 				}
 
 			}
