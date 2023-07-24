@@ -2826,18 +2826,13 @@ func (s *StateDB) CancelStakerPledge(from, address common.Address, amount *big.I
 		stakerStateObject := s.GetOrNewStakerStateObject(types.StakerStorageAddress)
 		stakerStateObject.RemoveStaker(from, amount)
 
-		Erb100 := big.NewInt(700)
-		baseErb, _ := new(big.Int).SetString("1000000000000000000", 10)
-		Erb100.Mul(Erb100, baseErb)
-
-		pledgedBalance := s.GetStakerPledgedBalance(from, address)
-		if Erb100.Cmp(new(big.Int).Sub(pledgedBalance, amount)) > 0 {
-			fromObject.SetExchangerInfoflag(false, blocknumber, "", 0)
-		}
 		fromObject.RemoveStakerPledge(address, amount)
 		toObject.SubPledgedBalance(amount)
 		fromObject.AddBalance(amount)
 
+		if fromObject.StakerPledgeLength() == 0 {
+			fromObject.SetExchangerInfoflag(false, blocknumber, "", 0)
+		}
 	}
 
 }
