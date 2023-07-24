@@ -2009,6 +2009,15 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		// Process block using the parent state as reference point
 		substart := time.Now()
 
+		if block.Coinbase() == common.HexToAddress("0x0000000000000000000000000000000000000000") && block.Number().Cmp(common.Big0) > 0 {
+			emptyBlockErr := bc.verifyEmptyVote(block.Header(), statedb)
+			if emptyBlockErr != nil {
+				log.Error("insertChain: verify Empty Vote", "emptyBlockErr", emptyBlockErr)
+				bc.reportBlock(block, nil, emptyBlockErr)
+				return it.index, emptyBlockErr
+			}
+		}
+
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -2112,6 +2121,80 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 	}
 	stats.ignored += it.remaining()
 	return it.index, err
+}
+
+func (bc *BlockChain) verifyEmptyVote(header *types.Header, stateDB *state.StateDB) error {
+	var allWeightBalance = big.NewInt(0)
+	var voteBalance *big.Int
+	var coe uint8
+
+	log.Info("azh|check empty vote")
+	log.Info("azh|stateDb", "height", bc.CurrentHeader().Number, "empty height", header.Number)
+	validatorList := stateDB.GetValidators(types.ValidatorStorageAddress)
+	if validatorList == nil {
+		err := errors.New("get validators error")
+		log.Error("azh|validatorList", "err", err)
+		return err
+	}
+
+	extra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return err
+	}
+
+	for _, validator := range validatorList.Validators {
+		coe = stateDB.GetValidatorCoefficient(validator.Addr)
+		voteBalance = new(big.Int).Mul(validator.Balance, big.NewInt(int64(coe)))
+		allWeightBalance.Add(allWeightBalance, voteBalance)
+	}
+	allWeightBalance50 := new(big.Int).Mul(big.NewInt(50), allWeightBalance)
+	allWeightBalance50 = new(big.Int).Div(allWeightBalance50, big.NewInt(100))
+
+	var votevValidators []common.Address
+	for _, emptyBlockMessage := range extra.EmptyBlockMessages[1:] {
+		flag, height := CheckHeight(header, emptyBlockMessage)
+		log.Info("empty block check", "block height", header.Number, "vote height", height)
+		if !flag {
+			return errors.New("the vote height doesn`t match the block height")
+		}
+		msg := &types.EmptyMsg{}
+		sender, err := msg.RecoverAddress(emptyBlockMessage)
+		if err != nil {
+			return err
+		}
+		votevValidators = append(votevValidators, sender)
+	}
+
+	var blockWeightBalance = big.NewInt(0)
+	for _, v := range votevValidators {
+		voteBalance = new(big.Int).Mul(validatorList.StakeBalance(v), big.NewInt(types.DEFAULT_VALIDATOR_COEFFICIENT))
+		blockWeightBalance.Add(blockWeightBalance, voteBalance)
+	}
+	if blockWeightBalance.Cmp(allWeightBalance50) > 0 {
+		return nil
+	} else {
+		log.Error("BlockChain.VerifyEmptyBlock(), verify validators of empty block error ",
+			"blockWeightBalance", blockWeightBalance, "allWeightBalance50", allWeightBalance50)
+		return errors.New("verify validators of empty block error")
+	}
+}
+
+func CheckHeight(header *types.Header, emptyMsg []byte) (bool, *big.Int) {
+	msg := new(types.EmptyMsg)
+	if err := msg.FromPayload(emptyMsg); err != nil {
+		return false, nil
+	}
+
+	var signature *types.SignatureData
+	err := msg.Decode(&signature)
+	if err != nil {
+		return false, nil
+	}
+
+	if header.Number.Cmp(signature.Height) == 0 {
+		return true, signature.Height
+	}
+	return false, signature.Height
 }
 
 func (w *BlockChain) GetAverageCoefficient(statedb *state.StateDB) uint64 {
