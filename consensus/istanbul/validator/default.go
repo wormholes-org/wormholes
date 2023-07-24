@@ -61,13 +61,19 @@ func newDefaultSet(addrs []common.Address, policy *istanbul.ProposerPolicy, db *
 	// init validators
 	valSet.validators = make([]istanbul.Validator, len(addrs))
 	for i, addr := range addrs {
-		valSet.validators[i] = New(addr, db.GetCoefficient(addr))
+		if db == nil {
+			valSet.validators[i] = New(addr, 0)
+		} else {
+			valSet.validators[i] = New(addr, db.GetCoefficient(addr))
+		}
 	}
 
-	valSet.SortValidators()
-
-	for i, addr := range valSet.validators {
-		log.Info("after sortValidators", "i", i, "addr", addr.String(), "Coefficient", db.GetCoefficient(addr.Address()))
+	// validators are kept the original order when db is nil
+	if db != nil {
+		valSet.SortValidators()
+		for i, addr := range valSet.validators {
+			log.Info("after sortValidators", "i", i, "addr", addr.String(), "Coefficient", db.GetCoefficient(addr.Address()))
+		}
 	}
 
 	// init proposer
