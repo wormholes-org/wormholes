@@ -260,14 +260,14 @@ func (w *Wormholes) CheckFormat() error {
 	//case 8:
 	case 9:
 	case 10:
-	case 11:
-
-		if len(w.Name) > 64 {
-			w.Name = string([]byte(w.Name)[:64])
-		}
-		if len(w.Url) > 128 {
-			w.Url = string([]byte(w.Url)[:128])
-		}
+	//case 11:
+	//
+	//	if len(w.Name) > 64 {
+	//		w.Name = string([]byte(w.Name)[:64])
+	//	}
+	//	if len(w.Url) > 128 {
+	//		w.Url = string([]byte(w.Url)[:128])
+	//	}
 
 	//case 12:
 	case 13:
@@ -372,8 +372,8 @@ func (w *Wormholes) TxGas() (uint64, error) {
 		return params.WormholesTx9, nil
 	case 10:
 		return params.WormholesTx10, nil
-	case 11:
-		return params.WormholesTx11, nil
+	//case 11:
+	//	return params.WormholesTx11, nil
 
 	//case 12:
 	//	return params.WormholesTx12, nil
